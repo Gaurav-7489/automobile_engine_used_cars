@@ -1,0 +1,1 @@
+export default function Loading(){return <main className="shell section" aria-busy="true" aria-label="Loading page"><div className="skeleton wide"/><div className="grid">{[1,2,3].map(x=><div className="card" key={x}><div className="media-placeholder"/><div className="skeleton"/><div className="skeleton"/></div>)}</div></main>}

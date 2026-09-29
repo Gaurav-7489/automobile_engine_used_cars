@@ -1,0 +1,1 @@
+"use client";export default function Error({reset}:{reset:()=>void}){return <main className="shell section"><section className="error-box" role="alert"><p className="eyebrow">Data failure</p><h1 className="page-title">This view could not be loaded.</h1><button className="button primary" onClick={reset}>Try again</button></section></main>}
