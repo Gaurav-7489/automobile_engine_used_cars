@@ -3,7 +3,7 @@ import nextVitals from "eslint-config-next/core-web-vitals.js";
 import nextTypeScript from "eslint-config-next/typescript.js";
 
 export default defineConfig([
-  ...nextVitals,
-  ...nextTypeScript,
+  nextVitals,
+  nextTypeScript,
   globalIgnores(["**/.next/**", "**/node_modules/**", "playwright-report/**", "test-results/**"]),
 ]);
