@@ -1,1 +1,23 @@
-{"name":"@vandlabs/web","private":true,"scripts":{"dev":"next dev -H 127.0.0.1 -p 3000","start":"next start -H 127.0.0.1 -p 3000","build":"next build","typecheck":"tsc --noEmit","lint":"tsc --noEmit"},"dependencies":{"@vandlabs/contracts":"workspace:*","next":"^15.5.3","react":"^19.1.1","react-dom":"^19.1.1"},"devDependencies":{"@types/node":"^24.3.1","@types/react":"^19.1.12","typescript":"^5.9.2"}}
+{
+  "name": "@vandlabs/web",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1 -p 3000",
+    "start": "next start -H 127.0.0.1 -p 3000",
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vandlabs/contracts": "workspace:*",
+    "@vandlabs/demo-data": "workspace:*",
+    "next": "^15.5.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "@types/react": "^19.1.12",
+    "typescript": "^5.9.2"
+  }
+}

@@ -1,0 +1,195 @@
+openapi: 3.1.0
+info:
+  title: VandLabs Automobile Engine BFF
+  version: 1.0.0
+  description: >
+    Proof-of-Engine HTTP contracts. These endpoints are implemented by the
+    Next.js BFF today and can later proxy API Gateway/domain services without
+    changing customer-facing UI contracts.
+servers:
+  - url: http://127.0.0.1:3000
+paths:
+  /api/health:
+    get:
+      summary: Read demo BFF health
+      responses:
+        "200":
+          description: Health snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, service, version]
+                properties:
+                  status: { type: string, const: ok }
+                  service: { type: string }
+                  version: { type: string }
+                  persistence: { type: string }
+  /api/vehicles:
+    get:
+      summary: List published vehicles
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: body
+          schema: { type: string }
+        - in: query
+          name: fuel
+          schema:
+            type: string
+            enum: [petrol, diesel, hybrid, electric]
+      responses:
+        "200":
+          description: Published vehicles matching the filters
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Vehicle" }
+                  meta:
+                    type: object
+                    properties:
+                      count: { type: integer }
+                      sourceOfTruth: { type: string }
+  /api/vehicles/{slug}:
+    get:
+      summary: Get one published vehicle
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Vehicle found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Vehicle" }
+        "404":
+          description: Unknown or unpublished vehicle
+  /api/leads:
+    post:
+      summary: Create a structured automotive lead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateLead" }
+      responses:
+        "201":
+          description: Lead accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  leadId: { type: string }
+                  stage: { type: string, const: new }
+                  vehicleId: { type: [string, "null"] }
+                  message: { type: string }
+        "400":
+          description: Invalid lead payload
+  /api/events:
+    post:
+      summary: Accept a first-party journey event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JourneyEventInput" }
+      responses:
+        "202":
+          description: Event accepted
+        "400":
+          description: Invalid event
+components:
+  schemas:
+    Vehicle:
+      type: object
+      required:
+        - id
+        - slug
+        - tenantId
+        - dealershipId
+        - locationId
+        - make
+        - model
+        - variant
+        - year
+        - price
+        - mileage
+        - availabilityStatus
+        - publishStatus
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        tenantId: { type: string }
+        dealershipId: { type: string }
+        locationId: { type: string }
+        stockId: { type: string }
+        make: { type: string }
+        model: { type: string }
+        variant: { type: string }
+        year: { type: integer }
+        price: { type: number }
+        mileage: { type: number }
+        fuelType:
+          type: string
+          enum: [petrol, diesel, hybrid, electric]
+        transmission:
+          type: string
+          enum: [manual, automatic]
+        availabilityStatus:
+          type: string
+          enum: [available, reserved, sold]
+        publishStatus:
+          type: string
+          enum: [draft, published, archived]
+    CreateLead:
+      type: object
+      required: [name, phone]
+      properties:
+        name: { type: string, minLength: 1 }
+        phone: { type: string, minLength: 1 }
+        email: { type: string }
+        intent:
+          type: string
+          enum: [enquiry, test_drive, finance, exchange]
+        vehicleId: { type: string }
+        notes: { type: string }
+        whatsappConsent: { type: boolean }
+        marketingConsent: { type: boolean }
+        attribution:
+          type: object
+          additionalProperties: true
+    JourneyEventInput:
+      type: object
+      required: [type, sessionId]
+      properties:
+        type:
+          type: string
+          enum:
+            - page_view
+            - inventory_search
+            - vehicle_view
+            - compare
+            - whatsapp_click
+            - call_click
+            - lead_created
+            - test_drive_requested
+            - finance_interest
+            - exchange_interest
+        sessionId: { type: string }
+        path: { type: string }
+        vehicleId: { type: string }
+        source: { type: string }
+        campaign: { type: string }

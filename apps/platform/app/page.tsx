@@ -1,1 +1,77 @@
-export default function Page(){return <main><p className="muted">Platform Control Center · V0.1</p><h1 className="big">The network, clearly.</h1><div className="grid"><section className="panel"><h2>1 organization</h2><p className="muted">Apex Automotive Group</p></section><section className="panel"><h2>1 dealership</h2><p className="muted">Apex Select Cars</p></section><section className="panel"><h2>2 locations</h2><p className="muted">Kochi · Bengaluru</p></section><section className="panel"><h2>Healthy</h2><p className="muted">Demo platform services</p></section><section className="panel"><h2>4 entitlements</h2><p className="muted">Inventory · Compare · Finance · Exchange</p></section><section className="panel"><h2>Mock adapters</h2><p className="muted">Production integrations intentionally disconnected.</p></section></div></main>}
+import Link from "next/link";
+import {
+  healthSignals,
+  integrationAdapters,
+  platformUsage,
+  tenantRegistry,
+} from "../lib/data";
+
+export default function Page() {
+  const tenant = tenantRegistry[0];
+  return (
+    <main>
+      <div className="hero">
+        <div>
+          <p className="eyebrow">VandLabs-only operating plane</p>
+          <h1>The network, clearly.</h1>
+          <p className="lede">
+            Tenant onboarding, entitlements, release controls, integration health
+            and support access remain separate from dealership operations.
+          </p>
+        </div>
+        <div className="status-card">
+          <span className="status-dot" />
+          <strong>{tenant.status}</strong>
+          <small>{tenant.organization} · {tenant.region}</small>
+        </div>
+      </div>
+
+      <section className="metrics">
+        <article><span>Tenants</span><strong>{platformUsage.tenants}</strong></article>
+        <article><span>Dealerships</span><strong>{platformUsage.dealerships}</strong></article>
+        <article><span>Locations</span><strong>{platformUsage.locations}</strong></article>
+        <article><span>Published vehicles</span><strong>{platformUsage.publishedVehicles}</strong></article>
+        <article><span>Failed jobs</span><strong>{platformUsage.failedJobs}</strong></article>
+        <article><span>AI cost</span><strong>₹{platformUsage.aiCost}</strong></article>
+      </section>
+
+      <div className="overview-grid">
+        <section className="panel">
+          <div className="panel-head"><div><p className="eyebrow">Tenant registry</p><h2>Reference dealership</h2></div><Link href="/dealerships">Open →</Link></div>
+          <dl className="key-values">
+            <div><dt>Organization</dt><dd>{tenant.organization}</dd></div>
+            <div><dt>Dealership</dt><dd>{tenant.dealership}</dd></div>
+            <div><dt>Custom domain</dt><dd>{tenant.domain}</dd></div>
+            <div><dt>Commercial package</dt><dd>{tenant.package}</dd></div>
+          </dl>
+        </section>
+
+        <section className="panel">
+          <div className="panel-head"><div><p className="eyebrow">System health</p><h2>Current boundaries</h2></div><Link href="/health">Details →</Link></div>
+          <div className="stack">
+            {healthSignals.slice(0, 4).map((item) => (
+              <div className="row" key={item.system}>
+                <div><strong>{item.system}</strong><small>{item.detail}</small></div>
+                <span className={"pill " + item.status}>{item.status}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel wide">
+          <div className="panel-head"><div><p className="eyebrow">Integration Hub</p><h2>Normalized adapters</h2></div><Link href="/integrations">Registry →</Link></div>
+          <div className="adapter-grid">
+            {integrationAdapters.map((adapter) => (
+              <article key={adapter.name}>
+                <span>{adapter.category}</span>
+                <strong>{adapter.name}</strong>
+                <small>{adapter.mode}</small>
+                <em className={"pill " + adapter.status.replaceAll(" ", "-")}>{adapter.status}</em>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}

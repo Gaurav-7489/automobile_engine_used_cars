@@ -1,0 +1,10 @@
+{
+  "name": "@vandlabs/demo-data",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runtime": "./src/runtime.ts"
+  },
+  "dependencies": { "@vandlabs/contracts": "workspace:*" }
+}

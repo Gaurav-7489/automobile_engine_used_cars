@@ -1,43 +1,114 @@
-# Automobile Engine Architecture — V0.1
+# Automobile Engine Architecture — V1 Proof-of-Engine
+
+## Architecture style
+
+Automobile Engine starts as a disciplined modular monorepo with hard domain boundaries. It is deliberately not split into microservices early. A module becomes a separate service only when independent scaling, fault isolation, deployment cadence or team ownership creates measurable value.
 
 ## Monorepo
+
 pnpm + Turborepo coordinates three Next.js applications and shared packages.
 
-## Applications
-Public Experience is server-renderable and SEO-oriented. Command Center is the dealership operating shell. Platform Control Center is the separate VandLabs network-management shell.
+### Applications
 
-## Tenant model
-VandLabs → Organization / Dealer Group → Dealership / Brand → Location. Public experience identity is read from typed tenant configuration rather than scattered brand strings.
+- **Public Experience** — SEO-oriented dealership experience, Inventory Hub discovery, vehicle detail, compare and conversion.
+- **Command Center** — dealership Growth / Sales OS for leads, pipeline, customers, tasks, appointments, inventory and intelligence.
+- **Platform Control Center** — VandLabs-only network operations for tenants, onboarding, entitlements, feature rollout, integrations, health and audit.
 
-## Vehicle model
-Canonical Vehicle owns identity, tenant/dealership/location keys, commercial facts, specifications, media, lifecycle status, source metadata and finance/exchange eligibility.
+### Shared packages
 
-## Repository abstraction
-UI → Application Service → Repository Interface → Mock Adapter. VehicleRepository, TenantRepository, LeadRepository and AnalyticsRepository define the current boundary. API/AWS adapters can replace mocks later without teaching components about infrastructure.
+- `@vandlabs/contracts` — canonical domain and repository contracts.
+- `@vandlabs/demo-data` — reference tenant/inventory/CRM/analytics fixtures plus local demo persistence.
+- `@vandlabs/design-system` — shared primitive/token foundation.
+
+## Tenant hierarchy
+
+```text
+VandLabs
+  → Organization / Dealer Group
+      → Dealership / Brand
+          → Location
+              → Users / Inventory / Leads / Campaigns / Analytics
+```
+
+The V1 reference implementation uses strong explicit tenant/dealership/location keys in the domain model. Production persistence later adds database scoping, PostgreSQL RLS where appropriate, service authorization, tenant-scoped cache/search/storage and automated cross-tenant isolation tests.
+
+## Vehicle Inventory Hub
+
+The canonical vehicle record owns identity, tenant/dealership/location keys, commercial facts, specifications, media, lifecycle status, source metadata and finance/exchange eligibility. Public inventory and staff inventory read the same record. External DMS/CRM/marketplace sources will be adapters/projections rather than uncontrolled sources of truth.
+
+## Progressive customer identity
+
+```text
+Anonymous Visitor → Lead → Customer → Optional Account
+```
+
+Browsing, enquiry, WhatsApp, calls and test-drive requests do not require customer signup.
+
+## Customer journey & attribution
+
+The public app captures permitted source/campaign context and records page, vehicle and conversion events through the BFF contract. Leads preserve first-touch, last-touch and vehicle-interest context. The system does not claim CAC/ROAS or perfect attribution unless downstream cost/outcome evidence exists.
+
+## CRM / Sales OS
+
+The automotive pipeline is:
+
+```text
+NEW → CONTACTED → QUALIFIED → APPOINTMENT → VISITED → TEST DRIVE
+    → NEGOTIATION → WON / LOST / NURTURE
+```
+
+Lead profiles preserve vehicle interest, acquisition context, consent, ownership, tasks and appointments. Automation and AI may assist later, but human handoff remains fundamental.
+
+## Current request path
+
+```text
+Browser
+  → Next.js Experience Layer
+  → application service
+  → repository interface
+  → demo adapter / local runtime file
+```
+
+HTTP BFF routes already expose health, vehicles, leads and events so the frontend contract is not tied to the demo repository.
+
+## Production AWS request path
+
+```text
+Customer
+  → DNS / WAF / CloudFront
+  → Next.js Experience Layer
+  → Next.js BFF
+  → API Gateway / domain APIs
+  → Aurora PostgreSQL
+  → S3 / Redis / search
+  → SQS + EventBridge + workers
+  → analytics / observability / integrations
+```
+
+See `docs/aws-integration.md` for the migration sequence.
 
 ## Experience Engine
-V0.1 provides typed brand, theme, typography, navigation, SEO defaults, feature entitlements and experience switches. This is intentionally not a page builder.
 
-## Command Center
-Routes cover overview, leads, inventory, customers, pipeline, appointments, analytics and settings. These are professional shells only; V0.1 does not implement a full CRM.
+Brand, typography, colors, navigation, contact details, SEO defaults, entitlements and experience switches are typed tenant configuration. Premium custom components can exist without forking the shared core platform.
 
-## Platform Control Center
-Routes cover overview, dealerships, organizations, onboarding, health, integrations and features. Demonstration information models VandLabs operating a network without implementing production tenant management.
+## Platform controls
 
-## SEO
-Public routes remain server-renderable. The vehicle route generates metadata. Robots and sitemap endpoints exist, with platform/command areas excluded from crawling. Structured-data helpers are the next safe enhancement once a real canonical production domain is configured.
+Commercial package, entitlement and feature-rollout concerns are separate:
 
-## Loading and failure
-The public app uses contextual skeletons, a route error boundary, empty inventory state and explicit not-found handling. Staff surfaces retain immediate application shells.
+- **Package**: commercial bundle.
+- **Entitlement**: capability the tenant may access.
+- **Feature flag**: rollout control for code exposure.
 
-## Performance and accessibility
-Server Components remain the default. Client JS is limited to the public error retry boundary. Layouts use responsive grids, minimum touch targets, focus-visible styling and reduced-motion support. Media placeholders avoid layout shift until a production media source is attached.
+The Platform Control Center also establishes managed onboarding, integration registry, health boundaries and audited VandLabs support access.
+
+## Reliability and security direction
+
+Production integration must add Cognito, MFA for privileged users, capability-based RBAC, server-side authorization, WAF/rate limits, signed object storage, KMS/Secrets Manager, audit logs, OpenTelemetry, PITR/versioning, retry/idempotency/DLQ patterns and tested restore procedures.
 
 ## Testing
-Playwright smoke coverage targets homepage, inventory, vehicle detail, compare, contact, invalid vehicle, responsive overflow, Command Center and Platform Control Center. TypeScript/build commands run through Turborepo.
 
-## Future AWS integration
-Planned adapter path: Next.js BFF → AWS API Gateway → domain services → Aurora PostgreSQL/S3/Redis/event workers. AWS is intentionally not provisioned in V0.1.
+Playwright covers the public experience, inventory, vehicle detail, compare, conversion BFF, 404 behavior, mobile overflow, Command Center and Platform Control Center. TypeScript/build/lint are orchestrated from the root. Final deployment requires the launch checklist in `docs/launch-qa.md`.
 
-## Not in V0.1
-Production AWS/auth/database, advanced CRM, AI, advanced analytics, DMS/messaging/finance/valuation integrations, workshop, parts, insurance, customer garage, billing, native apps, full automation engine and workflow builder.
+## V1 boundary
+
+The Proof-of-Engine stops before workshop/service, parts, insurance, customer garage, native apps, advanced AI, full DMS/CRM/WhatsApp/lender/valuation integrations and fully self-service SaaS provisioning.

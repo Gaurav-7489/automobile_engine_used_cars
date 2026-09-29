@@ -1,1 +1,24 @@
-import Link from"next/link";import{dealershipService}from"../../lib/services";import{money,number}from"../../lib/format";export const metadata={title:"Inventory"};export default async function Page(){const cars=await dealershipService.inventory();return <main className="shell section"><p className="eyebrow">Inventory · {cars.length} vehicles</p><h1 className="page-title">Available now.</h1>{cars.length?<div className="grid">{cars.map(v=><Link className="card" href={"/vehicles/"+v.slug} key={v.id}><div className="media-placeholder">{v.make[0]}{v.model[0]}</div><span className="meta">{v.stockId} · {v.year}</span><h2>{v.make} {v.model}</h2><p>{v.variant}</p><span>{number(v.mileage)} km · {v.fuelType}</span><strong className="price">{money(v.price)}</strong></Link>)}</div>:<section><h2>No vehicles currently published</h2><p>Please check back shortly.</p></section>}</main>}
+import { dealershipService } from "../../lib/services";
+import { InventoryBrowser } from "../../components/inventory-browser";
+
+export const metadata = {
+  title: "Inventory",
+  description:
+    "Browse verified premium pre-owned vehicles with structured search, filters and compare.",
+};
+
+export default async function Page() {
+  const vehicles = await dealershipService.inventory();
+
+  return (
+    <main className="shell section">
+      <p className="eyebrow">Vehicle Inventory Hub · {vehicles.length} published</p>
+      <h1 className="page-title">Available now.</h1>
+      <p className="lede">
+        Search by the facts that matter. The list below comes from the canonical
+        VandLabs vehicle model for this dealership.
+      </p>
+      <InventoryBrowser vehicles={vehicles} />
+    </main>
+  );
+}

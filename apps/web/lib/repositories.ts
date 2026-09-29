@@ -1,1 +1,74 @@
-import type{AnalyticsRepository,LeadRepository,TenantRepository,Vehicle,VehicleRepository}from"@vandlabs/contracts";import{tenantConfig}from"./config";const now="2026-09-29T00:00:00Z";const raw=[["bmw-330li-2024","BMW","330Li","M Sport Pro",2024,5850000,9200,"petrol","Sedan","Mineral White","loc-kochi"],["mercedes-glc-300-2023","Mercedes-Benz","GLC","300 4MATIC",2023,6990000,14800,"petrol","SUV","Obsidian Black","loc-bengaluru"],["audi-q5-technology-2023","Audi","Q5","Technology",2023,6150000,18700,"petrol","SUV","Navarra Blue","loc-kochi"],["volvo-xc60-b5-2024","Volvo","XC60","B5 Ultimate",2024,6480000,7600,"hybrid","SUV","Crystal White","loc-bengaluru"],["bmw-x3-20d-2022","BMW","X3","xDrive20d",2022,5290000,26400,"diesel","SUV","Brooklyn Grey","loc-kochi"],["mercedes-c220d-2023","Mercedes-Benz","C-Class","C 220d",2023,5725000,17100,"diesel","Sedan","Selenite Grey","loc-bengaluru"],["audi-a6-technology-2022","Audi","A6","Technology",2022,5480000,22900,"petrol","Sedan","Mythos Black","loc-kochi"],["volvo-s90-b5-2023","Volvo","S90","B5 Ultimate",2023,5990000,12100,"hybrid","Sedan","Onyx Black","loc-bengaluru"],["bmw-x1-18d-2024","BMW","X1","sDrive18d M Sport",2024,4890000,6100,"diesel","SUV","Storm Bay","loc-kochi"],["mercedes-a200-2023","Mercedes-Benz","A-Class","A 200",2023,3990000,11400,"petrol","Sedan","Polar White","loc-bengaluru"],["toyota-fortuner-4x4-2022","Toyota","Fortuner","4x4 AT",2022,3790000,31200,"diesel","SUV","Attitude Black","loc-kochi"],["skoda-kodiaq-lk-2023","Skoda","Kodiaq","L&K",2023,3490000,16400,"petrol","SUV","Moon White","loc-bengaluru"],["jeep-meridian-limited-2023","Jeep","Meridian","Limited (O)",2023,3190000,20800,"diesel","SUV","Brilliant Black","loc-kochi"],["hyundai-ioniq5-2024","Hyundai","IONIQ 5","RWD",2024,3890000,8400,"electric","SUV","Gravity Gold","loc-bengaluru"]];export const vehicles:Vehicle[]=raw.map((x,i)=>({id:`veh-${i+1}`,slug:x[0] as string,tenantId:"tenant-apex",dealershipId:"dealer-select",locationId:x[10] as string,stockId:`ASC-${String(i+1).padStart(3,"0")}`,make:x[1] as string,model:x[2] as string,variant:x[3] as string,year:x[4] as number,price:x[5] as number,mileage:x[6] as number,fuelType:x[7] as Vehicle["fuelType"],transmission:"automatic",ownership:1,bodyType:x[8] as string,condition:"excellent",exteriorColor:x[9] as string,interiorColor:"Black",features:["360° camera","Wireless smartphone integration","Adaptive cruise control","Powered front seats"],specifications:{engine:x[7]==="electric"?"Permanent magnet electric motor":"2.0L class powertrain",seats:5,registration:x[10]==="loc-kochi"?"Kerala":"Karnataka"},media:[],availabilityStatus:i===7?"reserved":"available",publishStatus:"published",source:"dealer",externalId:`APEX-${1000+i}`,financeEligible:true,exchangeEligible:true,createdAt:now,updatedAt:now}));export const vehicleRepository:VehicleRepository={async listPublished(){return vehicles.filter(x=>x.publishStatus==="published")},async findPublishedBySlug(slug){return vehicles.find(x=>x.slug===slug&&x.publishStatus==="published")??null}};export const tenantRepository:TenantRepository={async getActive(){return tenantConfig}};export const leadRepository:LeadRepository={async listRecent(){return[{id:"lead-1",name:"Arjun Nair",vehicleId:"veh-1",channel:"web",status:"new",createdAt:now},{id:"lead-2",name:"Neha Rao",vehicleId:"veh-4",channel:"call",status:"contacted",createdAt:now}]}};export const analyticsRepository:AnalyticsRepository={async getSnapshot(){return{inventory:vehicles.length,available:vehicles.filter(x=>x.availabilityStatus==="available").length,leads:18,appointments:5}}};
+import type {
+  AnalyticsRepository,
+  Lead,
+  LeadRepository,
+  TenantRepository,
+  VehicleRepository,
+} from "@vandlabs/contracts";
+import {
+  analyticsSnapshot,
+  leads,
+  tenantConfig,
+  vehicles,
+} from "@vandlabs/demo-data";
+import {
+  persistRuntimeLead,
+  readRuntimeLeads,
+} from "@vandlabs/demo-data/runtime";
+
+const allLeads = () => [...readRuntimeLeads(), ...leads];
+
+export const vehicleRepository: VehicleRepository = {
+  async listPublished() {
+    return vehicles.filter((vehicle) => vehicle.publishStatus === "published");
+  },
+  async findPublishedBySlug(slug) {
+    return (
+      vehicles.find(
+        (vehicle) =>
+          vehicle.slug === slug && vehicle.publishStatus === "published",
+      ) ?? null
+    );
+  },
+  async findByIds(ids) {
+    return vehicles.filter((vehicle) => ids.includes(vehicle.id));
+  },
+};
+
+export const tenantRepository: TenantRepository = {
+  async getActive() {
+    return tenantConfig;
+  },
+};
+
+export const leadRepository: LeadRepository = {
+  async listRecent() {
+    return allLeads().slice(0, 20);
+  },
+  async findById(id) {
+    return allLeads().find((lead) => lead.id === id) ?? null;
+  },
+  async create(input) {
+    const timestamp = new Date().toISOString();
+    const lead: Lead = {
+      ...input,
+      id: "lead-demo-" + Date.now(),
+      stage: "new",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    persistRuntimeLead(lead);
+    return lead;
+  },
+};
+
+export const analyticsRepository: AnalyticsRepository = {
+  async getSnapshot() {
+    const runtimeLeads = readRuntimeLeads();
+    return {
+      ...analyticsSnapshot,
+      leads: analyticsSnapshot.leads + runtimeLeads.length,
+      uncontacted: analyticsSnapshot.uncontacted + runtimeLeads.length,
+    };
+  },
+};
