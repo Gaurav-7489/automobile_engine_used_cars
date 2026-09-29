@@ -1,1 +1,126 @@
-import Link from"next/link";import{dealershipService}from"../lib/services";import{money,number}from"../lib/format";export default async function Page(){const{tenant,featured}=await dealershipService.home();const dealer=tenant.organization.dealerships.find(x=>x.id===tenant.activeDealershipId)!;return <main><header className="shell nav"><Link className="brand" href="/">{tenant.brand.logoText}</Link><nav aria-label="Primary">{tenant.navigation.map(x=><Link key={x.href} href={x.href}>{x.label}</Link>)}</nav></header><section className="shell hero"><div><p className="eyebrow">{dealer.name} · {dealer.locations.map(x=>x.city).join(" / ")}</p><h1>Cars worth arriving in.</h1><p className="lede">{tenant.brand.tagline} Browse verified, clearly presented pre-owned vehicles without the usual noise.</p><div className="actions"><Link className="button primary" href="/inventory">Explore inventory</Link><Link className="button" href="/contact">Talk to us</Link></div></div></section><section className="shell section"><div className="sectionhead"><div><p className="eyebrow">Featured inventory</p><h2>Recently selected</h2></div><Link href="/inventory">View all vehicles →</Link></div><div className="grid">{featured.map(v=><Link className="card" href={"/vehicles/"+v.slug} key={v.id}><div className="media-placeholder" aria-label={"Media placeholder for "+v.make+" "+v.model}>{v.make.slice(0,1)}{v.model.slice(0,1)}</div><span className="meta">{v.year} · {number(v.mileage)} km</span><h3>{v.make} {v.model}</h3><p>{v.variant}</p><strong className="price">{money(v.price)}</strong></Link>)}</div></section></main>}
+import Link from "next/link";
+import { dealershipService } from "../lib/services";
+import { number } from "../lib/format";
+import { dealershipJsonLd } from "../lib/seo";
+import { VehicleCard } from "../components/vehicle-card";
+
+export default async function Page() {
+  const { tenant, featured, snapshot } = await dealershipService.home();
+  const dealer = tenant.organization.dealerships.find(
+    (item) => item.id === tenant.activeDealershipId,
+  )!;
+
+  return (
+    <main>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(dealershipJsonLd(tenant)),
+        }}
+      />
+
+      <section className="shell hero">
+        <div className="hero-copy">
+          <p className="eyebrow">
+            {dealer.name} · {dealer.locations.map((item) => item.city).join(" / ")}
+          </p>
+          <h1>Cars worth arriving in.</h1>
+          <p className="lede">
+            Verified premium pre-owned inventory, presented with the context you
+            actually need to decide.
+          </p>
+          <div className="actions">
+            <Link className="button primary" href="/inventory">
+              Explore {snapshot.available} available cars
+            </Link>
+            <Link className="button" href="/contact">
+              Speak to a specialist
+            </Link>
+          </div>
+        </div>
+        <div className="hero-facts" aria-label="Dealership facts">
+          <div>
+            <strong>{snapshot.inventory}</strong>
+            <span>published vehicles</span>
+          </div>
+          <div>
+            <strong>2</strong>
+            <span>studio locations</span>
+          </div>
+          <div>
+            <strong>{number(100)}%</strong>
+            <span>vehicle context preserved</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="shell section">
+        <div className="sectionhead">
+          <div>
+            <p className="eyebrow">Featured inventory</p>
+            <h2>Recently selected.</h2>
+          </div>
+          <Link href="/inventory">View all vehicles →</Link>
+        </div>
+        <div className="inventory-grid">
+          {featured.map((vehicle) => (
+            <VehicleCard key={vehicle.id} vehicle={vehicle} />
+          ))}
+        </div>
+      </section>
+
+      <section className="shell section split-section">
+        <div>
+          <p className="eyebrow">No pressure, more signal</p>
+          <h2>Discovery built around the vehicle.</h2>
+        </div>
+        <div className="feature-stack">
+          <article>
+            <span>01</span>
+            <div>
+              <h3>Verified inventory facts</h3>
+              <p>
+                Price, mileage, condition, availability and specifications come
+                from the canonical vehicle record.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span>02</span>
+            <div>
+              <h3>Compare without losing context</h3>
+              <p>
+                Shortlist up to three cars and review the commercial and technical
+                differences side by side.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span>03</span>
+            <div>
+              <h3>One step to a human</h3>
+              <p>
+                WhatsApp, call, enquiry, finance, exchange and test-drive intent
+                all preserve the vehicle that started the conversation.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section className="dark-band">
+        <div className="shell band-grid">
+          <div>
+            <p className="eyebrow light">Powered by VandLabs Automobile Engine</p>
+            <h2>The website is the front door, not the whole building.</h2>
+          </div>
+          <p>
+            Every permitted source, campaign and vehicle interaction can flow
+            into a structured lead, sales follow-up and trustworthy reporting
+            without forcing a customer account.
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}
