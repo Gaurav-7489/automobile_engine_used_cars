@@ -12,6 +12,16 @@ const compat = new FlatCompat({
 export default [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
+    settings: {
+      react: {
+        version: "19.1",
+      },
+    },
+    rules: {
+      "@next/next/no-html-link-for-pages": "off",
+    },
+  },
+  {
     ignores: [
       "**/.next/**",
       "**/node_modules/**",
