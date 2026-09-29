@@ -1,0 +1,1 @@
+import"./globals.css";export const metadata={title:"Apex Select Cars | Automobile Engine",description:"Premium used cars powered by VandLabs."};export default function Layout({children}:{children:React.ReactNode}){return <html lang="en"><body>{children}</body></html>}

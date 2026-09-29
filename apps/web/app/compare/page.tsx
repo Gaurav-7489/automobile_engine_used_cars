@@ -1,0 +1,1 @@
+export default function Page(){return <main className="shell section"><p className="eyebrow">Compare</p><h1>Make the differences obvious.</h1><p className="lede">Comparison shell ready for typed vehicle selection.</p></main>}

@@ -1,0 +1,1 @@
+export default function Page(){return <main className="shell section"><p className="eyebrow">Inventory</p><h1>Available now.</h1><p className="lede">V0.1 inventory route and vehicle-commerce boundary are established. Typed repository-backed discovery follows inside this version.</p></main>}
