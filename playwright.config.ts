@@ -13,19 +13,19 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "pnpm --filter @vandlabs/web dev --hostname 127.0.0.1",
+      command: "pnpm --filter @vandlabs/web start",
       url: publicURL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
     },
     {
-      command: "pnpm --filter @vandlabs/command-center dev --hostname 127.0.0.1",
+      command: "pnpm --filter @vandlabs/command-center start",
       url: commandURL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
     },
     {
-      command: "pnpm --filter @vandlabs/platform dev --hostname 127.0.0.1",
+      command: "pnpm --filter @vandlabs/platform start",
       url: platformURL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
     },
   ],
   projects: [
