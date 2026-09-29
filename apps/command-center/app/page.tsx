@@ -2,13 +2,17 @@ import Link from "next/link";
 import {
   analyticsSnapshot,
   appointments,
-  leads,
+  leads as seededLeads,
   tasks,
   vehicleById,
 } from "@vandlabs/demo-data";
+import { readRuntimeLeads } from "@vandlabs/demo-data/runtime";
 import { shortDateTime } from "../lib/format";
 
+export const dynamic = "force-dynamic";
+
 export default function Page() {
+  const leads = [...readRuntimeLeads(), ...seededLeads];
   const openTasks = tasks.filter((task) => !task.completed);
   const todaysAppointments = appointments.filter(
     (appointment) => appointment.status === "scheduled",
@@ -22,7 +26,7 @@ export default function Page() {
           <p className="eyebrow">Dealership Growth / Sales OS</p>
           <h1>Today, at a glance.</h1>
           <p className="muted">
-            Kochi + Bengaluru · operational signals from the seeded V1 reference
+            Kochi + Bengaluru · operational signals from the V1 reference
             dealership.
           </p>
         </div>
@@ -32,8 +36,8 @@ export default function Page() {
       <section className="metrics" aria-label="Operational metrics">
         <article className="metric-card">
           <span>Open leads</span>
-          <strong>{analyticsSnapshot.leads - analyticsSnapshot.wins}</strong>
-          <small>{analyticsSnapshot.uncontacted} awaiting first contact</small>
+          <strong>{leads.filter((lead) => !["won", "lost"].includes(lead.stage)).length}</strong>
+          <small>{leads.filter((lead) => lead.stage === "new").length} awaiting first contact</small>
         </article>
         <article className="metric-card">
           <span>Available cars</span>

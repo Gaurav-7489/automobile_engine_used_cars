@@ -6,7 +6,10 @@ import {
   tasks,
   vehicleById,
 } from "@vandlabs/demo-data";
+import { readRuntimeLeads } from "@vandlabs/demo-data/runtime";
 import { labelize, shortDateTime } from "../../../lib/format";
+
+export const dynamic = "force-dynamic";
 
 export default async function LeadPage({
   params,
@@ -14,7 +17,8 @@ export default async function LeadPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const lead = leadById(id);
+  const lead =
+    readRuntimeLeads().find((item) => item.id === id) ?? leadById(id);
   if (!lead) notFound();
 
   const vehicle = vehicleById(lead.vehicleId);
@@ -78,42 +82,39 @@ export default async function LeadPage({
         </section>
 
         <section className="panel">
-          <p className="eyebrow">Tasks</p>
-          <h2>Follow-up</h2>
+          <p className="eyebrow">Journey context</p>
+          <h2>Attribution</h2>
+          <dl className="key-values">
+            <div><dt>First touch</dt><dd>{lead.journey?.firstTouch?.source ?? lead.source}</dd></div>
+            <div><dt>Last touch</dt><dd>{lead.journey?.lastTouch?.source ?? lead.source}</dd></div>
+            <div><dt>Campaign</dt><dd>{lead.campaign ?? "—"}</dd></div>
+            <div><dt>Vehicle interests</dt><dd>{lead.journey?.vehicleInterestHistory.length ?? lead.vehicleIds.length}</dd></div>
+          </dl>
+        </section>
+
+        <section className="panel">
+          <p className="eyebrow">Tasks / appointments</p>
+          <h2>Next action</h2>
           {leadTasks.length ? (
             <div className="stack-list">
               {leadTasks.map((task) => (
                 <div className="list-row" key={task.id}>
-                  <div>
-                    <strong>{task.title}</strong>
-                    <span>{task.owner}</span>
-                  </div>
+                  <div><strong>{task.title}</strong><span>{task.owner}</span></div>
                   <small>{shortDateTime(task.dueAt)}</small>
                 </div>
               ))}
             </div>
-          ) : (
-            <p className="muted">No open task in the seeded demo.</p>
-          )}
-        </section>
-
-        <section className="panel">
-          <p className="eyebrow">Appointments</p>
-          <h2>Visit / test drive</h2>
-          {leadAppointments.length ? (
+          ) : leadAppointments.length ? (
             <div className="stack-list">
               {leadAppointments.map((appointment) => (
                 <div className="list-row" key={appointment.id}>
-                  <div>
-                    <strong>{labelize(appointment.type)}</strong>
-                    <span>{appointment.status}</span>
-                  </div>
+                  <div><strong>{labelize(appointment.type)}</strong><span>{appointment.status}</span></div>
                   <small>{shortDateTime(appointment.scheduledAt)}</small>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="muted">No appointment scheduled.</p>
+            <p className="muted">No next action is seeded yet. Assign a human follow-up.</p>
           )}
         </section>
       </div>

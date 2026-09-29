@@ -1,4 +1,5 @@
 import { LeadForm } from "../../components/lead-form";
+import { TrackedAction } from "../../components/tracked-action";
 import { activeDealership, tenantConfig } from "../../lib/config";
 
 export const metadata = {
@@ -8,6 +9,10 @@ export const metadata = {
 };
 
 export default function Page() {
+  const whatsapp =
+    "https://wa.me/" +
+    tenantConfig.contact.whatsapp.replace(/[^0-9]/g, "");
+
   return (
     <main className="shell section">
       <div className="contact-layout">
@@ -19,19 +24,17 @@ export default function Page() {
             test drive. No account required.
           </p>
           <div className="contact-cards">
-            <a href={"tel:" + tenantConfig.contact.phone}>
+            <TrackedAction
+              href={"tel:" + tenantConfig.contact.phone}
+              eventType="call_click"
+            >
               <span>Call</span>
               <strong>{tenantConfig.contact.phone}</strong>
-            </a>
-            <a
-              href={
-                "https://wa.me/" +
-                tenantConfig.contact.whatsapp.replace(/[^0-9]/g, "")
-              }
-            >
+            </TrackedAction>
+            <TrackedAction href={whatsapp} eventType="whatsapp_click">
               <span>WhatsApp</span>
               <strong>Open conversation</strong>
-            </a>
+            </TrackedAction>
             {activeDealership.locations.map((location) => (
               <div key={location.id}>
                 <span>{location.city}</span>

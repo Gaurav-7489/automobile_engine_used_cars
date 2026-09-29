@@ -1,1 +1,21 @@
-{"name":"vandlabs-automobile-engine","private":true,"packageManager":"pnpm@10.17.1","scripts":{"dev":"turbo dev","build":"turbo build","typecheck":"turbo typecheck","lint":"eslint apps packages tests playwright.config.ts","test:e2e":"playwright test"},"devDependencies":{"@eslint/eslintrc":"^3.3.1","@playwright/test":"^1.55.0","eslint":"^9.35.0","eslint-config-next":"^15.5.3","turbo":"^2.5.6","typescript":"^5.9.2"}}
+{
+  "name": "vandlabs-automobile-engine",
+  "private": true,
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "lint": "eslint apps packages tests playwright.config.ts",
+    "test:e2e": "playwright test",
+    "qa": "pnpm lint && pnpm typecheck && pnpm build && pnpm test:e2e"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@playwright/test": "^1.55.0",
+    "eslint": "^9.35.0",
+    "eslint-config-next": "^15.5.3",
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.2"
+  }
+}

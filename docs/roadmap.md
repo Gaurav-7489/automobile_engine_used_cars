@@ -1,19 +1,19 @@
-# Automobile Engine delivery roadmap
+# Automobile Engine Delivery Roadmap
 
-The build is intentionally staged so the first reference dealership grows from a stable platform foundation into the complete V1 Proof-of-Engine.
+The original implementation stages are retained so agents can see how the repository reached the V1 Proof-of-Engine.
 
-| Stage | Outcome |
-| --- | --- |
-| V0.1 | Foundation: pnpm/Turborepo, three Next.js apps, typed contracts, tenancy/config foundation, seeded vehicles, basic public routes, staff/platform shells, SEO/error/testing baseline. |
-| V0.2 | Dealership Experience: complete premium public shell, reusable navigation/footer, brand-led homepage, trust/content modules and stronger responsive presentation. |
-| V0.3 | Inventory & Discovery: canonical Inventory Hub surfaced through search, filters, sort, compare and richer vehicle detail/specification pages. |
-| V0.4 | Conversion Engine: WhatsApp/call/enquiry/test-drive/finance/exchange intent, source/UTM journey context, vehicle-level conversion events and contract-first lead capture. |
-| V0.5 | CRM & Sales OS: lead inbox/profile, opinionated automotive pipeline, tasks, appointments, test-drive workflow and customer context. |
-| V0.6 | Intelligence Command Center: business/acquisition/vehicle-demand/funnel/operations views using only seeded or recorded evidence. |
-| V0.7 | Platform Control Center: organization/dealership/location scopes, onboarding, entitlements, feature flags, integration health and audited support foundations. |
-| V0.8 | Production polish: accessibility, responsive behavior, SEO/structured data, loading/error states, event naming, test coverage and launch QA. |
-| V0.9 | AWS-ready integration boundary: BFF/API contracts, OpenAPI, health endpoints and documented API Gateway/Aurora/S3/EventBridge/SQS/Cognito/CDK path without coupling UI to infrastructure. |
-| V1.0 | Proof-of-Engine feature complete: the reference path works from acquisition/discovery through conversion, lead operations and trustworthy reporting on the shared multi-tenant architecture. |
+| Stage | Status | Outcome |
+| --- | --- | --- |
+| V0.1 | Implemented | Foundation: pnpm/Turborepo, three Next.js apps, typed contracts, tenancy/config foundation, seeded vehicles, basic routes and quality tooling. |
+| V0.2 | Implemented | Premium reusable dealership experience, shared header/footer, responsive public shell and Experience Engine configuration. |
+| V0.3 | Implemented | Inventory Hub experience with search, filters, sort, compare and richer vehicle details. |
+| V0.4 | Implemented | Conversion engine: WhatsApp/call tracking, structured enquiry/test-drive/finance/exchange intent, source/campaign context and BFF contracts. |
+| V0.5 | Implemented | Automotive CRM / Sales OS: lead inbox/profile, pipeline, customers, tasks and appointments. |
+| V0.6 | Implemented | Intelligence Command Center with acquisition, vehicle-demand, funnel and operational evidence. |
+| V0.7 | Implemented | Platform Control Center: hierarchy, onboarding, entitlements, flags, integrations, health and audit foundations. |
+| V0.8 | Implemented; QA pending | Accessibility/responsive/SEO/error-state polish, persisted local demo lead flow and expanded Playwright coverage. |
+| V0.9 | Implemented; infrastructure deferred by design | Stable BFF/OpenAPI/event contracts plus documented AWS-native migration path. |
+| V1.0 | Feature pass complete; Codex/runtime QA pending | Full reference Proof-of-Engine loop from discovery to conversion, lead operations, reporting and platform controls. |
 
 ## V1 boundary
 
@@ -21,4 +21,4 @@ V1 is the used-car Automotive Commerce & Growth Engine. Workshop/service, spare-
 
 ## Release rule
 
-The UI must continue to depend on typed domain/application contracts rather than a specific database or vendor. Deterministic business data is authoritative, customer browsing/enquiry does not require an account, and AI remains assistive rather than consequential.
+A stage marked **Implemented** means the feature/contracts are in the repository. It does **not** mean the build/browser QA is certified. Run `docs/launch-qa.md` with Codex before treating V1 as deployable.

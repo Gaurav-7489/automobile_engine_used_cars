@@ -6,6 +6,7 @@ import { locationName, tenantConfig } from "../../../lib/config";
 import { money, number } from "../../../lib/format";
 import { vehicleJsonLd } from "../../../lib/seo";
 import { LeadForm } from "../../../components/lead-form";
+import { TrackedAction } from "../../../components/tracked-action";
 import { VehicleViewEvent } from "../../../components/vehicle-view-event";
 
 type PageProps = { params: Promise<{ slug: string }> };
@@ -96,7 +97,11 @@ export default async function Page({ params }: PageProps) {
             className="vehicle-media-hero"
             role="img"
             aria-label={image?.alt ?? label}
-            style={image ? { backgroundImage: "url(" + image.url + ")" } : undefined}
+            style={
+              image
+                ? { backgroundImage: "url(" + image.url + ")" }
+                : undefined
+            }
           >
             <span className={"availability " + vehicle.availabilityStatus}>
               {vehicle.availabilityStatus}
@@ -130,7 +135,11 @@ export default async function Page({ params }: PageProps) {
               </div>
               <div>
                 <dt>Ownership</dt>
-                <dd>{vehicle.ownership === 1 ? "First owner" : vehicle.ownership}</dd>
+                <dd>
+                  {vehicle.ownership === 1
+                    ? "First owner"
+                    : vehicle.ownership + " owners"}
+                </dd>
               </div>
               <div>
                 <dt>Condition</dt>
@@ -138,12 +147,22 @@ export default async function Page({ params }: PageProps) {
               </div>
             </dl>
             <div className="actions">
-              <a className="button primary" href={whatsapp}>
+              <TrackedAction
+                className="button primary"
+                href={whatsapp}
+                eventType="whatsapp_click"
+                vehicleId={vehicle.id}
+              >
                 WhatsApp about this car
-              </a>
-              <a className="button" href={"tel:" + tenantConfig.contact.phone}>
+              </TrackedAction>
+              <TrackedAction
+                className="button"
+                href={"tel:" + tenantConfig.contact.phone}
+                eventType="call_click"
+                vehicleId={vehicle.id}
+              >
                 Call studio
-              </a>
+              </TrackedAction>
               <a className="button" href="#enquire">
                 Enquire / test drive
               </a>
@@ -181,8 +200,14 @@ export default async function Page({ params }: PageProps) {
               ))}
             </ul>
             <p className="subtle">
-              Finance: {vehicle.financeEligible ? "Eligible for discussion" : "Not available"} ·
-              Exchange: {vehicle.exchangeEligible ? "Eligible for discussion" : "Not available"}
+              Finance:{" "}
+              {vehicle.financeEligible
+                ? "Eligible for discussion"
+                : "Not available"}{" "}
+              · Exchange:{" "}
+              {vehicle.exchangeEligible
+                ? "Eligible for discussion"
+                : "Not available"}
             </p>
           </div>
         </section>
@@ -194,9 +219,9 @@ export default async function Page({ params }: PageProps) {
             <p className="eyebrow light">Keep the vehicle context</p>
             <h2>Move from interest to a real conversation.</h2>
             <p>
-              Request a test drive, discuss finance or share an exchange interest.
-              The request is tied to {vehicle.make} {vehicle.model}; no customer
-              account is required.
+              Request a test drive, discuss finance or share an exchange
+              interest. The request is tied to {vehicle.make} {vehicle.model};
+              no customer account is required.
             </p>
           </div>
           <div className="form-panel dark-form">

@@ -19,6 +19,9 @@ test-results/
 blob-report/
 playwright/.cache/
 
+# Local demo runtime
+.demo-runtime/
+
 # Environment variables
 .env
 .env.local
