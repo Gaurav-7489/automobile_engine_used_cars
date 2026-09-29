@@ -1,0 +1,1 @@
+export default function Loading(){return <main className="main" aria-busy="true"><p className="muted">Loading workspace…</p><section className="panel"/></main>}
