@@ -143,6 +143,22 @@ export interface Lead {
   updatedAt: string;
 }
 
+export interface LeadActivity {
+  id: ID;
+  tenantId: ID;
+  leadId: ID;
+  type:
+    | "stage_changed"
+    | "assignment_changed"
+    | "note_updated"
+    | "follow_up_created"
+    | "follow_up_completed"
+    | "follow_up_reopened";
+  actor: string;
+  description: string;
+  occurredAt: string;
+}
+
 export interface Task {
   id: ID;
   leadId: ID;

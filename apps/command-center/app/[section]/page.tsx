@@ -10,8 +10,12 @@ import {
   vehicleById,
   vehicles,
 } from "@vandlabs/demo-data";
-import { readRuntimeLeads } from "@vandlabs/demo-data/runtime";
+import {
+  mergeRuntimeLeads,
+  mergeRuntimeTasks,
+} from "@vandlabs/demo-data/runtime";
 import { labelize, money, number, shortDateTime } from "../../lib/format";
+import { TaskStatusButton } from "../../components/task-status-button";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +30,7 @@ const valid = new Set([
   "settings",
 ]);
 
-const allLeads = () => [...readRuntimeLeads(), ...seededLeads];
+const allLeads = () => mergeRuntimeLeads(seededLeads);
 
 function Header({
   eyebrow,
@@ -167,6 +171,7 @@ function PipelineSection() {
 
 function TasksSection() {
   const leads = allLeads();
+  const allTasks = mergeRuntimeTasks(tasks);
   return (
     <>
       <Header
@@ -184,10 +189,11 @@ function TasksSection() {
                 <th>Owner</th>
                 <th>Due</th>
                 <th>Priority</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {tasks.map((task) => (
+              {allTasks.map((task) => (
                 <tr key={task.id}>
                   <td><strong>{task.title}</strong></td>
                   <td>{leads.find((lead) => lead.id === task.leadId)?.name}</td>
@@ -197,6 +203,13 @@ function TasksSection() {
                     <span className={"priority " + task.priority}>
                       {task.priority}
                     </span>
+                  </td>
+                  <td>
+                    <TaskStatusButton
+                      taskId={task.id}
+                      title={task.title}
+                      completed={task.completed}
+                    />
                   </td>
                 </tr>
               ))}
@@ -324,7 +337,9 @@ function CustomersSection() {
 
 function AnalyticsSection() {
   const leads = allLeads();
-  const runtimeCount = Math.max(0, leads.length - seededLeads.length);
+  const runtimeCount = leads.filter(
+    (lead) => !seededLeads.some((seeded) => seeded.id === lead.id),
+  ).length;
   const sourceCounts = leads.reduce<Record<string, number>>((acc, lead) => {
     acc[lead.source] = (acc[lead.source] ?? 0) + 1;
     return acc;
@@ -346,17 +361,17 @@ function AnalyticsSection() {
         </article>
         <article className="metric-card">
           <span>Qualified+</span>
-          <strong>{analyticsSnapshot.qualified}</strong>
-          <small>seeded downstream evidence</small>
+          <strong>{leads.filter((lead) => ["qualified", "appointment", "visited", "test_drive", "negotiation", "won"].includes(lead.stage)).length}</strong>
+          <small>current downstream evidence</small>
         </article>
         <article className="metric-card">
           <span>Negotiations</span>
-          <strong>{analyticsSnapshot.negotiations}</strong>
-          <small>active seeded records</small>
+          <strong>{leads.filter((lead) => lead.stage === "negotiation").length}</strong>
+          <small>active records</small>
         </article>
         <article className="metric-card">
           <span>Wins</span>
-          <strong>{analyticsSnapshot.wins}</strong>
+          <strong>{leads.filter((lead) => lead.stage === "won").length}</strong>
           <small>recorded outcome only</small>
         </article>
       </section>

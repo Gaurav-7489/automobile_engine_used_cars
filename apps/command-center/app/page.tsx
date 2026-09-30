@@ -6,14 +6,17 @@ import {
   tasks,
   vehicleById,
 } from "@vandlabs/demo-data";
-import { readRuntimeLeads } from "@vandlabs/demo-data/runtime";
+import {
+  mergeRuntimeLeads,
+  mergeRuntimeTasks,
+} from "@vandlabs/demo-data/runtime";
 import { shortDateTime } from "../lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default function Page() {
-  const leads = [...readRuntimeLeads(), ...seededLeads];
-  const openTasks = tasks.filter((task) => !task.completed);
+  const leads = mergeRuntimeLeads(seededLeads);
+  const openTasks = mergeRuntimeTasks(tasks).filter((task) => !task.completed);
   const todaysAppointments = appointments.filter(
     (appointment) => appointment.status === "scheduled",
   );
@@ -51,8 +54,8 @@ export default function Page() {
         </article>
         <article className="metric-card">
           <span>Negotiations</span>
-          <strong>{analyticsSnapshot.negotiations}</strong>
-          <small>{analyticsSnapshot.wins} recorded win</small>
+          <strong>{leads.filter((lead) => lead.stage === "negotiation").length}</strong>
+          <small>{leads.filter((lead) => lead.stage === "won").length} recorded win</small>
         </article>
       </section>
 

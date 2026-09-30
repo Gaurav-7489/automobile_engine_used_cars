@@ -1,4 +1,5 @@
 import type {
+  AnalyticsSnapshot,
   AnalyticsRepository,
   Lead,
   LeadRepository,
@@ -12,11 +13,11 @@ import {
   vehicles,
 } from "@vandlabs/demo-data";
 import {
+  mergeRuntimeLeads,
   persistRuntimeLead,
-  readRuntimeLeads,
 } from "@vandlabs/demo-data/runtime";
 
-const allLeads = () => [...readRuntimeLeads(), ...leads];
+const allLeads = () => mergeRuntimeLeads(leads);
 
 export const vehicleRepository: VehicleRepository = {
   async listPublished() {
@@ -64,11 +65,36 @@ export const leadRepository: LeadRepository = {
 
 export const analyticsRepository: AnalyticsRepository = {
   async getSnapshot() {
-    const runtimeLeads = readRuntimeLeads();
+    const currentLeads = allLeads();
+    const stageCounts = currentLeads.reduce<AnalyticsSnapshot["stageCounts"]>(
+      (counts, lead) => {
+        counts[lead.stage] = (counts[lead.stage] ?? 0) + 1;
+        return counts;
+      },
+      {},
+    );
+    const sourceCounts = currentLeads.reduce<Record<string, number>>(
+      (counts, lead) => {
+        counts[lead.source] = (counts[lead.source] ?? 0) + 1;
+        return counts;
+      },
+      {},
+    );
+
     return {
       ...analyticsSnapshot,
-      leads: analyticsSnapshot.leads + runtimeLeads.length,
-      uncontacted: analyticsSnapshot.uncontacted + runtimeLeads.length,
+      leads: currentLeads.length,
+      uncontacted: currentLeads.filter((lead) => lead.stage === "new").length,
+      qualified: currentLeads.filter((lead) =>
+        ["qualified", "appointment", "visited", "test_drive", "negotiation", "won"].includes(lead.stage),
+      ).length,
+      testDrives: currentLeads.filter((lead) =>
+        ["test_drive", "negotiation", "won"].includes(lead.stage),
+      ).length,
+      negotiations: currentLeads.filter((lead) => lead.stage === "negotiation").length,
+      wins: currentLeads.filter((lead) => lead.stage === "won").length,
+      stageCounts,
+      sourceCounts,
     };
   },
 };

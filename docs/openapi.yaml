@@ -111,6 +111,76 @@ paths:
           description: Event accepted
         "400":
           description: Invalid event
+  /command/api/leads/{id}:
+    patch:
+      summary: Update lead stage, owner, or internal notes
+      servers:
+        - url: http://127.0.0.1:3001
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateLead" }
+      responses:
+        "200":
+          description: Lead updated and activity recorded
+        "400":
+          description: Invalid lead update
+        "404":
+          description: Lead not found in the active tenant
+  /command/api/leads/{id}/tasks:
+    post:
+      summary: Schedule a human follow-up for a lead
+      servers:
+        - url: http://127.0.0.1:3001
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateFollowUp" }
+      responses:
+        "201":
+          description: Follow-up scheduled and activity recorded
+        "400":
+          description: Invalid follow-up
+        "404":
+          description: Lead not found in the active tenant
+  /command/api/tasks/{id}:
+    patch:
+      summary: Complete or reopen a follow-up task
+      servers:
+        - url: http://127.0.0.1:3001
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [completed]
+              properties:
+                completed: { type: boolean }
+      responses:
+        "200":
+          description: Follow-up state updated and activity recorded
+        "400":
+          description: Invalid task state
+        "404":
+          description: Task not found in the active tenant
 components:
   schemas:
     Vehicle:
@@ -193,3 +263,19 @@ components:
         vehicleId: { type: string }
         source: { type: string }
         campaign: { type: string }
+    UpdateLead:
+      type: object
+      properties:
+        stage:
+          type: string
+          enum: [new, contacted, qualified, appointment, visited, test_drive, negotiation, won, lost, nurture]
+        assignedTo: { type: [string, "null"], maxLength: 100 }
+        notes: { type: string, maxLength: 2000 }
+    CreateFollowUp:
+      type: object
+      required: [title, owner, dueAt, priority]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        owner: { type: string, minLength: 1, maxLength: 100 }
+        dueAt: { type: string, format: date-time }
+        priority: { type: string, enum: [normal, high] }

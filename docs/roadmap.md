@@ -14,6 +14,7 @@ The original implementation stages are retained so agents can see how the reposi
 | V0.8 | Implemented; QA certified | Accessibility/responsive/SEO/error-state polish, persisted local demo lead flow and expanded Playwright coverage. |
 | V0.9 | Implemented; infrastructure deferred by design | Stable BFF/OpenAPI/event contracts plus documented AWS-native migration path. |
 | V1.0 | Feature pass and local runtime QA complete | Full reference Proof-of-Engine loop from discovery to conversion, lead operations, reporting and platform controls. |
+| V1.5 | In progress | Operational depth: persisted stage/owner/note changes, lead activity history and follow-up scheduling are implemented; richer workflow controls and reporting continue next. |
 
 ## V1 boundary
 

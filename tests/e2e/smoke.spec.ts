@@ -107,6 +107,38 @@ test("mobile command center keeps wide data inside its scroller", async ({ page 
   ).toBeFalsy();
 });
 
+test("command center persists lead operations and follow-up", async ({ page, request }) => {
+  const created = await request.post("/api/leads", {
+    data: {
+      name: "Operational Demo",
+      phone: "+91 90000 00002",
+      intent: "finance",
+      vehicleId: "veh-3",
+      whatsappConsent: true,
+      marketingConsent: false,
+    },
+  });
+  expect(created.status()).toBe(201);
+  const { leadId } = await created.json();
+
+  await page.goto(`http://127.0.0.1:3001/command/leads/${leadId}`);
+  await page.getByLabel("Pipeline stage").selectOption("qualified");
+  await page.getByLabel("Lead owner").selectOption("Maya");
+  await page.getByLabel("Internal note").fill("Budget confirmed; finance documents requested.");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("status", { name: "Lead update status" })).toHaveText("Saved");
+  await expect(page.locator(".stage.large")).toHaveText("Qualified");
+
+  await page.getByRole("textbox", { name: "Follow-up", exact: true }).fill("Review finance documents");
+  await page.getByLabel("Due").fill("2030-01-15T10:30");
+  await page.getByLabel("Priority").selectOption("high");
+  await page.getByRole("button", { name: "Schedule follow-up" }).click();
+  await expect(page.getByRole("status", { name: "Follow-up status" })).toHaveText("Scheduled");
+  await expect(page.getByText("Review finance documents", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Complete Review finance documents" }).click();
+  await expect(page.getByRole("button", { name: "Reopen Review finance documents" })).toBeVisible();
+});
+
 test("platform control center loads", async ({ page }) => {
   await page.goto("http://127.0.0.1:3002/platform");
   await expect(

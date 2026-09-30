@@ -50,3 +50,9 @@ The reference implementation now connects:
 The V1 MVP does not claim live production Cognito, Aurora, S3 media pipeline, Redis/OpenSearch, WAF, queues, observability, secrets management or disaster recovery. Those are the next infrastructure phase after contract stability and MVP QA.
 
 The product boundary also continues to exclude workshop/service, spare parts, customer garage, insurance, billing, native apps, advanced AI sales assistant, deep DMS/CRM integrations, full WhatsApp Business automation, lender APIs, automated valuation and self-service SaaS onboarding.
+
+## Post-V1 operational depth
+
+The first V1.5 operational slice is complete: dealership staff can update pipeline stage, assign a salesperson, record internal context, schedule and complete follow-up tasks, and review the resulting lead activity trail. Current funnel reporting resolves runtime updates over seeded records so operational edits do not inflate lead totals.
+
+The V1.5 slice passed the full `pnpm qa` gate on 2026-09-30: lint, typecheck, all production builds, and 26 desktop/mobile Playwright checks. The updated lead workspace was also visually inspected at 1440px and 390px with no page-level horizontal overflow.
