@@ -23,15 +23,11 @@ playwright/.cache/
 .demo-runtime/
 
 # Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env.*.local
+.env*
 
 # Keep environment examples
 !.env.example
+!.env.*.example
 
 # Logs
 *.log
@@ -58,6 +54,14 @@ Desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Tool caches
+.eslintcache
+.stylelintcache
+
+# Local processes
+*.pid
+*.pid.lock
 
 # Vercel
 .vercel/
