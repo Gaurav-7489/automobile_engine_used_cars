@@ -50,7 +50,7 @@ pnpm test:e2e
 pnpm qa
 ```
 
-The feature pass is intentionally separated from final Codex/browser QA. A green build and Playwright pass must be confirmed before calling a deployment production-ready.
+The V1 Proof-of-Engine feature pass and local runtime QA are complete. Production deployment still requires the infrastructure, security and operational controls listed in `docs/launch-qa.md`.
 
 ## Architecture
 

@@ -11,9 +11,9 @@ The original implementation stages are retained so agents can see how the reposi
 | V0.5 | Implemented | Automotive CRM / Sales OS: lead inbox/profile, pipeline, customers, tasks and appointments. |
 | V0.6 | Implemented | Intelligence Command Center with acquisition, vehicle-demand, funnel and operational evidence. |
 | V0.7 | Implemented | Platform Control Center: hierarchy, onboarding, entitlements, flags, integrations, health and audit foundations. |
-| V0.8 | Implemented; QA pending | Accessibility/responsive/SEO/error-state polish, persisted local demo lead flow and expanded Playwright coverage. |
+| V0.8 | Implemented; QA certified | Accessibility/responsive/SEO/error-state polish, persisted local demo lead flow and expanded Playwright coverage. |
 | V0.9 | Implemented; infrastructure deferred by design | Stable BFF/OpenAPI/event contracts plus documented AWS-native migration path. |
-| V1.0 | Feature pass complete; Codex/runtime QA pending | Full reference Proof-of-Engine loop from discovery to conversion, lead operations, reporting and platform controls. |
+| V1.0 | Feature pass and local runtime QA complete | Full reference Proof-of-Engine loop from discovery to conversion, lead operations, reporting and platform controls. |
 
 ## V1 boundary
 
@@ -21,4 +21,4 @@ V1 is the used-car Automotive Commerce & Growth Engine. Workshop/service, spare-
 
 ## Release rule
 
-A stage marked **Implemented** means the feature/contracts are in the repository. It does **not** mean the build/browser QA is certified. Run `docs/launch-qa.md` with Codex before treating V1 as deployable.
+A stage marked **Implemented** means the feature/contracts are in the repository. V1 local runtime QA was certified on 2026-09-30; production deployment still depends on the deployment-specific controls in `docs/launch-qa.md`.

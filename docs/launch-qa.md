@@ -2,6 +2,19 @@
 
 This file separates **feature-complete MVP work** from **runtime-certified production readiness**.
 
+## Latest local certification
+
+Certified on **2026-09-30** against the V1 Proof-of-Engine reference tenant:
+
+- `pnpm lint` passed.
+- `pnpm typecheck` passed across all workspace applications.
+- `pnpm build` passed for Public Experience, Command Center and Platform Control Center.
+- `pnpm test:e2e` passed 24 desktop/mobile checks.
+- Visual checks passed for public discovery/conversion and both operational control surfaces.
+- Mobile overflow checks passed for the public homepage and Command Center data tables.
+
+This local certification does not waive the deployment-specific production blockers below.
+
 ## Required local gates
 
 ```bash

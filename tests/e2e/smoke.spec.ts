@@ -96,6 +96,17 @@ test("command center CRM loads", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Lead inbox" })).toBeVisible();
 });
 
+test("mobile command center keeps wide data inside its scroller", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("http://127.0.0.1:3001/command/leads");
+  await expect(page.getByRole("heading", { name: "Lead inbox" })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    ),
+  ).toBeFalsy();
+});
+
 test("platform control center loads", async ({ page }) => {
   await page.goto("http://127.0.0.1:3002/platform");
   await expect(

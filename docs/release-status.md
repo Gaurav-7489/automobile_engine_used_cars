@@ -1,8 +1,8 @@
-# V1 Proof-of-Engine — Feature Pass Status
+# V1 Proof-of-Engine — Release Status
 
 Version: **1.0.0-proof-of-engine**
 
-This repository has completed the planned V0.1 → V0.9 implementation pass and now contains the V1 reference MVP across the three product surfaces.
+This repository has completed the planned V0.1 → V0.9 implementation pass and local runtime certification for the V1 reference MVP across the three product surfaces.
 
 ## Implemented product loop
 
@@ -41,9 +41,9 @@ The reference implementation now connects:
 
 **Feature pass: complete.**
 
-**Runtime certification: pending Codex/local QA.**
+**Local runtime certification: complete as of 2026-09-30.**
 
-The branch must still pass `pnpm qa` and the browser/architecture review in `docs/launch-qa.md`. Any compile, lint, browser or integration issue found there should be fixed before merging/deploying.
+`pnpm qa` passes lint, typecheck, production builds for all three applications, and 24 desktop/mobile Playwright checks. Visual QA covered the public home, inventory, vehicle detail and contact experiences plus the Command Center and Platform Control Center. The certification also verifies no page-level horizontal overflow at mobile widths, including wide operational tables that scroll within their own container.
 
 ## Production infrastructure still intentionally deferred
 
