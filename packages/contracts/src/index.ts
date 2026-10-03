@@ -201,6 +201,19 @@ export interface AutomationRun {
   occurredAt: string;
 }
 
+export interface CampaignTemplate {
+  id: ID;
+  tenantId: ID;
+  name: string;
+  channel: "google" | "meta" | "email" | "whatsapp" | "other";
+  source: string;
+  medium?: string;
+  campaign: string;
+  destinationPath: string;
+  vehicleId?: ID;
+  enabled: boolean;
+}
+
 export interface Appointment {
   id: ID;
   leadId: ID;
