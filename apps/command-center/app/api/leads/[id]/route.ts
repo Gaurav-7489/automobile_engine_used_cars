@@ -7,7 +7,6 @@ import {
   persistRuntimeLead,
   persistRuntimeLeadActivities,
 } from "@vandlabs/demo-data/runtime";
-import { runLeadAutomation } from "@vandlabs/demo-data/automation";
 
 const stages: LeadStage[] = [
   "new",
