@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { LeadIntent } from "@vandlabs/contracts";
 import { tenantConfig, vehicles } from "@vandlabs/demo-data";
 import { leadRepository } from "../../../lib/repositories";
+import { runLeadAutomation } from "../../../lib/automation";
 
 const validIntents: LeadIntent[] = [
   "enquiry",
@@ -100,12 +101,18 @@ export async function POST(request: Request) {
     },
   });
 
+  const automation = runLeadAutomation(lead, "lead_created");
+
   return NextResponse.json(
     {
       leadId: lead.id,
       stage: lead.stage,
       vehicleId: lead.vehicleId,
       message: "Demo lead accepted through the VandLabs BFF contract.",
+      automation: {
+        evaluated: automation.length,
+        tasksCreated: automation.filter((run) => run.outcome === "created").length,
+      },
     },
     { status: 201 },
   );
