@@ -14,7 +14,7 @@ The original implementation stages are retained so agents can see how the reposi
 | V0.8 | Implemented; QA certified | Accessibility/responsive/SEO/error-state polish, persisted local demo lead flow and expanded Playwright coverage. |
 | V0.9 | Implemented; infrastructure deferred by design | Stable BFF/OpenAPI/event contracts plus documented AWS-native migration path. |
 | V1.0 | Feature pass and local runtime QA complete | Full reference Proof-of-Engine loop from discovery to conversion, lead operations, reporting and platform controls. |
-| V1.5 | In progress | Operational depth: persisted stage/owner/note changes, lead activity history and follow-up scheduling are implemented; richer workflow controls and reporting continue next. |
+| V1.5 | Feature pass complete; runtime QA pending | Operational depth: persisted stage/owner/note changes, lead activity history, follow-up scheduling, task completion/reopen controls, funnel progression and next-action/overdue reporting are implemented. |
 
 ## V1 boundary
 
@@ -23,3 +23,11 @@ V1 is the used-car Automotive Commerce & Growth Engine. Workshop/service, spare-
 ## Release rule
 
 A stage marked **Implemented** means the feature/contracts are in the repository. V1 local runtime QA was certified on 2026-09-30; production deployment still depends on the deployment-specific controls in `docs/launch-qa.md`.
+
+
+## Next dependency-ordered releases
+
+- **V2 — Automation + attribution:** configurable follow-up rules, consent-aware messaging boundaries, vehicle-level attribution and reusable campaign templates. Gate: stable lead/journey events and proven follow-up discipline.
+- **V2.5 — Integrations + advanced reporting:** CRM/DMS adapters, reconciliation jobs and deeper management reporting. Gate: verified vendor APIs and field-authority mapping.
+- **V3 — AI + inventory intelligence:** inventory health/economics first, then guarded assistant, matching, rescue and dealer copilot. Gate: structured truth, sufficient history, consent and tool guardrails.
+- **V3.1+ — Market/depreciation/predictive intelligence:** only after licensed/permissioned market coverage and enough historical outcomes exist. No nationwide scraping or predictive claims without evidence.
