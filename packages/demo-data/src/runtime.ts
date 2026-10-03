@@ -14,6 +14,7 @@ import type {
   AutomationRun,
   Lead,
   LeadActivity,
+  JourneyEvent,
   Task,
 } from "@vandlabs/contracts";
 
@@ -101,6 +102,14 @@ export function persistRuntimeTask(task: Task) {
   const file = runtimePath("tasks.json");
   const current = readRuntimeTasks().filter((item) => item.id !== task.id);
   return persistArray(file, [task, ...current]);
+}
+
+export function readRuntimeJourneyEvents(): JourneyEvent[] {
+  return readArray<JourneyEvent>(runtimePath("journey-events.json"));
+}
+
+export function persistRuntimeJourneyEvent(event: JourneyEvent) {
+  return persistArray(runtimePath("journey-events.json"), [event, ...readRuntimeJourneyEvents()]);
 }
 
 export function readRuntimeAutomationRules(): AutomationRule[] {
