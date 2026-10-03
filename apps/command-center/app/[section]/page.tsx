@@ -13,6 +13,8 @@ import {
 import {
   mergeRuntimeLeads,
   mergeRuntimeTasks,
+  readRuntimeAutomationRuns,
+  readRuntimeJourneyEvents,
 } from "@vandlabs/demo-data/runtime";
 import { labelize, money, number, shortDateTime } from "../../lib/format";
 import { TaskStatusButton } from "../../components/task-status-button";
@@ -361,6 +363,12 @@ function AnalyticsSection() {
     ["Won", leads.filter((lead) => lead.stage === "won").length],
   ] as const;
   const maxFunnel = Math.max(1, ...funnel.map(([, count]) => count));
+  const automationRuns = readRuntimeAutomationRuns().filter((run) => run.tenantId === tenantConfig.tenantId);
+  const automatedTasks = automationRuns.filter((run) => run.outcome === "created").length;
+  const consentSkips = automationRuns.filter((run) => run.outcome === "skipped_consent").length;
+  const duplicateSkips = automationRuns.filter((run) => run.outcome === "skipped_duplicate").length;
+  const journeyEvents = readRuntimeJourneyEvents().filter((event) => event.tenantId === tenantConfig.tenantId);
+  const attributedEvents = journeyEvents.filter((event) => event.source || event.campaign).length;
 
   return (
     <>
@@ -412,6 +420,29 @@ function AnalyticsSection() {
           <span>Runtime leads</span>
           <strong>{runtimeCount}</strong>
           <small>created during this local demo</small>
+        </article>
+      </section>
+
+      <section className="metrics">
+        <article className="metric-card">
+          <span>Automation tasks</span>
+          <strong>{automatedTasks}</strong>
+          <small>created by deterministic V2 rules</small>
+        </article>
+        <article className="metric-card">
+          <span>Consent skips</span>
+          <strong>{consentSkips}</strong>
+          <small>messaging blocked by permission boundary</small>
+        </article>
+        <article className="metric-card">
+          <span>Duplicate skips</span>
+          <strong>{duplicateSkips}</strong>
+          <small>repeat rule executions prevented</small>
+        </article>
+        <article className="metric-card">
+          <span>Attributed events</span>
+          <strong>{attributedEvents}</strong>
+          <small>of {journeyEvents.length} persisted journey events</small>
         </article>
       </section>
 
