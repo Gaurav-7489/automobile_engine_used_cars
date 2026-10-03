@@ -372,6 +372,15 @@ function AnalyticsSection() {
   const duplicateSkips = automationRuns.filter((run) => run.outcome === "skipped_duplicate").length;
   const journeyEvents = readRuntimeJourneyEvents().filter((event) => event.tenantId === tenantConfig.tenantId);
   const attributedEvents = journeyEvents.filter((event) => event.source || event.campaign).length;
+  const campaignPerformance = leads.reduce<Record<string, { leads: number; qualified: number; wins: number }>>((acc, lead) => {
+    const key = lead.campaign || "unattributed";
+    const row = acc[key] ?? { leads: 0, qualified: 0, wins: 0 };
+    row.leads += 1;
+    if (["qualified", "appointment", "visited", "test_drive", "negotiation", "won"].includes(lead.stage)) row.qualified += 1;
+    if (lead.stage === "won") row.wins += 1;
+    acc[key] = row;
+    return acc;
+  }, {});
 
   return (
     <>
@@ -481,6 +490,23 @@ function AnalyticsSection() {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="panel">
+          <p className="eyebrow">Campaign outcomes</p>
+          <h2>Recorded lead progression</h2>
+          <div className="stack-list">
+            {Object.entries(campaignPerformance).map(([campaign, row]) => (
+              <div className="list-row" key={campaign}>
+                <div>
+                  <strong>{campaign}</strong>
+                  <span>{row.leads} leads · {row.qualified} qualified+</span>
+                </div>
+                <strong>{row.wins} wins</strong>
+              </div>
+            ))}
+          </div>
+          <p className="notice">Outcome counts are descriptive records, not modeled attribution or incremental lift.</p>
         </section>
 
         <section className="panel">
