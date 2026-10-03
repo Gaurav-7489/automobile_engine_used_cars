@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { tenantConfig } from "@vandlabs/demo-data";
+import { integrationAdaptersV25, reconciliationRuns, tenantConfig } from "@vandlabs/demo-data";
 import {
   auditEvents,
   featureFlags,
@@ -69,6 +69,39 @@ function Integrations() {
     <section className="panel table-panel"><div className="table-scroll"><table><thead><tr><th>Adapter</th><th>Category</th><th>Status</th><th>Mode</th></tr></thead><tbody>
       {integrationAdapters.map((adapter) => <tr key={adapter.name}><td><strong>{adapter.name}</strong></td><td>{adapter.category}</td><td><span className={"pill " + adapter.status.replaceAll(" ", "-")}>{adapter.status}</span></td><td>{adapter.mode}</td></tr>)}
     </tbody></table></div></section>
+    <div className="two-col">
+      <section className="panel">
+        <p className="eyebrow">V2.5 normalized contracts</p>
+        <h2>Field authority</h2>
+        <div className="stack">
+          {integrationAdaptersV25.map((adapter) => (
+            <div className="row" key={adapter.id}>
+              <div>
+                <strong>{adapter.name}</strong>
+                <small>{adapter.category} · {adapter.direction} · {Object.keys(adapter.fieldAuthority).length} mapped fields</small>
+              </div>
+              <span className={"pill " + adapter.status.replaceAll("_", "-")}>{adapter.status.replaceAll("_", " ")}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="panel">
+        <p className="eyebrow">Reconciliation evidence</p>
+        <h2>Recent runs</h2>
+        <div className="stack">
+          {reconciliationRuns.map((run) => (
+            <div className="row" key={run.id}>
+              <div>
+                <strong>{run.status}</strong>
+                <small>{run.read} read · {run.updated} updated · {run.conflicts} conflicts · {run.failed} failed</small>
+              </div>
+              <span className={"pill " + run.status}>{run.status}</span>
+            </div>
+          ))}
+        </div>
+        <p className="note inner">Reference evidence does not claim a live external DMS or CRM connection.</p>
+      </section>
+    </div>
     <p className="note">n8n can later power unusual dealership workflows and rapid experiments, but core business logic does not depend on it.</p>
   </>;
 }

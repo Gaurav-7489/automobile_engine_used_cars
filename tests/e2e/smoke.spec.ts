@@ -221,3 +221,17 @@ test("platform control center loads", async ({ page }) => {
   await page.goto("http://127.0.0.1:3002/platform/onboarding");
   await expect(page.getByRole("heading", { name: "Onboarding" })).toBeVisible();
 });
+
+
+test("V2.5 analytics exposes campaign outcome reporting", async ({ page }) => {
+  await page.goto("http://127.0.0.1:3001/command/analytics");
+  await expect(page.getByRole("heading", { name: "Recorded lead progression" })).toBeVisible();
+  await expect(page.getByText("Outcome counts are descriptive records, not modeled attribution or incremental lift.")).toBeVisible();
+});
+
+test("V2.5 platform exposes adapter authority and reconciliation evidence", async ({ page }) => {
+  await page.goto("http://127.0.0.1:3002/platform/integrations");
+  await expect(page.getByRole("heading", { name: "Field authority" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recent runs" })).toBeVisible();
+  await expect(page.getByText("Reference evidence does not claim a live external DMS or CRM connection.")).toBeVisible();
+});

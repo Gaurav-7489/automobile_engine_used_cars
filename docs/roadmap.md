@@ -27,7 +27,7 @@ A stage marked **Implemented** means the feature/contracts are in the repository
 
 ## Next dependency-ordered releases
 
-- **V2 — Automation + attribution (implementation in progress):** deterministic lead-created and stage-change follow-up rules, consent boundaries, duplicate protection, persisted automation audit runs, persisted first-party journey events and Command Center evidence are implemented. Reusable campaign-template management remains before V2 feature-complete. Gate: stable lead/journey events and proven follow-up discipline.
-- **V2.5 — Integrations + advanced reporting:** CRM/DMS adapters, reconciliation jobs and deeper management reporting. Gate: verified vendor APIs and field-authority mapping.
+- **V2 — Automation + attribution (feature pass complete; CI verification pending):** deterministic lead-created and stage-change follow-up rules, consent boundaries, duplicate protection, persisted automation audit runs, persisted first-party journey events, reusable campaign templates and Command Center evidence are implemented.
+- **V2.5 — Integrations + advanced reporting (foundation implemented):** normalized CRM/DMS adapter contracts, explicit field-authority maps, reconciliation evidence and descriptive campaign outcome reporting are implemented. Real vendor connectivity remains gated on verified provider APIs, credentials and field-authority approval.
 - **V3 — AI + inventory intelligence:** inventory health/economics first, then guarded assistant, matching, rescue and dealer copilot. Gate: structured truth, sufficient history, consent and tool guardrails.
 - **V3.1+ — Market/depreciation/predictive intelligence:** only after licensed/permissioned market coverage and enough historical outcomes exist. No nationwide scraping or predictive claims without evidence.
