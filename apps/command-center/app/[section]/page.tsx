@@ -4,6 +4,7 @@ import {
   activeDealership,
   analyticsSnapshot,
   appointments,
+  campaignTemplates,
   leads as seededLeads,
   tasks,
   tenantConfig,
@@ -561,7 +562,22 @@ function AutomationSection() {
             )) : <p className="muted">No runtime journey events recorded yet.</p>}
           </div>
         </section>
-        <section className="panel wide-panel">
+        <section className="panel">
+          <p className="eyebrow">Campaign templates</p>
+          <h2>Reusable acquisition setup</h2>
+          <div className="stack-list">
+            {campaignTemplates.map((template) => (
+              <div className="list-row" key={template.id}>
+                <div>
+                  <strong>{template.name}</strong>
+                  <span>{template.source} · {template.medium ?? "direct"} · {template.destinationPath}</span>
+                </div>
+                <span className={"stage " + (template.enabled ? "available" : "sold")}>{template.enabled ? "enabled" : "disabled"}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="panel">
           <p className="eyebrow">Audit history</p>
           <h2>Recent automation decisions</h2>
           <div className="stack-list">
