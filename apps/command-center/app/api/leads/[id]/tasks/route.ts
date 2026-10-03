@@ -1,21 +1,34 @@
 import { NextResponse } from "next/server";
-import type { LeadActivity, Task } from "@vandlabs/contracts";
+import {
+  requireCapability,
+  requireDealership,
+  requireTenant,
+  type LeadActivity,
+  type Task,
+} from "@vandlabs/contracts";
 import { leads as seededLeads, tenantConfig } from "@vandlabs/demo-data";
 import {
   mergeRuntimeLeads,
   persistRuntimeLeadActivities,
   persistRuntimeTask,
 } from "@vandlabs/demo-data/runtime";
+import { resolvePrincipal } from "../../../../../lib/auth";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const principal = resolvePrincipal(request);
+  if (!principal) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  requireCapability(principal, "task:write");
+
   const { id } = await params;
   const lead = mergeRuntimeLeads(seededLeads).find((item) => item.id === id);
   if (!lead || lead.tenantId !== tenantConfig.tenantId) {
     return NextResponse.json({ error: "Lead not found." }, { status: 404 });
   }
+  requireTenant(principal, lead.tenantId);
+  requireDealership(principal, lead.dealershipId);
 
   const body = (await request.json()) as {
     title?: string;
@@ -38,6 +51,7 @@ export async function POST(
 
   const task: Task = {
     id: crypto.randomUUID(),
+    tenantId: lead.tenantId,
     leadId: lead.id,
     title,
     owner,
@@ -50,7 +64,7 @@ export async function POST(
     tenantId: lead.tenantId,
     leadId: lead.id,
     type: "follow_up_created",
-    actor: "Demo operator",
+    actor: principal.userId,
     description: `Follow-up scheduled for ${owner}.`,
     occurredAt: new Date().toISOString(),
   };
