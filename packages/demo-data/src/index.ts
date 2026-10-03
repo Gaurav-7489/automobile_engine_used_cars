@@ -3,6 +3,8 @@ import type {
   Appointment,
   CampaignTemplate,
   JourneyEvent,
+  IntegrationAdapter,
+  ReconciliationRun,
   Lead,
   LeadStage,
   Task,
@@ -338,6 +340,55 @@ export const campaignTemplates: CampaignTemplate[] = [
     campaign: "inventory-nurture",
     destinationPath: "/inventory",
     enabled: true,
+  },
+];
+
+export const integrationAdaptersV25: IntegrationAdapter[] = [
+  {
+    id: "adapter-dms-reference",
+    tenantId: tenantConfig.tenantId,
+    name: "Reference DMS adapter",
+    category: "dms",
+    direction: "inbound",
+    status: "contract_only",
+    fieldAuthority: {
+      stockId: "provider",
+      availabilityStatus: "provider",
+      price: "provider",
+      media: "automobile_engine",
+      publishStatus: "automobile_engine",
+    },
+  },
+  {
+    id: "adapter-crm-reference",
+    tenantId: tenantConfig.tenantId,
+    name: "Reference CRM adapter",
+    category: "crm",
+    direction: "bidirectional",
+    status: "contract_only",
+    fieldAuthority: {
+      leadIdentity: "automobile_engine",
+      stage: "automobile_engine",
+      assignedTo: "automobile_engine",
+      externalContactId: "provider",
+    },
+  },
+];
+
+export const reconciliationRuns: ReconciliationRun[] = [
+  {
+    id: "recon-demo-1",
+    tenantId: tenantConfig.tenantId,
+    adapterId: "adapter-dms-reference",
+    startedAt: "2026-10-03T05:30:00Z",
+    completedAt: "2026-10-03T05:30:04Z",
+    status: "success",
+    read: 14,
+    created: 0,
+    updated: 0,
+    conflicts: 0,
+    failed: 0,
+    note: "Reference reconciliation evidence only; no external DMS is connected.",
   },
 ];
 
