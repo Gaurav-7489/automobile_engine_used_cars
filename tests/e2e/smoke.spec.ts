@@ -139,6 +139,14 @@ test("command center persists lead operations and follow-up", async ({ page, req
   await expect(page.getByRole("button", { name: "Reopen Review finance documents" })).toBeVisible();
 });
 
+test("command center analytics exposes V1.5 operational reporting", async ({ page }) => {
+  await page.goto("http://127.0.0.1:3001/command/analytics");
+  await expect(page.getByRole("heading", { name: "Evidence, not invented certainty" })).toBeVisible();
+  await expect(page.getByText("Open follow-ups", { exact: true })).toBeVisible();
+  await expect(page.getByText("Next-action coverage", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Stage progression" })).toBeVisible();
+});
+
 test("platform control center loads", async ({ page }) => {
   await page.goto("http://127.0.0.1:3002/platform");
   await expect(
