@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { LeadActivity, LeadStage } from "@vandlabs/contracts";
 import { leads as seededLeads, tenantConfig } from "@vandlabs/demo-data";
+import { runLeadAutomation } from "@vandlabs/demo-data/automation";
 import {
   mergeRuntimeLeads,
   persistRuntimeLead,
@@ -86,5 +87,17 @@ export async function PATCH(
     return NextResponse.json({ error: "Lead activity could not be persisted." }, { status: 503 });
   }
 
-  return NextResponse.json({ data: updated, activity });
+  const automation =
+    updated.stage !== lead.stage ? runLeadAutomation(updated, "stage_changed") : [];
+
+  return NextResponse.json({
+    data: updated,
+    activity,
+    automation: {
+      evaluated: automation.length,
+      tasksCreated: automation.filter((run) => run.outcome === "created").length,
+      skippedConsent: automation.filter((run) => run.outcome === "skipped_consent").length,
+      skippedDuplicate: automation.filter((run) => run.outcome === "skipped_duplicate").length,
+    },
+  });
 }
