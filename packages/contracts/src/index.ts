@@ -161,12 +161,57 @@ export interface LeadActivity {
 
 export interface Task {
   id: ID;
+  tenantId?: ID;
   leadId: ID;
   title: string;
   owner: string;
   dueAt: string;
   completed: boolean;
   priority: "normal" | "high";
+  origin?: "human" | "automation";
+  automationRuleId?: ID;
+}
+
+export type AutomationTrigger = "lead_created" | "stage_changed";
+
+export interface AutomationRule {
+  id: ID;
+  tenantId: ID;
+  name: string;
+  enabled: boolean;
+  trigger: AutomationTrigger;
+  intents?: LeadIntent[];
+  stages?: LeadStage[];
+  delayMinutes: number;
+  taskTitle: string;
+  ownerFallback: string;
+  priority: "normal" | "high";
+  channel: "internal_task" | "whatsapp";
+  requiresWhatsappConsent: boolean;
+}
+
+export interface AutomationRun {
+  id: ID;
+  tenantId: ID;
+  ruleId: ID;
+  leadId: ID;
+  trigger: AutomationTrigger;
+  outcome: "created" | "skipped_consent" | "skipped_duplicate";
+  taskId?: ID;
+  occurredAt: string;
+}
+
+export interface CampaignTemplate {
+  id: ID;
+  tenantId: ID;
+  name: string;
+  channel: "google" | "meta" | "email" | "whatsapp" | "other";
+  source: string;
+  medium?: string;
+  campaign: string;
+  destinationPath: string;
+  vehicleId?: ID;
+  enabled: boolean;
 }
 
 export interface Appointment {

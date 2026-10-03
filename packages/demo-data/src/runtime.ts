@@ -9,7 +9,14 @@ import {
   dirname,
   resolve,
 } from "node:path";
-import type { Lead, LeadActivity, Task } from "@vandlabs/contracts";
+import type {
+  AutomationRule,
+  AutomationRun,
+  Lead,
+  LeadActivity,
+  JourneyEvent,
+  Task,
+} from "@vandlabs/contracts";
 
 function repositoryRoot() {
   const cwd = process.cwd();
@@ -95,6 +102,34 @@ export function persistRuntimeTask(task: Task) {
   const file = runtimePath("tasks.json");
   const current = readRuntimeTasks().filter((item) => item.id !== task.id);
   return persistArray(file, [task, ...current]);
+}
+
+export function readRuntimeJourneyEvents(): JourneyEvent[] {
+  return readArray<JourneyEvent>(runtimePath("journey-events.json"));
+}
+
+export function persistRuntimeJourneyEvent(event: JourneyEvent) {
+  const file = runtimePath("journey-events.json");
+  return persistArray(file, [event, ...readRuntimeJourneyEvents()]);
+}
+
+export function readRuntimeAutomationRules(): AutomationRule[] {
+  return readArray<AutomationRule>(runtimePath("automation-rules.json"));
+}
+
+export function persistRuntimeAutomationRule(rule: AutomationRule) {
+  const file = runtimePath("automation-rules.json");
+  const current = readRuntimeAutomationRules().filter((item) => item.id !== rule.id);
+  return persistArray(file, [rule, ...current]);
+}
+
+export function readRuntimeAutomationRuns(): AutomationRun[] {
+  return readArray<AutomationRun>(runtimePath("automation-runs.json"));
+}
+
+export function persistRuntimeAutomationRun(run: AutomationRun) {
+  const file = runtimePath("automation-runs.json");
+  return persistArray(file, [run, ...readRuntimeAutomationRuns()]);
 }
 
 export function clearRuntimeLeads() {

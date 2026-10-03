@@ -4,6 +4,7 @@ import {
   activeDealership,
   analyticsSnapshot,
   appointments,
+  campaignTemplates,
   leads as seededLeads,
   tasks,
   tenantConfig,
@@ -13,7 +14,10 @@ import {
 import {
   mergeRuntimeLeads,
   mergeRuntimeTasks,
+  readRuntimeAutomationRuns,
+  readRuntimeJourneyEvents,
 } from "@vandlabs/demo-data/runtime";
+import { getAutomationRules } from "@vandlabs/demo-data/automation";
 import { labelize, money, number, shortDateTime } from "../../lib/format";
 import { TaskStatusButton } from "../../components/task-status-button";
 
@@ -27,6 +31,7 @@ const valid = new Set([
   "inventory",
   "customers",
   "analytics",
+  "automation",
   "settings",
 ]);
 
@@ -361,6 +366,12 @@ function AnalyticsSection() {
     ["Won", leads.filter((lead) => lead.stage === "won").length],
   ] as const;
   const maxFunnel = Math.max(1, ...funnel.map(([, count]) => count));
+  const automationRuns = readRuntimeAutomationRuns().filter((run) => run.tenantId === tenantConfig.tenantId);
+  const automatedTasks = automationRuns.filter((run) => run.outcome === "created").length;
+  const consentSkips = automationRuns.filter((run) => run.outcome === "skipped_consent").length;
+  const duplicateSkips = automationRuns.filter((run) => run.outcome === "skipped_duplicate").length;
+  const journeyEvents = readRuntimeJourneyEvents().filter((event) => event.tenantId === tenantConfig.tenantId);
+  const attributedEvents = journeyEvents.filter((event) => event.source || event.campaign).length;
 
   return (
     <>
@@ -412,6 +423,29 @@ function AnalyticsSection() {
           <span>Runtime leads</span>
           <strong>{runtimeCount}</strong>
           <small>created during this local demo</small>
+        </article>
+      </section>
+
+      <section className="metrics">
+        <article className="metric-card">
+          <span>Automation tasks</span>
+          <strong>{automatedTasks}</strong>
+          <small>created by deterministic V2 rules</small>
+        </article>
+        <article className="metric-card">
+          <span>Consent skips</span>
+          <strong>{consentSkips}</strong>
+          <small>messaging blocked by permission boundary</small>
+        </article>
+        <article className="metric-card">
+          <span>Duplicate skips</span>
+          <strong>{duplicateSkips}</strong>
+          <small>repeat rule executions prevented</small>
+        </article>
+        <article className="metric-card">
+          <span>Attributed events</span>
+          <strong>{attributedEvents}</strong>
+          <small>of {journeyEvents.length} persisted journey events</small>
         </article>
       </section>
 
@@ -474,6 +508,94 @@ function AnalyticsSection() {
   );
 }
 
+
+function AutomationSection() {
+  const rules = getAutomationRules(tenantConfig.tenantId);
+  const runs = readRuntimeAutomationRuns().filter((run) => run.tenantId === tenantConfig.tenantId);
+  const events = readRuntimeJourneyEvents().filter((event) => event.tenantId === tenantConfig.tenantId);
+  const created = runs.filter((run) => run.outcome === "created").length;
+  const blocked = runs.filter((run) => run.outcome === "skipped_consent").length;
+  const duplicates = runs.filter((run) => run.outcome === "skipped_duplicate").length;
+  const campaignCounts = events.reduce<Record<string, number>>((acc, event) => {
+    const key = event.campaign || "unattributed";
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <>
+      <Header
+        eyebrow="V2 automation"
+        title="Rules, consent & attribution"
+        body="Deterministic follow-up rules stay tenant-scoped, auditable and bounded by recorded consent. External provider delivery is not represented as live."
+      />
+      <section className="metrics">
+        <article className="metric-card"><span>Active rules</span><strong>{rules.filter((rule) => rule.enabled).length}</strong><small>tenant-scoped deterministic rules</small></article>
+        <article className="metric-card"><span>Tasks created</span><strong>{created}</strong><small>automation runs with persisted work</small></article>
+        <article className="metric-card"><span>Consent blocks</span><strong>{blocked}</strong><small>provider actions prevented by policy</small></article>
+        <article className="metric-card"><span>Duplicate blocks</span><strong>{duplicates}</strong><small>idempotency guard outcomes</small></article>
+      </section>
+      <div className="detail-layout">
+        <section className="panel">
+          <p className="eyebrow">Automation rules</p>
+          <h2>Current rule set</h2>
+          <div className="stack-list">
+            {rules.map((rule) => (
+              <div className="list-row" key={rule.id}>
+                <div>
+                  <strong>{rule.name}</strong>
+                  <span>{labelize(rule.trigger)} · {rule.delayMinutes} min · {labelize(rule.channel)}</span>
+                </div>
+                <span className={"stage " + (rule.enabled ? "available" : "sold")}>{rule.enabled ? "enabled" : "disabled"}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="panel">
+          <p className="eyebrow">Attribution evidence</p>
+          <h2>Recorded campaigns</h2>
+          <div className="stack-list">
+            {Object.entries(campaignCounts).length ? Object.entries(campaignCounts).map(([campaign, count]) => (
+              <div className="list-row" key={campaign}>
+                <div><strong>{campaign}</strong><span>first-party journey events</span></div>
+                <strong>{count}</strong>
+              </div>
+            )) : <p className="muted">No runtime journey events recorded yet.</p>}
+          </div>
+        </section>
+        <section className="panel">
+          <p className="eyebrow">Campaign templates</p>
+          <h2>Reusable acquisition setup</h2>
+          <div className="stack-list">
+            {campaignTemplates.map((template) => (
+              <div className="list-row" key={template.id}>
+                <div>
+                  <strong>{template.name}</strong>
+                  <span>{template.source} · {template.medium ?? "direct"} · {template.destinationPath}</span>
+                </div>
+                <span className={"stage " + (template.enabled ? "available" : "sold")}>{template.enabled ? "enabled" : "disabled"}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="panel">
+          <p className="eyebrow">Audit history</p>
+          <h2>Recent automation decisions</h2>
+          <div className="stack-list">
+            {runs.slice(0, 12).map((run) => (
+              <div className="list-row" key={run.id}>
+                <div><strong>{run.ruleId}</strong><span>{run.leadId} · {labelize(run.trigger)}</span></div>
+                <div className="right"><span>{labelize(run.outcome)}</span><small>{shortDateTime(run.occurredAt)}</small></div>
+              </div>
+            ))}
+            {!runs.length ? <p className="muted">No runtime automation decisions recorded yet.</p> : null}
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}
+
 function SettingsSection() {
   return (
     <>
@@ -527,6 +649,7 @@ export default async function Page({
       {section === "inventory" ? <InventorySection /> : null}
       {section === "customers" ? <CustomersSection /> : null}
       {section === "analytics" ? <AnalyticsSection /> : null}
+      {section === "automation" ? <AutomationSection /> : null}
       {section === "settings" ? <SettingsSection /> : null}
     </main>
   );
