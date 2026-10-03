@@ -1,6 +1,7 @@
 import type {
   AnalyticsSnapshot,
   Appointment,
+  CampaignTemplate,
   JourneyEvent,
   Lead,
   LeadStage,
@@ -302,6 +303,42 @@ export const tasks: Task[] = [
   { id: "task-2", leadId: "lead-3", title: "Share finance options", owner: "Maya", dueAt: "2026-09-29T12:00:00Z", completed: false, priority: "normal" },
   { id: "task-3", leadId: "lead-6", title: "Negotiation follow-up", owner: "Kabir", dueAt: "2026-09-29T11:30:00Z", completed: false, priority: "high" },
   { id: "task-4", leadId: "lead-7", title: "Handover follow-up", owner: "Maya", dueAt: "2026-09-30T09:30:00Z", completed: false, priority: "normal" },
+];
+
+export const campaignTemplates: CampaignTemplate[] = [
+  {
+    id: "campaign-premium-sedan-search",
+    tenantId: tenantConfig.tenantId,
+    name: "Premium sedan search",
+    channel: "google",
+    source: "google",
+    medium: "cpc",
+    campaign: "premium-sedan-kochi",
+    destinationPath: "/inventory?body=Sedan",
+    enabled: true,
+  },
+  {
+    id: "campaign-suv-social",
+    tenantId: tenantConfig.tenantId,
+    name: "SUV social demand",
+    channel: "meta",
+    source: "meta",
+    medium: "paid-social",
+    campaign: "suv-week",
+    destinationPath: "/inventory?body=SUV",
+    enabled: true,
+  },
+  {
+    id: "campaign-nurture-email",
+    tenantId: tenantConfig.tenantId,
+    name: "Inventory nurture",
+    channel: "email",
+    source: "email",
+    medium: "owned",
+    campaign: "inventory-nurture",
+    destinationPath: "/inventory",
+    enabled: true,
+  },
 ];
 
 export const appointments: Appointment[] = [
