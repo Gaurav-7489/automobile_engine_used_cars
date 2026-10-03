@@ -156,12 +156,54 @@ test("command center persists lead operations and follow-up", async ({ page, req
   await expect(page.getByRole("button", { name: "Reopen Review finance documents" })).toBeVisible();
 });
 
+test("V2 stage changes evaluate follow-up automation", async ({ request }) => {
+  const created = await request.post("/api/leads", {
+    data: {
+      name: "Stage Automation Demo",
+      phone: "+91 90000 00004",
+      intent: "finance",
+      vehicleId: "veh-3",
+      whatsappConsent: true,
+      marketingConsent: false,
+    },
+  });
+  expect(created.status()).toBe(201);
+  const { leadId } = await created.json();
+
+  const updated = await request.patch(`http://127.0.0.1:3001/command/api/leads/${leadId}`, {
+    data: { stage: "qualified" },
+  });
+  expect(updated.status()).toBe(200);
+  const body = await updated.json();
+  expect(body.automation.evaluated).toBeGreaterThan(0);
+  expect(body.automation.tasksCreated).toBeGreaterThan(0);
+});
+
+test("V2 persists first-party journey events", async ({ request }) => {
+  const response = await request.post("/api/events", {
+    data: {
+      type: "vehicle_view",
+      sessionId: "v2-attribution-test",
+      path: "/vehicles/bmw-330li-2024",
+      vehicleId: "veh-1",
+      source: "playwright",
+      campaign: "v2-attribution",
+    },
+  });
+  expect(response.status()).toBe(202);
+  const body = await response.json();
+  expect(body.accepted).toBeTruthy();
+  expect(body.event.id).toBeTruthy();
+});
+
 test("command center analytics exposes V1.5 operational reporting", async ({ page }) => {
   await page.goto("http://127.0.0.1:3001/command/analytics");
   await expect(page.getByRole("heading", { name: "Evidence, not invented certainty" })).toBeVisible();
   await expect(page.getByText("Open follow-ups", { exact: true })).toBeVisible();
   await expect(page.getByText("Next-action coverage", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Stage progression" })).toBeVisible();
+  await expect(page.getByText("Automation tasks", { exact: true })).toBeVisible();
+  await expect(page.getByText("Attributed events", { exact: true })).toBeVisible();
 });
 
 test("platform control center loads", async ({ page }) => {
