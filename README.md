@@ -76,6 +76,8 @@ See:
 - `docs/event-spec.md`
 - `docs/aws-integration.md`
 - `docs/launch-qa.md`
+- `docs/production-tenant-isolation.md`
+- `infra/aws/` — deployable CDK production foundation
 
 ## Deliberate V1 exclusions
 
