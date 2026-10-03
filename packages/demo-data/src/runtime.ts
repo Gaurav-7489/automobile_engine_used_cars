@@ -109,14 +109,6 @@ export function readRuntimeJourneyEvents(): JourneyEvent[] {
 }
 
 export function persistRuntimeJourneyEvent(event: JourneyEvent) {
-  return persistArray(runtimePath("journey-events.json"), [event, ...readRuntimeJourneyEvents()]);
-}
-
-export function readRuntimeJourneyEvents(): JourneyEvent[] {
-  return readArray<JourneyEvent>(runtimePath("journey-events.json"));
-}
-
-export function persistRuntimeJourneyEvent(event: JourneyEvent) {
   const file = runtimePath("journey-events.json");
   return persistArray(file, [event, ...readRuntimeJourneyEvents()]);
 }
