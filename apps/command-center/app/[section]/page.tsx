@@ -17,6 +17,7 @@ import {
   readRuntimeAutomationRuns,
   readRuntimeJourneyEvents,
 } from "@vandlabs/demo-data/runtime";
+import { getAutomationRules } from "@vandlabs/demo-data/automation";
 import { labelize, money, number, shortDateTime } from "../../lib/format";
 import { TaskStatusButton } from "../../components/task-status-button";
 
