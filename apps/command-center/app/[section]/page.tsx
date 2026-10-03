@@ -337,6 +337,13 @@ function CustomersSection() {
 
 function AnalyticsSection() {
   const leads = allLeads();
+  const allTasks = mergeRuntimeTasks(tasks);
+  const openTasks = allTasks.filter((task) => !task.completed);
+  const overdueTasks = openTasks.filter((task) => new Date(task.dueAt).getTime() < Date.now());
+  const leadsWithNextAction = new Set(openTasks.map((task) => task.leadId));
+  const followUpCoverage = leads.length
+    ? Math.round((leads.filter((lead) => leadsWithNextAction.has(lead.id)).length / leads.length) * 100)
+    : 0;
   const runtimeCount = leads.filter(
     (lead) => !seededLeads.some((seeded) => seeded.id === lead.id),
   ).length;
@@ -345,6 +352,15 @@ function AnalyticsSection() {
     return acc;
   }, {});
   const maxSource = Math.max(1, ...Object.values(sourceCounts));
+  const funnel = [
+    ["New", leads.length],
+    ["Contacted+", leads.filter((lead) => lead.stage !== "new").length],
+    ["Qualified+", leads.filter((lead) => ["qualified", "appointment", "visited", "test_drive", "negotiation", "won"].includes(lead.stage)).length],
+    ["Appointment+", leads.filter((lead) => ["appointment", "visited", "test_drive", "negotiation", "won"].includes(lead.stage)).length],
+    ["Test drive+", leads.filter((lead) => ["test_drive", "negotiation", "won"].includes(lead.stage)).length],
+    ["Won", leads.filter((lead) => lead.stage === "won").length],
+  ] as const;
+  const maxFunnel = Math.max(1, ...funnel.map(([, count]) => count));
 
   return (
     <>
@@ -376,7 +392,47 @@ function AnalyticsSection() {
         </article>
       </section>
 
+      <section className="metrics">
+        <article className="metric-card">
+          <span>Open follow-ups</span>
+          <strong>{openTasks.length}</strong>
+          <small>persisted tasks requiring action</small>
+        </article>
+        <article className="metric-card">
+          <span>Overdue</span>
+          <strong>{overdueTasks.length}</strong>
+          <small>open tasks past their due time</small>
+        </article>
+        <article className="metric-card">
+          <span>Next-action coverage</span>
+          <strong>{followUpCoverage}%</strong>
+          <small>leads with an open follow-up</small>
+        </article>
+        <article className="metric-card">
+          <span>Runtime leads</span>
+          <strong>{runtimeCount}</strong>
+          <small>created during this local demo</small>
+        </article>
+      </section>
+
       <div className="detail-layout">
+        <section className="panel">
+          <p className="eyebrow">Sales funnel</p>
+          <h2>Stage progression</h2>
+          <div className="bars">
+            {funnel.map(([label, count]) => (
+              <div className="bar-row" key={label}>
+                <span>{label}</span>
+                <div><i style={{ width: (count / maxFunnel) * 100 + "%" }} /></div>
+                <strong>{count}</strong>
+              </div>
+            ))}
+          </div>
+          <p className="notice">
+            Counts show recorded progression only. They are not predictive conversion rates.
+          </p>
+        </section>
+
         <section className="panel">
           <p className="eyebrow">Acquisition</p>
           <h2>Lead sources</h2>
