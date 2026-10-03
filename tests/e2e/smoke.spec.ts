@@ -206,6 +206,13 @@ test("command center analytics exposes V1.5 operational reporting", async ({ pag
   await expect(page.getByText("Attributed events", { exact: true })).toBeVisible();
 });
 
+test("V2 automation workspace loads", async ({ page }) => {
+  await page.goto("http://127.0.0.1:3001/command/automation");
+  await expect(page.getByRole("heading", { name: "Rules, consent & attribution" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Current rule set" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Reusable acquisition setup" })).toBeVisible();
+});
+
 test("platform control center loads", async ({ page }) => {
   await page.goto("http://127.0.0.1:3002/platform");
   await expect(
