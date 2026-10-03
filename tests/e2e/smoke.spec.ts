@@ -72,6 +72,23 @@ test("lead BFF accepts structured demo lead", async ({ request }) => {
   expect(body.stage).toBe("new");
 });
 
+test("V2 lead creation evaluates deterministic follow-up automation", async ({ request }) => {
+  const response = await request.post("/api/leads", {
+    data: {
+      name: "Automation Demo",
+      phone: "+91 90000 00003",
+      intent: "enquiry",
+      vehicleId: "veh-2",
+      whatsappConsent: false,
+      marketingConsent: false,
+    },
+  });
+  expect(response.status()).toBe(201);
+  const body = await response.json();
+  expect(body.automation.evaluated).toBeGreaterThan(0);
+  expect(body.automation.tasksCreated).toBeGreaterThan(0);
+});
+
 test("invalid vehicle is 404", async ({ page }) => {
   const response = await page.goto("/vehicles/not-a-real-car");
   expect(response?.status()).toBe(404);
