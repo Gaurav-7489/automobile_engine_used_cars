@@ -70,18 +70,22 @@ Minimum:
 - Customer accounts are not required for browsing/enquiry.
 - Workshop/parts/insurance/customer-garage features do not leak into V1 core.
 
-## Production blockers
+## Production foundation status
 
-Do not call the system production-ready until the following are implemented or explicitly accepted as deployment-specific gaps:
+The repository now contains an AWS CDK foundation for Cognito, Aurora PostgreSQL, private networking, encrypted/versioned S3, SQS/DLQ, EventBridge, KMS/Secrets Manager, CloudWatch logging and WAF, plus a formal tenant-isolation contract. CI validates TypeScript and CDK synthesis. These are infrastructure definitions, not evidence that a production AWS environment has been deployed or accepted.
 
-- production authentication and authorization
-- durable production database
-- tenant isolation enforcement
-- real media pipeline/storage
-- rate limiting / WAF / abuse controls
-- secrets management
-- observability/alerting
-- backup/recovery plan
+## Remaining production blockers
+
+Do not call the system production-ready until the following are implemented, deployed and verified or explicitly accepted as deployment-specific gaps:
+
+- application wiring to production Cognito authentication and capability/scope authorization
+- database migrations, RLS policies and service wiring to Aurora PostgreSQL
+- automated cross-tenant isolation tests against the production persistence path
+- signed media upload/delivery pipeline on S3/CloudFront
+- deployed WAF/rate limits and abuse-control tuning
+- deployed secrets rotation and least-privilege IAM
+- OpenTelemetry instrumentation, dashboards and actionable alarms
+- restore-tested backup/recovery procedures
 - privacy/retention policy
 - real domain + consent configuration
 - CI/CD quality gates and rollback strategy
