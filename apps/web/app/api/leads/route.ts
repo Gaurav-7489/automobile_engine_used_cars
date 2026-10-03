@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { LeadIntent } from "@vandlabs/contracts";
 import { tenantConfig, vehicles } from "@vandlabs/demo-data";
 import { leadRepository } from "../../../lib/repositories";
-import { runLeadAutomation } from "../../../lib/automation";
+import { runLeadAutomation } from "@vandlabs/demo-data/automation";
 
 const validIntents: LeadIntent[] = [
   "enquiry",
