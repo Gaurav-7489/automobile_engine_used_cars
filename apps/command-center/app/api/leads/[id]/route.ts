@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import type { LeadActivity, LeadStage } from "@vandlabs/contracts";
+import {
+  requireCapability,
+  requireDealership,
+  requireTenant,
+  type LeadActivity,
+  type LeadStage,
+} from "@vandlabs/contracts";
+import { resolvePrincipal } from "../../../../lib/auth";
 import { leads as seededLeads, tenantConfig } from "@vandlabs/demo-data";
 import { runLeadAutomation } from "@vandlabs/demo-data/automation";
 import {
@@ -31,6 +38,8 @@ export async function PATCH(
   if (!lead || lead.tenantId !== tenantConfig.tenantId) {
     return NextResponse.json({ error: "Lead not found." }, { status: 404 });
   }
+  requireTenant(principal, lead.tenantId);
+  requireDealership(principal, lead.dealershipId);
 
   const body = (await request.json()) as {
     stage?: LeadStage;
