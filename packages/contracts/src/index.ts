@@ -214,6 +214,34 @@ export interface CampaignTemplate {
   enabled: boolean;
 }
 
+export type IntegrationCategory = "crm" | "dms" | "messaging" | "acquisition" | "finance" | "valuation";
+
+export interface IntegrationAdapter {
+  id: ID;
+  tenantId: ID;
+  name: string;
+  category: IntegrationCategory;
+  direction: "inbound" | "outbound" | "bidirectional";
+  status: "connected" | "contract_only" | "disabled";
+  fieldAuthority: Record<string, "automobile_engine" | "provider">;
+  lastReconciledAt?: string;
+}
+
+export interface ReconciliationRun {
+  id: ID;
+  tenantId: ID;
+  adapterId: ID;
+  startedAt: string;
+  completedAt?: string;
+  status: "success" | "partial" | "failed";
+  read: number;
+  created: number;
+  updated: number;
+  conflicts: number;
+  failed: number;
+  note?: string;
+}
+
 export interface Appointment {
   id: ID;
   leadId: ID;
