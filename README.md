@@ -29,7 +29,7 @@ The reference path demonstrates:
 ```bash
 corepack enable
 pnpm install
-pnpm dev
+AUTH_MODE=demo pnpm dev
 ```
 
 Open:
@@ -45,6 +45,8 @@ pnpm lint
 pnpm typecheck
 pnpm build
 pnpm test:e2e
+pnpm test:security
+pnpm test:auth:e2e
 
 # all gates in sequence
 pnpm qa
@@ -77,6 +79,7 @@ See:
 - `docs/aws-integration.md`
 - `docs/launch-qa.md`
 - `docs/production-tenant-isolation.md`
+- `docs/staff-authentication.md` — verified Cognito staff access and bootstrap provisioning
 - `infra/aws/` — deployable CDK production foundation
 
 ## Deliberate V1 exclusions
@@ -84,3 +87,5 @@ See:
 V1 does **not** include workshop/service operations, spare-parts operations, customer garage, insurance, billing, native mobile apps, advanced AI sales assistant, full DMS/CRM integrations, full WhatsApp Business automation, lender APIs, automated exchange valuation or full self-service SaaS onboarding.
 
 AI remains assistive rather than authoritative; vehicle facts, attribution evidence and business outcomes are deterministic records.
+
+Built reference apps require explicit `AUTH_MODE=demo` when launched manually. For Cognito access, configure the server variables in `docs/staff-authentication.md`; login/refresh UI and Aurora repositories remain unfinished.

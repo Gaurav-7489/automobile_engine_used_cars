@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import {
-  AuthorizationError,
   requireCapability,
-  requireDealership,
-  requireTenant,
   type LeadActivity,
   type LeadStage,
 } from "@vandlabs/contracts";
+import { accessError, requireLeadAccess } from "@vandlabs/server-auth";
 import { resolvePrincipal } from "../../../../lib/auth";
 import { leads as seededLeads, tenantConfig } from "@vandlabs/demo-data";
 import { runLeadAutomation } from "@vandlabs/demo-data/automation";
@@ -33,12 +31,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const principal = resolvePrincipal(request);
-  if (!principal) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
-
   try {
+    const principal = await resolvePrincipal(request);
     requireCapability(principal, "lead:write");
 
     const { id } = await params;
@@ -48,8 +42,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Lead not found." }, { status: 404 });
     }
 
-    requireTenant(principal, lead.tenantId);
-    requireDealership(principal, lead.dealershipId);
+    requireLeadAccess(principal, lead, "lead:write");
 
     const body = (await request.json()) as {
       stage?: LeadStage;
@@ -120,9 +113,8 @@ export async function PATCH(
       },
     });
   } catch (error) {
-    if (error instanceof AuthorizationError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
-    }
+    const failure = accessError(error);
+    if (failure) return NextResponse.json({ error: failure.message }, { status: failure.status });
     throw error;
   }
 }

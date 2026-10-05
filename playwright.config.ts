@@ -16,16 +16,19 @@ export default defineConfig({
       command: "pnpm --filter @vandlabs/web start",
       url: publicURL,
       reuseExistingServer: false,
+      env: { AUTH_MODE: "demo", DATA_MODE: "demo" },
     },
     {
       command: "pnpm --filter @vandlabs/command-center start",
       url: commandURL,
       reuseExistingServer: false,
+      env: { AUTH_MODE: "demo", DATA_MODE: "demo" },
     },
     {
       command: "pnpm --filter @vandlabs/platform start",
       url: platformURL,
       reuseExistingServer: false,
+      env: { AUTH_MODE: "demo", DATA_MODE: "demo" },
     },
   ],
   projects: [

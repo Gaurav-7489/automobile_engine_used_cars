@@ -13,7 +13,8 @@
     "@vandlabs/demo-data": "workspace:*",
     "next": "^15.5.3",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "@vandlabs/server-auth": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",

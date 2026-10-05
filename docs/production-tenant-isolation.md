@@ -43,3 +43,7 @@ RLS is defense in depth, not a replacement for service authorization.
 ## Release tests
 
 Production promotion must include negative tests proving Tenant A cannot read, mutate, enumerate, export or infer Tenant B records across HTTP, database, storage, caches and asynchronous jobs.
+
+## Verified identity boundary
+
+See `staff-authentication.md`. Staff tokens are verified in the application; incoming identity headers are never accepted as proof. Mutation authorization now includes location scope. The current schema and reference adapters do not constitute a deployed, tested production isolation system.
