@@ -46,11 +46,11 @@ and capability grants. Example shape (identifiers must match the active data):
 An authenticated subject missing from the registry receives 403. Missing or
 invalid registry configuration receives 503. The registry is a bootstrap
 provisioning boundary; replace it with an authorized server-side membership
-repository when production data is implemented. Changes currently require a
+repository for self-service membership management. Changes currently require a
 server configuration update/restart.
 
-Clients may provide `Authorization: Bearer <access-token>`. The future browser
-login callback may set `__Host-vandlabs-access-token` with `Secure`, `HttpOnly`,
+Clients may provide `Authorization: Bearer <access-token>`. The browser
+login callback sets `__Host-vandlabs-access-token` with `Secure`, `HttpOnly`,
 `SameSite=Lax`, `Path=/` and no Domain. The verified `/auth/callback` endpoint issues this cookie.
 Cookie-authenticated mutations additionally require a matching Origin; bearer
 requests support desktop/API clients without a browser Origin. An invalid

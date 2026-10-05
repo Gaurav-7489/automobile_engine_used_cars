@@ -45,6 +45,6 @@ test("callback and refresh verify access before issuing cookies, and logout revo
   assert.equal(logout.status,303);assert.equal(exchanges[2].get("token"),"private-refresh");assert.equal(logout.headers.getSetCookie().length,3);
   const denied=createOAuthHandlers("/command",async()=>{throw new Error("Not provisioned");});
   const rejected=await denied.refresh(new Request("https://dealer.example/command/auth/refresh",{headers:{cookie:refreshCookie}}));
-  assert.equal(rejected.status,401);assert.equal(rejected.headers.getSetCookie().length,0);
+  assert.equal(rejected.status,303);assert.equal(new URL(rejected.headers.get("location")!).pathname,"/command/login");assert.equal(rejected.headers.getSetCookie().length,3);assert.ok(rejected.headers.getSetCookie().every(value=>value.includes("Max-Age=0")));
  }finally{globalThis.fetch=originalFetch;for(const key of keys)if(before[key]===undefined)delete process.env[key];else process.env[key]=before[key];}
 });

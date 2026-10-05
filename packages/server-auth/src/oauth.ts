@@ -63,11 +63,17 @@ export function createOAuthHandlers(basePath:string,authorize:(request:Request)=
       if(flow.expires<Date.now()||!code||Buffer.byteLength(state)!==Buffer.byteLength(flow.state)||!timingSafeEqual(Buffer.from(state),Buffer.from(flow.state)))throw new AuthenticationError(401,"Invalid sign-in state.");
       return session(c,await exchange(c,{grant_type:"authorization_code",code,code_verifier:flow.verifier,redirect_uri:c.origin+basePath+"/auth/callback"}),safeReturnTo(flow.returnTo,basePath));
     });},
-    refresh(request:Request){return protect(async()=>{
+    async refresh(request:Request){const response=await protect(async()=>{
       const c=oauthConfig(basePath);const stored=unseal<{token:string;expires:number}>(cookie(request,"__Host-vandlabs-refresh"),c.secret);
       if(stored.expires<Date.now())throw new AuthenticationError(401,"Session expired.");
       return session(c,await exchange(c,{grant_type:"refresh_token",refresh_token:stored.token}),safeReturnTo(new URL(request.url).searchParams.get("returnTo"),basePath),stored.token);
-    });},
+    });
+      if(response.status!==401)return response;
+      const c=oauthConfig(basePath);const target=new URL(c.origin+basePath+"/login");target.searchParams.set("returnTo",safeReturnTo(new URL(request.url).searchParams.get("returnTo"),basePath));
+      const retry=redirect(target.toString());
+      for(const name of ["__Host-vandlabs-access-token","__Host-vandlabs-refresh","__Host-vandlabs-oauth"])setCookie(retry,name,"",0);
+      return retry;
+    },
     logout(request:Request){return protect(async()=>{
       const c=oauthConfig(basePath);csrf(request,c);
       try{const stored=unseal<{token:string}>(cookie(request,"__Host-vandlabs-refresh"),c.secret);
