@@ -34,6 +34,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Staff security regression tests
+        run: pnpm test:security
+
       - name: Build
         run: pnpm build
 
@@ -42,6 +45,9 @@ jobs:
 
       - name: End-to-end smoke tests
         run: pnpm test:e2e --project=desktop
+
+      - name: Staff HTTP access regression tests
+        run: pnpm test:auth:e2e
 
       - name: Build AWS infrastructure
         working-directory: infra/aws

@@ -41,3 +41,9 @@ export function requireDealership(principal: AuthenticatedPrincipal, dealershipI
     throw new AuthorizationError("Dealership scope mismatch");
   }
 }
+
+export function requireLocation(principal: AuthenticatedPrincipal, locationId: string) {
+  if (!principal.locationIds.includes(locationId)) {
+    throw new AuthorizationError("Location scope mismatch");
+  }
+}
