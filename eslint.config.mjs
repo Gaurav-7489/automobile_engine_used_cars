@@ -24,6 +24,9 @@ export default [
   {
     ignores: [
       "**/.next/**",
+      "**/dist/**",
+      "**/target/**",
+      "**/cdk.out/**",
       "**/node_modules/**",
       "playwright-report/**",
       "test-results/**",

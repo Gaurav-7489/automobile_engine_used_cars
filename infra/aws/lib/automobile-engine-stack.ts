@@ -51,6 +51,12 @@ export class AutomobileEngineStack extends Stack {
       },
     });
 
+    const appCredentials = new secretsmanager.Secret(this, "ApplicationDatabaseCredentials", {
+      encryptionKey: key,
+      generateSecretString: { secretStringTemplate: JSON.stringify({ username: "vandlabs_app" }), generateStringKey: "password", excludePunctuation: true },
+    });
+    new CfnOutput(this, "ApplicationDatabaseSecretArn", { value: appCredentials.secretArn });
+
     const database = new rds.DatabaseCluster(this, "Database", {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
         version: rds.AuroraPostgresEngineVersion.VER_16_4,
@@ -112,10 +118,23 @@ export class AutomobileEngineStack extends Stack {
       removalPolicy: production ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
     });
 
-    userPool.addClient("StaffWebClient", {
+    const callbacks: string[] = this.node.tryGetContext("staffCallbackUrls") ?? ["https://operations.example.invalid/command/auth/callback", "https://platform.example.invalid/platform/auth/callback"];
+    const logouts: string[] = this.node.tryGetContext("staffLogoutUrls") ?? ["https://operations.example.invalid/command/login", "https://platform.example.invalid/platform/login"];
+    if (production && [...callbacks, ...logouts].some(url => url.includes("example.invalid"))) throw new Error("Production Cognito requires real callback/logout URLs.");
+    const staffWeb = userPool.addClient("StaffWebClient", {
+      generateSecret: false,
       authFlows: { userSrp: true },
       preventUserExistenceErrors: true,
+      oAuth: { flows: { authorizationCodeGrant: true }, scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE], callbackUrls: callbacks, logoutUrls: logouts },
     });
+    const desktop = userPool.addClient("StaffDesktopClient", {
+      generateSecret: false, preventUserExistenceErrors: true,
+      oAuth: { flows: { authorizationCodeGrant: true }, scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE], callbackUrls: ["http://localhost:43821/callback"] },
+    });
+    const domain = userPool.addDomain("StaffSignInDomain", { cognitoDomain: { domainPrefix: this.node.tryGetContext("cognitoDomainPrefix") ?? `vandlabs-engine-${props.environmentName}-${this.account}` } });
+    new CfnOutput(this, "StaffWebClientId", { value: staffWeb.userPoolClientId });
+    new CfnOutput(this, "StaffDesktopClientId", { value: desktop.userPoolClientId });
+    new CfnOutput(this, "StaffSignInUrl", { value: domain.baseUrl() });
 
     new logs.LogGroup(this, "ApplicationLogs", {
       retention: production ? logs.RetentionDays.ONE_YEAR : logs.RetentionDays.ONE_MONTH,

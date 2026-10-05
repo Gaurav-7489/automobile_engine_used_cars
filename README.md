@@ -6,6 +6,7 @@ VandLabs Automobile Engine is a reusable, multi-tenant Automotive Commerce & Gro
 
 - `apps/web` — public dealership experience on port 3000.
 - `apps/command-center` — dealership Growth / Sales OS on port 3001 under `/command`.
+- `apps/desktop` — native Windows/macOS client and installer builds.
 - `apps/platform` — VandLabs Platform Control Center on port 3002 under `/platform`.
 
 The reference tenant is **Apex Select Cars**, backed by shared typed demo data. Public enquiries are written to `.demo-runtime/leads.json` so the local demo can show a newly created lead in Command Center without a production database.
@@ -88,4 +89,8 @@ V1 does **not** include workshop/service operations, spare-parts operations, cus
 
 AI remains assistive rather than authoritative; vehicle facts, attribution evidence and business outcomes are deterministic records.
 
-Built reference apps require explicit `AUTH_MODE=demo` when launched manually. For Cognito access, configure the server variables in `docs/staff-authentication.md`; login/refresh UI and Aurora repositories remain unfinished.
+Built reference apps require explicit `AUTH_MODE=demo` when launched manually. For Cognito access, configure the server variables in `docs/staff-authentication.md`; browser login/refresh and Aurora repositories are implemented; live use requires deployment configuration.
+
+## Shared production runtime
+
+See `docs/production-runtime.md` for PostgreSQL migrations, application-role provisioning, Cognito login and desktop configuration. `DATA_MODE=aurora` uses shared PostgreSQL records; `demo` is explicit reference mode. Live deployment requires AWS/network/domain configuration. Native installer artifacts are built by `.github/workflows/desktop-build.yml`.

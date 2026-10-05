@@ -37,6 +37,9 @@ jobs:
       - name: Staff security regression tests
         run: pnpm test:security
 
+      - name: PostgreSQL persistence regressions
+        run: pnpm test:database
+
       - name: Build
         run: pnpm build
 

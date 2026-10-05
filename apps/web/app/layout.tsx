@@ -6,6 +6,8 @@ import { SiteFooter } from "../components/site-footer";
 import { JourneyCapture } from "../components/journey-capture";
 import { tenantConfig } from "../lib/config";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   metadataBase: new URL(tenantConfig.seo.canonicalBase),
   title: {

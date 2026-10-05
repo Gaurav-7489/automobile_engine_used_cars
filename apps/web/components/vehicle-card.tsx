@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { Vehicle } from "@vandlabs/contracts";
 import { money, number } from "../lib/format";
-import { locationName } from "../lib/config";
 
-export function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
+
+export function VehicleCard({ vehicle, locationLabel = "Dealership" }: { vehicle: Vehicle; locationLabel?: string }) {
   const image = vehicle.media[0];
   return (
     <article className="vehicle-card">
@@ -21,7 +21,7 @@ export function VehicleCard({ vehicle }: { vehicle: Vehicle }) {
         <div className="vehicle-card-body">
           <span className="meta">
             {vehicle.year} · {number(vehicle.mileage)} km ·{" "}
-            {locationName(vehicle.locationId)}
+            {locationLabel}
           </span>
           <h3>
             {vehicle.make} {vehicle.model}

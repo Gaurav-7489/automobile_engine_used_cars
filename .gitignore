@@ -79,3 +79,10 @@ temp/
 
 # Misc
 *.tgz
+
+# Native build output and local seed configuration
+**/src-tauri/target/
+.runtime/
+
+# Generated CDK assembly
+**/cdk.out/

@@ -1,80 +1,11 @@
 import { NextResponse } from "next/server";
-import {
-  requireCapability,
-  type LeadActivity,
-  type Task,
-} from "@vandlabs/contracts";
-import { leads as seededLeads, tenantConfig } from "@vandlabs/demo-data";
-import {
-  mergeRuntimeLeads,
-  persistRuntimeLeadActivities,
-  persistRuntimeTask,
-} from "@vandlabs/demo-data/runtime";
-import { accessError, requireLeadAccess } from "@vandlabs/server-auth";
+import { createTask, InputError } from "@vandlabs/data";
 import { resolvePrincipal } from "../../../../../lib/auth";
-
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const principal = await resolvePrincipal(request);
-    requireCapability(principal, "task:write");
-
-    const { id } = await params;
-    const lead = mergeRuntimeLeads(seededLeads).find((item) => item.id === id);
-    if (!lead || lead.tenantId !== tenantConfig.tenantId) {
-      return NextResponse.json({ error: "Lead not found." }, { status: 404 });
-    }
-    requireLeadAccess(principal, lead, "task:write");
-
-    const body = (await request.json()) as {
-      title?: string;
-      owner?: string;
-      dueAt?: string;
-      priority?: "normal" | "high";
-    };
-    const title = body.title?.trim();
-    const owner = body.owner?.trim();
-    const dueAt = body.dueAt ? new Date(body.dueAt) : null;
-
-    if (
-      !title || title.length > 160 ||
-      !owner || owner.length > 100 ||
-      !dueAt || Number.isNaN(dueAt.getTime()) ||
-      (body.priority !== "normal" && body.priority !== "high")
-    ) {
-      return NextResponse.json({ error: "Invalid follow-up." }, { status: 400 });
-    }
-
-    const task: Task = {
-      id: crypto.randomUUID(),
-      tenantId: lead.tenantId,
-      leadId: lead.id,
-      title,
-      owner,
-      dueAt: dueAt.toISOString(),
-      completed: false,
-      priority: body.priority,
-    };
-    const activity: LeadActivity = {
-      id: crypto.randomUUID(),
-      tenantId: lead.tenantId,
-      leadId: lead.id,
-      type: "follow_up_created",
-      actor: principal.userId,
-      description: `Follow-up scheduled for ${owner}.`,
-      occurredAt: new Date().toISOString(),
-    };
-
-    if (!persistRuntimeTask(task) || !persistRuntimeLeadActivities([activity])) {
-      return NextResponse.json({ error: "Follow-up could not be persisted." }, { status: 503 });
-    }
-
-    return NextResponse.json({ data: task, activity }, { status: 201 });
-  } catch (error) {
-    const failure = accessError(error);
-    if (failure) return NextResponse.json({ error: failure.message }, { status: failure.status });
-    throw error;
-  }
+import { api, objectBody } from "../../../../../lib/http";
+export async function POST(request:Request,{params}:{params:Promise<{id:string}>}) {
+  return api(async()=>{
+    const p=await resolvePrincipal(request);const {id}=await params;const b=await objectBody(request);
+    if(typeof b.title!=="string"||!b.title.trim()||b.title.length>160||typeof b.owner!=="string"||!b.owner.trim()||b.owner.length>100||typeof b.dueAt!=="string"||!Number.isFinite(Date.parse(b.dueAt))||(b.priority!=="normal"&&b.priority!=="high"))throw new InputError();
+    return NextResponse.json(await createTask(p,id,{title:b.title.trim(),owner:b.owner.trim(),dueAt:new Date(b.dueAt).toISOString(),priority:b.priority}),{status:201});
+  });
 }

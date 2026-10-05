@@ -1,6 +1,5 @@
 import {
   analyticsRepository,
-  leadRepository,
   tenantRepository,
   vehicleRepository,
 } from "./repositories";
@@ -28,16 +27,5 @@ export const dealershipService = {
   },
   async compare(ids: string[]) {
     return vehicleRepository.findByIds(ids);
-  },
-};
-
-export const commandService = {
-  async dashboard() {
-    const [tenant, metrics, activity] = await Promise.all([
-      tenantRepository.getActive(),
-      analyticsRepository.getSnapshot(),
-      leadRepository.listRecent(),
-    ]);
-    return { tenant, metrics, activity };
   },
 };

@@ -15,9 +15,7 @@ verify identity and authorize the actual resource independently.
   Unknown modes and missing production mode fail closed with 503.
 - Demo identity is rejected when `DATA_MODE=aurora`.
 
-This change does not implement an Aurora repository, a sign-in/refresh flow or a
-production deployment. `DATA_MODE=aurora` is not yet a usable persistence adapter.
-The existing website and staff apps still use reference data/file persistence.
+The shared PostgreSQL adapter and browser sign-in/refresh/logout flow are now implemented. See `production-runtime.md` for deployment configuration. No AWS deployment or live account acceptance has been performed.
 
 ## Cognito configuration
 
@@ -53,7 +51,7 @@ server configuration update/restart.
 
 Clients may provide `Authorization: Bearer <access-token>`. The future browser
 login callback may set `__Host-vandlabs-access-token` with `Secure`, `HttpOnly`,
-`SameSite=Lax`, `Path=/` and no Domain. No endpoint currently issues this cookie.
+`SameSite=Lax`, `Path=/` and no Domain. The verified `/auth/callback` endpoint issues this cookie.
 Cookie-authenticated mutations additionally require a matching Origin; bearer
 requests support desktop/API clients without a browser Origin. An invalid
 Authorization header never falls back to a valid session cookie.
@@ -66,10 +64,7 @@ uses the Cognito public JWKS endpoint; tokens are never logged by this adapter.
 - Lead updates: `lead:write` plus lead tenant, dealership and optional location.
 - Follow-up creation/completion/reopening: `task:write` plus the associated lead's
   scope. Task tenant must match its lead; audit actor is the verified subject.
-- Staff pages: all reference read capabilities, active tenant/dealership and every
-  active dealership location. This intentionally denies partial location scopes
-  because current reference screens aggregate all locations. Scoped repositories
-  must replace this restriction before supporting limited-location staff views.
+- Staff pages: read capabilities plus the configured deployment tenant/dealership; shared repositories filter permitted locations and records.
 - Platform pages: `platform:admin`.
 
 Auth errors return generic 401/403 responses. Staff page responses are private and

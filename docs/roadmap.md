@@ -45,3 +45,7 @@ tests, 13 staff HTTP denial tests and 12 reference API regression cases pass.
 Full browser smoke verification remains pending CI because this environment's
 Chromium archive download failed. Login/refresh UX, live Cognito acceptance and
 Aurora repositories/deployment remain pending. See `staff-authentication.md`.
+
+## Shared runtime and native client
+
+Shared PostgreSQL records, atomic lead/task/activity/automation operations, runtime inventory, browser Cognito PKCE login/refresh/logout, and a standalone Tauri client are implemented. Windows/macOS installer CI and AWS OAuth client/domain configuration are included. Live AWS deployment and account acceptance require deployment credentials and origins; native installer status is recorded in the PR. See `production-runtime.md`.

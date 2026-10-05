@@ -1,5 +1,6 @@
 export type Capability =
   | "inventory:read"
+  | "inventory:write"
   | "lead:read"
   | "lead:write"
   | "task:write"

@@ -11,12 +11,7 @@ import { VehicleViewEvent } from "../../../components/vehicle-view-event";
 
 type PageProps = { params: Promise<{ slug: string }> };
 
-export async function generateStaticParams() {
-  const vehicles = await dealershipService.inventory();
-  return vehicles.map((vehicle) => ({ slug: vehicle.slug }));
-}
-
-export const dynamicParams = false;
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

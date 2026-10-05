@@ -12,7 +12,7 @@ import {
 type Environment = Record<string, string | undefined>;
 type TokenVerifier = (token: string) => Promise<{ sub: string }>;
 const capabilities: Capability[] = [
-  "inventory:read", "lead:read", "lead:write", "task:write", "analytics:read", "platform:admin",
+  "inventory:read", "inventory:write", "lead:read", "lead:write", "task:write", "analytics:read", "platform:admin",
 ];
 
 export class AuthenticationError extends Error {
@@ -34,7 +34,7 @@ export function createCognitoVerifier(env: Environment = process.env) {
   }
   return CognitoJwtVerifier.create({
     userPoolId: env.COGNITO_USER_POOL_ID,
-    clientId: env.COGNITO_CLIENT_ID,
+    clientId: env.COGNITO_CLIENT_IDS?.split(",").map(v=>v.trim()).filter(Boolean) ?? env.COGNITO_CLIENT_ID,
     tokenUse: "access",
   });
 }

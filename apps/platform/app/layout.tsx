@@ -35,7 +35,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 {label}
               </Link>
             ))}
-          </nav>
+          </nav><form action="/platform/auth/logout" method="post"><button type="submit">Sign out</button></form>
           {children}
         </div>
       </body>

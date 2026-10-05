@@ -1,23 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  activeDealership,
-  analyticsSnapshot,
-  appointments,
-  campaignTemplates,
-  leads as seededLeads,
-  tasks,
-  tenantConfig,
-  vehicleById,
-  vehicles,
-} from "@vandlabs/demo-data";
-import {
-  mergeRuntimeLeads,
-  mergeRuntimeTasks,
-  readRuntimeAutomationRuns,
-  readRuntimeJourneyEvents,
-} from "@vandlabs/demo-data/runtime";
-import { getAutomationRules } from "@vandlabs/demo-data/automation";
+import { campaignTemplates, leads as seededLeads } from "@vandlabs/demo-data";
+import { metrics, tenantConfig, dataMode, type Snapshot } from "@vandlabs/data";
+import { commandData } from "../../lib/data";
+const activeDealership = tenantConfig.organization.dealerships.find(d=>d.id===tenantConfig.activeDealershipId)!;
 import { labelize, money, number, shortDateTime } from "../../lib/format";
 import { TaskStatusButton } from "../../components/task-status-button";
 
@@ -35,7 +21,7 @@ const valid = new Set([
   "settings",
 ]);
 
-const allLeads = () => mergeRuntimeLeads(seededLeads);
+
 
 function Header({
   eyebrow,
@@ -55,8 +41,10 @@ function Header({
   );
 }
 
-function LeadsSection() {
-  const leads = allLeads();
+function LeadsSection({ data }: {data:Snapshot}) {
+  const {leads} = data;
+  const vehicleById = (id?:string) => data.vehicles.find(v=>v.id===id);
+
   return (
     <>
       <Header
@@ -115,8 +103,10 @@ function LeadsSection() {
   );
 }
 
-function PipelineSection() {
-  const leads = allLeads();
+function PipelineSection({ data }: {data:Snapshot}) {
+  const {leads} = data;
+  const vehicleById = (id?:string) => data.vehicles.find(v=>v.id===id);
+
   const stages = [
     "new",
     "contacted",
@@ -174,9 +164,10 @@ function PipelineSection() {
   );
 }
 
-function TasksSection() {
-  const leads = allLeads();
-  const allTasks = mergeRuntimeTasks(tasks);
+function TasksSection({ data }: {data:Snapshot}) {
+  const {leads, tasks} = data;
+
+  const allTasks = tasks;
   return (
     <>
       <Header
@@ -226,8 +217,10 @@ function TasksSection() {
   );
 }
 
-function AppointmentsSection() {
-  const leads = allLeads();
+function AppointmentsSection({ data }: {data:Snapshot}) {
+  const {leads, appointments} = data;
+  const vehicleById = (id?:string) => data.vehicles.find(v=>v.id===id);
+
   return (
     <>
       <Header
@@ -256,7 +249,9 @@ function AppointmentsSection() {
   );
 }
 
-function InventorySection() {
+function InventorySection({ data }: {data:Snapshot}) {
+  const {vehicles} = data;
+
   return (
     <>
       <Header
@@ -311,8 +306,9 @@ function InventorySection() {
   );
 }
 
-function CustomersSection() {
-  const leads = allLeads();
+function CustomersSection({ data }: {data:Snapshot}) {
+  const {leads} = data;
+
   return (
     <>
       <Header
@@ -340,9 +336,12 @@ function CustomersSection() {
   );
 }
 
-function AnalyticsSection() {
-  const leads = allLeads();
-  const allTasks = mergeRuntimeTasks(tasks);
+function AnalyticsSection({ data }: {data:Snapshot}) {
+  const {leads, tasks} = data;
+  const vehicleById = (id?:string) => data.vehicles.find(v=>v.id===id);
+  const analyticsSnapshot = metrics(data);
+
+  const allTasks = tasks;
   const openTasks = allTasks.filter((task) => !task.completed);
   const overdueTasks = openTasks.filter((task) => new Date(task.dueAt).getTime() < Date.now());
   const leadsWithNextAction = new Set(openTasks.map((task) => task.leadId));
@@ -350,7 +349,7 @@ function AnalyticsSection() {
     ? Math.round((leads.filter((lead) => leadsWithNextAction.has(lead.id)).length / leads.length) * 100)
     : 0;
   const runtimeCount = leads.filter(
-    (lead) => !seededLeads.some((seeded) => seeded.id === lead.id),
+    (lead) => dataMode() === "aurora" || !seededLeads.some((seeded) => seeded.id === lead.id),
   ).length;
   const sourceCounts = leads.reduce<Record<string, number>>((acc, lead) => {
     acc[lead.source] = (acc[lead.source] ?? 0) + 1;
@@ -366,11 +365,11 @@ function AnalyticsSection() {
     ["Won", leads.filter((lead) => lead.stage === "won").length],
   ] as const;
   const maxFunnel = Math.max(1, ...funnel.map(([, count]) => count));
-  const automationRuns = readRuntimeAutomationRuns().filter((run) => run.tenantId === tenantConfig.tenantId);
+  const automationRuns = data.runs.filter((run) => run.tenantId === tenantConfig.tenantId);
   const automatedTasks = automationRuns.filter((run) => run.outcome === "created").length;
   const consentSkips = automationRuns.filter((run) => run.outcome === "skipped_consent").length;
   const duplicateSkips = automationRuns.filter((run) => run.outcome === "skipped_duplicate").length;
-  const journeyEvents = readRuntimeJourneyEvents().filter((event) => event.tenantId === tenantConfig.tenantId);
+  const journeyEvents = data.events.filter((event) => event.tenantId === tenantConfig.tenantId);
   const attributedEvents = journeyEvents.filter((event) => event.source || event.campaign).length;
   const campaignPerformance = leads.reduce<Record<string, { leads: number; qualified: number; wins: number }>>((acc, lead) => {
     const key = lead.campaign || "unattributed";
@@ -535,10 +534,11 @@ function AnalyticsSection() {
 }
 
 
-function AutomationSection() {
-  const rules = getAutomationRules(tenantConfig.tenantId);
-  const runs = readRuntimeAutomationRuns().filter((run) => run.tenantId === tenantConfig.tenantId);
-  const events = readRuntimeJourneyEvents().filter((event) => event.tenantId === tenantConfig.tenantId);
+function AutomationSection({ data }: {data:Snapshot}) {
+
+  const rules = data.rules;
+  const runs = data.runs.filter((run) => run.tenantId === tenantConfig.tenantId);
+  const events = data.events.filter((event) => event.tenantId === tenantConfig.tenantId);
   const created = runs.filter((run) => run.outcome === "created").length;
   const blocked = runs.filter((run) => run.outcome === "skipped_consent").length;
   const duplicates = runs.filter((run) => run.outcome === "skipped_duplicate").length;
@@ -593,7 +593,7 @@ function AutomationSection() {
           <p className="eyebrow">Campaign templates</p>
           <h2>Reusable acquisition setup</h2>
           <div className="stack-list">
-            {campaignTemplates.map((template) => (
+            {(dataMode() === "demo" ? campaignTemplates : []).map((template) => (
               <div className="list-row" key={template.id}>
                 <div>
                   <strong>{template.name}</strong>
@@ -665,17 +665,18 @@ export default async function Page({
 }) {
   const { section } = await params;
   if (!valid.has(section)) notFound();
+  const data = await commandData();
 
   return (
     <main className="main">
-      {section === "leads" ? <LeadsSection /> : null}
-      {section === "pipeline" ? <PipelineSection /> : null}
-      {section === "tasks" ? <TasksSection /> : null}
-      {section === "appointments" ? <AppointmentsSection /> : null}
-      {section === "inventory" ? <InventorySection /> : null}
-      {section === "customers" ? <CustomersSection /> : null}
-      {section === "analytics" ? <AnalyticsSection /> : null}
-      {section === "automation" ? <AutomationSection /> : null}
+      {section === "leads" ? <LeadsSection data={data} /> : null}
+      {section === "pipeline" ? <PipelineSection data={data} /> : null}
+      {section === "tasks" ? <TasksSection data={data} /> : null}
+      {section === "appointments" ? <AppointmentsSection data={data} /> : null}
+      {section === "inventory" ? <InventorySection data={data} /> : null}
+      {section === "customers" ? <CustomersSection data={data} /> : null}
+      {section === "analytics" ? <AnalyticsSection data={data} /> : null}
+      {section === "automation" ? <AutomationSection data={data} /> : null}
       {section === "settings" ? <SettingsSection /> : null}
     </main>
   );
