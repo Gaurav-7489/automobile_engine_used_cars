@@ -122,7 +122,7 @@ export function postgresStore(pool: SqlPool) {
     updateVehicle(p:AuthenticatedPrincipal,id:string,patch:Pick<Vehicle,"price"|"availabilityStatus"|"publishStatus">) { return tx(p.tenantId,async c=> {
       requireCapability(p,"inventory:write");const row=(await c.query("SELECT * FROM vehicles WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[id,p.tenantId])).rows[0];
       if (!row) throw new RecordNotFound();const vehicle=decodeVehicle(row);requireDealership(p,vehicle.dealershipId);requireLocation(p,vehicle.locationId);
-      const updated={...vehicle,...patch,updatedAt:new Date().toISOString()};
+      const updated={...vehicle,price:patch.price,availabilityStatus:patch.availabilityStatus,publishStatus:patch.publishStatus,updatedAt:new Date().toISOString()};
       await c.query("UPDATE vehicles SET payload=$1,availability_status=$2,publish_status=$3,updated_at=$4 WHERE id=$5 AND tenant_id=$6",[updated,updated.availabilityStatus,updated.publishStatus,updated.updatedAt,id,p.tenantId]);return updated;
     }); },
   };
@@ -135,7 +135,7 @@ export async function staffSnapshot(p:AuthenticatedPrincipal):Promise<Snapshot> 
   if (dataMode()==="aurora") return (await productionStore()).snapshot(p);
   for(const cap of ["lead:read","inventory:read","analytics:read"] as const) requireCapability(p,cap);
   const s=demoSnapshot();s.leads=s.leads.filter(l=>visible(p,l));s.vehicles=s.vehicles.filter(v=>visible(p,v));
-  const ids=new Set(s.leads.map(l=>l.id));s.tasks=s.tasks.filter(t=>ids.has(t.leadId));s.activities=s.activities.filter(a=>ids.has(a.leadId));s.appointments=s.appointments.filter(a=>ids.has(a.leadId));return s;
+  const ids=new Set(s.leads.map(l=>l.id));s.tasks=s.tasks.filter(t=>ids.has(t.leadId));s.activities=s.activities.filter(a=>ids.has(a.leadId));s.appointments=s.appointments.filter(a=>ids.has(a.leadId));s.runs=s.runs.filter(r=>ids.has(r.leadId));const vehicleIds=new Set(s.vehicles.map(v=>v.id));s.events=s.events.filter(e=>!!e.vehicleId&&vehicleIds.has(e.vehicleId));return s;
 }
 export async function createLead(input:Omit<Lead,"id"|"stage"|"createdAt"|"updatedAt">) {
   const s=publicScope();if(input.tenantId!==s.tenantId||input.dealershipId!==s.dealershipId) throw new InputError("Invalid dealership.");

@@ -42,8 +42,9 @@ test("real PostgreSQL engine: isolation, shared records, atomic audit/task write
   const other={...p,tenantId:b};assert.equal((await store.snapshot(other)).leads.length,0);
   await assert.rejects(store.patchLead(other,leadId,{stage:"won"}),RecordNotFound);
   await assert.rejects(store.createTask({...p,locationIds:[otherLocation]},leadId,{title:"Denied",owner:"Staff",dueAt:"2030-01-01",priority:"normal"}),AuthorizationError);
-  await store.updateVehicle(p,vehicleId,{price:100,availabilityStatus:"sold",publishStatus:"published"});
+  await store.updateVehicle(p,vehicleId,{price:100,availabilityStatus:"sold",publishStatus:"published", ...{slug:"forged",tenantId:b}});
   assert.equal((await store.inventory(a,dealer))[0].availabilityStatus,"sold");
+  assert.equal((await store.inventory(a,dealer))[0].slug,"car");
   await assert.rejects(store.createLead({tenantId:a,dealershipId:dealer,locationId:location,vehicleId,vehicleIds:[vehicleId],name:"Buyer",phone:"123",channel:"web",intent:"enquiry",source:"website",consent:{whatsapp:false,marketing:false}}),/unavailable/);
   await assert.rejects(tenantTransaction(pool,a,async c=>{await c.query("UPDATE leads SET stage='won' WHERE id=$1",[leadId]);throw new Error("simulated failure");}),/simulated failure/);
   assert.equal((await store.snapshot(p)).leads[0].stage,"qualified");

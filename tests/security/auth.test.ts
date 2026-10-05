@@ -100,3 +100,10 @@ test("lead and task authorization enforce capability, tenant, dealership and loc
     ]) assert.throws(() => requireLeadAccess(denied, lead, capability), AuthorizationError);
   }
 });
+
+test("web and desktop clients are accepted only from the explicit configured client list", async () => {
+ const multi=createCognitoVerifier({...env,COGNITO_CLIENT_IDS:"test-client, desktop-client"});
+ multi.cacheJwks({keys:[{...keys.publicKey.export({format:"jwk"}),kid:"test-key",alg:"RS256",use:"sig"}]});
+ assert.equal((await multi.verify(token({client_id:"desktop-client"}))).sub,"staff-1");
+ await assert.rejects(multi.verify(token({client_id:"unregistered-client"})));
+});
