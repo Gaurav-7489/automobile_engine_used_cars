@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { tenantConfig } from "../lib/config";
 import { dealershipService } from "../lib/services";
 
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const vehicles = await dealershipService.inventory();
   const base = tenantConfig.seo.canonicalBase.replace(/\/$/, "");

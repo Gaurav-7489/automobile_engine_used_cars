@@ -1,0 +1,53 @@
+name: Desktop installers
+on:
+  pull_request:
+    paths:
+      - 'apps/desktop/**'
+      - 'packages/contracts/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/desktop-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  installers:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: universal-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.17.1 --activate
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+        if: runner.os == 'macOS'
+      - uses: dtolnay/rust-toolchain@stable
+        if: runner.os == 'Windows'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @vandlabs/desktop typecheck
+      - run: pnpm --filter @vandlabs/desktop build
+      - name: Native regression tests
+        working-directory: apps/desktop/src-tauri
+        run: cargo test
+      - name: Build native installer
+        working-directory: apps/desktop
+        run: pnpm tauri build --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Automobile-Engine-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            apps/desktop/src-tauri/target/**/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/**/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/Cargo.lock

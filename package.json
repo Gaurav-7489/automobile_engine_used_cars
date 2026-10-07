@@ -6,9 +6,15 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
-    "lint": "eslint apps packages tests playwright.config.ts",
+    "lint": "eslint apps packages tests playwright*.config.ts",
     "test:e2e": "playwright test",
-    "qa": "pnpm lint && pnpm typecheck && pnpm build && pnpm test:e2e"
+    "qa": "pnpm lint && pnpm typecheck && pnpm test:security && pnpm test:database && pnpm build && pnpm test:e2e && pnpm test:auth:e2e",
+    "test:security": "node --import tsx --test tests/security/*.test.ts",
+    "test:auth:e2e": "playwright test --config playwright.auth.config.ts",
+    "db:migrate": "node --import tsx scripts/database/migrate.ts",
+    "db:seed": "node --import tsx scripts/database/seed.ts",
+    "test:database": "node --import tsx --test tests/database/*.test.ts",
+    "db:provision-role": "node --import tsx scripts/database/provision-role.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
@@ -16,6 +22,8 @@
     "eslint": "^9.35.0",
     "eslint-config-next": "^15.5.3",
     "turbo": "^2.5.6",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "tsx": "^4.20.6",
+    "@electric-sql/pglite": "^0.3.14"
   }
 }

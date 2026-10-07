@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import type { LeadIntent } from "@vandlabs/contracts";
-import { tenantConfig, vehicles } from "@vandlabs/demo-data";
-import { leadRepository } from "../../../lib/repositories";
-import { runLeadAutomation } from "@vandlabs/demo-data/automation";
+import type { LeadIntent, AttributionTouch } from "@vandlabs/contracts";
+import { tenantConfig, createLead, publicInventory } from "@vandlabs/data";
 
 const validIntents: LeadIntent[] = [
   "enquiry",
@@ -39,6 +37,16 @@ export async function POST(request: Request) {
     };
   };
 
+  if (!body || typeof body !== "object" || Array.isArray(body) ||
+    typeof body.name !== "string" || body.name.length > 120 ||
+    typeof body.phone !== "string" || body.phone.length > 32 ||
+    (body.email !== undefined && (typeof body.email !== "string" || body.email.length > 254)) ||
+    (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.length > 2000)) ||
+    (body.vehicleId !== undefined && typeof body.vehicleId !== "string") ||
+    (body.whatsappConsent !== undefined && typeof body.whatsappConsent !== "boolean") ||
+    (body.marketingConsent !== undefined && typeof body.marketingConsent !== "boolean")) {
+    return NextResponse.json({error:"Invalid enquiry."},{status:400});
+  }
   const name = body.name?.trim();
   const phone = body.phone?.trim();
   if (!name || !phone) {
@@ -52,13 +60,22 @@ export async function POST(request: Request) {
     body.intent && validIntents.includes(body.intent)
       ? body.intent
       : "enquiry";
+  const vehicles = await publicInventory();
   const vehicle = body.vehicleId
     ? vehicles.find((item) => item.id === body.vehicleId)
     : undefined;
-  const lastTouch = body.attribution?.lastTouch;
-  const firstTouch = body.attribution?.firstTouch;
+  const cleanTouch = (touch?: Partial<AttributionTouch>) => {
+    if (!touch || typeof touch.source !== "string" || touch.source.length > 100 ||
+      typeof touch.landingPath !== "string" || touch.landingPath.length > 1000 ||
+      typeof touch.capturedAt !== "string" || !Number.isFinite(Date.parse(touch.capturedAt))) return undefined;
+    return {source:touch.source, landingPath:touch.landingPath, capturedAt:touch.capturedAt, campaign: typeof touch.campaign === "string" ? touch.campaign.slice(0,200) : undefined, medium: typeof touch.medium === "string" ? touch.medium.slice(0,100) : undefined};
+  };
+  const lastTouch = cleanTouch(body.attribution?.lastTouch);
+  const firstTouch = cleanTouch(body.attribution?.firstTouch);
 
-  const lead = await leadRepository.create({
+  if (body.vehicleId && (!vehicle || vehicle.availabilityStatus !== "available")) return NextResponse.json({ error: "Vehicle is unavailable." }, {status:400});
+
+  const { lead, automation } = await createLead({
     tenantId: tenantConfig.tenantId,
     dealershipId: tenantConfig.activeDealershipId,
     locationId: vehicle?.locationId,
@@ -101,14 +118,13 @@ export async function POST(request: Request) {
     },
   });
 
-  const automation = runLeadAutomation(lead, "lead_created");
 
   return NextResponse.json(
     {
       leadId: lead.id,
       stage: lead.stage,
       vehicleId: lead.vehicleId,
-      message: "Demo lead accepted through the VandLabs BFF contract.",
+      message: "Your enquiry has been received.",
       automation: {
         evaluated: automation.length,
         tasksCreated: automation.filter((run) => run.outcome === "created").length,

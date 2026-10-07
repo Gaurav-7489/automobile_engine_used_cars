@@ -1,22 +1,16 @@
 import Link from "next/link";
-import {
-  analyticsSnapshot,
-  appointments,
-  leads as seededLeads,
-  tasks,
-  vehicleById,
-} from "@vandlabs/demo-data";
-import {
-  mergeRuntimeLeads,
-  mergeRuntimeTasks,
-} from "@vandlabs/demo-data/runtime";
+import { metrics } from "@vandlabs/data";
+import { commandData } from "../lib/data";
 import { shortDateTime } from "../lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default function Page() {
-  const leads = mergeRuntimeLeads(seededLeads);
-  const openTasks = mergeRuntimeTasks(tasks).filter((task) => !task.completed);
+export default async function Page() {
+  const data = await commandData();
+  const {leads, appointments, vehicles} = data;
+  const analyticsSnapshot = metrics(data);
+  const vehicleById = (id?: string) => vehicles.find(v=>v.id===id);
+  const openTasks = data.tasks.filter((task) => !task.completed);
   const todaysAppointments = appointments.filter(
     (appointment) => appointment.status === "scheduled",
   );

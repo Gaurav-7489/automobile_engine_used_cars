@@ -31,3 +31,21 @@ A stage marked **Implemented** means the feature/contracts are in the repository
 - **V2.5 — Integrations + advanced reporting (foundation implemented):** normalized CRM/DMS adapter contracts, explicit field-authority maps, reconciliation evidence and descriptive campaign outcome reporting are implemented. Real vendor connectivity remains gated on verified provider APIs, credentials and field-authority approval.
 - **V3 — AI + inventory intelligence:** inventory health/economics first, then guarded assistant, matching, rescue and dealer copilot. Gate: structured truth, sufficient history, consent and tool guardrails.
 - **V3.1+ — Market/depreciation/predictive intelligence:** only after licensed/permissioned market coverage and enough historical outcomes exist. No nationwide scraping or predictive claims without evidence.
+
+## Ecosystem continuation — verified staff access
+
+Cognito access-token verification, server-owned staff provisioning, Command Center
+and Platform page guards, and independent lead/task mutation scope checks are
+implemented. Demo mode must be explicit on built staff applications. Partial
+location scopes are denied on the aggregate reference screens until scoped
+production repositories are available.
+
+Validation: lint, typecheck and all three production builds pass; 13 security unit
+tests, 13 staff HTTP denial tests and 12 reference API regression cases pass.
+Full browser smoke verification remains pending CI because this environment's
+Chromium archive download failed. Login/refresh UX, live Cognito acceptance and
+Aurora repositories/deployment remain pending. See `staff-authentication.md`.
+
+## Shared runtime and native client
+
+Shared PostgreSQL records, atomic lead/task/activity/automation operations, runtime inventory, browser Cognito PKCE login/refresh/logout, and a standalone Tauri client are implemented. Windows/macOS installer CI and AWS OAuth client/domain configuration are included. Live AWS deployment and account acceptance require deployment credentials and origins; native installer status is recorded in the PR. See `production-runtime.md`.

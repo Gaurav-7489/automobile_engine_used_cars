@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { JourneyEvent } from "@vandlabs/contracts";
-import { tenantConfig } from "@vandlabs/demo-data";
-import { persistRuntimeJourneyEvent } from "@vandlabs/demo-data/runtime";
+import { tenantConfig, saveEvent } from "@vandlabs/data";
 
 const allowedEvents = new Set<JourneyEvent["type"]>([
   "page_view", "inventory_search", "vehicle_view", "compare", "whatsapp_click",
@@ -26,9 +25,7 @@ export async function POST(request: Request) {
     occurredAt: new Date().toISOString(),
   };
 
-  if (!persistRuntimeJourneyEvent(event)) {
-    return NextResponse.json({ error: "Event could not be persisted." }, { status: 503 });
-  }
+  await saveEvent(event);
 
   return NextResponse.json({ accepted: true, event }, { status: 202 });
 }

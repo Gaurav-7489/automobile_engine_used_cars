@@ -1,0 +1,54 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { PGlite } from "@electric-sql/pglite";
+import { postgresStore, RecordNotFound } from "../../packages/data/src/index";
+import { tenantTransaction, type SqlPool } from "../../packages/data/src/postgres";
+import { AuthorizationError, type AuthenticatedPrincipal, type Vehicle } from "../../packages/contracts/src/index";
+import { vehicles } from "../../packages/demo-data/src/index";
+
+test("real PostgreSQL engine: isolation, shared records, atomic audit/task writes and rollback",async()=>{
+ const db=new PGlite();await db.waitReady;
+ try{
+  for(const name of ["0001_core_tenant_schema.sql","0002_ecosystem_records.sql"]){const sql=await readFile(`infra/database/migrations/${name}`,"utf8");await db.exec(sql.replace("CREATE EXTENSION IF NOT EXISTS pgcrypto;",""));}
+  const a="11111111-1111-4111-a111-111111111111",b="22222222-2222-4222-a222-222222222222";
+  const dealer="33333333-3333-4333-a333-333333333333",location="44444444-4444-4444-a444-444444444444",otherLocation="55555555-5555-4555-a555-555555555555",vehicleId="66666666-6666-4666-a666-666666666666";
+  await db.query("INSERT INTO organizations(id,tenant_id,name) VALUES($1,$1,'A'),($2,$2,'B')",[a,b]);
+  await db.query("INSERT INTO dealerships(id,tenant_id,organization_id,name,brand_name) VALUES($1,$2,$2,'A','A')",[dealer,a]);
+  for(const id of [location,otherLocation])await db.query("INSERT INTO locations(id,tenant_id,dealership_id,name,city,state,phone) VALUES($1,$2,$3,'Location','City','State','123')",[id,a,dealer]);
+  const vehicle:Vehicle={...vehicles[0],id:vehicleId,tenantId:a,dealershipId:dealer,locationId:location};
+  await db.query("INSERT INTO vehicles(id,tenant_id,dealership_id,location_id,slug,stock_id,payload,publish_status,availability_status) VALUES($1,$2,$3,$4,'car','stock',$5,'published','available')",[vehicleId,a,dealer,location,vehicle]);
+  const ruleId="77777777-7777-4777-a777-777777777777";
+  await db.query("INSERT INTO automation_rules(id,tenant_id,payload) VALUES($1,$2,$3)",[ruleId,a,{id:ruleId,tenantId:a,name:"Qualified follow-up",enabled:true,trigger:"stage_changed",stages:["qualified"],delayMinutes:15,taskTitle:"Automated follow-up",ownerFallback:"Staff",priority:"normal",channel:"internal_task",requiresWhatsappConsent:false}]);
+  await db.exec(await readFile("infra/database/application-role.sql","utf8"));
+  const pool:SqlPool={async connect(){return {async query(sql,values){const result=await db.query<Record<string,unknown>>(sql,values);return {rows:result.rows};},release(){}};}};
+  await assert.rejects(tenantTransaction(pool,a,async()=>true),/must not bypass RLS/);
+  await db.exec("SET ROLE vandlabs_app");
+  const store=postgresStore(pool);
+  const p:AuthenticatedPrincipal={userId:"staff",tenantId:a,dealershipIds:[dealer],locationIds:[location],capabilities:["lead:read","lead:write","task:write","inventory:read","inventory:write","analytics:read"]};
+  const created=await store.createLead({tenantId:a,dealershipId:dealer,locationId:location,vehicleId,vehicleIds:[vehicleId],name:"Buyer",phone:"123",channel:"web",intent:"enquiry",source:"website",consent:{whatsapp:false,marketing:false}});
+  const leadId=created.lead.id;
+  const one=await store.snapshot(p);assert.equal(one.leads[0].id,leadId);assert.equal(one.vehicles.length,1);
+  const updated=await store.patchLead(p,leadId,{stage:"qualified",notes:"Confirmed"});assert.equal(updated.activity.length,2);
+  const task=await store.createTask(p,leadId,{title:"Call",owner:"Staff",dueAt:"2030-01-01T10:00:00Z",priority:"high"});
+  await store.completeTask(p,task.data.id,true);
+  const snapshot=await store.snapshot(p);assert.equal(snapshot.tasks.find(t=>t.id===task.data.id)?.completed,true);assert.equal(snapshot.activities.length,4);
+  assert.equal(snapshot.runs.filter(r=>r.outcome==="created").length,1);
+  await store.patchLead(p,leadId,{stage:"contacted"});await store.patchLead(p,leadId,{stage:"qualified"});
+  const repeated=await store.snapshot(p);assert.equal(repeated.tasks.filter(t=>t.origin==="automation").length,1);assert.equal(repeated.runs.filter(r=>r.outcome==="skipped_duplicate").length,1);
+  const broken:SqlPool={async connect(){const c=await pool.connect();return {release:()=>c.release(),async query(sql,values){if(sql.startsWith("INSERT INTO lead_activities"))throw new Error("audit failure");return c.query(sql,values);}};}};
+  await assert.rejects(postgresStore(broken).patchLead(p,leadId,{stage:"won"}),/audit failure/);
+  assert.equal((await store.snapshot(p)).leads[0].stage,"qualified");
+  const other={...p,tenantId:b};assert.equal((await store.snapshot(other)).leads.length,0);
+  await assert.rejects(store.patchLead(other,leadId,{stage:"won"}),RecordNotFound);
+  await assert.rejects(store.createTask({...p,locationIds:[otherLocation]},leadId,{title:"Denied",owner:"Staff",dueAt:"2030-01-01",priority:"normal"}),AuthorizationError);
+  await store.updateVehicle(p,vehicleId,{price:100,availabilityStatus:"sold",publishStatus:"published", ...{slug:"forged",tenantId:b}});
+  assert.equal((await store.inventory(a,dealer))[0].availabilityStatus,"sold");
+  assert.equal((await store.inventory(a,dealer))[0].slug,"car");
+  await assert.rejects(store.createLead({tenantId:a,dealershipId:dealer,locationId:location,vehicleId,vehicleIds:[vehicleId],name:"Buyer",phone:"123",channel:"web",intent:"enquiry",source:"website",consent:{whatsapp:false,marketing:false}}),/unavailable/);
+  await assert.rejects(tenantTransaction(pool,a,async c=>{await c.query("UPDATE leads SET stage='won' WHERE id=$1",[leadId]);throw new Error("simulated failure");}),/simulated failure/);
+  assert.equal((await store.snapshot(p)).leads[0].stage,"qualified");
+  const unset=await db.query("SELECT nullif(current_setting('app.tenant_id',true),'') AS tenant");assert.equal(unset.rows[0].tenant,null);
+  assert.equal((await db.query("SELECT id FROM leads")).rows.length,0);
+ }finally{await db.close();}
+});

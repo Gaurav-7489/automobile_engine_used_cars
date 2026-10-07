@@ -1,6 +1,6 @@
 import "./globals.css";
 import Link from "next/link";
-import { tenantConfig } from "@vandlabs/demo-data";
+import { tenantConfig } from "@vandlabs/data";
 
 const nav = [
   ["Overview", "/"],
@@ -36,10 +36,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   {label}
                 </Link>
               ))}
-            </nav>
+            </nav><form action="/command/auth/logout" method="post"><button type="submit">Sign out</button></form>
             <div className="sidebar-foot">
               <span className="status-dot" />
-              Demo tenant · healthy
+              Connected operations
             </div>
           </aside>
           <div className="app-content">

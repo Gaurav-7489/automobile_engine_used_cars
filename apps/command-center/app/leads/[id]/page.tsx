@@ -1,16 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  appointments,
-  leads as seededLeads,
-  tasks,
-  vehicleById,
-} from "@vandlabs/demo-data";
-import {
-  mergeRuntimeLeads,
-  mergeRuntimeTasks,
-  readRuntimeLeadActivities,
-} from "@vandlabs/demo-data/runtime";
+import { commandData } from "../../../lib/data";
 import { labelize, shortDateTime } from "../../../lib/format";
 import { LeadOperations } from "../../../components/lead-operations";
 import { FollowUpForm } from "../../../components/follow-up-form";
@@ -24,15 +14,17 @@ export default async function LeadPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const lead = mergeRuntimeLeads(seededLeads).find((item) => item.id === id);
+  const data = await commandData();
+  const {appointments, vehicles} = data;
+  const lead = data.leads.find((item) => item.id === id);
   if (!lead) notFound();
 
-  const vehicle = vehicleById(lead.vehicleId);
-  const leadTasks = mergeRuntimeTasks(tasks).filter((task) => task.leadId === lead.id);
+  const vehicle = vehicles.find(v=>v.id===lead.vehicleId);
+  const leadTasks = data.tasks.filter((task) => task.leadId === lead.id);
   const leadAppointments = appointments.filter(
     (appointment) => appointment.leadId === lead.id,
   );
-  const leadActivity = readRuntimeLeadActivities(lead.id);
+  const leadActivity = data.activities.filter(a=>a.leadId===lead.id);
 
   return (
     <main className="main">

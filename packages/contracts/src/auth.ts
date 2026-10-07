@@ -1,5 +1,6 @@
 export type Capability =
   | "inventory:read"
+  | "inventory:write"
   | "lead:read"
   | "lead:write"
   | "task:write"
@@ -39,5 +40,11 @@ export function requireTenant(principal: AuthenticatedPrincipal, tenantId: strin
 export function requireDealership(principal: AuthenticatedPrincipal, dealershipId: string) {
   if (!principal.dealershipIds.includes(dealershipId)) {
     throw new AuthorizationError("Dealership scope mismatch");
+  }
+}
+
+export function requireLocation(principal: AuthenticatedPrincipal, locationId: string) {
+  if (!principal.locationIds.includes(locationId)) {
+    throw new AuthorizationError("Location scope mismatch");
   }
 }

@@ -1,0 +1,1 @@
+{"name":"@vandlabs/data","private":true,"type":"module","exports":{".":"./src/index.ts","./postgres":"./src/postgres.ts"},"dependencies":{"@vandlabs/contracts":"workspace:*","@vandlabs/demo-data":"workspace:*","pg":"^8.16.3","@aws-sdk/client-secrets-manager":"^3.900.0"},"devDependencies":{"@types/pg":"^8.15.5"}}

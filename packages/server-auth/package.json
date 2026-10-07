@@ -1,0 +1,13 @@
+{
+  "name": "@vandlabs/server-auth",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./oauth": "./src/oauth.ts"
+  },
+  "dependencies": {
+    "@vandlabs/contracts": "workspace:*",
+    "aws-jwt-verify": "^5.1.1"
+  }
+}

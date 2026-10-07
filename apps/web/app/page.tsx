@@ -64,7 +64,7 @@ export default async function Page() {
         </div>
         <div className="inventory-grid">
           {featured.map((vehicle) => (
-            <VehicleCard key={vehicle.id} vehicle={vehicle} />
+            <VehicleCard key={vehicle.id} vehicle={vehicle} locationLabel={tenant.organization.dealerships.flatMap(d=>d.locations).find(l=>l.id===vehicle.locationId)?.name} />
           ))}
         </div>
       </section>

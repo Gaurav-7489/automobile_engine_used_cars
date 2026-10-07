@@ -1,3 +1,4 @@
+import { tenantConfig } from "../../lib/config";
 import { dealershipService } from "../../lib/services";
 import { InventoryBrowser } from "../../components/inventory-browser";
 
@@ -18,7 +19,7 @@ export default async function Page() {
         Search by the facts that matter. The list below comes from the canonical
         VandLabs vehicle model for this dealership.
       </p>
-      <InventoryBrowser vehicles={vehicles} />
+      <InventoryBrowser vehicles={vehicles} locationNames={Object.fromEntries(tenantConfig.organization.dealerships.flatMap(d=>d.locations).map(l=>[l.id,l.name]))} />
     </main>
   );
 }

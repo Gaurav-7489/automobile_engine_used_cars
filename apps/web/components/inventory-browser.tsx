@@ -7,7 +7,7 @@ import { VehicleCard } from "./vehicle-card";
 
 type SortMode = "recommended" | "price-low" | "price-high" | "mileage";
 
-export function InventoryBrowser({ vehicles }: { vehicles: Vehicle[] }) {
+export function InventoryBrowser({ vehicles, locationNames }: { vehicles: Vehicle[]; locationNames: Record<string, string> }) {
   const [query, setQuery] = useState("");
   const [body, setBody] = useState("all");
   const [fuel, setFuel] = useState("all");
@@ -118,7 +118,7 @@ export function InventoryBrowser({ vehicles }: { vehicles: Vehicle[] }) {
         <div className="inventory-grid">
           {filtered.map((vehicle) => (
             <div key={vehicle.id}>
-              <VehicleCard vehicle={vehicle} />
+              <VehicleCard locationLabel={locationNames[vehicle.locationId]} vehicle={vehicle} />
               <button
                 className={
                   "compare-toggle " +

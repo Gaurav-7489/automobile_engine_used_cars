@@ -1,1 +1,48 @@
-{"$schema":"https://turbo.build/schema.json","tasks":{"dev":{"cache":false,"persistent":true},"build":{"dependsOn":["^build"],"outputs":[".next/**","!.next/cache/**"]},"typecheck":{"dependsOn":["^typecheck"]},"lint":{"dependsOn":["^lint"]}}}
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": [
+        "^typecheck"
+      ]
+    },
+    "lint": {
+      "dependsOn": [
+        "^lint"
+      ]
+    }
+  },
+  "globalEnv": [
+    "DATA_MODE",
+    "AUTH_MODE",
+    "TENANT_CONFIG_JSON",
+    "APP_ORIGIN",
+    "COGNITO_DOMAIN",
+    "COGNITO_USER_POOL_ID",
+    "COGNITO_CLIENT_ID",
+    "COGNITO_CLIENT_IDS",
+    "SESSION_SECRET",
+    "AUTH_PRINCIPALS_JSON",
+    "DATABASE_URL",
+    "DATABASE_HOST",
+    "DATABASE_NAME",
+    "DATABASE_PORT",
+    "DATABASE_SECRET_ARN",
+    "DATABASE_TLS",
+    "DATABASE_SSL_CA_FILE"
+  ]
+}
