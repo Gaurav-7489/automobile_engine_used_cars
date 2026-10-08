@@ -21,6 +21,8 @@ test("staff enter a draft, review details and publish to the owned website",asyn
   const statusForm=row.locator("form").filter({has:page.getByRole("button",{name:"Save inventory",exact:true})});
   await statusForm.locator('[name="publication"]').selectOption("published");await statusForm.getByRole("button").click();
   await expect.poll(async()=> (await (await request.get("/api/vehicles")).json()).data.some((v:{id:string})=>v.id===vehicle.id)).toBeTruthy();
+  expect((await request.patch(`${api}/vehicles/${vehicle.id}`,{data:{price:1,publishStatus:"published",availabilityStatus:"available",expectedVersion:0}})).status()).toBe(409);
+  expect((await request.patch(`${api}/vehicles/${vehicle.id}`,{data:{price:1,publishStatus:"published",availabilityStatus:"available"}})).status()).toBe(400);
   const customer=await page.context().newPage();
   await customer.goto(`http://127.0.0.1:3000/vehicles/${vehicle.slug}`);await expect(customer.getByRole("heading",{name:"Honda City",exact:true})).toBeVisible();await expect(customer.getByText("ZX reviewed",{exact:true})).toBeVisible();await customer.close();
 });

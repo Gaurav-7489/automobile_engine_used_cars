@@ -303,16 +303,17 @@ paths:
           application/json:
             schema:
               type: object
-              required: [vehicle]
+              required: [vehicle, expectedVersion]
               properties:
                 vehicle: {$ref: "#/components/schemas/InventoryInput"}
+                expectedVersion: {type: integer, minimum: 0}
       responses:
         "200": {description: Updated metadata and before/after audit}
         "400": {description: Invalid fields, changed stock ID or missing publication imagery}
         "401": {description: Authentication required}
         "403": {description: Capability or location denied}
         "404": {description: Vehicle not found in active tenant}
-        "409": {description: Sold inventory requires an approved correction}
+        "409": {description: Stale inventory version or sold inventory requires an approved correction}
     patch:
       summary: Update stock price and publication with audit history
       description: Requires inventory-write in scope. A confirmed sale cannot be reopened with this endpoint.
@@ -324,8 +325,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [price, availabilityStatus, publishStatus]
+              required: [price, availabilityStatus, publishStatus, expectedVersion]
               properties:
+                expectedVersion: {type: integer, minimum: 0}
                 price: { type: number, minimum: 0 }
                 availabilityStatus: { type: string, enum: [available, reserved, sold] }
                 publishStatus: { type: string, enum: [draft, published, archived] }
@@ -335,7 +337,7 @@ paths:
         "401": { description: Authentication required }
         "403": { description: Scope or capability denied }
         "404": { description: Vehicle not in scope }
-        "409": { description: Confirmed sale requires approved reversal }
+        "409": { description: Stale inventory version or confirmed sale requires approved reversal }
   /command/api/vehicles/{id}/costs:
     put:
       summary: Save an operator-verified stock cost record and immutable amendment history

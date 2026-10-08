@@ -74,6 +74,7 @@ export interface VehicleMedia {
 }
 
 export interface Vehicle {
+  version?: number;
   id: ID;
   slug: string;
   tenantId: ID;
