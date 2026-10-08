@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { dealershipService } from "../../../lib/services";
 import { locationName, tenantConfig } from "../../../lib/config";
 import { money, number } from "../../../lib/format";
-import { vehicleJsonLd } from "../../../lib/seo";
+import { vehicleJsonLd, serializeJsonLd } from "../../../lib/seo";
 import { LeadForm } from "../../../components/lead-form";
 import { TrackedAction } from "../../../components/tracked-action";
 import { VehicleViewEvent } from "../../../components/vehicle-view-event";
@@ -81,7 +81,7 @@ export default async function Page({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(vehicleJsonLd(vehicle, tenantConfig)),
+          __html: serializeJsonLd(vehicleJsonLd(vehicle, tenantConfig)),
         }}
       />
 

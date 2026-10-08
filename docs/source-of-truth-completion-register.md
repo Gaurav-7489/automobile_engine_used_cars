@@ -62,3 +62,7 @@ For each gate, record: `commit_sha`, `CI_run_url`, `environment`, `date`, `test_
 ## Scope and decision rule
 
 Respect all 75 decisions. Separate **implemented** from **tested** and **deployed**. Feature development should not skip D0 and D1 acceptance. The 94-page Blueprint expands beyond the locked V1 boundary; implement its advanced modules as staged products, not as unproven features inside the demo.
+
+## Inventory intake increment
+
+`feat/inventory-ingestion` adds canonical draft entry, detail/image editing, CSV validation/preview/atomic insertion and creation/update audit evidence. Exact PR checks govern acceptance. Direct XLSX, external reconciliation and complete economic/administration modules remain unfinished; see `inventory-intake.md`.

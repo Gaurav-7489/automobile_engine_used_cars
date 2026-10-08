@@ -97,3 +97,5 @@ Built reference apps require explicit `AUTH_MODE=demo` when launched manually. F
 See `docs/production-runtime.md` for PostgreSQL migrations, application-role provisioning, Cognito login and desktop configuration. `DATA_MODE=aurora` uses shared PostgreSQL records; `demo` is explicit reference mode. Live deployment requires AWS/network/domain configuration. Native installer artifacts are built by `.github/workflows/desktop-build.yml`.
 
 See `docs/release-2026-10-08.md` for the connected-demo release, pull instructions, exact test evidence and separate desktop/staging/production completion states.
+
+Inventory entry and CSV preview/import: see [inventory-intake.md](docs/inventory-intake.md).

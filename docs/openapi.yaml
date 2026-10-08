@@ -246,7 +246,73 @@ paths:
         "403": { description: Scope or capability denied }
         "404": { description: Lead/vehicle not in scope }
         "409": { description: Conflicting sale or vehicle already sold }
+  /command/api/vehicles:
+    post:
+      summary: Create one tenant-scoped draft vehicle with an atomic creation audit
+      servers: [{ url: "http://127.0.0.1:3001" }]
+      description: Requires inventory-write and assigned dealership/location. Identity/publication are server controlled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dealershipId, locationId, vehicle]
+              properties:
+                dealershipId: {type: string}
+                locationId: {type: string}
+                vehicle: {$ref: "#/components/schemas/InventoryInput"}
+      responses:
+        "201": {description: Draft and creation audit committed}
+        "400": {description: Validation issues with row and field}
+        "401": {description: Authentication required}
+        "403": {description: Capability or location denied}
+        "409": {description: Concurrent identity conflict}
+  /command/api/vehicles/import:
+    post:
+      summary: Preview or commit a batch of new CSV stock identities
+      servers: [{ url: "http://127.0.0.1:3001" }]
+      description: CSV maximum 250000 UTF-8 bytes and 200 records. Preview does not write; commit revalidates and is atomic. Duplicates do not overwrite existing stock.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dealershipId, locationId, csv, mode]
+              properties:
+                dealershipId: {type: string}
+                locationId: {type: string}
+                csv: {type: string}
+                mode: {type: string, enum: [preview, commit]}
+      responses:
+        "200": {description: Transient preview records; no writes}
+        "201": {description: Batch committed with creation audits}
+        "400": {description: Invalid CSV or row-field issues, including duplicate identities}
+        "401": {description: Authentication required}
+        "403": {description: Capability or location denied}
+        "409": {description: Concurrent identity conflict}
   /command/api/vehicles/{id}:
+    put:
+      summary: Edit canonical vehicle details while preserving identity, scope and state
+      servers: [{ url: "http://127.0.0.1:3001" }]
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vehicle]
+              properties:
+                vehicle: {$ref: "#/components/schemas/InventoryInput"}
+      responses:
+        "200": {description: Updated metadata and before/after audit}
+        "400": {description: Invalid fields, changed stock ID or missing publication imagery}
+        "401": {description: Authentication required}
+        "403": {description: Capability or location denied}
+        "404": {description: Vehicle not found in active tenant}
+        "409": {description: Sold inventory requires an approved correction}
     patch:
       summary: Update stock price and publication with audit history
       description: Requires inventory-write in scope. A confirmed sale cannot be reopened with this endpoint.
@@ -313,6 +379,28 @@ components:
         publishStatus:
           type: string
           enum: [draft, published, archived]
+    InventoryInput:
+      type: object
+      additionalProperties: false
+      required: [stockId, make, model, variant, year, price, mileage, fuelType, transmission, ownership, bodyType, condition, exteriorColor, interiorColor]
+      properties:
+        stockId: {type: string, maxLength: 64, pattern: "^[A-Za-z0-9][A-Za-z0-9_-]*$"}
+        make: {type: string, minLength: 1, maxLength: 120}
+        model: {type: string, minLength: 1, maxLength: 120}
+        variant: {type: string, minLength: 1, maxLength: 120}
+        year: {type: integer, minimum: 1900, description: No later than the current year plus one}
+        price: {type: number, exclusiveMinimum: 0, maximum: 999999999999, multipleOf: 0.01}
+        mileage: {type: integer, minimum: 0, maximum: 2000000}
+        fuelType: {type: string, enum: [petrol, diesel, hybrid, electric]}
+        transmission: {type: string, enum: [manual, automatic]}
+        ownership: {type: integer, minimum: 1, maximum: 20}
+        bodyType: {type: string, minLength: 1, maxLength: 120}
+        condition: {type: string, enum: [excellent, good, fair]}
+        exteriorColor: {type: string, minLength: 1, maxLength: 120}
+        interiorColor: {type: string, minLength: 1, maxLength: 120}
+        imageUrl: {type: string, maxLength: 2048, description: Optional public HTTPS image URL without credentials; empty permitted for drafts}
+        financeEligible: {type: boolean, default: false}
+        exchangeEligible: {type: boolean, default: false}
     CreateLead:
       type: object
       required: [name, phone]

@@ -268,6 +268,11 @@ export interface Sale {
 }
 
 export interface InventoryChange {
+  action?: "created" | "updated";
+  beforeRecord?: Vehicle;
+  afterRecord?: Vehicle;
+  batchId?: ID;
+  source?: string;
   id: ID;
   tenantId: ID;
   vehicleId: ID;

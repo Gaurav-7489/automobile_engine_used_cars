@@ -1,5 +1,10 @@
 import type { TenantConfig, Vehicle } from "@vandlabs/contracts";
 
+// User-managed stock/branding must never terminate a JSON-LD script element.
+export function serializeJsonLd(value:unknown) {
+  return JSON.stringify(value).replace(/</g,"\\u003c");
+}
+
 export function dealershipJsonLd(tenant: TenantConfig) {
   const dealership = tenant.organization.dealerships.find(
     (item) => item.id === tenant.activeDealershipId,
