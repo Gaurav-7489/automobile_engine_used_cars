@@ -1,4 +1,5 @@
-import { tenantConfig } from "@vandlabs/demo-data";
+import { tenantConfig, vehicles } from "@vandlabs/demo-data";
+import { mergeRuntimeVehicles } from "@vandlabs/demo-data/runtime";
 
 export const tenantRegistry = [
   {
@@ -10,7 +11,7 @@ export const tenantRegistry = [
     locations: 2,
     domain: "apexselect.example",
     package: "Growth",
-    status: "healthy",
+    status: "reference",
     region: "ap-south-1",
     createdAt: "2026-09-20T10:00:00Z",
   },
@@ -39,22 +40,27 @@ export const featureFlags = [
 ];
 
 export const integrationAdapters = [
-  { name: "Website BFF", category: "core", status: "healthy", mode: "local demo contract" },
-  { name: "WhatsApp", category: "messaging", status: "click-to-chat", mode: "provider adapter ready" },
-  { name: "Google / UTM", category: "acquisition", status: "healthy", mode: "first-party capture" },
+  { name: "Website BFF", category: "core", status: "implemented", mode: "Application routes; uptime not probed" },
+  { name: "WhatsApp", category: "messaging", status: "click-to-chat", mode: "Provider delivery not configured" },
+  { name: "Google / UTM", category: "acquisition", status: "implemented", mode: "first-party capture; external account not connected" },
   { name: "Meta", category: "acquisition", status: "contract-only", mode: "provider adapter later" },
   { name: "DMS / CRM", category: "inventory", status: "contract-only", mode: "future adapter" },
   { name: "Finance / valuation", category: "commerce", status: "contract-only", mode: "future adapter" },
 ];
 
-export const healthSignals = [
-  { system: "Experience", status: "healthy", detail: "Public routes and inventory contracts" },
-  { system: "Conversion BFF", status: "healthy", detail: "Lead and event endpoints available" },
-  { system: "Command Center", status: "healthy", detail: "Seeded CRM/operations surfaces" },
-  { system: "Platform Control", status: "healthy", detail: "Tenant and rollout control surfaces" },
-  { system: "Persistence", status: "demo", detail: "Mock adapter; Aurora connection intentionally deferred" },
-  { system: "Authentication", status: "demo", detail: "Cognito contract planned; production auth intentionally deferred" },
-];
+export function runtimeHealth() {
+  const production=process.env.DATA_MODE==="aurora";
+  return [
+    {system:"Persistence",status:production?"configured":"demo",detail:production?"Aurora adapter selected; connectivity and recovery not verified by this screen":"Atomic local reference state; not a production database"},
+    {system:"Authentication",status:process.env.AUTH_MODE==="cognito"?"configured":"demo",detail:process.env.AUTH_MODE==="cognito"?"Cognito mode selected; live login acceptance is a separate gate":"Loopback reference identity"},
+    {system:"Cloud monitoring",status:"unknown",detail:"No metrics collector connected to this screen"},
+    {system:"AI provider",status:"unconfigured",detail:"No model inference or billing telemetry connected"},
+    {system:"Market coverage",status:"unconfigured",detail:"No permissioned market data source connected"},
+  ];
+}
+export function referenceUsage() {
+  return {tenants:tenantRegistry.length,dealerships:tenantRegistry.length,locations:tenantRegistry.reduce((sum,t)=>sum+t.locations,0),publishedVehicles:mergeRuntimeVehicles(vehicles).filter(v=>v.tenantId===tenantConfig.tenantId&&v.dealershipId===tenantConfig.activeDealershipId&&v.publishStatus==="published").length,storageGb:null,aiCost:null,failedJobs:null};
+}
 
 export const auditEvents = [
   { at: "2026-09-29T09:55:00Z", actor: "VandLabs Support", action: "tenant.health.view", scope: "tenant-apex", result: "allowed" },
@@ -62,13 +68,3 @@ export const auditEvents = [
   { at: "2026-09-29T08:10:00Z", actor: "Onboarding", action: "inventory.sync.demo", scope: "dealer-select", result: "14 records" },
   { at: "2026-09-28T18:40:00Z", actor: "Platform Admin", action: "entitlement.verify", scope: "tenant-apex", result: "6 enabled" },
 ];
-
-export const platformUsage = {
-  tenants: tenantRegistry.length,
-  dealerships: tenantRegistry.length,
-  locations: tenantRegistry.reduce((sum, tenant) => sum + tenant.locations, 0),
-  publishedVehicles: 14,
-  storageGb: 0.18,
-  aiCost: 0,
-  failedJobs: 0,
-};

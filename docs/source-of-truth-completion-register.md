@@ -66,3 +66,7 @@ Respect all 75 decisions. Separate **implemented** from **tested** and **deploye
 ## Inventory intake increment
 
 `feat/inventory-ingestion` adds canonical draft entry, detail/image editing, CSV validation/preview/atomic insertion and creation/update audit evidence. Exact PR checks govern acceptance. Direct XLSX, external reconciliation and complete economic/administration modules remain unfinished; see `inventory-intake.md`.
+
+## Verified capital increment
+
+`feat/capital-operations` adds role-scoped stock costs, versioned amendments, acquisition ageing, recorded active/aged capital, holding assumptions and sale contribution evidence, plus shared native cost operations. Migration 0004 and explicit capital permissions are required. Platform telemetry now distinguishes configuration from health and hides reference control-plane data in production. General ledger, full staff/control-plane administration, AI/market providers and deployed staging remain open; see `capital-operations.md`.

@@ -343,3 +343,12 @@ export interface AnalyticsRepository {
 
 
 export * from "./auth";
+
+export interface StockCost {
+  tenantId: ID; vehicleId: ID; version: number; currency: "INR";
+  acquiredOn: string; purchasePrice: number; reconditioningCost: number; transferCost: number; otherCost: number;
+  dailyHoldingCost: number | null; reference: string; recordedBy: string; recordedAt: string;
+}
+export interface StockCostChange {
+  id: ID; tenantId: ID; vehicleId: ID; before: StockCost | null; after: StockCost;
+}

@@ -5,6 +5,8 @@ export type Capability =
   | "lead:write"
   | "task:write"
   | "analytics:read"
+  | "capital:read"
+  | "capital:write"
   | "platform:admin";
 
 export interface AuthenticatedPrincipal {

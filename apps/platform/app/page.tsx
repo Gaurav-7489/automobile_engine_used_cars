@@ -1,12 +1,15 @@
 import Link from "next/link";
 import {
-  healthSignals,
+  runtimeHealth,
   integrationAdapters,
-  platformUsage,
+  referenceUsage,
   tenantRegistry,
 } from "../lib/data";
 
+export const dynamic="force-dynamic";
 export default function Page() {
+  if(process.env.DATA_MODE==="aurora")return <main><h1>Platform services awaiting configuration</h1><p>A live tenant registry, provisioning and telemetry service are not connected. Reference records are hidden in production data mode.</p></main>;
+  const healthSignals=runtimeHealth(),platformUsage=referenceUsage();
   const tenant = tenantRegistry[0];
   return (
     <main>
@@ -27,12 +30,12 @@ export default function Page() {
       </div>
 
       <section className="metrics">
-        <article><span>Tenants</span><strong>{platformUsage.tenants}</strong></article>
+        <article><span>Reference tenants</span><strong>{platformUsage.tenants}</strong></article>
         <article><span>Dealerships</span><strong>{platformUsage.dealerships}</strong></article>
         <article><span>Locations</span><strong>{platformUsage.locations}</strong></article>
         <article><span>Published vehicles</span><strong>{platformUsage.publishedVehicles}</strong></article>
-        <article><span>Failed jobs</span><strong>{platformUsage.failedJobs}</strong></article>
-        <article><span>AI cost</span><strong>₹{platformUsage.aiCost}</strong></article>
+        <article><span>Failed jobs</span><strong>Unknown</strong></article>
+        <article><span>AI cost</span><strong>Unknown</strong></article>
       </section>
 
       <div className="overview-grid">

@@ -10,7 +10,7 @@ import { vehicles } from "../../packages/demo-data/src/index";
 test("real PostgreSQL engine: isolation, shared records, atomic audit/task writes and rollback",async()=>{
  const db=new PGlite();await db.waitReady;
  try{
-  for(const name of ["0001_core_tenant_schema.sql","0002_ecosystem_records.sql","0003_sales_inventory_history.sql"]){const sql=await readFile(`infra/database/migrations/${name}`,"utf8");await db.exec(sql.replace("CREATE EXTENSION IF NOT EXISTS pgcrypto;",""));}
+  for(const name of ["0001_core_tenant_schema.sql","0002_ecosystem_records.sql","0003_sales_inventory_history.sql","0004_stock_costs.sql"]){const sql=await readFile(`infra/database/migrations/${name}`,"utf8");await db.exec(sql.replace("CREATE EXTENSION IF NOT EXISTS pgcrypto;",""));}
   const a="11111111-1111-4111-a111-111111111111",b="22222222-2222-4222-a222-222222222222";
   const dealer="33333333-3333-4333-a333-333333333333",location="44444444-4444-4444-a444-444444444444",otherLocation="55555555-5555-4555-a555-555555555555",vehicleId="66666666-6666-4666-a666-666666666666";
   await db.query("INSERT INTO organizations(id,tenant_id,name) VALUES($1,$1,'A'),($2,$2,'B')",[a,b]);
@@ -25,7 +25,7 @@ test("real PostgreSQL engine: isolation, shared records, atomic audit/task write
   await assert.rejects(tenantTransaction(pool,a,async()=>true),/must not bypass RLS/);
   await db.exec("SET ROLE vandlabs_app");
   const store=postgresStore(pool);
-  const p:AuthenticatedPrincipal={userId:"staff",tenantId:a,dealershipIds:[dealer],locationIds:[location],capabilities:["lead:read","lead:write","task:write","inventory:read","inventory:write","analytics:read"]};
+  const p:AuthenticatedPrincipal={userId:"staff",tenantId:a,dealershipIds:[dealer],locationIds:[location],capabilities:["lead:read","lead:write","task:write","inventory:read","inventory:write","analytics:read","capital:read","capital:write"]};
   const created=await store.createLead({tenantId:a,dealershipId:dealer,locationId:location,vehicleId,vehicleIds:[vehicleId],name:"Buyer",phone:"123",channel:"web",intent:"enquiry",source:"website",consent:{whatsapp:false,marketing:false}});
   const leadId=created.lead.id;
   const one=await store.snapshot(p);assert.equal(one.leads[0].id,leadId);assert.equal(one.vehicles.length,1);
@@ -91,6 +91,20 @@ test("real PostgreSQL engine: isolation, shared records, atomic audit/task write
   await store.updateVehicle(p,edited.id,{price:1200000,publishStatus:"published",availabilityStatus:"available"});
   assert.equal((await store.inventory(a,dealer)).find(v=>v.id===edited.id)?.model,"City Hybrid");
   await assert.rejects(store.updateVehicleDetails(p,edited.id,intake),/requires imagery/);
+  const costs={acquiredOn:"2025-01-01",purchasePrice:1000000,reconditioningCost:25000,transferCost:5000,otherCost:0,dailyHoldingCost:null,reference:"TEST-INVOICE-1"};
+  await assert.rejects(store.saveStockCost({...p,capabilities:p.capabilities.filter(c=>c!=="capital:write")},edited.id,costs,0),AuthorizationError);
+  await assert.rejects(store.saveStockCost({...p,locationIds:[otherLocation]},edited.id,costs,0),AuthorizationError);
+  await assert.rejects(store.saveStockCost(other,edited.id,costs,0),RecordNotFound);
+  const costAuditBroken:SqlPool={async connect(){const c=await pool.connect();return {release:()=>c.release(),async query(sql,values){if(sql.startsWith("INSERT INTO stock_cost_history"))throw new Error("cost audit failure");return c.query(sql,values);}};}};
+  await assert.rejects(postgresStore(costAuditBroken).saveStockCost(p,edited.id,costs,0),/cost audit failure/);
+  assert.equal((await store.snapshot(p)).costs?.length,0);
+  const recorded=await store.saveStockCost(p,edited.id,costs,0);assert.equal(recorded.version,1);
+  await assert.rejects(store.saveStockCost(p,edited.id,costs,0),ConflictError);
+  const amended=await store.saveStockCost(p,edited.id,{...costs,otherCost:1000},1);assert.equal(amended.version,2);
+  assert.equal((await store.snapshot(p)).costHistory?.length,2);
+  const ordinary=await store.snapshot({...p,capabilities:p.capabilities.filter(c=>c!=="capital:read")});assert.equal(ordinary.costs,undefined);assert.equal(ordinary.costHistory,undefined);
+  assert.equal((await store.snapshot(other)).costs?.length,0);
+  await assert.rejects(store.saveStockCost(p,vehicleId,{...costs,acquiredOn:"2026-01-02"},0),/cannot follow/);
   const unset=await db.query("SELECT nullif(current_setting('app.tenant_id',true),'') AS tenant");assert.equal(unset.rows[0].tenant,null);
   assert.equal((await db.query("SELECT id FROM leads")).rows.length,0);
  }finally{await db.close();}

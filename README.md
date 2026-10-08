@@ -99,3 +99,5 @@ See `docs/production-runtime.md` for PostgreSQL migrations, application-role pro
 See `docs/release-2026-10-08.md` for the connected-demo release, pull instructions, exact test evidence and separate desktop/staging/production completion states.
 
 Inventory entry and CSV preview/import: see [inventory-intake.md](docs/inventory-intake.md).
+
+Verified stock-cost and capital operations: [capital-operations.md](docs/capital-operations.md).

@@ -336,6 +336,40 @@ paths:
         "403": { description: Scope or capability denied }
         "404": { description: Vehicle not in scope }
         "409": { description: Confirmed sale requires approved reversal }
+  /command/api/vehicles/{id}/costs:
+    put:
+      summary: Save an operator-verified stock cost record and immutable amendment history
+      servers: [{url: "http://127.0.0.1:3001"}]
+      description: Requires capital-write and vehicle dealership/location scope. Version zero creates; subsequent saves require the current version.
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedVersion, record]
+              properties:
+                expectedVersion: {type: integer, minimum: 0}
+                record:
+                  type: object
+                  additionalProperties: false
+                  required: [acquiredOn, purchasePrice, reconditioningCost, transferCost, otherCost, dailyHoldingCost, reference]
+                  properties:
+                    acquiredOn: {type: string, format: date, description: Asia/Kolkata business date, not future or after confirmed sale}
+                    purchasePrice: {type: number, exclusiveMinimum: 0, maximum: 999999999999, multipleOf: 0.01}
+                    reconditioningCost: {type: number, minimum: 0, maximum: 999999999999, multipleOf: 0.01}
+                    transferCost: {type: number, minimum: 0, maximum: 999999999999, multipleOf: 0.01}
+                    otherCost: {type: number, minimum: 0, maximum: 999999999999, multipleOf: 0.01}
+                    dailyHoldingCost: {type: [number, "null"], minimum: 0, maximum: 999999999999, multipleOf: 0.01}
+                    reference: {type: string, minLength: 1, maxLength: 120}
+      responses:
+        "200": {description: Cost version and audit atomically saved}
+        "400": {description: Invalid values or protected fields}
+        "401": {description: Authentication required}
+        "403": {description: Capital permission or vehicle scope denied}
+        "404": {description: Vehicle not found in active tenant}
+        "409": {description: Stale cost version; refresh required}
 components:
   schemas:
     Vehicle:

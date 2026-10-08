@@ -11,5 +11,7 @@ try{
  await client.query("GRANT USAGE ON SCHEMA public TO vandlabs_app");
  await client.query("GRANT SELECT,INSERT,UPDATE,DELETE ON organizations,dealerships,locations,vehicles,leads,tasks,journey_events,lead_activities,automation_rules,automation_runs,appointments TO vandlabs_app");
  await client.query("GRANT SELECT,INSERT ON sales,inventory_history TO vandlabs_app");
+ await client.query("GRANT SELECT,INSERT,UPDATE ON stock_costs TO vandlabs_app");
+ await client.query("GRANT SELECT,INSERT ON stock_cost_history TO vandlabs_app");
  await client.query("COMMIT");console.log("Application role provisioned from its secret.");
 }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();await pool.end();}
