@@ -57,7 +57,7 @@ Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75)
 
 For each gate, record: `commit_sha`, `CI_run_url`, `environment`, `date`, `test_result`, `evidence`, `open_defects`, `owner`, `release_decision`.
 
-**Current state (8 October 2026):** connected demo code `c3965836829033cf07466070a4d539ec78f5499c` passed [Quality Gate 37735575454](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37735575454): 48 Chromium/mobile WebKit cases, 14 staff HTTP denial cases, local security/PostgreSQL/evidence checks, builds and staging synthesis. PR #11 adds persisted appointments, verified sale records, atomic stock withdrawal and inventory evidence. Full ecosystem and deployed staging are not complete. See `release-2026-10-08.md` for exact scope and open implementation work.
+**Current state (8 October 2026):** connected demo code `fe023bab294f39265726619b018dd3dee6f303bb` passed [Quality Gate 37735575454](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37735575454): 52 Chromium/mobile WebKit cases, 14 staff HTTP denial cases, local security/PostgreSQL/evidence checks, builds and staging synthesis. PR #11 adds persisted appointments, verified sale records, atomic stock withdrawal and inventory evidence. Full ecosystem and deployed staging are not complete. See `release-2026-10-08.md` for exact scope and open implementation work.
 
 ## Scope and decision rule
 
