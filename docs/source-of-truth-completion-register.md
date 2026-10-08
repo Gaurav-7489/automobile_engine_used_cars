@@ -76,3 +76,7 @@ Respect all 75 decisions. Separate **implemented** from **tested** and **deploye
 `feat/crm-conflict-safety` adds lead/task version checks in both clients, atomic demo enquiry/lead/audit/task/automation writes, sale-closed task guards and parent-first task locking. Consent and provider holds are distinct. Exact-commit PR checks determine acceptance; see `crm-conflict-safety.md`.
 
 CRM code `24d277222faead4c7f4f506d02d58aedf89d7ec6` passed [Quality Gate 37795985929](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37795985929) with 62 browser and 14 auth cases, plus [Windows/macOS packaging 37795985649](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37795985649). See [release evidence](release-crm-2026-10-08.md). No staging or production certification is implied.
+
+## Merged main delivery — 8 October 2026
+
+PRs #11–#14 are merged into main at software commit `de24fa90afe85af992f022081fcc361e9e4cb7be`. Fresh [main Quality Gate 37804149388](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37804149388) passed all checks (62 browser, 14 auth HTTP, 18 security, 4 database/demo/CSV, 5 intelligence, builds and AWS/CDK). Native tests and packaging passed at an identical full tree. See [main delivery report](main-delivery-2026-10-08.md). The older increment reports are historical; staging, installed native acceptance and full ecosystem/production completion remain open.
