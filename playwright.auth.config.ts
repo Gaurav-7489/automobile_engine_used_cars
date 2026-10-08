@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/auth-e2e",
+  outputDir: "./auth-test-results",
   use: { baseURL: "http://127.0.0.1:3001/command" },
   webServer: [
     { command: "pnpm --filter @vandlabs/command-center start", url: "http://127.0.0.1:3001/command",

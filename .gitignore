@@ -86,3 +86,5 @@ temp/
 
 # Generated CDK assembly
 **/cdk.out/
+
+auth-test-results/

@@ -112,3 +112,9 @@ Playwright covers the public experience, inventory, vehicle detail, compare, con
 ## V1 boundary
 
 The Proof-of-Engine stops before workshop/service, parts, insurance, customer garage, native apps, advanced AI, full DMS/CRM/WhatsApp/lender/valuation integrations and fully self-service SaaS provisioning.
+
+## Verified-sale and inventory-evidence domain
+
+`@vandlabs/data` selects explicit demo/PostgreSQL adapters. Both expose visit scheduling/status and sale confirmation to browser and Tauri clients. Sales plus stock history are tenant-owned, with record locks/transactions in PostgreSQL and one atomic state replacement in the loopback demo. Sale confirmation changes lead, stock, follow-ups and audit records together. Sold stock is archived from owned public inventory; external reconciliation still needs an authorized connector.
+
+The inventory intelligence view runs deterministic rules over scoped snapshots: task exceptions, missing next actions, stock validation, recorded price history and exact buyer constraints. It distinguishes record age from unknown acquisition age. It supplies no unsupported capital, margin, market or AI values. Provider-backed AI Gateway, economic ledger and permissioned market ingestion remain separate unfinished workstreams.

@@ -181,6 +181,95 @@ paths:
           description: Invalid task state
         "404":
           description: Task not found in the active tenant
+  /command/api/leads/{id}/appointments:
+    post:
+      summary: Schedule a staff-confirmed visit and internal reminder
+      description: Requires lead-write and task-write capability within the lead location.
+      servers: [{ url: "http://127.0.0.1:3001" }]
+      parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, scheduledAt]
+              properties:
+                type: { type: string, enum: [appointment, test_drive] }
+                scheduledAt: { type: string, format: date-time, description: Future UTC instant }
+      responses:
+        "201": { description: Scheduled with reminder and audit record }
+        "400": { description: Invalid schedule or unavailable vehicle }
+        "401": { description: Authentication required }
+        "403": { description: Scope or capability denied }
+        "404": { description: Lead not in scope }
+  /command/api/appointments/{id}:
+    patch:
+      summary: Record visit or test-drive status
+      servers: [{ url: "http://127.0.0.1:3001" }]
+      parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [scheduled, completed, cancelled, no_show] }
+      responses:
+        "200": { description: Status and audit recorded }
+        "400": { description: Invalid status }
+        "401": { description: Authentication required }
+        "403": { description: Scope or capability denied }
+        "404": { description: Appointment not in scope }
+  /command/api/leads/{id}/sales:
+    post:
+      summary: Confirm a verified sale and withdraw owned inventory atomically
+      description: Requires lead-write and inventory-write in scope. Repeating identical details returns the same sale; conflicting details return 409. Closes open follow-ups. Sale proceeds are not profit.
+      servers: [{ url: "http://127.0.0.1:3001" }]
+      parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, soldAt]
+              properties:
+                amount: { type: number, exclusiveMinimum: 0, multipleOf: 0.01 }
+                soldAt: { type: string, format: date-time, description: Actual non-future UTC sale time }
+      responses:
+        "201": { description: Confirmed sale or identical retry }
+        "400": { description: Invalid price/date or no vehicle }
+        "401": { description: Authentication required }
+        "403": { description: Scope or capability denied }
+        "404": { description: Lead/vehicle not in scope }
+        "409": { description: Conflicting sale or vehicle already sold }
+  /command/api/vehicles/{id}:
+    patch:
+      summary: Update stock price and publication with audit history
+      description: Requires inventory-write in scope. A confirmed sale cannot be reopened with this endpoint.
+      servers: [{ url: "http://127.0.0.1:3001" }]
+      parameters: [{ in: path, name: id, required: true, schema: { type: string } }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [price, availabilityStatus, publishStatus]
+              properties:
+                price: { type: number, minimum: 0 }
+                availabilityStatus: { type: string, enum: [available, reserved, sold] }
+                publishStatus: { type: string, enum: [draft, published, archived] }
+      responses:
+        "200": { description: Stock and history updated }
+        "400": { description: Invalid stock change }
+        "401": { description: Authentication required }
+        "403": { description: Scope or capability denied }
+        "404": { description: Vehicle not in scope }
+        "409": { description: Confirmed sale requires approved reversal }
 components:
   schemas:
     Vehicle:

@@ -9,7 +9,7 @@ VandLabs Automobile Engine is a reusable, multi-tenant Automotive Commerce & Gro
 - `apps/desktop` — native Windows/macOS client and installer builds.
 - `apps/platform` — VandLabs Platform Control Center on port 3002 under `/platform`.
 
-The reference tenant is **Apex Select Cars**, backed by shared typed demo data. Public enquiries are written to `.demo-runtime/leads.json` so the local demo can show a newly created lead in Command Center without a production database.
+The reference tenant is **Apex Select Cars**, backed by shared typed demo data. Public enquiries and operations are written atomically to `.demo-runtime/state.json` so the local demo can show a newly created lead in Command Center without a production database.
 
 ## What V1 proves
 
@@ -54,7 +54,7 @@ pnpm test:auth:e2e
 pnpm qa
 ```
 
-The V1 Proof-of-Engine feature pass and local runtime QA are complete. Production deployment still requires the infrastructure, security and operational controls listed in `docs/launch-qa.md`.
+The connected reference demo has passed Chromium/mobile WebKit QA on the release branch. Production deployment still requires the infrastructure, security and operational controls listed in `docs/launch-qa.md`.
 
 ## Architecture
 
@@ -95,3 +95,5 @@ Built reference apps require explicit `AUTH_MODE=demo` when launched manually. F
 ## Shared production runtime
 
 See `docs/production-runtime.md` for PostgreSQL migrations, application-role provisioning, Cognito login and desktop configuration. `DATA_MODE=aurora` uses shared PostgreSQL records; `demo` is explicit reference mode. Live deployment requires AWS/network/domain configuration. Native installer artifacts are built by `.github/workflows/desktop-build.yml`.
+
+See `docs/release-2026-10-08.md` for the connected-demo release, pull instructions, exact test evidence and separate desktop/staging/production completion states.
