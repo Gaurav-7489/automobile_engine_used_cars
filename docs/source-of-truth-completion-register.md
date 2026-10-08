@@ -1,0 +1,64 @@
+# Automobile Engine — Source-of-truth completion register
+
+Date: 2026-10-08
+Status: **NOT COMPLETE / NOT PRODUCTION CERTIFIED**
+Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75), *VandLabs Used-Car AI Ecosystem Master Blueprint* (October 2026, 56 sections), and current code/docs as reviewed. This register documents what can be grounded from repository evidence; it is not a successful test report.
+
+## Contract: what must be shipped
+
+- The core first release is **Automotive Commerce & Growth Engine**, not workshop ERP, generic vehicle garage or parts marketplace (75 Decisions 47–51, 56, 72).
+- Core operational proof: Inventory → Discovery → VDP → Enquiry → Lead → Qualification → Follow-up → Appointment/Test Drive → Sale/Outcome → Reporting (Blueprint §§02, 16, 37–40, 49).
+- Strong tenant isolation and scoped staff permissions are non-negotiable (Decisions 19, 55, 65, 70, 74; Blueprint §§32, 34–36).
+- AI recommendations are assistive with evidence and human review. No invented stock, finance approval, valuation, prediction or external integration (Decisions 52–54; Blueprint §§13–15, 17–21, 28).
+- Live market data must come from permissioned/licensed APIs/feeds (Blueprint §31). No unauthorized marketplace scraping.
+- Windows/macOS native apps must use the same secured online source of truth as staff/browser, without embedded secrets (see `docs/production-runtime.md`).
+
+## Evidence-based gap register (not a count of finished features)
+
+| Workstream | Repo evidence | Remaining acceptance gap |
+| --- | --- | --- |
+| Public website / inventory / VDP | `apps/web`, V1 E2E in `tests/e2e/smoke.spec.ts` | Rerun browser/mobile QA for current commit, inspect media, UX, performance, SEO |
+| Enquiry/attribution | BFF / lead and event E2E smoke tests | Demonstrate real end-to-end lead persistence and consent rules under deployed staging |
+| CRM / follow-ups / automation | `apps/command-center`, lead/task tests; `docs/roadmap.md` V1.5–V2 | Confirm roles, no duplicate follow-ups, full stage transitions and dealer workflows in live environment |
+| PostgreSQL tenant persistence | `docs/production-runtime.md`, migrations, RLS and embedded-DB tests | Deploy staging database; migrate; verify real connectivity, cross-tenant denial, backup/restore |
+| Staff identity | Cognito auth flow and security tests per `docs/staff-authentication.md` | Provision test staff; verify actual Cognito login, refresh, logout, permissions and MFA policy |
+| Native Windows/macOS | `apps/desktop`, `.github/workflows/desktop-build.yml` | Confirm OS-runner tests/artifact builds; install and exercise real authenticated client; signing/notarization later |
+| Platform control | `apps/platform` reference screens, admin access gates | Real tenant provisioning, roles administration, billing and operational support are not production services |
+| Intelligence / capital | Planned Blueprint §§09–15, 21, 23, 28–30 | Validate which modules have runnable UIs, backfilled data, explainable calculations, confidence and tests; implement missing modules incrementally |
+| Market Radar / external data | Integration contracts & reference adapters in V2.5 | Obtain licensed feeds, approvals and credentials; add ingest normalization, reconciliation and freshness checks |
+| External channels | Internal automation tasks only per `docs/production-runtime.md` | Provider-approved WhatsApp/SMS/email integrations, consent and delivery receipts; no fake send claims |
+| Deployment / operations | AWS CDK and QA workflow | Deploy isolated staging; domains/HTTPS/WAF/secrets/observability/alerts/backups; incident rollback drills |
+
+## Delivery order and hard acceptance gates
+
+### Release D0 — reproducible reference demo
+- `pnpm install --frozen-lockfile`; `node scripts/start-demo.mjs --check`; `pnpm demo`.
+- Quality Gate GREEN on exact commit (lint, typecheck, security, embedded PostgreSQL, build, Playwright desktop, auth E2E, CDK synthesis).
+- Presenter walkthrough confirms a *new* public enquiry appears in staff app with chosen vehicle and journey context; stage, note, follow-up and outcome persist.
+- Record SHA, run URL and screenshots. Reference data must be labeled demo.
+
+### Release D1 — authenticated shared staging
+- Deploy AWS staging CDK stack and secure staff origins; use `AUTH_MODE=cognito` and `DATA_MODE=aurora` only after verified setup. No demo auth on internet-accessible staff apps.
+- Provision test dealer and staff scopes; transactional RLS enforced.
+- Execute same vehicle enquiry in browser and open it in native desktop app. Mark a vehicle sold in desktop and verify website availability; retry and tenancy tests.
+- Rehearse database restore, integration failure, expired login and bad network conditions.
+
+### Release D2 — customer-ready pilot
+- Record consent/retention policies, real dealership data approval, lead response ownership, source attribution and truthful reports.
+- QA on Chrome/Safari/Firefox/iPhone/Android, accessibility, loading/SEO and security.
+- Explicit user approval before release to a customer domain.
+
+### Release D3 — advanced intelligence
+- Inventory quality/aging/capital: deterministic formulas first, transaction audit history, source/confidence badges, human approval of price changes.
+- Matching, lead rescue, grounded conversational support: controlled pilots with permissions, retrieval evidence, error thresholds and human handoff.
+- Market comparisons/radar: enabled **only after** approved source coverage and comparable normalization; no scraping or fabricated market values.
+
+## Release tracking template
+
+For each gate, record: `commit_sha`, `CI_run_url`, `environment`, `date`, `test_result`, `evidence`, `open_defects`, `owner`, `release_decision`.
+
+**Current state:** implementation exists; no verified successful Quality Gate or staging acceptance for the current revision has been retrieved in this session. The demo and full ecosystem must not be described as completed until the relevant gates pass.
+
+## Scope and decision rule
+
+Respect all 75 decisions. Separate **implemented** from **tested** and **deployed**. Feature development should not skip D0 and D1 acceptance. The 94-page Blueprint expands beyond the locked V1 boundary; implement its advanced modules as staged products, not as unproven features inside the demo.
