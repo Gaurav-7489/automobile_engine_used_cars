@@ -6,6 +6,8 @@ test("connected browser journey: enquiry, ownership, visit, confirmed sale and d
   await page.getByPlaceholder("BMW, SUV, automatic...").fill(vehicle.query);
   await expect(page.locator(`a[href="/vehicles/${vehicle.slug}"]`).first()).toBeVisible();
   await page.locator(`a[href="/vehicles/${vehicle.slug}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`/vehicles/${vehicle.slug}$`));
+  await expect(page.getByLabel("Name",{exact:true})).toBeVisible();
   await page.goto(`/vehicles/${vehicle.slug}?utm_source=playwright&utm_campaign=connected-demo`);
   await page.getByLabel("Name",{exact:true}).fill(`Connected buyer ${info.project.name}`);
   await page.getByLabel("Phone",{exact:true}).fill("+91 90000 00100");
