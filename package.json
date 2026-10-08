@@ -14,7 +14,8 @@
     "db:migrate": "node --import tsx scripts/database/migrate.ts",
     "db:seed": "node --import tsx scripts/database/seed.ts",
     "test:database": "node --import tsx --test tests/database/*.test.ts",
-    "db:provision-role": "node --import tsx scripts/database/provision-role.ts"
+    "db:provision-role": "node --import tsx scripts/database/provision-role.ts",
+    "demo": "node scripts/start-demo.mjs"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
