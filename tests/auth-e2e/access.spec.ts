@@ -27,6 +27,9 @@ test("all staff mutations reject forged identity before touching records", async
     await request.post("http://127.0.0.1:3001/command/api/leads/lead-1/tasks", { headers: spoofed, data: {} }),
     await request.patch("http://127.0.0.1:3001/command/api/vehicles/veh-1", {headers:spoofed,data:{price:1}}),
     await request.patch("http://127.0.0.1:3001/command/api/tasks/task-1", { headers: spoofed, data: { completed: true } }),
+    await request.post("http://127.0.0.1:3001/command/api/leads/lead-1/appointments", {headers:spoofed,data:{}}),
+    await request.post("http://127.0.0.1:3001/command/api/leads/lead-1/sales", {headers:spoofed,data:{}}),
+    await request.patch("http://127.0.0.1:3001/command/api/appointments/appt-1", {headers:spoofed,data:{status:"completed"}}),
   ];
   for (const response of responses) expect(response.status()).toBe(401);
 });

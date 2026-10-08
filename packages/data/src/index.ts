@@ -12,7 +12,7 @@ export class RecordNotFound extends Error {}
 export class ConflictError extends Error {}
 export interface Snapshot {
   leads: Lead[]; tasks: Task[]; vehicles: Vehicle[]; appointments: Appointment[];
-  sales?: Sale[]; inventoryHistory?: InventoryChange[];
+  capabilities?: AuthenticatedPrincipal["capabilities"]; sales?: Sale[]; inventoryHistory?: InventoryChange[];
   activities: LeadActivity[]; events: JourneyEvent[]; rules: AutomationRule[]; runs: AutomationRun[];
 }
 function payloads<T>(rows: Record<string, unknown>[]): T[] { return rows.map((row) => row.payload as T); }
@@ -99,7 +99,10 @@ export function postgresStore(pool: SqlPool) {
       return {lead,automation:await automate(c,lead,"lead_created")};
     }); },
     patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>) { return tx(p.tenantId,async c=> {
-      const lead=await lockedLead(c,p,id,"lead:write"); const updated={...lead,...patch,updatedAt:new Date().toISOString()};
+      const lead=await lockedLead(c,p,id,"lead:write");
+      if(patch.stage && patch.stage!=="won" && (await c.query("SELECT id FROM sales WHERE tenant_id=$1 AND lead_id=$2",[p.tenantId,id])).rows.length)throw new ConflictError("Confirmed sale requires an approved reversal.");
+      if(patch.stage && patch.stage!=="won" && runtime.readRuntimeSales().some(s=>s.leadId===id))throw new ConflictError("Confirmed sale requires an approved reversal.");
+  const updated={...lead,...patch,updatedAt:new Date().toISOString()};
       const records:LeadActivity[]=[];
       for (const [field,type] of [["stage","stage_changed"],["assignedTo","assignment_changed"],["notes","note_updated"]] as const) {
         if (updated[field]!==lead[field]) records.push({id:randomUUID(),tenantId:lead.tenantId,leadId:id,type,actor:p.userId,description:`${field} updated.`,occurredAt:updated.updatedAt});
@@ -179,11 +182,15 @@ export async function createLead(input:Omit<Lead,"id"|"stage"|"createdAt"|"updat
   const s=publicScope();if(input.tenantId!==s.tenantId||input.dealershipId!==s.dealershipId) throw new InputError("Invalid dealership.");
   if(dataMode()==="aurora")return(await productionStore()).createLead(input);
   const now=new Date().toISOString();const lead:Lead={...input,id:randomUUID(),stage:"new",createdAt:now,updatedAt:now};
-  if(!runtime.persistRuntimeLead(lead))throw new Error("Lead persistence failed.");return{lead,automation:runLeadAutomation(lead,"lead_created")};
+  runtime.demoTransaction(state=> {
+    if(input.vehicleId){const vehicle=(state["vehicles.json"] as Vehicle[]).find(v=>v.id===input.vehicleId)??demo.vehicles.find(v=>v.id===input.vehicleId);if(!vehicle||vehicle.tenantId!==input.tenantId||vehicle.dealershipId!==input.dealershipId||vehicle.locationId!==input.locationId||vehicle.availabilityStatus!=="available"||vehicle.publishStatus!=="published")throw new InputError("Vehicle unavailable.");}
+    state["leads.json"]=[lead,...state["leads.json"]];
+  });return{lead,automation:runLeadAutomation(lead,"lead_created")};
 }
 export async function patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>) {
   if(dataMode()==="aurora")return(await productionStore()).patchLead(p,id,patch);
   const lead=demoSnapshot().leads.find(l=>l.id===id);if(!lead)throw new RecordNotFound();scope(p,lead,"lead:write");
+  if(patch.stage && patch.stage!=="won" && runtime.readRuntimeSales().some(s=>s.leadId===id))throw new ConflictError("Confirmed sale requires an approved reversal.");
   const updated={...lead,...patch,updatedAt:new Date().toISOString()}; const records:LeadActivity[]=[];
   for(const [field,type] of [["stage","stage_changed"],["assignedTo","assignment_changed"],["notes","note_updated"]] as const)if(updated[field]!==lead[field])records.push({id:randomUUID(),tenantId:lead.tenantId,leadId:id,type,actor:p.userId,description:field==="notes"?"Internal lead note updated.":`${field} updated.`,occurredAt:updated.updatedAt});
   if(!runtime.persistRuntimeLead(updated)||!runtime.persistRuntimeLeadActivities(records))throw new Error("Persistence failed.");
@@ -303,3 +310,4 @@ export async function confirmSale(p:AuthenticatedPrincipal,id:string,input:SaleI
   });
 }
 function runtimeTasks(items:Task[]) {return [...items,...demo.tasks.filter(t=>!items.some(i=>i.id===t.id))];}
+export { inventoryInsights, matchInventory } from "./intelligence";

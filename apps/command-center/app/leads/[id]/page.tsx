@@ -66,7 +66,7 @@ export default async function LeadPage({
         </section>
 
         <section className="panel wide-panel"><p className="eyebrow">Visits & test drives</p><h2>Schedule a confirmed visit</h2><AppointmentForm leadId={lead.id}/>{leadAppointments.map(a=><div className="list-row" key={a.id}><span>{labelize(a.type)} · {shortDateTime(a.scheduledAt)}</span><AppointmentStatus appointment={a}/></div>)}</section>
-        {vehicle ? <section className="panel wide-panel"><p className="eyebrow">Sales outcome</p><h2>Record a verified sale</h2><SaleForm leadId={lead.id} sale={sale}/></section> : null}
+        {vehicle && data.capabilities?.includes("inventory:write") && data.capabilities?.includes("lead:write") ? <section className="panel wide-panel"><p className="eyebrow">Sales outcome</p><h2>Record a verified sale</h2><SaleForm leadId={lead.id} sale={sale}/></section> : null}
         <section className="panel">
           <p className="eyebrow">Vehicle interest</p>
           <h2>{vehicle ? vehicle.make + " " + vehicle.model : "General enquiry"}</h2>

@@ -44,11 +44,14 @@ jobs:
       - name: PostgreSQL persistence regressions
         run: pnpm test:database
 
+      - name: Evidence and matching regressions
+        run: pnpm test:intelligence
+
       - name: Build
         run: pnpm build
 
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install Playwright Chromium and WebKit
+        run: pnpm exec playwright install --with-deps chromium webkit
 
       - name: End-to-end smoke tests
         run: pnpm test:e2e

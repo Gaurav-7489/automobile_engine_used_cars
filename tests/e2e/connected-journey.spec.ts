@@ -29,7 +29,9 @@ test("connected browser journey: enquiry, ownership, visit, confirmed sale and d
   await page.getByLabel("Verified sale price (INR)").fill("4700000");
   await page.getByLabel("Actual sale time").fill("2026-01-01T10:00");
   await page.getByLabel("I verified this sale").check();
+  const saleResponse=page.waitForResponse(r=>r.url().endsWith(`/leads/${leadId}/sales`));
   await page.getByRole("button",{name:"Confirm sale",exact:true}).click();
+  expect((await saleResponse).status()).toBe(201);
   await expect(page.getByText(/Confirmed sale:/)).toBeVisible();
   await expect(page.locator(".stage.large")).toHaveText("Won");
   await page.reload();await expect(page.getByText(/Confirmed sale:/)).toBeVisible();
@@ -55,5 +57,14 @@ test("inventory edit propagates to website with history",async({page,request})=>
   const response=await request.get("/api/vehicles");const inventory=await response.json();expect(inventory.data.find((v:{id:string})=>v.id==="veh-13").price).toBe(vehicle.price+100);
   const history=(await (await request.get(`${command}/api/snapshot`)).json()).data.inventoryHistory;
   expect(history.some((h:{vehicleId:string;after:{price:number}})=>h.vehicleId==="veh-13"&&h.after.price===vehicle.price+100)).toBeTruthy();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBeFalsy();
+});
+
+test("inventory intelligence exposes coverage and exact matching",async({page})=> {
+  await page.goto(`${command}/intelligence`);
+  await expect(page.getByRole("heading",{name:"Dealer priorities, with evidence."})).toBeVisible();
+  await page.getByLabel("Maximum budget (INR)").fill("1");
+  await expect(page.getByText("No current vehicles meet these constraints. Ask a salesperson for alternatives.")).toBeVisible();
+  await expect(page.getByText("Capital and profit: cost ledger is not configured")).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBeFalsy();
 });

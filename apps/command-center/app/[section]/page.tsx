@@ -1,3 +1,4 @@
+import { IntelligenceView } from "../../components/intelligence-view";
 import { InventoryOperations, AppointmentStatus } from "../../components/business-operations";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,6 +21,7 @@ const valid = new Set([
   "analytics",
   "automation",
   "settings",
+  "intelligence",
 ]);
 
 
@@ -296,7 +298,7 @@ function InventorySection({ data }: {data:Snapshot}) {
                     <span className={"stage " + vehicle.availabilityStatus}>
                       {vehicle.availabilityStatus}
                     </span>
-                  </td><td><InventoryOperations vehicle={vehicle}/></td>
+                  </td><td>{data.capabilities?.includes("inventory:write") ? <InventoryOperations vehicle={vehicle}/> : "Read only"}</td>
                 </tr>
               ))}
             </tbody>
@@ -678,6 +680,7 @@ export default async function Page({
       {section === "customers" ? <CustomersSection data={data} /> : null}
       {section === "analytics" ? <AnalyticsSection data={data} /> : null}
       {section === "automation" ? <AutomationSection data={data} /> : null}
+      {section === "intelligence" ? <IntelligenceView data={data}/> : null}
       {section === "settings" ? <SettingsSection /> : null}
     </main>
   );
