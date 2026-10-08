@@ -118,6 +118,7 @@ export interface AttributionTouch {
 }
 
 export interface Lead {
+  version?: number;
   id: ID;
   tenantId: ID;
   dealershipId: ID;
@@ -164,6 +165,8 @@ export interface LeadActivity {
 }
 
 export interface Task {
+  version?: number;
+  closedBySaleId?: ID;
   id: ID;
   tenantId?: ID;
   leadId: ID;
@@ -200,7 +203,7 @@ export interface AutomationRun {
   ruleId: ID;
   leadId: ID;
   trigger: AutomationTrigger;
-  outcome: "created" | "skipped_consent" | "skipped_duplicate";
+  outcome: "created" | "skipped_consent" | "skipped_provider" | "skipped_duplicate";
   taskId?: ID;
   occurredAt: string;
 }

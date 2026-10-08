@@ -171,7 +171,7 @@ test("V2 stage changes evaluate follow-up automation", async ({ request }) => {
   const { leadId } = await created.json();
 
   const updated = await request.patch(`http://127.0.0.1:3001/command/api/leads/${leadId}`, {
-    data: { stage: "qualified" },
+    data: { stage: "qualified",expectedVersion:0 },
   });
   expect(updated.status()).toBe(200);
   const body = await updated.json();

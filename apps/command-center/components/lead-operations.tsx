@@ -23,15 +23,20 @@ const labelize = (value: string) =>
 export function LeadOperations({
   leadId,
   initialStage,
+  initialVersion,
   initialOwner,
   initialNotes,
 }: {
   leadId: string;
   initialStage: LeadStage;
+  initialVersion: number;
   initialOwner?: string;
   initialNotes?: string;
 }) {
   const router = useRouter();
+  const [version,setVersion]=useState(initialVersion);
+  const [error,setError]=useState("");
+  const [conflict,setConflict]=useState(false);
   const [stage, setStage] = useState(initialStage);
   const [owner, setOwner] = useState(initialOwner ?? "");
   const [notes, setNotes] = useState(initialNotes ?? "");
@@ -40,6 +45,7 @@ export function LeadOperations({
   async function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus("saving");
+    setError("");
 
     try {
       const response = await fetch(`/command/api/leads/${leadId}`, {
@@ -47,15 +53,19 @@ export function LeadOperations({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           stage,
+          expectedVersion:version,
           assignedTo: owner || null,
           notes,
         }),
       });
 
-      if (!response.ok) throw new Error("Lead update failed");
+      const result=await response.json();
+      if (!response.ok) {if(response.status===409)setConflict(true);throw new Error(response.status===409?"This lead changed. Reload and review before saving.":"Could not save this lead.");}
+      setVersion(result.data.version);
       setStatus("saved");
       router.refresh();
-    } catch {
+    } catch (error) {
+      setError(error instanceof Error?error.message:"Could not save this lead.");
       setStatus("error");
     }
   }
@@ -91,12 +101,13 @@ export function LeadOperations({
         />
       </label>
       <div className="operations-actions">
-        <button type="submit" disabled={status === "saving"}>
+        <button type="submit" disabled={status === "saving"||conflict}>
           {status === "saving" ? "Saving..." : "Save changes"}
         </button>
         <span role="status" aria-label="Lead update status" className={status === "error" ? "save-status error" : "save-status"}>
-          {status === "saved" ? "Saved" : status === "error" ? "Could not save" : ""}
+          {status === "saved" ? "Saved" : status === "error" ? error : ""}
         </span>
+        {conflict?<button type="button" onClick={()=>window.location.reload()}>Reload current lead</button>:null}
       </div>
     </form>
   );

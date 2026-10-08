@@ -12,7 +12,7 @@ export async function PATCH(request:Request,{params}:{params:Promise<{id:string}
     for(const [field,limit] of [["assignedTo",100],["notes",2000]] as const) {
       if(field in body){if(body[field]!==null&&typeof body[field]!=="string")throw new InputError();const value=(body[field] as string|null)?.trim();if((value?.length||0)>limit)throw new InputError();patch[field]=value||undefined;}
     }
-    const result=await patchLead(principal,id,patch);
+    const result=await patchLead(principal,id,patch,body.expectedVersion);
     return NextResponse.json({...result,automation:{evaluated:result.automation.length,tasksCreated:result.automation.filter(r=>r.outcome==="created").length}});
   });
 }

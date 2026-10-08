@@ -15,11 +15,14 @@ test("connected API contract validates input and records one atomic sale",async(
   const saleId=(await sale.json()).data.id;
   const retry=await request.post(`${api}/leads/${leadId}/sales`,{data:input});expect(retry.status()).toBe(201);expect((await retry.json()).data.id).toBe(saleId);
   expect((await request.post(`${api}/leads/${leadId}/sales`,{data:{...input,amount:1}})).status()).toBe(409);
-  expect((await request.patch(`${api}/leads/${leadId}`,{data:{stage:"qualified"}})).status()).toBe(409);
+  expect((await request.patch(`${api}/leads/${leadId}`,{data:{stage:"qualified",expectedVersion:0}})).status()).toBe(409);
   expect((await request.patch(`${api}/vehicles/${vehicleId}`,{data:{price:1,availabilityStatus:"available",publishStatus:"published",expectedVersion:0}})).status()).toBe(409);
   const snapshot=(await (await request.get(`${api}/snapshot`)).json()).data;
   expect(snapshot.leads.find((l:{id:string})=>l.id===leadId).stage).toBe("won");
   expect(snapshot.sales.filter((s:{leadId:string})=>s.leadId===leadId)).toHaveLength(1);
+  const saleClosed=snapshot.tasks.find((t:{leadId:string;closedBySaleId?:string})=>t.leadId===leadId&&t.closedBySaleId);
+  expect(saleClosed).toBeTruthy();
+  expect((await request.patch(`${api}/tasks/${saleClosed.id}`,{data:{completed:false,expectedVersion:saleClosed.version}})).status()).toBe(409);
   expect(snapshot.tasks.filter((t:{leadId:string})=>t.leadId===leadId).every((t:{completed:boolean})=>t.completed)).toBeTruthy();
   expect(snapshot.vehicles.find((v:{id:string})=>v.id===vehicleId).publishStatus).toBe("archived");
   expect((await (await request.get("/api/vehicles")).json()).data.some((v:{id:string})=>v.id===vehicleId)).toBeFalsy();

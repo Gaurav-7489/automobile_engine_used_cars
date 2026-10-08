@@ -131,6 +131,8 @@ paths:
           description: Lead updated and activity recorded
         "400":
           description: Invalid lead update
+        "409":
+          description: Stale version or confirmed sale requires approved reversal
         "404":
           description: Lead not found in the active tenant
   /command/api/leads/{id}/tasks:
@@ -171,14 +173,17 @@ paths:
           application/json:
             schema:
               type: object
-              required: [completed]
+              required: [completed, expectedVersion]
               properties:
                 completed: { type: boolean }
+                expectedVersion: {type: integer, minimum: 0}
       responses:
         "200":
           description: Follow-up state updated and activity recorded
         "400":
           description: Invalid task state
+        "409":
+          description: Stale version or follow-up closed by a confirmed sale
         "404":
           description: Task not found in the active tenant
   /command/api/leads/{id}/appointments:
@@ -478,7 +483,9 @@ components:
         campaign: { type: string }
     UpdateLead:
       type: object
+      required: [expectedVersion]
       properties:
+        expectedVersion: {type: integer, minimum: 0}
         stage:
           type: string
           enum: [new, contacted, qualified, appointment, visited, test_drive, negotiation, won, lost, nurture]

@@ -3,7 +3,7 @@ import type { AuthenticatedPrincipal, Lead, LeadActivity, LeadStage, Task, Vehic
 import { requireCapability, requireTenant, requireDealership, requireLocation } from "@vandlabs/contracts";
 import * as demo from "@vandlabs/demo-data";
 import * as runtime from "@vandlabs/demo-data/runtime";
-import { getAutomationRules, runLeadAutomation } from "@vandlabs/demo-data/automation";
+import { getAutomationRules, evaluateLeadAutomation } from "@vandlabs/demo-data/automation";
 import { dataMode, publicScope, tenantConfig } from "./config";
 import { databasePool, tenantTransaction, type SqlClient, type SqlPool } from "./postgres";
 import { costInput, validateCostVersion, validateAcquisitionSale, type StockCostInput } from "./capital";
@@ -60,7 +60,7 @@ async function automate(client: SqlClient, lead: Lead, trigger: AutomationRule["
   const runs: AutomationRun[] = [];
   for (const rule of rules.filter((r) => r.enabled && r.trigger === trigger && (!r.stages?.length || r.stages.includes(lead.stage)) && (!r.intents?.length || r.intents.includes(lead.intent)))) {
     const previous = await client.query("SELECT id FROM automation_runs WHERE tenant_id=$1 AND lead_id=$2 AND rule_id=$3 AND trigger=$4 AND outcome='created'", [lead.tenantId,lead.id,rule.id,trigger]);
-    const outcome = previous.rows.length ? "skipped_duplicate" : rule.channel === "whatsapp" ? "skipped_consent" : "created";
+    const outcome = previous.rows.length ? "skipped_duplicate" : rule.channel === "whatsapp" ? (rule.requiresWhatsappConsent&&!lead.consent.whatsapp?"skipped_consent":"skipped_provider") : "created";
     const task: Task | undefined = outcome === "created" ? { id: randomUUID(), tenantId: lead.tenantId, leadId: lead.id,
       title: rule.taskTitle, owner: lead.assignedTo || rule.ownerFallback, dueAt: new Date(Date.now()+rule.delayMinutes*60000).toISOString(),
       completed:false, priority:rule.priority,origin:"automation",automationRuleId:rule.id } : undefined;
@@ -100,14 +100,14 @@ export function postgresStore(pool: SqlPool) {
         const vehicle=(await c.query("SELECT * FROM vehicles WHERE id=$1 AND tenant_id=$2 AND dealership_id=$3 AND publish_status='published' AND availability_status='available' FOR SHARE",[input.vehicleId,input.tenantId,input.dealershipId])).rows[0];
         if (!vehicle || vehicle.location_id !== input.locationId) throw new InputError("Vehicle is unavailable.");
       }
-      const now=new Date().toISOString(); const lead:Lead={...input,id:randomUUID(),stage:"new",createdAt:now,updatedAt:now};
+      const now=new Date().toISOString(); const lead:Lead={...input,version:0,id:randomUUID(),stage:"new",createdAt:now,updatedAt:now};
       await c.query("INSERT INTO leads(id,tenant_id,dealership_id,location_id,vehicle_id,payload,stage,source,campaign,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)",[lead.id,lead.tenantId,lead.dealershipId,lead.locationId,lead.vehicleId,lead,lead.stage,lead.source,lead.campaign,now]);
       return {lead,automation:await automate(c,lead,"lead_created")};
     }); },
-    patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>) { return tx(p.tenantId,async c=> {
-      const lead=await lockedLead(c,p,id,"lead:write");
+    patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>,expectedVersion:unknown) { return tx(p.tenantId,async c=> {
+      const lead=await lockedLead(c,p,id,"lead:write");checkRecordVersion(lead,expectedVersion,"Lead");
       if(patch.stage && patch.stage!=="won" && (await c.query("SELECT id FROM sales WHERE tenant_id=$1 AND lead_id=$2",[p.tenantId,id])).rows.length)throw new ConflictError("Confirmed sale requires an approved reversal.");
-  const updated={...lead,...patch,updatedAt:new Date().toISOString()};
+  const updated={...lead,...patch,version:(lead.version??0)+1,updatedAt:new Date().toISOString()};
       const records:LeadActivity[]=[];
       for (const [field,type] of [["stage","stage_changed"],["assignedTo","assignment_changed"],["notes","note_updated"]] as const) {
         if (updated[field]!==lead[field]) records.push({id:randomUUID(),tenantId:lead.tenantId,leadId:id,type,actor:p.userId,description:`${field} updated.`,occurredAt:updated.updatedAt});
@@ -117,14 +117,19 @@ export function postgresStore(pool: SqlPool) {
       return {data:updated,activity:records,automation:updated.stage!==lead.stage?await automate(c,updated,"stage_changed"):[]};
     }); },
     createTask(p:AuthenticatedPrincipal,id:string,input:Pick<Task,"title"|"owner"|"dueAt"|"priority">) { return tx(p.tenantId,async c=> {
-      const lead=await lockedLead(c,p,id,"task:write");const task:Task={...input,id:randomUUID(),tenantId:p.tenantId,leadId:id,completed:false,origin:"human"};
+      const lead=await lockedLead(c,p,id,"task:write");const task:Task={...input,version:0,id:randomUUID(),tenantId:p.tenantId,leadId:id,completed:false,origin:"human"};
       const record:LeadActivity={id:randomUUID(),tenantId:lead.tenantId,leadId:id,type:"follow_up_created",actor:p.userId,description:`Follow-up scheduled for ${task.owner}.`,occurredAt:new Date().toISOString()};
       await saveTask(c,task);await activity(c,record);return {data:task,activity:record};
     }); },
-    completeTask(p:AuthenticatedPrincipal,id:string,completed:boolean) { return tx(p.tenantId,async c=> {
-      requireCapability(p,"task:write"); const row=(await c.query("SELECT payload FROM tasks WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[id,p.tenantId])).rows[0];
-      if (!row) throw new RecordNotFound();const task=row.payload as Task; await lockedLead(c,p,task.leadId,"task:write");
-      const updated={...task,completed};const record:LeadActivity={id:randomUUID(),tenantId:p.tenantId,leadId:task.leadId,type:completed?"follow_up_completed":"follow_up_reopened",actor:p.userId,description:`Follow-up ${completed?"completed":"reopened"}: ${task.title}.`,occurredAt:new Date().toISOString()};
+    completeTask(p:AuthenticatedPrincipal,id:string,completed:boolean,expectedVersion:unknown) { return tx(p.tenantId,async c=> {
+      requireCapability(p,"task:write");
+      const initial=(await c.query("SELECT payload FROM tasks WHERE id=$1 AND tenant_id=$2",[id,p.tenantId])).rows[0];if(!initial)throw new RecordNotFound();
+      // Same parent-first lock order as sale confirmation; stale task contents are reread under lock.
+      await lockedLead(c,p,(initial.payload as Task).leadId,"task:write");
+      const row=(await c.query("SELECT payload FROM tasks WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[id,p.tenantId])).rows[0];if(!row)throw new RecordNotFound();
+      const task=row.payload as Task;checkRecordVersion(task,expectedVersion,"Follow-up");
+      if(!completed&&task.closedBySaleId)throw new ConflictError("A follow-up closed by a confirmed sale cannot be reopened.");
+      const updated={...task,completed,version:(task.version??0)+1};const record:LeadActivity={id:randomUUID(),tenantId:p.tenantId,leadId:task.leadId,type:completed?"follow_up_completed":"follow_up_reopened",actor:p.userId,description:`Follow-up ${completed?"completed":"reopened"}: ${task.title}.`,occurredAt:new Date().toISOString()};
       await saveTask(c,updated);await activity(c,record);return {data:updated,activity:record};
     }); },
     saveEvent(event:JourneyEvent,dealershipId:string) { return tx(event.tenantId,async c=> {
@@ -138,7 +143,7 @@ export function postgresStore(pool: SqlPool) {
       const item:Appointment={...input,id:randomUUID(),leadId:id,vehicleId:lead.vehicleId,locationId:lead.locationId,status:"scheduled"};
       await c.query("INSERT INTO appointments(id,tenant_id,lead_id,payload) VALUES($1,$2,$3,$4)",[item.id,p.tenantId,id,item]);
       const record=operationActivity(p,id,"appointment_scheduled","Staff confirmed a visit or test drive.");await activity(c,record);
-      const task:Task={id:randomUUID(),tenantId:p.tenantId,leadId:id,title:"Appointment reminder",owner:lead.assignedTo||p.userId,dueAt:new Date(Math.max(Date.now(),Date.parse(input.scheduledAt)-3600000)).toISOString(),completed:false,priority:"normal",origin:"human"};await saveTask(c,task);
+      const task:Task={id:randomUUID(),version:0,tenantId:p.tenantId,leadId:id,title:"Appointment reminder",owner:lead.assignedTo||p.userId,dueAt:new Date(Math.max(Date.now(),Date.parse(input.scheduledAt)-3600000)).toISOString(),completed:false,priority:"normal",origin:"human"};await saveTask(c,task);
       return {data:item};
     }); },
     setAppointmentStatus(p:AuthenticatedPrincipal,id:string,status:Appointment["status"]) {return tx(p.tenantId,async c=> {
@@ -158,8 +163,8 @@ export function postgresStore(pool: SqlPool) {
       const sale=makeSale(p,lead,input);const updated={...vehicle,version:(vehicle.version??0)+1,availabilityStatus:"sold" as const,publishStatus:"archived" as const,updatedAt:sale.confirmedAt};
       await c.query("INSERT INTO sales(id,tenant_id,lead_id,vehicle_id,payload,amount,sold_at) VALUES($1,$2,$3,$4,$5,$6,$7)",[sale.id,p.tenantId,id,vehicle.id,sale,sale.amount,sale.soldAt]);
       await c.query("UPDATE vehicles SET payload=$1,availability_status='sold',publish_status='archived',updated_at=$2 WHERE id=$3 AND tenant_id=$4",[updated,sale.confirmedAt,vehicle.id,p.tenantId]);
-      const won={...lead,stage:"won" as const,updatedAt:sale.confirmedAt};await c.query("UPDATE leads SET payload=$1,stage='won',updated_at=$2 WHERE id=$3 AND tenant_id=$4",[won,sale.confirmedAt,id,p.tenantId]);
-      await c.query(`UPDATE tasks SET completed=true,payload=payload || '{"completed":true}'::jsonb WHERE tenant_id=$1 AND lead_id=$2 AND NOT completed`,[p.tenantId,id]);
+      const won={...lead,version:(lead.version??0)+1,stage:"won" as const,updatedAt:sale.confirmedAt};await c.query("UPDATE leads SET payload=$1,stage='won',updated_at=$2 WHERE id=$3 AND tenant_id=$4",[won,sale.confirmedAt,id,p.tenantId]);
+      await c.query(`UPDATE tasks SET completed=true,payload=payload || jsonb_build_object('completed',true,'version',COALESCE((payload->>'version')::bigint,0)+1,'closedBySaleId',$3::text) WHERE tenant_id=$1 AND lead_id=$2 AND NOT completed`,[p.tenantId,id,sale.id]);
       await activity(c,operationActivity(p,id,"sale_confirmed","Manager confirmed recorded sale; inventory withdrawn."));
       const change=inventoryChange(p,vehicle,updated);await c.query("INSERT INTO inventory_history(id,tenant_id,vehicle_id,payload,occurred_at) VALUES($1,$2,$3,$4,$5)",[change.id,p.tenantId,vehicle.id,change,change.occurredAt]);return {data:sale};
     });},
@@ -224,32 +229,44 @@ export async function staffSnapshot(p:AuthenticatedPrincipal):Promise<Snapshot> 
 export async function createLead(input:Omit<Lead,"id"|"stage"|"createdAt"|"updatedAt">) {
   const s=publicScope();if(input.tenantId!==s.tenantId||input.dealershipId!==s.dealershipId) throw new InputError("Invalid dealership.");
   if(dataMode()==="aurora")return(await productionStore()).createLead(input);
-  const now=new Date().toISOString();const lead:Lead={...input,id:randomUUID(),stage:"new",createdAt:now,updatedAt:now};
-  runtime.demoTransaction(state=> {
+  const now=new Date().toISOString();const lead:Lead={...input,version:0,id:randomUUID(),stage:"new",createdAt:now,updatedAt:now};
+  return runtime.demoTransaction(state=> {
     if(input.vehicleId){const vehicle=(state["vehicles.json"] as Vehicle[]).find(v=>v.id===input.vehicleId)??demo.vehicles.find(v=>v.id===input.vehicleId);if(!vehicle||vehicle.tenantId!==input.tenantId||vehicle.dealershipId!==input.dealershipId||vehicle.locationId!==input.locationId||vehicle.availabilityStatus!=="available"||vehicle.publishStatus!=="published")throw new InputError("Vehicle unavailable.");}
     state["leads.json"]=[lead,...state["leads.json"]];
-  });return{lead,automation:runLeadAutomation(lead,"lead_created")};
+    return {lead,automation:demoAutomate(state,lead,"lead_created")};
+  });
 }
-export async function patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>) {
-  if(dataMode()==="aurora")return(await productionStore()).patchLead(p,id,patch);
-  const lead=demoSnapshot().leads.find(l=>l.id===id);if(!lead)throw new RecordNotFound();scope(p,lead,"lead:write");
-  if(patch.stage && patch.stage!=="won" && runtime.readRuntimeSales().some(s=>s.leadId===id))throw new ConflictError("Confirmed sale requires an approved reversal.");
-  const updated={...lead,...patch,updatedAt:new Date().toISOString()}; const records:LeadActivity[]=[];
-  for(const [field,type] of [["stage","stage_changed"],["assignedTo","assignment_changed"],["notes","note_updated"]] as const)if(updated[field]!==lead[field])records.push({id:randomUUID(),tenantId:lead.tenantId,leadId:id,type,actor:p.userId,description:field==="notes"?"Internal lead note updated.":`${field} updated.`,occurredAt:updated.updatedAt});
-  if(!runtime.persistRuntimeLead(updated)||!runtime.persistRuntimeLeadActivities(records))throw new Error("Persistence failed.");
-  return{data:updated,activity:records,automation:updated.stage!==lead.stage?runLeadAutomation(updated,"stage_changed"):[]};
+export async function patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>,expectedVersion:unknown) {
+  if(dataMode()==="aurora")return(await productionStore()).patchLead(p,id,patch,expectedVersion);
+  return runtime.demoTransaction(state=> {
+    const leads=state["leads.json"] as Lead[];const lead=leads.find(l=>l.id===id)??demo.leads.find(l=>l.id===id);if(!lead)throw new RecordNotFound();scope(p,lead,"lead:write");checkRecordVersion(lead,expectedVersion,"Lead");
+    if(patch.stage&&patch.stage!=="won"&&(state["sales.json"] as Sale[]).some(s=>s.leadId===id))throw new ConflictError("Confirmed sale requires an approved reversal.");
+    const updated={...lead,...patch,version:(lead.version??0)+1,updatedAt:new Date().toISOString()};const records:LeadActivity[]=[];
+    for(const [field,type] of [["stage","stage_changed"],["assignedTo","assignment_changed"],["notes","note_updated"]] as const)if(updated[field]!==lead[field])records.push({id:randomUUID(),tenantId:lead.tenantId,leadId:id,type,actor:p.userId,description:field==="notes"?"Internal lead note updated.":`${field} updated.`,occurredAt:updated.updatedAt});
+    state["leads.json"]=[updated,...leads.filter(l=>l.id!==id)];state["lead-activity.json"]=[...records,...state["lead-activity.json"]];
+    return {data:updated,activity:records,automation:updated.stage!==lead.stage?demoAutomate(state,updated,"stage_changed"):[]};
+  });
 }
 export async function createTask(p:AuthenticatedPrincipal,id:string,input:Pick<Task,"title"|"owner"|"dueAt"|"priority">) {
   if(dataMode()==="aurora")return(await productionStore()).createTask(p,id,input);
-  const lead=demoSnapshot().leads.find(l=>l.id===id);if(!lead)throw new RecordNotFound();scope(p,lead,"task:write");
-  const task:Task={...input,id:randomUUID(),tenantId:p.tenantId,leadId:id,completed:false}; const record:LeadActivity={id:randomUUID(),tenantId:p.tenantId,leadId:id,type:"follow_up_created",actor:p.userId,description:`Follow-up scheduled for ${task.owner}.`,occurredAt:new Date().toISOString()};
-  if(!runtime.persistRuntimeTask(task)||!runtime.persistRuntimeLeadActivities([record]))throw new Error("Persistence failed.");return{data:task,activity:record};
+  return runtime.demoTransaction(state=> {
+    const lead=(state["leads.json"] as Lead[]).find(l=>l.id===id)??demo.leads.find(l=>l.id===id);if(!lead)throw new RecordNotFound();scope(p,lead,"task:write");
+    const task:Task={...input,version:0,id:randomUUID(),tenantId:p.tenantId,leadId:id,completed:false,origin:"human"};const record:LeadActivity={id:randomUUID(),tenantId:p.tenantId,leadId:id,type:"follow_up_created",actor:p.userId,description:`Follow-up scheduled for ${task.owner}.`,occurredAt:new Date().toISOString()};
+    state["tasks.json"]=[task,...state["tasks.json"]];state["lead-activity.json"]=[record,...state["lead-activity.json"]];return {data:task,activity:record};
+  });
 }
-export async function completeTask(p:AuthenticatedPrincipal,id:string,completed:boolean) {
-  if(dataMode()==="aurora")return(await productionStore()).completeTask(p,id,completed);
-  const s=demoSnapshot();const task=s.tasks.find(t=>t.id===id);const lead=s.leads.find(l=>l.id===task?.leadId);if(!task||!lead)throw new RecordNotFound();scope(p,lead,"task:write");
-  const updated={...task,completed}; const record:LeadActivity={id:randomUUID(),tenantId:p.tenantId,leadId:lead.id,type:completed?"follow_up_completed":"follow_up_reopened",actor:p.userId,description:`Follow-up ${completed?"completed":"reopened"}: ${task.title}.`,occurredAt:new Date().toISOString()};
-  if(!runtime.persistRuntimeTask(updated)||!runtime.persistRuntimeLeadActivities([record]))throw new Error("Persistence failed.");return{data:updated,activity:record};
+export async function completeTask(p:AuthenticatedPrincipal,id:string,completed:boolean,expectedVersion:unknown) {
+  if(dataMode()==="aurora")return(await productionStore()).completeTask(p,id,completed,expectedVersion);
+  return runtime.demoTransaction(state=> {
+    const tasks=runtimeTasks(state["tasks.json"] as Task[]);const task=tasks.find(t=>t.id===id);const lead=(state["leads.json"] as Lead[]).find(l=>l.id===task?.leadId)??demo.leads.find(l=>l.id===task?.leadId);if(!task||!lead)throw new RecordNotFound();scope(p,lead,"task:write");checkRecordVersion(task,expectedVersion,"Follow-up");
+    if(!completed&&task.closedBySaleId)throw new ConflictError("A follow-up closed by a confirmed sale cannot be reopened.");
+    const updated={...task,completed,version:(task.version??0)+1};const record:LeadActivity={id:randomUUID(),tenantId:p.tenantId,leadId:lead.id,type:completed?"follow_up_completed":"follow_up_reopened",actor:p.userId,description:`Follow-up ${completed?"completed":"reopened"}: ${task.title}.`,occurredAt:new Date().toISOString()};
+    state["tasks.json"]=[updated,...tasks.filter(t=>t.id!==id)];state["lead-activity.json"]=[record,...state["lead-activity.json"]];return {data:updated,activity:record};
+  });
+}
+function demoAutomate(state:Parameters<Parameters<typeof runtime.demoTransaction>[0]>[0],lead:Lead,trigger:AutomationRule["trigger"]) {
+  const result=evaluateLeadAutomation(lead,trigger,getAutomationRules(lead.tenantId),state["automation-runs.json"] as AutomationRun[]);
+  state["tasks.json"]=[...result.tasks,...state["tasks.json"]];state["automation-runs.json"]=[...result.runs,...state["automation-runs.json"]];return result.runs;
 }
 export async function saveEvent(event:JourneyEvent) {
   const s=publicScope();if(dataMode()==="aurora")return(await productionStore()).saveEvent(event,s.dealershipId);
@@ -318,7 +335,7 @@ export async function scheduleAppointment(p:AuthenticatedPrincipal,id:string,inp
     const item:Appointment={...input,id:randomUUID(),leadId:id,vehicleId:lead.vehicleId,locationId:lead.locationId,status:"scheduled"};
     state["appointments.json"]=[item,...state["appointments.json"]];
     state["lead-activity.json"]=[operationActivity(p,id,"appointment_scheduled","Staff confirmed a visit or test drive."),...state["lead-activity.json"]];
-    const task:Task={id:randomUUID(),tenantId:p.tenantId,leadId:id,title:"Appointment reminder",owner:lead.assignedTo||p.userId,dueAt:new Date(Math.max(Date.now(),Date.parse(input.scheduledAt)-3600000)).toISOString(),completed:false,priority:"normal",origin:"human"};
+    const task:Task={id:randomUUID(),version:0,tenantId:p.tenantId,leadId:id,title:"Appointment reminder",owner:lead.assignedTo||p.userId,dueAt:new Date(Math.max(Date.now(),Date.parse(input.scheduledAt)-3600000)).toISOString(),completed:false,priority:"normal",origin:"human"};
     state["tasks.json"]=[task,...state["tasks.json"]];return {data:item};
   });
 }
@@ -347,9 +364,9 @@ export async function confirmSale(p:AuthenticatedPrincipal,id:string,input:SaleI
     const knownCost=(state["stock-costs.json"] as StockCost[]).find(c=>c.vehicleId===vehicle.id&&c.tenantId===p.tenantId);if(knownCost)validateAcquisitionSale(knownCost,input);
     const sale=makeSale(p,lead,input);const updated={...vehicle,version:(vehicle.version??0)+1,availabilityStatus:"sold" as const,publishStatus:"archived" as const,updatedAt:sale.confirmedAt};
     state["sales.json"]=[sale,...sales];state["vehicles.json"]=[updated,...vehicles.filter(v=>v.id!==vehicle.id)];
-    state["leads.json"]=[{...lead,stage:"won",updatedAt:sale.confirmedAt},...leads.filter(l=>l.id!==id)];
+    state["leads.json"]=[{...lead,version:(lead.version??0)+1,stage:"won",updatedAt:sale.confirmedAt},...leads.filter(l=>l.id!==id)];
     const tasks=runtimeTasks(state["tasks.json"] as Task[]);
-    state["tasks.json"]=tasks.map(t=>t.leadId===id?{...t,completed:true}:t);
+    state["tasks.json"]=tasks.map(t=>t.leadId===id&&!t.completed?{...t,completed:true,version:(t.version??0)+1,closedBySaleId:sale.id}:t);
     state["lead-activity.json"]=[operationActivity(p,id,"sale_confirmed","Manager confirmed recorded sale; inventory withdrawn."),...state["lead-activity.json"]];
     state["inventory-history.json"]=[inventoryChange(p,vehicle,updated),...state["inventory-history.json"]];return {data:sale};
   });
@@ -439,4 +456,8 @@ export async function saveStockCost(p:AuthenticatedPrincipal,id:string,input:unk
 function checkStockVersion(vehicle:Vehicle,expectedVersion:unknown) {
   validateCostVersion(expectedVersion);
   if((vehicle.version??0)!==expectedVersion)throw new ConflictError("Inventory changed. Refresh and review before saving.");
+}
+
+function checkRecordVersion(record:{version?:number},expectedVersion:unknown,label:string) {
+  validateCostVersion(expectedVersion);if((record.version??0)!==expectedVersion)throw new ConflictError(`${label} changed. Refresh and review before saving.`);
 }

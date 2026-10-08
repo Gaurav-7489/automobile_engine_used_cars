@@ -54,6 +54,7 @@ export default async function LeadPage({
           <LeadOperations
             leadId={lead.id}
             initialStage={lead.stage}
+            initialVersion={lead.version??0}
             initialOwner={lead.assignedTo}
             initialNotes={lead.notes}
           />
@@ -124,6 +125,8 @@ export default async function LeadPage({
                     <small>{shortDateTime(task.dueAt)}</small>
                     <TaskStatusButton
                       taskId={task.id}
+                      version={task.version??0}
+                      closedBySaleId={task.closedBySaleId}
                       title={task.title}
                       completed={task.completed}
                     />

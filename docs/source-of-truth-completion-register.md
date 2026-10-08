@@ -70,3 +70,7 @@ Respect all 75 decisions. Separate **implemented** from **tested** and **deploye
 ## Verified capital increment
 
 `feat/capital-operations` adds role-scoped stock costs, versioned amendments, acquisition ageing, recorded active/aged capital, holding assumptions and sale contribution evidence, plus shared native cost operations. Migration 0004 and explicit capital permissions are required. Platform telemetry now distinguishes configuration from health and hides reference control-plane data in production. General ledger, full staff/control-plane administration, AI/market providers and deployed staging remain open; see `capital-operations.md`.
+
+## CRM consistency increment
+
+`feat/crm-conflict-safety` adds lead/task version checks in both clients, atomic demo enquiry/lead/audit/task/automation writes, sale-closed task guards and parent-first task locking. Consent and provider holds are distinct. Exact-commit PR checks determine acceptance; see `crm-conflict-safety.md`.
