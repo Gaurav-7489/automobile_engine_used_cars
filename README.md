@@ -29,8 +29,9 @@ The reference path demonstrates:
 
 ```bash
 corepack enable
-pnpm install
-AUTH_MODE=demo pnpm dev
+corepack prepare pnpm@10.17.1 --activate
+pnpm install --frozen-lockfile
+pnpm demo
 ```
 
 Open:
