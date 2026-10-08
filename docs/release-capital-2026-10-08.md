@@ -54,3 +54,12 @@ For PostgreSQL, apply migration 0004 after 0003 and provision the application-ro
 | Production | Not certified or deployed | Staging acceptance, security/recovery/performance/customer acceptance and explicit release approval |
 
 Cloud/backend configuration, signing identities and provider/data agreements are external dependencies. Staff/control-plane administration, full accounting and advanced AI/market workflows are unfinished software scope, not merely missing credentials. No cloud resources, production release or real customer actions were performed.
+
+## Native packaging verified on resume
+
+[Native run 37743133252](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37743133252) passed Windows/macOS typecheck, builds, Rust tests and Tauri packaging at the exact code revision above.
+
+- [Windows NSIS .exe](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37743133252/artifacts/11535112756)
+- [Universal macOS .dmg](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37743133252/artifacts/11534489256)
+
+Both are unsigned development distributions. Extract the artifact archive, then install. Shared HTTPS/Cognito backend acceptance and signing/notarization are still required. PR #13 is ready for review. Documentation checkpoint cc324b2 also passed Quality Gate 37743710599 and Desktop installers 37743710598.

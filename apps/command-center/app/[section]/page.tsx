@@ -209,6 +209,8 @@ function TasksSection({ data }: {data:Snapshot}) {
                   <td>
                     <TaskStatusButton
                       taskId={task.id}
+                      version={task.version??0}
+                      closedBySaleId={task.closedBySaleId}
                       title={task.title}
                       completed={task.completed}
                     />
@@ -548,6 +550,7 @@ function AutomationSection({ data }: {data:Snapshot}) {
   const events = data.events.filter((event) => event.tenantId === tenantConfig.tenantId);
   const created = runs.filter((run) => run.outcome === "created").length;
   const blocked = runs.filter((run) => run.outcome === "skipped_consent").length;
+  const providerHolds=runs.filter(run=>run.outcome==="skipped_provider").length;
   const duplicates = runs.filter((run) => run.outcome === "skipped_duplicate").length;
   const campaignCounts = events.reduce<Record<string, number>>((acc, event) => {
     const key = event.campaign || "unattributed";
@@ -565,7 +568,8 @@ function AutomationSection({ data }: {data:Snapshot}) {
       <section className="metrics">
         <article className="metric-card"><span>Active rules</span><strong>{rules.filter((rule) => rule.enabled).length}</strong><small>tenant-scoped deterministic rules</small></article>
         <article className="metric-card"><span>Tasks created</span><strong>{created}</strong><small>automation runs with persisted work</small></article>
-        <article className="metric-card"><span>Consent blocks</span><strong>{blocked}</strong><small>provider actions prevented by policy</small></article>
+        <article className="metric-card"><span>Consent blocks</span><strong>{blocked}</strong><small>missing recorded WhatsApp consent</small></article>
+        <article className="metric-card"><span>Provider holds</span><strong>{providerHolds}</strong><small>delivery provider unavailable</small></article>
         <article className="metric-card"><span>Duplicate blocks</span><strong>{duplicates}</strong><small>idempotency guard outcomes</small></article>
       </section>
       <div className="detail-layout">

@@ -8,7 +8,7 @@ test("demo staff API keeps lead and follow-up operations working", async ({ requ
   expect(created.status()).toBe(201);
   const { leadId } = await created.json();
   const command = "http://127.0.0.1:3001/command/api";
-  const updated = await request.patch(`${command}/leads/${leadId}`, { data: { stage: "contacted", notes: "Contact confirmed" } });
+  const updated = await request.patch(`${command}/leads/${leadId}`, { data: { stage: "contacted", notes: "Contact confirmed",expectedVersion:0 } });
   expect(updated.status()).toBe(200);
   expect((await updated.json()).activity[0].actor).toBe("demo-staff");
   const scheduled = await request.post(`${command}/leads/${leadId}/tasks`, {
@@ -16,11 +16,13 @@ test("demo staff API keeps lead and follow-up operations working", async ({ requ
   });
   expect(scheduled.status()).toBe(201);
   const { data: task } = await scheduled.json();
+  let expectedVersion=0;
   for (const completed of [true, false]) {
-    const result = await request.patch(`${command}/tasks/${task.id}`, { data: { completed } });
+    const result = await request.patch(`${command}/tasks/${task.id}`, { data: { completed,expectedVersion } });
     expect(result.status()).toBe(200);
     const body = await result.json();
     expect(body.data.completed).toBe(completed);
+    expectedVersion=body.data.version;
     expect(body.activity.actor).toBe("demo-staff");
   }
 });

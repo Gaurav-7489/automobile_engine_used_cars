@@ -1,9 +1,7 @@
 import type { AutomationRule, AutomationRun, Lead, Task } from "@vandlabs/contracts";
 import {
-  persistRuntimeAutomationRun,
-  persistRuntimeTask,
+  demoTransaction,
   readRuntimeAutomationRules,
-  readRuntimeAutomationRuns,
 } from "./runtime";
 
 const defaults: AutomationRule[] = [
@@ -45,51 +43,22 @@ export function getAutomationRules(tenantId: string) {
   ];
 }
 
-export function runLeadAutomation(lead: Lead, trigger: AutomationRule["trigger"]): AutomationRun[] {
-  const previousRuns = readRuntimeAutomationRuns();
-  return getAutomationRules(lead.tenantId)
-    .filter((rule) => rule.enabled && rule.trigger === trigger)
-    .filter((rule) => !rule.intents?.length || rule.intents.includes(lead.intent))
-    .filter((rule) => !rule.stages?.length || rule.stages.includes(lead.stage))
-    .map((rule) => {
-      const duplicate = previousRuns.some(
-        (run) => run.ruleId === rule.id && run.leadId === lead.id && run.trigger === trigger && run.outcome === "created",
-      );
-      let outcome: AutomationRun["outcome"] = "created";
-      let taskId: string | undefined;
+export function evaluateLeadAutomation(lead:Lead,trigger:AutomationRule["trigger"],rules:AutomationRule[],previousRuns:AutomationRun[]) {
+  const tasks:Task[]=[],runs:AutomationRun[]=[];
+  for(const rule of rules.filter(r=>r.tenantId===lead.tenantId&&r.enabled&&r.trigger===trigger&&(!r.intents?.length||r.intents.includes(lead.intent))&&(!r.stages?.length||r.stages.includes(lead.stage)))) {
+    const duplicate=[...previousRuns,...runs].some(r=>r.tenantId===lead.tenantId&&r.ruleId===rule.id&&r.leadId===lead.id&&r.trigger===trigger&&r.outcome==="created");
+    // Provider channels stay held even when consent exists; no configured provider delivery is implied.
+    const outcome:AutomationRun["outcome"]=duplicate?"skipped_duplicate":rule.channel==="whatsapp"?(rule.requiresWhatsappConsent&&!lead.consent.whatsapp?"skipped_consent":"skipped_provider"):"created";
+    const task:Task|undefined=outcome==="created"?{id:crypto.randomUUID(),version:0,tenantId:lead.tenantId,leadId:lead.id,title:rule.taskTitle,owner:lead.assignedTo??rule.ownerFallback,dueAt:new Date(Date.now()+rule.delayMinutes*60000).toISOString(),completed:false,priority:rule.priority,origin:"automation",automationRuleId:rule.id}:undefined;
+    if(task)tasks.push(task);
+    runs.push({id:crypto.randomUUID(),tenantId:lead.tenantId,ruleId:rule.id,leadId:lead.id,trigger,outcome,taskId:task?.id,occurredAt:new Date().toISOString()});
+  }
+  return {tasks,runs};
+}
 
-      if (duplicate) {
-        outcome = "skipped_duplicate";
-      } else if (rule.channel === "whatsapp" && rule.requiresWhatsappConsent && !lead.consent.whatsapp) {
-        outcome = "skipped_consent";
-      } else {
-        const task: Task = {
-          id: crypto.randomUUID(),
-          tenantId: lead.tenantId,
-          leadId: lead.id,
-          title: rule.taskTitle,
-          owner: lead.assignedTo ?? rule.ownerFallback,
-          dueAt: new Date(Date.now() + rule.delayMinutes * 60_000).toISOString(),
-          completed: false,
-          priority: rule.priority,
-          origin: "automation",
-          automationRuleId: rule.id,
-        };
-        if (persistRuntimeTask(task)) taskId = task.id;
-        else outcome = "skipped_duplicate";
-      }
-
-      const run: AutomationRun = {
-        id: crypto.randomUUID(),
-        tenantId: lead.tenantId,
-        ruleId: rule.id,
-        leadId: lead.id,
-        trigger,
-        outcome,
-        taskId,
-        occurredAt: new Date().toISOString(),
-      };
-      persistRuntimeAutomationRun(run);
-      return run;
-    });
+export function runLeadAutomation(lead:Lead,trigger:AutomationRule["trigger"]):AutomationRun[] {
+  return demoTransaction(state=> {
+    const result=evaluateLeadAutomation(lead,trigger,getAutomationRules(lead.tenantId),state["automation-runs.json"] as AutomationRun[]);
+    state["tasks.json"]=[...result.tasks,...state["tasks.json"]];state["automation-runs.json"]=[...result.runs,...state["automation-runs.json"]];return result.runs;
+  });
 }

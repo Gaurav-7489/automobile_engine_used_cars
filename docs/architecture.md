@@ -1,4 +1,4 @@
-# Automobile Engine Architecture — V1 Proof-of-Engine
+# Automobile Engine Architecture — implemented runtime
 
 ## Architecture style
 
@@ -6,7 +6,7 @@ Automobile Engine starts as a disciplined modular monorepo with hard domain boun
 
 ## Monorepo
 
-pnpm + Turborepo coordinates three Next.js applications and shared packages.
+pnpm + Turborepo coordinates three Next.js applications, a React/Tauri native staff client and shared packages.
 
 ### Applications
 
@@ -16,7 +16,9 @@ pnpm + Turborepo coordinates three Next.js applications and shared packages.
 
 ### Shared packages
 
-- `@vandlabs/contracts` — canonical domain and repository contracts.
+- `@vandlabs/contracts` — canonical domain, capabilities and repository contracts.
+- `@vandlabs/data` — shared PostgreSQL/demo repositories, scoped business mutations and deterministic inventory/capital evidence.
+- `@vandlabs/server-auth` — Cognito token/session verification and server-owned staff scope resolution.
 - `@vandlabs/demo-data` — reference tenant/inventory/CRM/analytics fixtures plus local demo persistence.
 - `@vandlabs/design-system` — shared primitive/token foundation.
 
@@ -30,7 +32,7 @@ VandLabs
               → Users / Inventory / Leads / Campaigns / Analytics
 ```
 
-The V1 reference implementation uses strong explicit tenant/dealership/location keys in the domain model. Production persistence later adds database scoping, PostgreSQL RLS where appropriate, service authorization, tenant-scoped cache/search/storage and automated cross-tenant isolation tests.
+The V1 reference implementation uses strong explicit tenant/dealership/location keys in the domain model. The PostgreSQL adapter now enforces transaction-local tenant context, forced RLS, tenant-aware foreign keys and scoped server authorization. Embedded PostgreSQL and HTTP access regressions verify these boundaries. Deployed Aurora/network/recovery and future cache/search/storage isolation remain separate acceptance.
 
 ## Vehicle Inventory Hub
 
@@ -61,15 +63,22 @@ Lead profiles preserve vehicle interest, acquisition context, consent, ownership
 
 ## Current request path
 
-```text
-Browser
-  → Next.js Experience Layer
-  → application service
-  → repository interface
-  → demo adapter / local runtime file
+```mermaid
+flowchart TD
+  Public[Public dealership website] --> Policy[Server scope and policy]
+  Staff[Browser and Tauri staff clients] --> Policy
+  Policy --> Data[Shared data adapter]
+  Data --> PG[PostgreSQL with forced tenant RLS]
+  Data --> Demo[Atomic local demonstration state]
 ```
 
-HTTP BFF routes already expose health, vehicles, leads and events so the frontend contract is not tied to the demo repository.
+`DATA_MODE` selects one authoritative adapter; production never silently falls back to demonstration records. Customer enquiry scope comes from server tenant configuration. Staff capabilities/locations come from verified Cognito access and server-owned provisioning, with loopback-only demo identity for reference operation. Tokens and database/provider secrets do not reach native JavaScript or public bundles.
+
+Inventory, lead and task mutations use record versions under transaction locks. Confirmed sales atomically record proceeds, advance lead/stock state, close open follow-ups and append audit evidence. Sale-closed tasks cannot be reopened by an ordinary task action. Stock costs have a separately authorized versioned register with atomic amendment history; no full accounting ledger is implied.
+
+The demo adapter commits enquiries, lead changes, tasks, automation runs and activity together through one atomic document replacement and writer lock. Internal automation creates tasks with duplicate prevention; unavailable provider actions stay held and are distinguishable from missing consent. No external delivery or production job-worker execution is claimed.
+
+Platform runtime configuration is distinct from monitored health. Illustrative tenant/onboarding/audit control-plane screens are hidden in production data mode. Production provisioning, entitlement administration, provider gateways and market ingestion remain unfinished.
 
 ## Production AWS request path
 
