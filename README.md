@@ -101,3 +101,5 @@ See `docs/release-2026-10-08.md` for the connected-demo release, pull instructio
 Inventory entry and CSV preview/import: see [inventory-intake.md](docs/inventory-intake.md).
 
 Verified stock-cost and capital operations: [capital-operations.md](docs/capital-operations.md).
+
+Latest tested CRM consistency increment: [`feat/crm-conflict-safety`, PR #14](https://github.com/Gaurav-7489/automobile_engine_used_cars/pull/14). See [release evidence and local installation](docs/release-crm-2026-10-08.md) for exact commits, checks and independent acceptance gaps.

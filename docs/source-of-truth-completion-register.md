@@ -74,3 +74,5 @@ Respect all 75 decisions. Separate **implemented** from **tested** and **deploye
 ## CRM consistency increment
 
 `feat/crm-conflict-safety` adds lead/task version checks in both clients, atomic demo enquiry/lead/audit/task/automation writes, sale-closed task guards and parent-first task locking. Consent and provider holds are distinct. Exact-commit PR checks determine acceptance; see `crm-conflict-safety.md`.
+
+CRM code `24d277222faead4c7f4f506d02d58aedf89d7ec6` passed [Quality Gate 37795985929](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37795985929) with 62 browser and 14 auth cases, plus [Windows/macOS packaging 37795985649](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37795985649). See [release evidence](release-crm-2026-10-08.md). No staging or production certification is implied.
