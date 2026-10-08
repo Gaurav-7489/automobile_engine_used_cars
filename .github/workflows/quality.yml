@@ -27,7 +27,7 @@ jobs:
           corepack prepare pnpm@10.17.1 --activate
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Demo launcher preflight
         run: node scripts/start-demo.mjs --check
