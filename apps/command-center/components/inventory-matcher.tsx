@@ -1,0 +1,11 @@
+"use client";
+import { useState, useEffect } from "react";
+import type { Vehicle } from "@vandlabs/contracts";
+export function InventoryMatcher({vehicles}:{vehicles:Pick<Vehicle,"id"|"make"|"model"|"price"|"fuelType"|"transmission"|"availabilityStatus"|"publishStatus">[]}) {
+  const [ready,setReady]=useState(false);
+  useEffect(()=>setReady(true),[]);
+  const [budget,setBudget]=useState("");const [fuel,setFuel]=useState("");const [transmission,setTransmission]=useState("");
+  const max=budget===""?Infinity:Number(budget);
+  const matches=vehicles.filter(v=>v.publishStatus==="published"&&v.availabilityStatus==="available"&&v.price<=max&&(!fuel||v.fuelType===fuel)&&(!transmission||v.transmission===transmission));
+  return <section className="panel"><p className="eyebrow">Confirmed inventory</p><h2>Customer-to-car matching</h2><p className="notice">Exact stock filters. Prices and availability come from the current staff snapshot; refresh before promising availability.</p><div className="operations-grid"><label><span>Maximum budget (INR)</span><input disabled={!ready} type="number" min="0" value={budget} onChange={e=>setBudget(e.target.value)}/></label><label><span>Fuel preference</span><select disabled={!ready} value={fuel} onChange={e=>setFuel(e.target.value)}><option value="">Any fuel</option>{["petrol","diesel","hybrid","electric"].map(f=><option key={f}>{f}</option>)}</select></label><label><span>Transmission preference</span><select disabled={!ready} value={transmission} onChange={e=>setTransmission(e.target.value)}><option value="">Any transmission</option><option>manual</option><option>automatic</option></select></label></div><div className="stack-list" aria-live="polite">{matches.map(v=><div className="list-row" key={v.id}><strong>{v.make} {v.model}</strong><span>₹{v.price.toLocaleString("en-IN")} · available · meets selected constraints</span></div>)}{!matches.length?<p>No current vehicles meet these constraints. Ask a salesperson for alternatives.</p>:null}</div></section>;
+}

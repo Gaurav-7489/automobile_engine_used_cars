@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { LeadIntent, AttributionTouch } from "@vandlabs/contracts";
-import { tenantConfig, createLead, publicInventory } from "@vandlabs/data";
+import { tenantConfig, createLead, publicInventory, InputError } from "@vandlabs/data";
 
 const validIntents: LeadIntent[] = [
   "enquiry",
@@ -10,6 +10,7 @@ const validIntents: LeadIntent[] = [
 ];
 
 export async function POST(request: Request) {
+  try {
   const body = (await request.json()) as {
     name?: string;
     phone?: string;
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
   const { lead, automation } = await createLead({
     tenantId: tenantConfig.tenantId,
     dealershipId: tenantConfig.activeDealershipId,
-    locationId: vehicle?.locationId,
+    locationId: vehicle?.locationId ?? tenantConfig.organization.dealerships.find(d=>d.id===tenantConfig.activeDealershipId)?.locations[0]?.id,
     vehicleId: vehicle?.id,
     vehicleIds: vehicle ? [vehicle.id] : [],
     name,
@@ -132,4 +133,9 @@ export async function POST(request: Request) {
     },
     { status: 201 },
   );
+  } catch(error) {
+    if(error instanceof SyntaxError||error instanceof InputError)return NextResponse.json({error:"Invalid enquiry."},{status:400});
+    return NextResponse.json({error:"Enquiry service unavailable. Please retry or contact the dealership."},{status:503});
+  }
+
 }

@@ -24,7 +24,7 @@ Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75)
 | Staff identity | Cognito auth flow and security tests per `docs/staff-authentication.md` | Provision test staff; verify actual Cognito login, refresh, logout, permissions and MFA policy |
 | Native Windows/macOS | `apps/desktop`, `.github/workflows/desktop-build.yml` | Confirm OS-runner tests/artifact builds; install and exercise real authenticated client; signing/notarization later |
 | Platform control | `apps/platform` reference screens, admin access gates | Real tenant provisioning, roles administration, billing and operational support are not production services |
-| Intelligence / capital | Planned Blueprint §§09–15, 21, 23, 28–30 | Validate which modules have runnable UIs, backfilled data, explainable calculations, confidence and tests; implement missing modules incrementally |
+| Intelligence / capital | `/command/intelligence`: deterministic stock validation, task briefing, price history and exact matching | Acquisition dates/cost ledger, provider-backed AI and licensed market intelligence remain unfinished; record age is not acquisition age |
 | Market Radar / external data | Integration contracts & reference adapters in V2.5 | Obtain licensed feeds, approvals and credentials; add ingest normalization, reconciliation and freshness checks |
 | External channels | Internal automation tasks only per `docs/production-runtime.md` | Provider-approved WhatsApp/SMS/email integrations, consent and delivery receipts; no fake send claims |
 | Deployment / operations | AWS CDK and QA workflow | Deploy isolated staging; domains/HTTPS/WAF/secrets/observability/alerts/backups; incident rollback drills |
@@ -57,7 +57,7 @@ Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75)
 
 For each gate, record: `commit_sha`, `CI_run_url`, `environment`, `date`, `test_result`, `evidence`, `open_defects`, `owner`, `release_decision`.
 
-**Current state:** implementation exists; no verified successful Quality Gate or staging acceptance for the current revision has been retrieved in this session. The demo and full ecosystem must not be described as completed until the relevant gates pass.
+**Current state (8 October 2026):** connected demo code `fe023bab294f39265726619b018dd3dee6f303bb` passed [Quality Gate 37736586479](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37736586479): 52 Chromium/mobile WebKit cases, 14 staff HTTP denial cases, local security/PostgreSQL/evidence checks, builds and staging synthesis. PR #11 adds persisted appointments, verified sale records, atomic stock withdrawal and inventory evidence. Full ecosystem and deployed staging are not complete. See `release-2026-10-08.md` for exact scope and open implementation work.
 
 ## Scope and decision rule
 

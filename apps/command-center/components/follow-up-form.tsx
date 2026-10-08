@@ -25,7 +25,7 @@ export function FollowUpForm({
       const response = await fetch(`/command/api/leads/${leadId}/tasks`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title, owner, dueAt, priority }),
+        body: JSON.stringify({ title, owner, dueAt: new Date(dueAt).toISOString(), priority }),
       });
       if (!response.ok) throw new Error("Follow-up creation failed");
 

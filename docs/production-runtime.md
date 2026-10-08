@@ -111,3 +111,9 @@ compilation run on Windows/macOS in the desktop workflow.
 Production acceptance still requires the configured deployment: real sign-in,
 website enquiry to shared database to staff/desktop snapshot, mark sold to website,
 backup restore, secret rotation, and signed distribution as appropriate.
+
+## Appointment and sale extension
+
+Apply migration `0003_sales_inventory_history.sql` before deploying this release. Existing application roles receive read/insert grants during migration; a newly provisioned role receives the same grants via `pnpm db:provision-role`. Sales and inventory history force tenant RLS, use tenant-aware foreign keys and allow append-only application writes. Staff snapshots additionally restrict by dealership/location.
+
+Visit scheduling creates an internal reminder task and lead activity. Confirmed sale requires both lead and inventory write capabilities, serializes on the lead/vehicle, records a positive INR amount and non-future sale time, marks Won, archives sold inventory and completes its open tasks in one transaction. Retries of identical sale details return the same record; changed details conflict. An ordinary inventory update cannot reopen a confirmed sale. No external marketplace delisting, finance approval, accounting margin or provider delivery is implied.

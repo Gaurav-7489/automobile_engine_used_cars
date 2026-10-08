@@ -1,5 +1,6 @@
 // Local-only reference demo launcher. Never expose demo-auth staff apps publicly.
 import { spawn } from "node:child_process";
+import { resolve } from "node:path";
 import { createServer } from "node:net";
 
 const ports = [3000, 3001, 3002];
@@ -35,9 +36,14 @@ if (checkOnly) {
 }
 
 const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const environment = { ...process.env, AUTH_MODE: "demo", DATA_MODE: "demo",
+  VANDLABS_DEMO_RUNTIME_PATH: resolve(process.cwd(), ".demo-runtime", "leads.json") };
+delete environment.TENANT_CONFIG_JSON; // Always use the matching reference identity/configuration.
+console.log("Starting local demonstration data. Website :3000 · Command Center :3001/command · Platform :3002/platform");
 const child = spawn(command, ["dev"], {
   stdio: "inherit",
-  env: { ...process.env, AUTH_MODE: "demo", DATA_MODE: "demo" },
+  env: environment,
+  detached: process.platform !== "win32",
   shell: process.platform === "win32",
 });
 child.once("error", (error) => {
@@ -47,3 +53,29 @@ child.once("error", (error) => {
 child.once("exit", (code, signal) => {
   process.exitCode = code ?? (signal ? 1 : 0);
 });
+
+let stopping = false;
+function stop(signal) {
+  if (stopping || !child.pid) return;
+  stopping = true;
+  if (process.platform === "win32") child.kill(signal);
+  else { try { process.kill(-child.pid, signal); } catch { /* Child already exited. */ } }
+}
+process.on("SIGINT", () => stop("SIGINT"));
+process.on("SIGTERM", () => stop("SIGTERM"));
+const endpoints = ["http://127.0.0.1:3000", "http://127.0.0.1:3001/command", "http://127.0.0.1:3002/platform"];
+let checking = false;
+const readiness = setInterval(async () => {
+  if (checking || stopping) return;
+  checking = true;
+  try {
+    const responses = await Promise.all(endpoints.map(url => fetch(url, { signal: AbortSignal.timeout(5000) })));
+    if (responses.every(response => response.ok)) {
+      clearInterval(readiness);
+      console.log("Demo ready. All three applications responded successfully.");
+      for (const url of endpoints) console.log(url);
+    }
+  } catch { /* Next.js is still compiling. */ } finally { checking = false; }
+}, 2000);
+child.once("exit", () => clearInterval(readiness));
+child.once("error", () => clearInterval(readiness));

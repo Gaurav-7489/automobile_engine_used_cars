@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
-import { postgresStore, RecordNotFound } from "../../packages/data/src/index";
+import { postgresStore, RecordNotFound, ConflictError } from "../../packages/data/src/index";
 import { tenantTransaction, type SqlPool } from "../../packages/data/src/postgres";
 import { AuthorizationError, type AuthenticatedPrincipal, type Vehicle } from "../../packages/contracts/src/index";
 import { vehicles } from "../../packages/demo-data/src/index";
@@ -10,7 +10,7 @@ import { vehicles } from "../../packages/demo-data/src/index";
 test("real PostgreSQL engine: isolation, shared records, atomic audit/task writes and rollback",async()=>{
  const db=new PGlite();await db.waitReady;
  try{
-  for(const name of ["0001_core_tenant_schema.sql","0002_ecosystem_records.sql"]){const sql=await readFile(`infra/database/migrations/${name}`,"utf8");await db.exec(sql.replace("CREATE EXTENSION IF NOT EXISTS pgcrypto;",""));}
+  for(const name of ["0001_core_tenant_schema.sql","0002_ecosystem_records.sql","0003_sales_inventory_history.sql"]){const sql=await readFile(`infra/database/migrations/${name}`,"utf8");await db.exec(sql.replace("CREATE EXTENSION IF NOT EXISTS pgcrypto;",""));}
   const a="11111111-1111-4111-a111-111111111111",b="22222222-2222-4222-a222-222222222222";
   const dealer="33333333-3333-4333-a333-333333333333",location="44444444-4444-4444-a444-444444444444",otherLocation="55555555-5555-4555-a555-555555555555",vehicleId="66666666-6666-4666-a666-666666666666";
   await db.query("INSERT INTO organizations(id,tenant_id,name) VALUES($1,$1,'A'),($2,$2,'B')",[a,b]);
@@ -42,12 +42,31 @@ test("real PostgreSQL engine: isolation, shared records, atomic audit/task write
   const other={...p,tenantId:b};assert.equal((await store.snapshot(other)).leads.length,0);
   await assert.rejects(store.patchLead(other,leadId,{stage:"won"}),RecordNotFound);
   await assert.rejects(store.createTask({...p,locationIds:[otherLocation]},leadId,{title:"Denied",owner:"Staff",dueAt:"2030-01-01",priority:"normal"}),AuthorizationError);
+  const appointment=await store.scheduleAppointment(p,leadId,{type:"test_drive",scheduledAt:"2030-01-15T11:00:00Z"});
+  await store.setAppointmentStatus(p,appointment.data.id,"completed");
+  assert.equal((await store.snapshot(p)).appointments[0].status,"completed");
+  await assert.rejects(store.scheduleAppointment({...p,locationIds:[otherLocation]},leadId,{type:"test_drive",scheduledAt:"2030-01-15T11:00:00Z"}),AuthorizationError);
+  await assert.rejects(store.setAppointmentStatus(other,appointment.data.id,"completed"),RecordNotFound);
+  const saleInput={amount:5800000,soldAt:"2026-01-01T10:00:00Z"};
+  await assert.rejects(postgresStore(broken).confirmSale(p,leadId,saleInput),/audit failure/);
+  assert.equal((await store.snapshot(p)).sales?.length,0);
+  assert.equal((await store.inventory(a,dealer))[0].availabilityStatus,"available");
+  await assert.rejects(store.confirmSale({...p,capabilities:["lead:write"]},leadId,saleInput),AuthorizationError);
+  await assert.rejects(store.confirmSale(other,leadId,saleInput),RecordNotFound);
+  const sale=await store.confirmSale(p,leadId,saleInput);
+  const closed=await store.snapshot(p);
+  assert.equal(closed.sales?.length,1);assert.equal(closed.leads[0].stage,"won");assert.ok(closed.tasks.every(t=>t.completed));
+  assert.equal((await store.inventory(a,dealer)).length,0);
+  assert.equal((await store.confirmSale(p,leadId,saleInput)).data.id,sale.data.id);
+  await assert.rejects(store.confirmSale(p,leadId,{...saleInput,amount:1}),ConflictError);
+  await assert.rejects(store.updateVehicle(p,vehicleId,{price:100,availabilityStatus:"available",publishStatus:"published"}),ConflictError);
+  assert.equal((await store.snapshot(other)).sales?.length,0);
   await store.updateVehicle(p,vehicleId,{price:100,availabilityStatus:"sold",publishStatus:"published", ...{slug:"forged",tenantId:b}});
   assert.equal((await store.inventory(a,dealer))[0].availabilityStatus,"sold");
   assert.equal((await store.inventory(a,dealer))[0].slug,"car");
   await assert.rejects(store.createLead({tenantId:a,dealershipId:dealer,locationId:location,vehicleId,vehicleIds:[vehicleId],name:"Buyer",phone:"123",channel:"web",intent:"enquiry",source:"website",consent:{whatsapp:false,marketing:false}}),/unavailable/);
   await assert.rejects(tenantTransaction(pool,a,async c=>{await c.query("UPDATE leads SET stage='won' WHERE id=$1",[leadId]);throw new Error("simulated failure");}),/simulated failure/);
-  assert.equal((await store.snapshot(p)).leads[0].stage,"qualified");
+  assert.equal((await store.snapshot(p)).leads[0].stage,"won");
   const unset=await db.query("SELECT nullif(current_setting('app.tenant_id',true),'') AS tenant");assert.equal(unset.rows[0].tenant,null);
   assert.equal((await db.query("SELECT id FROM leads")).rows.length,0);
  }finally{await db.close();}

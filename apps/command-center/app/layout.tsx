@@ -11,6 +11,7 @@ const nav = [
   ["Inventory", "/inventory"],
   ["Customers", "/customers"],
   ["Analytics", "/analytics"],
+  ["Intelligence", "/intelligence"],
   ["Automation", "/automation"],
   ["Settings", "/settings"],
 ] as const;
@@ -39,7 +40,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </nav><form action="/command/auth/logout" method="post"><button type="submit">Sign out</button></form>
             <div className="sidebar-foot">
               <span className="status-dot" />
-              Connected operations
+              {process.env.DATA_MODE === "aurora" ? "Connected operations" : "Demonstration data"}
             </div>
           </aside>
           <div className="app-content">

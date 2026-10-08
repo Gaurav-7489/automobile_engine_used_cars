@@ -8,14 +8,15 @@
     "typecheck": "turbo typecheck",
     "lint": "eslint apps packages tests playwright*.config.ts",
     "test:e2e": "playwright test",
-    "qa": "pnpm lint && pnpm typecheck && pnpm test:security && pnpm test:database && pnpm build && pnpm test:e2e && pnpm test:auth:e2e",
+    "qa": "pnpm lint && pnpm typecheck && pnpm test:security && pnpm test:database && pnpm test:intelligence && pnpm build && pnpm test:e2e && pnpm test:auth:e2e",
     "test:security": "node --import tsx --test tests/security/*.test.ts",
     "test:auth:e2e": "playwright test --config playwright.auth.config.ts",
     "db:migrate": "node --import tsx scripts/database/migrate.ts",
     "db:seed": "node --import tsx scripts/database/seed.ts",
     "test:database": "node --import tsx --test tests/database/*.test.ts",
     "db:provision-role": "node --import tsx scripts/database/provision-role.ts",
-    "demo": "node scripts/start-demo.mjs"
+    "demo": "node scripts/start-demo.mjs",
+    "test:intelligence": "node --import tsx --test tests/intelligence/*.test.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

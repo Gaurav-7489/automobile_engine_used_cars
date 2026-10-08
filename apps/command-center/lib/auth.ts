@@ -8,7 +8,7 @@ const principalResolver = createPrincipalResolver({
     tenantId: tenantConfig.tenantId,
     dealershipIds: [tenantConfig.activeDealershipId],
     locationIds: tenantConfig.organization.dealerships.flatMap((dealer) => dealer.locations.map((location) => location.id)),
-    capabilities: ["inventory:read", "lead:read", "lead:write", "task:write", "analytics:read"],
+    capabilities: ["inventory:read", "inventory:write", "lead:read", "lead:write", "task:write", "analytics:read"],
   },
 });
 

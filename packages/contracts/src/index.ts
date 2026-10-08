@@ -153,7 +153,10 @@ export interface LeadActivity {
     | "note_updated"
     | "follow_up_created"
     | "follow_up_completed"
-    | "follow_up_reopened";
+    | "follow_up_reopened"
+    | "appointment_scheduled"
+    | "appointment_updated"
+    | "sale_confirmed";
   actor: string;
   description: string;
   occurredAt: string;
@@ -250,6 +253,28 @@ export interface Appointment {
   scheduledAt: string;
   locationId: ID;
   status: "scheduled" | "completed" | "cancelled" | "no_show";
+}
+
+export interface Sale {
+  id: ID;
+  tenantId: ID;
+  leadId: ID;
+  vehicleId: ID;
+  amount: number;
+  currency: "INR";
+  soldAt: string;
+  confirmedBy: string;
+  confirmedAt: string;
+}
+
+export interface InventoryChange {
+  id: ID;
+  tenantId: ID;
+  vehicleId: ID;
+  actor: string;
+  occurredAt: string;
+  before: Pick<Vehicle, "price" | "availabilityStatus" | "publishStatus">;
+  after: Pick<Vehicle, "price" | "availabilityStatus" | "publishStatus">;
 }
 
 export interface JourneyEvent {
