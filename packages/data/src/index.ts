@@ -7,11 +7,13 @@ import { getAutomationRules, runLeadAutomation } from "@vandlabs/demo-data/autom
 import { dataMode, publicScope, tenantConfig } from "./config";
 import { databasePool, tenantTransaction, type SqlClient, type SqlPool } from "./postgres";
 export { dataMode, tenantConfig, publicScope } from "./config";
-export class InputError extends Error {}
-export class RecordNotFound extends Error {}
-export class ConflictError extends Error {}
+import { InputError, RecordNotFound, ConflictError, InventoryValidationError } from "./errors";
+export { InputError, RecordNotFound, ConflictError, InventoryValidationError } from "./errors";
+import { normalizeInventoryRows, type InventoryDraft } from "./inventory-input";
+export { parseInventoryCsv, inventoryColumns } from "./inventory-input";
 export interface Snapshot {
   leads: Lead[]; tasks: Task[]; vehicles: Vehicle[]; appointments: Appointment[];
+  inventoryDestinations?: {dealershipId:string;locationId:string;label:string}[];
   capabilities?: AuthenticatedPrincipal["capabilities"]; sales?: Sale[]; inventoryHistory?: InventoryChange[];
   activities: LeadActivity[]; events: JourneyEvent[]; rules: AutomationRule[]; runs: AutomationRun[];
 }
@@ -101,7 +103,6 @@ export function postgresStore(pool: SqlPool) {
     patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>) { return tx(p.tenantId,async c=> {
       const lead=await lockedLead(c,p,id,"lead:write");
       if(patch.stage && patch.stage!=="won" && (await c.query("SELECT id FROM sales WHERE tenant_id=$1 AND lead_id=$2",[p.tenantId,id])).rows.length)throw new ConflictError("Confirmed sale requires an approved reversal.");
-      if(patch.stage && patch.stage!=="won" && runtime.readRuntimeSales().some(s=>s.leadId===id))throw new ConflictError("Confirmed sale requires an approved reversal.");
   const updated={...lead,...patch,updatedAt:new Date().toISOString()};
       const records:LeadActivity[]=[];
       for (const [field,type] of [["stage","stage_changed"],["assignedTo","assignment_changed"],["notes","note_updated"]] as const) {
@@ -157,10 +158,36 @@ export function postgresStore(pool: SqlPool) {
       await activity(c,operationActivity(p,id,"sale_confirmed","Manager confirmed recorded sale; inventory withdrawn."));
       const change=inventoryChange(p,vehicle,updated);await c.query("INSERT INTO inventory_history(id,tenant_id,vehicle_id,payload,occurred_at) VALUES($1,$2,$3,$4,$5)",[change.id,p.tenantId,vehicle.id,change,change.occurredAt]);return {data:sale};
     });},
+    updateVehicleDetails(p:AuthenticatedPrincipal,id:string,input:unknown) {return tx(p.tenantId,async c=> {
+      requireCapability(p,"inventory:write");const draft=normalizeInventoryRows([input])[0];
+      const row=(await c.query("SELECT * FROM vehicles WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[id,p.tenantId])).rows[0];if(!row)throw new RecordNotFound();
+      const vehicle=decodeVehicle(row);inventoryScope(p,vehicle);const updated=editedVehicle(vehicle,draft);
+      await c.query("UPDATE vehicles SET payload=$1,updated_at=$2 WHERE id=$3 AND tenant_id=$4",[updated,updated.updatedAt,id,p.tenantId]);
+      const change=detailHistory(p,vehicle,updated);await c.query("INSERT INTO inventory_history(id,tenant_id,vehicle_id,payload,occurred_at) VALUES($1,$2,$3,$4,$5)",[change.id,p.tenantId,id,change,change.occurredAt]);return updated;
+    });},
+    async createInventoryBatch(p:AuthenticatedPrincipal,dealershipId:string,locationId:string,input:unknown,options:InventoryBatchOptions={}) {
+      inventoryDestination(p,dealershipId,locationId);
+      const drafts=normalizeInventoryRows(input,options.csv);
+      try {return await tx(p.tenantId,async c=> {
+        // Serialize identity checks and inserts for the tenant, including different dealers.
+        await c.query("SELECT id FROM organizations WHERE tenant_id=$1 FOR UPDATE",[p.tenantId]);
+        if(!(await c.query("SELECT id FROM locations WHERE tenant_id=$1 AND dealership_id=$2 AND id=$3",[p.tenantId,dealershipId,locationId])).rows.length)throw new InputError("Unknown destination.");
+        const existing=(await c.query("SELECT stock_id FROM vehicles WHERE tenant_id=$1",[p.tenantId])).rows;
+        rejectExistingStock(drafts,existing.map(v=>String(v.stock_id)),options.csv);
+        const batchId=randomUUID();const vehicles=drafts.map(d=>draftVehicle(p,dealershipId,locationId,d));
+        if(!options.preview)for(const vehicle of vehicles) {
+          await c.query("INSERT INTO vehicles(id,tenant_id,dealership_id,location_id,slug,stock_id,payload,publish_status,availability_status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,'draft','available',$8,$8)",[vehicle.id,p.tenantId,dealershipId,locationId,vehicle.slug,vehicle.stockId,vehicle,vehicle.createdAt]);
+          const change=creationHistory(p,vehicle,batchId);
+          await c.query("INSERT INTO inventory_history(id,tenant_id,vehicle_id,payload,occurred_at) VALUES($1,$2,$3,$4,$5)",[change.id,p.tenantId,vehicle.id,change,change.occurredAt]);
+        }
+        return {batchId,preview:!!options.preview,vehicles};
+      });}catch(e){if((e as {code?:string}).code==="23505")throw new ConflictError("Stock identity was added concurrently. Refresh the preview.");throw e;}
+    },
     updateVehicle(p:AuthenticatedPrincipal,id:string,patch:Pick<Vehicle,"price"|"availabilityStatus"|"publishStatus">) { return tx(p.tenantId,async c=> {
       validateVehiclePatch(patch);requireCapability(p,"inventory:write");const row=(await c.query("SELECT * FROM vehicles WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[id,p.tenantId])).rows[0];
       if (!row) throw new RecordNotFound();const vehicle=decodeVehicle(row);requireDealership(p,vehicle.dealershipId);requireLocation(p,vehicle.locationId);
       if(vehicle.availabilityStatus==="sold" && patch.availabilityStatus!=="sold" && (await c.query("SELECT id FROM sales WHERE tenant_id=$1 AND vehicle_id=$2",[p.tenantId,id])).rows.length)throw new ConflictError("Confirmed sale requires an approved reversal.");
+      if(patch.publishStatus==="published"&&(!vehicle.media.length||patch.price<=0))throw new InputError("Publication requires imagery and a positive asking price.");
       const updated={...vehicle,price:patch.price,availabilityStatus:patch.availabilityStatus,publishStatus:patch.publishStatus,updatedAt:new Date().toISOString()};
       await c.query("UPDATE vehicles SET payload=$1,availability_status=$2,publish_status=$3,updated_at=$4 WHERE id=$5 AND tenant_id=$6",[updated,updated.availabilityStatus,updated.publishStatus,updated.updatedAt,id,p.tenantId]);
       const change=inventoryChange(p,vehicle,updated);
@@ -220,6 +247,7 @@ export async function updateVehicle(p:AuthenticatedPrincipal,id:string,patch:Pic
     const vehicle=current.find(v=>v.id===id)??demo.vehicles.find(v=>v.id===id);
     if(!vehicle)throw new RecordNotFound(); inventoryScope(p,vehicle);
     if(vehicle.availabilityStatus==="sold" && patch.availabilityStatus!=="sold" && (state["sales.json"] as Sale[]).some(s=>s.vehicleId===id))throw new ConflictError("Confirmed sale requires an approved reversal.");
+    if(patch.publishStatus==="published"&&(!vehicle.media.length||patch.price<=0))throw new InputError("Publication requires imagery and a positive asking price.");
     const updated={...vehicle,...patch,updatedAt:new Date().toISOString()};
     state["vehicles.json"]=[updated,...current.filter(v=>v.id!==id)];
     state["inventory-history.json"]=[inventoryChange(p,vehicle,updated),...state["inventory-history.json"]];
@@ -311,3 +339,60 @@ export async function confirmSale(p:AuthenticatedPrincipal,id:string,input:SaleI
 }
 function runtimeTasks(items:Task[]) {return [...items,...demo.tasks.filter(t=>!items.some(i=>i.id===t.id))];}
 export { inventoryInsights, matchInventory } from "./intelligence";
+
+export interface InventoryBatchOptions {csv?:boolean;preview?:boolean}
+function inventoryDestination(p:AuthenticatedPrincipal,dealershipId:string,locationId:string) {
+  requireCapability(p,"inventory:write");requireDealership(p,dealershipId);requireLocation(p,locationId);
+}
+function rejectExistingStock(drafts:InventoryDraft[],existing:string[],csv=false) {
+  const ids=new Set(existing.map(s=>s.toUpperCase()));
+  const issues=drafts.flatMap((d,i)=>ids.has(d.stockId)?[{row:i+(csv?2:1),field:"stockId",message:"Stock identity already exists; use the existing inventory edit workflow."}]:[]);
+  if(issues.length)throw new InventoryValidationError(issues);
+}
+function draftVehicle(p:AuthenticatedPrincipal,dealershipId:string,locationId:string,draft:InventoryDraft):Vehicle {
+  const id=randomUUID(),now=new Date().toISOString();
+  const prefix=`${draft.make}-${draft.model}-${draft.stockId}`.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  return {...draft,id,slug:`${prefix}-${id}`,tenantId:p.tenantId,dealershipId,locationId,createdAt:now,updatedAt:now};
+}
+function creationHistory(p:AuthenticatedPrincipal,v:Vehicle,batchId:string):InventoryChange {
+  return {...inventoryChange(p,v,v),action:"created",batchId,source:v.source,afterRecord:v};
+}
+export async function createInventoryBatch(p:AuthenticatedPrincipal,dealershipId:string,locationId:string,input:unknown,options:InventoryBatchOptions={}) {
+  if(dataMode()==="aurora")return(await productionStore()).createInventoryBatch(p,dealershipId,locationId,input,options);
+  inventoryDestination(p,dealershipId,locationId);
+  if(p.tenantId!==tenantConfig.tenantId||!tenantConfig.organization.dealerships.some(d=>d.id===dealershipId&&d.locations.some(l=>l.id===locationId)))throw new InputError("Unknown destination.");
+  const drafts=normalizeInventoryRows(input,options.csv);
+  const prepare=(existing:Vehicle[])=> {
+    rejectExistingStock(drafts,existing.filter(v=>v.tenantId===p.tenantId).map(v=>v.stockId),options.csv);
+    return {batchId:randomUUID(),preview:!!options.preview,vehicles:drafts.map(d=>draftVehicle(p,dealershipId,locationId,d))};
+  };
+  if(options.preview)return prepare(runtime.mergeRuntimeVehicles(demo.vehicles));
+  return runtime.demoTransaction(state=> {
+    const current=state["vehicles.json"] as Vehicle[];
+    const result=prepare([...current,...demo.vehicles.filter(v=>!current.some(c=>c.id===v.id))]);
+    state["vehicles.json"]=[...result.vehicles,...current];
+    state["inventory-history.json"]=[...result.vehicles.map(v=>creationHistory(p,v,result.batchId)),...state["inventory-history.json"]];
+    return result;
+  });
+}
+
+function editedVehicle(vehicle:Vehicle,draft:InventoryDraft):Vehicle {
+  if(draft.stockId!==vehicle.stockId.toUpperCase())throw new InputError("Stock identity cannot be changed.");
+  if(vehicle.availabilityStatus==="sold")throw new ConflictError("Sold vehicle details require an approved correction.");
+  const media=[...draft.media,...vehicle.media.slice(1)];
+  if(vehicle.publishStatus==="published"&&!media.length)throw new InputError("Published inventory requires imagery.");
+  return {...vehicle,...draft,media,stockId:vehicle.stockId,source:vehicle.source,publishStatus:vehicle.publishStatus,availabilityStatus:vehicle.availabilityStatus,features:vehicle.features,specifications:vehicle.specifications,updatedAt:new Date().toISOString()};
+}
+function detailHistory(p:AuthenticatedPrincipal,before:Vehicle,after:Vehicle):InventoryChange {
+  return {...inventoryChange(p,before,after),action:"updated",beforeRecord:before,afterRecord:after};
+}
+export async function updateVehicleDetails(p:AuthenticatedPrincipal,id:string,input:unknown) {
+  if(dataMode()==="aurora")return(await productionStore()).updateVehicleDetails(p,id,input);
+  requireCapability(p,"inventory:write");const draft=normalizeInventoryRows([input])[0];
+  return runtime.demoTransaction(state=> {
+    const current=state["vehicles.json"] as Vehicle[];
+    const vehicle=current.find(v=>v.id===id)??demo.vehicles.find(v=>v.id===id);if(!vehicle)throw new RecordNotFound();inventoryScope(p,vehicle);
+    const updated=editedVehicle(vehicle,draft);state["vehicles.json"]=[updated,...current.filter(v=>v.id!==id)];
+    state["inventory-history.json"]=[detailHistory(p,vehicle,updated),...state["inventory-history.json"]];return updated;
+  });
+}

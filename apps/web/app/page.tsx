@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { dealershipService } from "../lib/services";
 import { number } from "../lib/format";
-import { dealershipJsonLd } from "../lib/seo";
+import { dealershipJsonLd, serializeJsonLd } from "../lib/seo";
 import { VehicleCard } from "../components/vehicle-card";
 
 export default async function Page() {
@@ -15,7 +15,7 @@ export default async function Page() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(dealershipJsonLd(tenant)),
+          __html: serializeJsonLd(dealershipJsonLd(tenant)),
         }}
       />
 

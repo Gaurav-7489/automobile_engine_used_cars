@@ -1,3 +1,4 @@
+import { InventoryIntake } from "../../components/inventory-intake";
 import { IntelligenceView } from "../../components/intelligence-view";
 import { InventoryOperations, AppointmentStatus } from "../../components/business-operations";
 import Link from "next/link";
@@ -262,6 +263,7 @@ function InventorySection({ data }: {data:Snapshot}) {
         title="Canonical vehicle operations"
         body="The staff surface reads the same identity, price, availability, location and publish state that power the public experience."
       />
+      {data.capabilities?.includes("inventory:write") ? <InventoryIntake destinations={data.inventoryDestinations??[]}/> : null}
       <section className="panel table-panel">
         <div className="table-scroll">
           <table>
