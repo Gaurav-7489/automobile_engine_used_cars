@@ -1,4 +1,5 @@
 import type { Vehicle } from "@vandlabs/contracts";
+import { capitalReport } from "./capital";
 import type { Snapshot } from "./index";
 export interface BuyerPreferences {
   maxPrice?: number; fuelType?: Vehicle["fuelType"]; transmission?: Vehicle["transmission"]; bodyType?: string;
@@ -15,6 +16,7 @@ export function matchInventory(vehicles:Vehicle[],preferences:BuyerPreferences) 
 }
 export function inventoryInsights(snapshot:Snapshot,asOf=new Date()) {
   const time=asOf.getTime();if(!Number.isFinite(time))throw new Error("Invalid report date.");
+  const capital=capitalReport(snapshot.vehicles,snapshot.costs??[],snapshot.sales??[],asOf);
   const vehicles=snapshot.vehicles.map(v=> {
     const issues:string[]=[];
     if(!Number.isFinite(v.price)||v.price<=0)issues.push("Missing valid asking price");
@@ -27,11 +29,12 @@ export function inventoryInsights(snapshot:Snapshot,asOf=new Date()) {
     if(recordAgeDays===null)issues.push("Invalid record date");
     if(v.availabilityStatus==="sold"&&v.publishStatus==="published")issues.push("Sold vehicle remains published");
     if(snapshot.vehicles.some(other=>other.id!==v.id&&other.stockId===v.stockId&&other.dealershipId===v.dealershipId))issues.push("Duplicate stock identity");
-    return {vehicleId:v.id,recordAgeDays,acquisitionAgeDays:null,issues,
+    const economics=capital.rows.find(r=>r.vehicleId===v.id)!;
+    return {vehicleId:v.id,recordAgeDays,acquisitionAgeDays:economics.ageDays,issues,
       views:snapshot.events.filter(e=>e.vehicleId===v.id&&e.type==="vehicle_view").length,
       enquiries:snapshot.leads.filter(l=>l.vehicleId===v.id).length,
       priceChanges:(snapshot.inventoryHistory??[]).filter(h=>h.vehicleId===v.id&&h.before.price!==h.after.price),
-      capitalInvested:null,holdingCost:null,margin:null};
+      capitalInvested:economics.costBasis,holdingCost:economics.holdingEstimate,margin:economics.recordedContribution};
   });
   const overdue=snapshot.tasks.filter(t=>!t.completed&&Date.parse(t.dueAt)<time);
   const open=snapshot.leads.filter(l=>!["won","lost"].includes(l.stage));
@@ -40,7 +43,7 @@ export function inventoryInsights(snapshot:Snapshot,asOf=new Date()) {
   return {version:"inventory-rules-v1",asOf:asOf.toISOString(),vehicles,
     dataQuality:{total:vehicles.length,withIssues:vehicles.filter(v=>v.issues.length).length},
     briefing:{overdueTasks:overdue.map(t=>({taskId:t.id,leadId:t.leadId,owner:t.owner,dueAt:t.dueAt})),missingNextAction:missingNextAction.map(l=>({leadId:l.id,owner:l.assignedTo??"Unassigned"})),inventoryIssues:vehicles.filter(v=>v.issues.length),rescueCandidates},
-    coverage:{acquisitionDates:0,vehicleCosts:0,marketObservations:0},
-    unavailable:["Acquisition ageing: verified acquisition dates are not recorded", "Capital and profit: cost ledger is not configured", "Market pricing and acquisition radar: no permissioned feed connected", "AI narrative: no model provider configured"],
+    coverage:{acquisitionDates:(snapshot.costs??[]).length,vehicleCosts:(snapshot.costs??[]).length,marketObservations:0},
+    unavailable:[...(!snapshot.costs?.length?["Acquisition and cost coverage: no recorded costs available to this account"]:[]), "Market pricing and acquisition radar: no permissioned feed connected", "AI narrative: no model provider configured"],
   };
 }

@@ -3,10 +3,9 @@ import { integrationAdaptersV25, reconciliationRuns, tenantConfig } from "@vandl
 import {
   auditEvents,
   featureFlags,
-  healthSignals,
+  runtimeHealth,
   integrationAdapters,
   onboardingSteps,
-  platformUsage,
   tenantRegistry,
 } from "../../lib/data";
 
@@ -54,12 +53,13 @@ function Onboarding() {
 }
 
 function Health() {
+  const healthSignals=runtimeHealth();
   return <>
     <PageHead label="Observability foundation" title="Platform health" body="The V1 reference surface separates real demo health from infrastructure that is intentionally not connected yet." />
     <div className="card-grid">
       {healthSignals.map((item) => <article className="panel" key={item.system}><span className={"pill " + item.status}>{item.status}</span><h2>{item.system}</h2><p>{item.detail}</p></article>)}
     </div>
-    <section className="panel usage"><p className="eyebrow">Usage signals</p><div><span>Storage estimate</span><strong>{platformUsage.storageGb} GB</strong></div><div><span>AI spend</span><strong>₹{platformUsage.aiCost}</strong></div><div><span>Failed jobs</span><strong>{platformUsage.failedJobs}</strong></div></section>
+    <section className="panel usage"><p className="eyebrow">Usage signals</p><div><span>Storage estimate</span><strong>Unknown</strong></div><div><span>AI spend</span><strong>Unknown</strong></div><div><span>Failed jobs</span><strong>Unknown</strong></div></section>
   </>;
 }
 
@@ -118,16 +118,18 @@ function Features() {
 
 function Audit() {
   return <>
-    <PageHead label="Audited support" title="Privileged activity" body="VandLabs support access is controlled, temporary in production, and recorded as a platform concern." />
+    <PageHead label="Audited support" title="Privileged activity" body="Illustrative reference audit rows only. These are not a live privileged-access audit log." />
     <section className="panel table-panel"><div className="table-scroll"><table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Scope</th><th>Result</th></tr></thead><tbody>
       {auditEvents.map((event) => <tr key={event.at + event.action}><td>{new Date(event.at).toLocaleString("en-IN")}</td><td>{event.actor}</td><td><code>{event.action}</code></td><td>{event.scope}</td><td>{event.result}</td></tr>)}
     </tbody></table></div></section>
   </>;
 }
 
+export const dynamic="force-dynamic";
 export default async function Page({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params;
   if (!valid.has(section)) notFound();
+  if(process.env.DATA_MODE==="aurora"&&section!=="health")return <main><h1>Platform services awaiting configuration</h1><p>Live provisioning, tenant registry, feature management and privileged audit services are not connected. Reference records are hidden.</p></main>;
   return <main>
     {section === "dealerships" ? <Dealerships /> : null}
     {section === "organizations" ? <Organizations /> : null}

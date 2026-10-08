@@ -34,7 +34,7 @@ All endpoints resolve a verified staff principal and enforce `inventory:write`, 
 | `POST /command/api/vehicles` | `{dealershipId, locationId, vehicle}` | 201 with one draft |
 | `POST /command/api/vehicles/import` | `{dealershipId, locationId, csv, mode: "preview"}` | 200 with transient preview records; no writes |
 | Same endpoint, `mode: "commit"` | Same approved CSV and destination | 201 with committed drafts and batch ID |
-| `PUT /command/api/vehicles/{id}` | `{vehicle}` with the same intake fields | 200 with edited metadata; identity/status/source preserved |
+| `PUT /command/api/vehicles/{id}` | `{vehicle, expectedVersion}` with the same intake fields | 200 with edited metadata; identity/status/source preserved |
 
 Client tenant/ID/slug/publication/source fields are rejected in vehicle input. Request JSON is bounded to 1 MB before parsing. Validation returns 400 and row/field issues, scope denial 403, unknown records 404, and concurrent identity conflicts or sold-record correction attempts 409. Embedded URL credentials, local/IP hosts and common secret query parameter names are rejected. Use a publicly served image URL; do not put provider credentials in image fields.
 
@@ -44,4 +44,6 @@ Unit/persistence tests cover CSV edge cases, protected-field rejection, duplicat
 
 ## Remaining inventory scope
 
-Direct Excel parsing, image upload/storage processing, richer feature/gallery editors, authorized external ingestion/reconciliation, optimistic concurrency for all metadata edits and an acquisition/cost ledger remain unfinished. These CSV/manual operations do not activate market scraping, provider messaging or an AI model.
+Direct Excel parsing, image upload/storage processing, richer feature/gallery editors, authorized external ingestion/reconciliation, a full accounting ledger remain unfinished. These CSV/manual operations do not activate market scraping, provider messaging or an AI model.
+
+Inventory PUT/PATCH now require `expectedVersion` from the scoped snapshot (`version ?? 0` for legacy records). Drafts start at version 0; metadata, price/publication updates and confirmed sales increment it. Missing versions return 400; stale edits return 409 without writes. Refresh and review before retrying. Browser and desktop clients submit the current version. Deploy the bundled clients with this API change. See [capital operations](capital-operations.md) for verified acquisition costs.

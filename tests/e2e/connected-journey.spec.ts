@@ -62,11 +62,13 @@ test("inventory edit propagates to website with history",async({page,request})=>
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBeFalsy();
 });
 
-test("inventory intelligence exposes coverage and exact matching",async({page})=> {
+test("inventory intelligence exposes coverage and exact matching",async({page,request})=> {
   await page.goto(`${command}/intelligence`);
   await expect(page.getByRole("heading",{name:"Dealer priorities, with evidence."})).toBeVisible();
   await page.getByLabel("Maximum budget (INR)").fill("1");
   await expect(page.getByText("No current vehicles meet these constraints. Ask a salesperson for alternatives.")).toBeVisible();
-  await expect(page.getByText("Capital and profit: cost ledger is not configured")).toBeVisible();
+  const snapshot=(await (await request.get(`${command}/api/snapshot`)).json()).data;
+  await expect(page.locator(".metric-card").filter({hasText:"Cost coverage"}).locator("strong")).toHaveText(`${snapshot.costs.length}/${snapshot.vehicles.length}`);
+  await expect(page.getByText("Market pricing and acquisition radar: no permissioned feed connected",{exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBeFalsy();
 });

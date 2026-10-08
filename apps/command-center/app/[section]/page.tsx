@@ -1,3 +1,4 @@
+import { CapitalView } from "../../components/capital-view";
 import { InventoryIntake } from "../../components/inventory-intake";
 import { IntelligenceView } from "../../components/intelligence-view";
 import { InventoryOperations, AppointmentStatus } from "../../components/business-operations";
@@ -23,6 +24,7 @@ const valid = new Set([
   "automation",
   "settings",
   "intelligence",
+  "capital",
 ]);
 
 
@@ -682,6 +684,7 @@ export default async function Page({
       {section === "customers" ? <CustomersSection data={data} /> : null}
       {section === "analytics" ? <AnalyticsSection data={data} /> : null}
       {section === "automation" ? <AutomationSection data={data} /> : null}
+      {section === "capital" ? <CapitalView data={data}/> : null}
       {section === "intelligence" ? <IntelligenceView data={data}/> : null}
       {section === "settings" ? <SettingsSection /> : null}
     </main>

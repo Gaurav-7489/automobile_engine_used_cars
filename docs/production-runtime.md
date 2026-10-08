@@ -77,7 +77,7 @@ build. No live Cognito account/sign-in was available in this workspace.
 ## Desktop application
 
 `apps/desktop` is a standalone React/Tauri 2 client with Today, Inventory, Leads,
-Follow-ups, stage changes, task scheduling/completion and availability editing.
+Follow-ups, Capital, stage changes, task scheduling/completion and availability editing.
 Its assets are bundled locally, and it calls the same staff API.
 
 Sign-in opens the system browser and uses S256 PKCE with a loopback callback at
@@ -117,3 +117,9 @@ backup restore, secret rotation, and signed distribution as appropriate.
 Apply migration `0003_sales_inventory_history.sql` before deploying this release. Existing application roles receive read/insert grants during migration; a newly provisioned role receives the same grants via `pnpm db:provision-role`. Sales and inventory history force tenant RLS, use tenant-aware foreign keys and allow append-only application writes. Staff snapshots additionally restrict by dealership/location.
 
 Visit scheduling creates an internal reminder task and lead activity. Confirmed sale requires both lead and inventory write capabilities, serializes on the lead/vehicle, records a positive INR amount and non-future sale time, marks Won, archives sold inventory and completes its open tasks in one transaction. Retries of identical sale details return the same record; changed details conflict. An ordinary inventory update cannot reopen a confirmed sale. No external marketplace delisting, finance approval, accounting margin or provider delivery is implied.
+
+## Capital and inventory version extension
+
+Apply migration `0004_stock_costs.sql` and the application-role grants before enabling Capital. Provision explicit `capital:read` / `capital:write` capabilities; inventory permissions do not authorize financial data. See `capital-operations.md` for audit, contribution and holding-cost boundaries. Financial payloads are omitted for other principals.
+
+Inventory metadata and price/publication/availability requests now require `expectedVersion` from the scoped snapshot. Legacy records without a version are treated as 0; successful edits and confirmed sales increment it. Deploy matching browser/desktop clients together. Stale edits return 409 and must be refreshed and reviewed rather than automatically retried. This protects recorded state; it does not constitute customer authorization for price changes or an accounting reversal.

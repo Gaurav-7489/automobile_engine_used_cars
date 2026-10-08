@@ -24,7 +24,7 @@ Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75)
 | Staff identity | Cognito auth flow and security tests per `docs/staff-authentication.md` | Provision test staff; verify actual Cognito login, refresh, logout, permissions and MFA policy |
 | Native Windows/macOS | `apps/desktop`, `.github/workflows/desktop-build.yml` | Confirm OS-runner tests/artifact builds; install and exercise real authenticated client; signing/notarization later |
 | Platform control | `apps/platform` reference screens, admin access gates | Real tenant provisioning, roles administration, billing and operational support are not production services |
-| Intelligence / capital | `/command/intelligence`: deterministic stock validation, task briefing, price history and exact matching | Acquisition dates/cost ledger, provider-backed AI and licensed market intelligence remain unfinished; record age is not acquisition age |
+| Intelligence / capital | `/command/intelligence`: deterministic stock validation, task briefing, price history and exact matching | Verified acquisition/cost register implemented in PR #13; full accounting ledger, provider-backed AI and licensed market intelligence remain unfinished; record age remains distinct from acquisition age |
 | Market Radar / external data | Integration contracts & reference adapters in V2.5 | Obtain licensed feeds, approvals and credentials; add ingest normalization, reconciliation and freshness checks |
 | External channels | Internal automation tasks only per `docs/production-runtime.md` | Provider-approved WhatsApp/SMS/email integrations, consent and delivery receipts; no fake send claims |
 | Deployment / operations | AWS CDK and QA workflow | Deploy isolated staging; domains/HTTPS/WAF/secrets/observability/alerts/backups; incident rollback drills |
@@ -66,3 +66,7 @@ Respect all 75 decisions. Separate **implemented** from **tested** and **deploye
 ## Inventory intake increment
 
 `feat/inventory-ingestion` adds canonical draft entry, detail/image editing, CSV validation/preview/atomic insertion and creation/update audit evidence. Exact PR checks govern acceptance. Direct XLSX, external reconciliation and complete economic/administration modules remain unfinished; see `inventory-intake.md`.
+
+## Verified capital increment
+
+`feat/capital-operations` adds role-scoped stock costs, versioned amendments, acquisition ageing, recorded active/aged capital, holding assumptions and sale contribution evidence, plus shared native cost operations. Migration 0004 and explicit capital permissions are required. Platform telemetry now distinguishes configuration from health and hides reference control-plane data in production. General ledger, full staff/control-plane administration, AI/market providers and deployed staging remain open; see `capital-operations.md`.

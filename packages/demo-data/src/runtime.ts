@@ -22,6 +22,8 @@ import type {
   Appointment,
   Sale,
   InventoryChange,
+  StockCost,
+  StockCostChange,
 } from "@vandlabs/contracts";
 
 function repositoryRoot() {
@@ -66,7 +68,7 @@ export function demoTransaction<T>(action: (state: State) => T): T {
   const temp = file + ".tmp";
   try {
     const state = readState();
-    for (const name of ["leads.json", "tasks.json", "lead-activity.json", "journey-events.json", "automation-rules.json", "automation-runs.json", "vehicles.json", "appointments.json", "sales.json", "inventory-history.json"]) {
+    for (const name of ["leads.json", "tasks.json", "lead-activity.json", "journey-events.json", "automation-rules.json", "automation-runs.json", "vehicles.json", "appointments.json", "sales.json", "inventory-history.json", "stock-costs.json", "stock-cost-history.json"]) {
       state[name] ??= legacy(runtimePath(name));
     }
     const result = action(state);
@@ -165,3 +167,6 @@ export function mergeRuntimeAppointments(seeded: Appointment[]): Appointment[] {
 }
 export function readRuntimeSales() { return readArray<Sale>(runtimePath("sales.json")); }
 export function readRuntimeInventoryHistory() { return readArray<InventoryChange>(runtimePath("inventory-history.json")); }
+
+export function readRuntimeStockCosts() {return readArray<StockCost>(runtimePath("stock-costs.json"));}
+export function readRuntimeStockCostHistory() {return readArray<StockCostChange>(runtimePath("stock-cost-history.json"));}
