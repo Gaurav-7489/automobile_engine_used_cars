@@ -21,7 +21,8 @@ test("staff enter a draft, review details and publish to the owned website",asyn
   const statusForm=row.locator("form").filter({has:page.getByRole("button",{name:"Save inventory",exact:true})});
   await statusForm.locator('[name="publication"]').selectOption("published");await statusForm.getByRole("button").click();
   await expect.poll(async()=> (await (await request.get("/api/vehicles")).json()).data.some((v:{id:string})=>v.id===vehicle.id)).toBeTruthy();
-  await page.goto(`/vehicles/${vehicle.slug}`);await expect(page.getByRole("heading",{name:"Honda City",exact:true})).toBeVisible();await expect(page.getByText("ZX reviewed",{exact:true})).toBeVisible();
+  const customer=await page.context().newPage();
+  await customer.goto(`http://127.0.0.1:3000/vehicles/${vehicle.slug}`);await expect(customer.getByRole("heading",{name:"Honda City",exact:true})).toBeVisible();await expect(customer.getByText("ZX reviewed",{exact:true})).toBeVisible();await customer.close();
 });
 test("CSV preview creates nothing; reviewed batches persist once with duplicate and scope protection",async({page,request},info)=> {
   const stockId=`CSV-${info.project.name.toUpperCase()}`;
