@@ -3,6 +3,8 @@ import {
   mkdirSync,
   readFileSync,
   writeFileSync,
+  renameSync,
+  rmSync,
 } from "node:fs";
 import {
   basename,
@@ -16,6 +18,10 @@ import type {
   LeadActivity,
   JourneyEvent,
   Task,
+  Vehicle,
+  Appointment,
+  Sale,
+  InventoryChange,
 } from "@vandlabs/contracts";
 
 function repositoryRoot() {
@@ -33,24 +39,58 @@ function runtimePath(filename = "leads.json") {
   return resolve(repositoryRoot(), ".demo-runtime", filename);
 }
 
-function readArray<T>(file: string): T[] {
+// One atomically replaced document is shared by all local demo processes.
+// A short-lived directory lock rejects concurrent writers instead of losing updates.
+type State = Record<string, unknown[]>;
+function readState(): State {
+  const file = runtimePath("state.json");
+  if (!existsSync(file)) return {};
+  const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid demo state.");
+  return parsed as State;
+}
+function legacy<T>(file: string): T[] {
   if (!existsSync(file)) return [];
+  const parsed: unknown = JSON.parse(readFileSync(file, "utf8"));
+  if (!Array.isArray(parsed)) throw new Error("Invalid demo records.");
+  return parsed as T[];
+}
+function readArray<T>(file: string): T[] {
+  return (readState()[basename(file)] as T[] | undefined) ?? legacy<T>(file);
+}
+export function demoTransaction<T>(action: (state: State) => T): T {
+  const file = runtimePath("state.json");
+  const lock = file + ".lock";
+  mkdirSync(dirname(file), { recursive: true });
+  mkdirSync(lock); // fail closed if another process owns the write lock
+  const temp = file + ".tmp";
   try {
-    const parsed = JSON.parse(readFileSync(file, "utf8")) as unknown;
-    return Array.isArray(parsed) ? (parsed as T[]) : [];
-  } catch {
-    return [];
+    const state = readState();
+    for (const name of ["leads.json", "tasks.json", "lead-activity.json", "journey-events.json", "automation-rules.json", "automation-runs.json", "vehicles.json", "appointments.json", "sales.json", "inventory-history.json"]) {
+      state[name] ??= legacy(runtimePath(name));
+    }
+    const result = action(state);
+    writeFileSync(temp, JSON.stringify(state, null, 2), "utf8");
+    renameSync(temp, file);
+    return result;
+  } finally {
+    rmSync(temp, { force: true });
+    rmSync(lock, { recursive: true, force: true });
   }
 }
-
 function persistArray<T>(file: string, items: T[]) {
+  try { demoTransaction(state => { state[basename(file)] = items; }); return true; }
+  catch { return false; }
+}
+function upsert<T extends {id:string}>(filename:string, item:T) {
   try {
-    mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, JSON.stringify(items, null, 2), "utf8");
+    demoTransaction(state => { const current = state[filename] as T[]; state[filename] = [item, ...current.filter(x => x.id !== item.id)]; });
     return true;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
+}
+function append<T>(filename:string, items:T[]) {
+  try { demoTransaction(state => { state[filename] = [...items, ...state[filename]]; }); return true; }
+  catch { return false; }
 }
 
 export function readRuntimeLeads(): Lead[] {
@@ -66,11 +106,7 @@ export function mergeRuntimeLeads(seededLeads: Lead[]): Lead[] {
   ];
 }
 
-export function persistRuntimeLead(lead: Lead) {
-  const file = runtimePath();
-  const current = readRuntimeLeads().filter((item) => item.id !== lead.id);
-  return persistArray(file, [lead, ...current]);
-}
+export function persistRuntimeLead(lead: Lead) { return upsert("leads.json", lead); }
 
 export function readRuntimeLeadActivities(leadId?: string): LeadActivity[] {
   const activities = readArray<LeadActivity>(runtimePath("lead-activity.json"));
@@ -79,11 +115,7 @@ export function readRuntimeLeadActivities(leadId?: string): LeadActivity[] {
     : activities;
 }
 
-export function persistRuntimeLeadActivities(activities: LeadActivity[]) {
-  const file = runtimePath("lead-activity.json");
-  const current = readRuntimeLeadActivities();
-  return persistArray(file, [...activities, ...current]);
-}
+export function persistRuntimeLeadActivities(activities: LeadActivity[]) { return append("lead-activity.json", activities); }
 
 export function readRuntimeTasks(): Task[] {
   return readArray<Task>(runtimePath("tasks.json"));
@@ -98,41 +130,38 @@ export function mergeRuntimeTasks(seededTasks: Task[]): Task[] {
   ];
 }
 
-export function persistRuntimeTask(task: Task) {
-  const file = runtimePath("tasks.json");
-  const current = readRuntimeTasks().filter((item) => item.id !== task.id);
-  return persistArray(file, [task, ...current]);
-}
+export function persistRuntimeTask(task: Task) { return upsert("tasks.json", task); }
 
 export function readRuntimeJourneyEvents(): JourneyEvent[] {
   return readArray<JourneyEvent>(runtimePath("journey-events.json"));
 }
 
-export function persistRuntimeJourneyEvent(event: JourneyEvent) {
-  const file = runtimePath("journey-events.json");
-  return persistArray(file, [event, ...readRuntimeJourneyEvents()]);
-}
+export function persistRuntimeJourneyEvent(event: JourneyEvent) { return append("journey-events.json", [event]); }
 
 export function readRuntimeAutomationRules(): AutomationRule[] {
   return readArray<AutomationRule>(runtimePath("automation-rules.json"));
 }
 
-export function persistRuntimeAutomationRule(rule: AutomationRule) {
-  const file = runtimePath("automation-rules.json");
-  const current = readRuntimeAutomationRules().filter((item) => item.id !== rule.id);
-  return persistArray(file, [rule, ...current]);
-}
+export function persistRuntimeAutomationRule(rule: AutomationRule) { return upsert("automation-rules.json", rule); }
 
 export function readRuntimeAutomationRuns(): AutomationRun[] {
   return readArray<AutomationRun>(runtimePath("automation-runs.json"));
 }
 
-export function persistRuntimeAutomationRun(run: AutomationRun) {
-  const file = runtimePath("automation-runs.json");
-  return persistArray(file, [run, ...readRuntimeAutomationRuns()]);
-}
+export function persistRuntimeAutomationRun(run: AutomationRun) { return append("automation-runs.json", [run]); }
 
 export function clearRuntimeLeads() {
   const file = runtimePath();
   return persistArray(file, []);
 }
+
+export function mergeRuntimeVehicles(seeded: Vehicle[]): Vehicle[] {
+  const items = readArray<Vehicle>(runtimePath("vehicles.json"));
+  return [...items, ...seeded.filter(v => !items.some(i => i.id === v.id))];
+}
+export function mergeRuntimeAppointments(seeded: Appointment[]): Appointment[] {
+  const items = readArray<Appointment>(runtimePath("appointments.json"));
+  return [...items, ...seeded.filter(v => !items.some(i => i.id === v.id))];
+}
+export function readRuntimeSales() { return readArray<Sale>(runtimePath("sales.json")); }
+export function readRuntimeInventoryHistory() { return readArray<InventoryChange>(runtimePath("inventory-history.json")); }

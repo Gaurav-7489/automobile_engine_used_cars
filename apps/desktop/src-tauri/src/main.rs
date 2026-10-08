@@ -80,7 +80,7 @@ async fn logout(config:Config,state:State<'_,AppState>)->Result<(),String>{
 fn allowed(path:&str,method:&str)->bool{
  if path=="/snapshot"{return method=="GET";}
  let parts:Vec<_>=path.split('/').collect();if parts.len()<3||parts[0]!=""||parts[2].is_empty()||!parts[2].chars().all(|c|c.is_ascii_alphanumeric()||c=='-'){return false;}
- (parts.len()==3&&method=="PATCH"&&["leads","tasks","vehicles"].contains(&parts[1]))||(parts.len()==4&&parts[1]=="leads"&&parts[3]=="tasks"&&method=="POST")
+ (parts.len()==3&&method=="PATCH"&&["leads","tasks","vehicles","appointments"].contains(&parts[1]))||(parts.len()==4&&parts[1]=="leads"&&["tasks","appointments","sales"].contains(&parts[3])&&method=="POST")
 }
 #[tauri::command]
 async fn api_request(config:Config,path:String,method:String,body:Option<serde_json::Value>,state:State<'_,AppState>)->Result<serde_json::Value,String>{
@@ -96,4 +96,4 @@ async fn api_request(config:Config,path:String,method:String,body:Option<serde_j
  response.json().await.map_err(|_|"Invalid response from dealership API.".into())
 }
 fn main(){tauri::Builder::default().manage(AppState::default()).invoke_handler(tauri::generate_handler![login,restore_session,logout,api_request]).run(tauri::generate_context!()).expect("Desktop startup failed.");}
-#[cfg(test)]mod tests{use super::*;#[test]fn paths_are_scoped(){assert!(allowed("/snapshot","GET"));assert!(allowed("/leads/abc-123/tasks","POST"));assert!(!allowed("/../platform","GET"));assert!(!allowed("/vehicles/abc?token=secret","PATCH"));}#[test]fn credentials_are_bound_to_connection(){let c=Config{api_origin:"https://dealer.example".into(),cognito_domain:"https://auth.example".into(),client_id:"abc".into()};assert!(validated(&c).is_ok());let mut bad=c.clone();bad.api_origin="http://dealer.example".into();assert!(validated(&bad).is_err());}}
+#[cfg(test)]mod tests{use super::*;#[test]fn paths_are_scoped(){assert!(allowed("/snapshot","GET"));assert!(allowed("/leads/abc-123/tasks","POST"));assert!(allowed("/leads/abc-123/sales","POST"));assert!(allowed("/leads/abc-123/appointments","POST"));assert!(allowed("/appointments/abc-123","PATCH"));assert!(!allowed("/leads/abc-123/sales","DELETE"));assert!(!allowed("/../platform","GET"));assert!(!allowed("/vehicles/abc?token=secret","PATCH"));}#[test]fn credentials_are_bound_to_connection(){let c=Config{api_origin:"https://dealer.example".into(),cognito_domain:"https://auth.example".into(),client_id:"abc".into()};assert!(validated(&c).is_ok());let mut bad=c.clone();bad.api_origin="http://dealer.example".into();assert!(validated(&bad).is_err());}}

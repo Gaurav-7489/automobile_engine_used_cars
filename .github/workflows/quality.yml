@@ -51,7 +51,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: End-to-end smoke tests
-        run: pnpm test:e2e --project=desktop
+        run: pnpm test:e2e
 
       - name: Staff HTTP access regression tests
         run: pnpm test:auth:e2e
@@ -65,3 +65,11 @@ jobs:
       - name: CDK synth
         working-directory: infra/aws
         run: npx cdk synth -c environment=staging
+
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-evidence
+          path: test-results/
+          if-no-files-found: ignore

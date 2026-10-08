@@ -1,3 +1,4 @@
+import { InventoryOperations, AppointmentStatus } from "../../components/business-operations";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { campaignTemplates, leads as seededLeads } from "@vandlabs/demo-data";
@@ -240,7 +241,7 @@ function AppointmentsSection({ data }: {data:Snapshot}) {
               <p className="muted">
                 {vehicle?.make} {vehicle?.model}
               </p>
-              <span className="stage appointment">{appointment.status}</span>
+              <AppointmentStatus appointment={appointment}/>
             </article>
           );
         })}
@@ -269,7 +270,7 @@ function InventorySection({ data }: {data:Snapshot}) {
                 <th>Location</th>
                 <th>Price</th>
                 <th>Mileage</th>
-                <th>Status</th>
+                <th>Status</th><th>Operations</th>
               </tr>
             </thead>
             <tbody>
@@ -295,7 +296,7 @@ function InventorySection({ data }: {data:Snapshot}) {
                     <span className={"stage " + vehicle.availabilityStatus}>
                       {vehicle.availabilityStatus}
                     </span>
-                  </td>
+                  </td><td><InventoryOperations vehicle={vehicle}/></td>
                 </tr>
               ))}
             </tbody>
@@ -405,9 +406,9 @@ function AnalyticsSection({ data }: {data:Snapshot}) {
           <small>active records</small>
         </article>
         <article className="metric-card">
-          <span>Wins</span>
-          <strong>{leads.filter((lead) => lead.stage === "won").length}</strong>
-          <small>recorded outcome only</small>
+          <span>Confirmed sales</span>
+          <strong>{data.sales?.length ?? 0}</strong>
+          <small>{money(data.sales?.reduce((sum,s)=>sum+s.amount,0)??0)} recorded proceeds · not profit</small>
         </article>
       </section>
 
