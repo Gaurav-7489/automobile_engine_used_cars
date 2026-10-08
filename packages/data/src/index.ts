@@ -345,7 +345,7 @@ function inventoryDestination(p:AuthenticatedPrincipal,dealershipId:string,locat
   requireCapability(p,"inventory:write");requireDealership(p,dealershipId);requireLocation(p,locationId);
 }
 function rejectExistingStock(drafts:InventoryDraft[],existing:string[],csv=false) {
-  const ids=new Set(existing.map(s=>s.toUpperCase()));
+  const ids=new Set(existing.map(s=>s.trim().toUpperCase()));
   const issues=drafts.flatMap((d,i)=>ids.has(d.stockId)?[{row:i+(csv?2:1),field:"stockId",message:"Stock identity already exists; use the existing inventory edit workflow."}]:[]);
   if(issues.length)throw new InventoryValidationError(issues);
 }

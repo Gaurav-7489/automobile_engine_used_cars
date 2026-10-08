@@ -11,7 +11,7 @@ test("CSV preserves quoted commas, quotes, newlines and BOM with row validation"
   for(const invalid of ["",csv+'"unclosed',csv.replace("stockId,make","stockId,stockId"),csv.replace("stockId,make","unknown,make"),csv+"too,few,columns", "a".repeat(250001)])assert.throws(()=>parseInventoryCsv(invalid),InventoryValidationError);
 });
 test("inventory rejects protected fields, numeric coercion, unsafe media and duplicate identities",()=> {
-  for(const patch of [{tenantId:"forged"},{id:"forged"},{publishStatus:"published"},{price:true},{price:"1200000"},{price:1.111},{price:0},{year:1899},{mileage:-1},{ownership:0},{fuelType:"gas"},{financeEligible:"true"},{imageUrl:"javascript:alert(1)"},{imageUrl:"https://user:password@example.com/car.jpg"}])assert.throws(()=>normalizeInventoryRows([{...row,...patch}]),InventoryValidationError);
+  for(const patch of [{tenantId:"forged"},{id:"forged"},{publishStatus:"published"},{price:true},{price:"1200000"},{price:1.111},{price:0},{year:1899},{mileage:-1},{ownership:0},{fuelType:"gas"},{financeEligible:"true"},{imageUrl:"https://127.0.0.1/car.jpg"},{imageUrl:"https://stock.internal/car.jpg"},{imageUrl:"https://images.example.com/car.jpg?api_key=secret"},{imageUrl:"javascript:alert(1)"},{imageUrl:"https://user:password@example.com/car.jpg"}])assert.throws(()=>normalizeInventoryRows([{...row,...patch}]),InventoryValidationError);
   assert.throws(()=>normalizeInventoryRows([row,{...row,stockId:"STOCK-1"}]),InventoryValidationError);
   assert.throws(()=>normalizeInventoryRows(Array(201).fill(row)),InventoryValidationError);
   try{normalizeInventoryRows([{...row,price:-1},{...row,year:1800}],true);assert.fail();}catch(e){assert.ok(e instanceof InventoryValidationError);assert.deepEqual(e.issues.map(i=>i.row),[2,3]);}

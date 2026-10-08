@@ -36,7 +36,7 @@ All endpoints resolve a verified staff principal and enforce `inventory:write`, 
 | Same endpoint, `mode: "commit"` | Same approved CSV and destination | 201 with committed drafts and batch ID |
 | `PUT /command/api/vehicles/{id}` | `{vehicle}` with the same intake fields | 200 with edited metadata; identity/status/source preserved |
 
-Client tenant/ID/slug/publication/source fields are rejected in vehicle input. Request JSON is bounded to 1 MB before parsing. Validation returns 400 and row/field issues, scope denial 403, unknown records 404, and concurrent identity conflicts or sold-record correction attempts 409. No secret-bearing provider URLs are accepted.
+Client tenant/ID/slug/publication/source fields are rejected in vehicle input. Request JSON is bounded to 1 MB before parsing. Validation returns 400 and row/field issues, scope denial 403, unknown records 404, and concurrent identity conflicts or sold-record correction attempts 409. Embedded URL credentials, local/IP hosts and common secret query parameter names are rejected. Use a publicly served image URL; do not put provider credentials in image fields.
 
 PostgreSQL checks location→dealership membership under RLS, serializes new identity creation by tenant, and inserts vehicles plus history in the same transaction. Demo mode uses the existing atomic state transaction. Creation history carries `action: created`, source, batch ID, actor and the canonical record; metadata edits retain before/after records. This uses migration 0003 already introduced in PR #11; no new schema migration is required.
 

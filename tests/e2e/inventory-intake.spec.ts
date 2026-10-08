@@ -37,6 +37,7 @@ test("CSV preview creates nothing; reviewed batches persist once with duplicate 
   const body={dealershipId:vehicle.dealershipId,locationId:vehicle.locationId,csv,mode:"commit"};
   const repeated=await request.post(`${api}/vehicles/import`,{data:body});expect(repeated.status()).toBe(400);expect((await repeated.json()).issues[0].field).toBe("stockId");
   expect((await request.post(`${api}/vehicles/import`,{data:{...body,locationId:"forged"}})).status()).toBe(403);
+  expect((await request.post(`${api}/vehicles/import`,{data:{...body,csv:"x".repeat(1000001)}})).status()).toBe(400);
   await page.screenshot({path:`test-results/inventory-intake-${info.project.name}.png`,fullPage:true});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
 });
