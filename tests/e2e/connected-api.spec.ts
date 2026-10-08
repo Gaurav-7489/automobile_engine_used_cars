@@ -1,0 +1,30 @@
+import { test, expect } from "@playwright/test";
+const api="http://127.0.0.1:3001/command/api";
+test("connected API contract validates input and records one atomic sale",async({request},info)=> {
+  const vehicleId=info.project.name==="mobile"?"veh-7":"veh-6";
+  expect((await request.post("/api/leads",{data:"{",headers:{"content-type":"application/json"}})).status()).toBe(400);
+  const created=await request.post("/api/leads",{data:{name:"API Connected Buyer",phone:"+91 90000 00101",vehicleId,intent:"finance"}});
+  expect(created.status()).toBe(201);const {leadId}=await created.json();
+  expect((await request.post(`${api}/leads/${leadId}/appointments`,{data:{type:"test_drive",scheduledAt:"bad"}})).status()).toBe(400);
+  const appointment=await request.post(`${api}/leads/${leadId}/appointments`,{data:{type:"test_drive",scheduledAt:"2030-01-15T11:00:00Z"}});expect(appointment.status()).toBe(201);
+  const appt=(await appointment.json()).data;
+  expect((await request.patch(`${api}/appointments/${appt.id}`,{data:{status:"completed"}})).status()).toBe(200);
+  const input={amount:5000000,soldAt:"2026-01-01T10:00:00Z"};
+  expect((await request.post(`${api}/leads/${leadId}/sales`,{data:{...input,amount:-1}})).status()).toBe(400);
+  const sale=await request.post(`${api}/leads/${leadId}/sales`,{data:input});expect(sale.status()).toBe(201);
+  const saleId=(await sale.json()).data.id;
+  const retry=await request.post(`${api}/leads/${leadId}/sales`,{data:input});expect(retry.status()).toBe(201);expect((await retry.json()).data.id).toBe(saleId);
+  expect((await request.post(`${api}/leads/${leadId}/sales`,{data:{...input,amount:1}})).status()).toBe(409);
+  expect((await request.patch(`${api}/leads/${leadId}`,{data:{stage:"qualified"}})).status()).toBe(409);
+  expect((await request.patch(`${api}/vehicles/${vehicleId}`,{data:{price:1,availabilityStatus:"available",publishStatus:"published"}})).status()).toBe(409);
+  const snapshot=(await (await request.get(`${api}/snapshot`)).json()).data;
+  expect(snapshot.leads.find((l:{id:string})=>l.id===leadId).stage).toBe("won");
+  expect(snapshot.sales.filter((s:{leadId:string})=>s.leadId===leadId)).toHaveLength(1);
+  expect(snapshot.tasks.filter((t:{leadId:string})=>t.leadId===leadId).every((t:{completed:boolean})=>t.completed)).toBeTruthy();
+  expect(snapshot.vehicles.find((v:{id:string})=>v.id===vehicleId).publishStatus).toBe("archived");
+  expect((await (await request.get("/api/vehicles")).json()).data.some((v:{id:string})=>v.id===vehicleId)).toBeFalsy();
+});
+test("general enquiry receives a location for staff-confirmed scheduling",async({request})=> {
+  const response=await request.post("/api/leads",{data:{name:"General enquiry",phone:"123"}});expect(response.status()).toBe(201);
+  const {leadId}=await response.json();const appt=await request.post(`${api}/leads/${leadId}/appointments`,{data:{type:"appointment",scheduledAt:"2030-01-15T11:00:00Z"}});expect(appt.status()).toBe(201);
+});
