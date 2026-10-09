@@ -9,6 +9,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: desktop-installer-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   installers:
     strategy:
