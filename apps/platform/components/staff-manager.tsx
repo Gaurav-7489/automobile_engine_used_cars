@@ -28,7 +28,7 @@ export function StaffManager({tenant}:{tenant:Pick<PlatformTenant,"tenantId"|"or
     <form key={selected?.userId??"new"} onSubmit={submit} className="staff-form">
       <label>Cognito subject ID<input name="userId" required readOnly={!!selected} defaultValue={selected?.userId??""} maxLength={128}/></label>
       <label>Staff name<input name="displayName" required defaultValue={selected?.displayName??""} maxLength={120}/></label>
-      <label>Role<select name="role" defaultValue={selected?.role??"viewer"}>{Object.keys(staffRoles).map(role=><option key={role} value={role}>{role}</option>)}</select></label>
+      <label>Role<select aria-label="Role" name="role" defaultValue={selected?.role??"viewer"}>{Object.keys(staffRoles).map(role=><option key={role} value={role}>{role}</option>)}</select></label>
       <fieldset><legend>Dealership access</legend>{tenant.dealerships.map(d=><label className="check" key={d.id}><input type="checkbox" checked={dealerIds.includes(d.id)} onChange={e=>{setDealerIds(e.target.checked?[...dealerIds,d.id]:dealerIds.filter(id=>id!==d.id));if(!e.target.checked)setLocationIds(locationIds.filter(id=>!d.locations.some(l=>l.id===id)));}}/>{d.name}</label>)}</fieldset>
       <fieldset><legend>Location access</legend>{tenant.dealerships.filter(d=>dealerIds.includes(d.id)).flatMap(d=>d.locations.map(l=><label className="check" key={l.id}><input type="checkbox" checked={locationIds.includes(l.id)} onChange={e=>setLocationIds(e.target.checked?[...locationIds,l.id]:locationIds.filter(id=>id!==l.id))}/>{d.name} · {l.name}</label>))}</fieldset>
       <label className="check"><input type="checkbox" name="enabled" defaultChecked={selected?.enabled??true}/>Access enabled</label>
