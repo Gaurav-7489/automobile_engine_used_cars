@@ -47,9 +47,20 @@ export async function limitPublicRequest(request: Request, scope: string, max: n
 
 export function publicOriginFailure(request: Request): Response | null {
   const origin = request.headers.get("origin");
-  if (request.headers.get("sec-fetch-site") === "cross-site" || (origin && origin !== new URL(request.url).origin)) {
-    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
+  let valid = request.headers.get("sec-fetch-site") !== "cross-site";
+  if (origin) {
+    try {
+      // Next's internal Request URL may use localhost while the browser uses the
+      // incoming Host. Prefer an explicit deployed origin, otherwise the direct
+      // Host authority; never accept an arbitrary forwarded-host value.
+      const internal = new URL(request.url);
+      const authority = request.headers.get("host") ?? internal.host;
+      const expected = new URL(process.env.APP_ORIGIN ?? `${internal.protocol}//${authority}`).origin;
+      const supplied = new URL(origin);
+      valid = valid && supplied.origin === expected && !supplied.username && !supplied.password;
+    } catch { valid = false; }
   }
+  if (!valid) return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
   return null;
 }
 

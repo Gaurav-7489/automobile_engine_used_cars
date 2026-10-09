@@ -11,6 +11,8 @@ test("public JSON is bounded, object-shaped, and protected from foreign browser 
   await assert.rejects(publicJson(new Request("https://dealer.example", {method:"POST",body:"{}"})), SyntaxError);
   assert.equal(publicOriginFailure(new Request("https://dealer.example", {headers:{origin:"https://evil.example"}}))?.status,403);
   assert.equal(publicOriginFailure(new Request("https://dealer.example", {headers:{origin:"https://dealer.example"}})),null);
+  assert.equal(publicOriginFailure(new Request("http://localhost:3000/api/leads", {headers:{host:"127.0.0.1:3000",origin:"http://127.0.0.1:3000","sec-fetch-site":"same-origin"}})),null);
+  assert.equal(publicOriginFailure(new Request("http://localhost:3000/api/leads", {headers:{host:"127.0.0.1:3000",origin:"http://foreign.example","x-forwarded-host":"foreign.example"}}))?.status,403);
   assert.equal(requestIdentity(new Request("https://dealer.example", {headers:{"x-forwarded-for":"1.2.3.4"}}),{}),"shared-unknown-client");
 });
 
