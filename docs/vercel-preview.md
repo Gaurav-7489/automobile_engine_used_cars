@@ -17,3 +17,9 @@ Preview configuration: `DATA_MODE=demo`, `AUTH_MODE=cognito`, `NEXT_PUBLIC_PREVI
 The local file adapter is not shared serverless storage. Do not redirect it to /tmp or claim enquiry persistence. The full connected hosted workflow requires all three projects to use the same TLS PostgreSQL/Aurora database, migrations/role grants, Cognito clients and scoped staff provisioning. Database URLs and credentials belong only in secure server environment configuration. Once configured and verified, remove the browsing-preview flag and use `DATA_MODE=aurora`; retain authenticated staff access.
 
 Local `pnpm demo` remains the fully connected reference demonstration. Native installers require the configured authenticated backend and are not deployed by Vercel.
+
+## Staff login routing correction
+
+Next.js removes the configured `basePath` from `NextURL.pathname` inside middleware. Both staff middleware handlers normalize the path before checking login/auth exclusions and constructing return URLs. Missing staff configuration now displays an explicit setup message on the public login page instead of offering an unusable sign-in action. The login page exposes no operational records or credentials; staff/API authorization remains mandatory.
+
+Hosted operations are blocked until the projects receive their common database configuration and each staff origin receives `APP_ORIGIN`, `COGNITO_DOMAIN`, `COGNITO_CLIENT_ID`, `COGNITO_USER_POOL_ID`, `SESSION_SECRET` and matching `AUTH_PRINCIPALS_JSON`. These settings must be configured securely by an authorized administrator. Sign-in session keys and database credentials must not appear in chat or client bundles. Automatic production Git builds are skipped during this preview-only phase; explicit preview deployments remain enabled.

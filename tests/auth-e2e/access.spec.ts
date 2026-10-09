@@ -37,3 +37,20 @@ test("all staff mutations reject forged identity before touching records", async
   ];
   for (const response of responses) expect(response.status()).toBe(401);
 });
+
+for (const [port, basePath] of [[3001, "/command"], [3002, "/platform"]] as const) {
+  test(`${basePath} login remains reachable without exposing staff data`, async ({ request }) => {
+    const response = await request.get(`http://127.0.0.1:${port}${basePath}/login`);
+    expect(response.status()).toBe(200);
+    expect(await response.text()).toContain("Staff sign-in is not connected yet");
+  });
+  test(`${basePath} browser redirect preserves the deployment base path`, async ({ request }) => {
+    const response = await request.get(`http://127.0.0.1:${port}${basePath}`, {
+      headers: { accept: "text/html" }, maxRedirects: 0,
+    });
+    expect(response.status()).toBe(307);
+    const location = new URL(response.headers()["location"]);
+    expect(location.pathname).toBe(`${basePath}/login`);
+    expect(location.searchParams.get("returnTo")).toBe(basePath);
+  });
+}
