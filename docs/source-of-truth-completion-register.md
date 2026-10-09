@@ -1,6 +1,6 @@
 # Automobile Engine — Source-of-truth completion register
 
-Date: 2026-10-08
+Date: 2026-10-09
 Status: **NOT COMPLETE / NOT PRODUCTION CERTIFIED**
 Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75), *VandLabs Used-Car AI Ecosystem Master Blueprint* (October 2026, 56 sections), and current code/docs as reviewed. This register documents what can be grounded from repository evidence; it is not a successful test report.
 
@@ -17,13 +17,13 @@ Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75)
 
 | Workstream | Repo evidence | Remaining acceptance gap |
 | --- | --- | --- |
-| Public website / inventory / VDP | `apps/web`, V1 E2E in `tests/e2e/smoke.spec.ts` | Rerun browser/mobile QA for current commit, inspect media, UX, performance, SEO |
+| Public website / inventory / VDP | `apps/web`, V1 E2E in `tests/e2e/smoke.spec.ts` | 68 current-revision browser/API cases passed; inspect actual dealership media, broader browsers, accessibility, performance and SEO |
 | Enquiry/attribution | BFF / lead and event E2E smoke tests | Demonstrate real end-to-end lead persistence and consent rules under deployed staging |
 | CRM / follow-ups / automation | `apps/command-center`, lead/task tests; `docs/roadmap.md` V1.5–V2 | Confirm roles, no duplicate follow-ups, full stage transitions and dealer workflows in live environment |
 | PostgreSQL tenant persistence | `docs/production-runtime.md`, migrations, RLS and embedded-DB tests | Deploy staging database; migrate; verify real connectivity, cross-tenant denial, backup/restore |
-| Staff identity | Cognito auth flow and security tests per `docs/staff-authentication.md` | Provision test staff; verify actual Cognito login, refresh, logout, permissions and MFA policy |
+| Staff identity | Cognito access verification, persistent scoped grants, assigned-only sales access and immediate database-registry revocation | Provision test staff; verify actual Cognito login, refresh, logout, permissions and MFA policy |
 | Native Windows/macOS | `apps/desktop`, `.github/workflows/desktop-build.yml` | Confirm OS-runner tests/artifact builds; install and exercise real authenticated client; signing/notarization later |
-| Platform control | `apps/platform` reference screens, admin access gates | Real tenant provisioning, roles administration, billing and operational support are not production services |
+| Platform control | Shared hierarchy/counts, persisted staff administration, version conflicts and atomic append-only audit; validated real-tenant provisioning CLI | Live cloud provisioning and acceptance, full role/approval policy, billing/offboarding and operational support services |
 | Intelligence / capital | `/command/intelligence`: deterministic stock validation, task briefing, price history and exact matching | Verified acquisition/cost register implemented in PR #13; full accounting ledger, provider-backed AI and licensed market intelligence remain unfinished; record age remains distinct from acquisition age |
 | Market Radar / external data | Integration contracts & reference adapters in V2.5 | Obtain licensed feeds, approvals and credentials; add ingest normalization, reconciliation and freshness checks |
 | External channels | Internal automation tasks only per `docs/production-runtime.md` | Provider-approved WhatsApp/SMS/email integrations, consent and delivery receipts; no fake send claims |
@@ -86,3 +86,5 @@ PRs #11–#14 are merged into main at software commit `de24fa90afe85af992f022081
 Durable Platform hierarchy/operational counts, staff grants with immediate database-registry revocation, role/scope controls, assigned-lead salesperson restrictions, version conflicts and atomic platform audit are now implemented. Migration 0005 and application-role grants are mandatory. Real-tenant hierarchy/internal-rule provisioning is an atomic migration-admin command; full cloud onboarding/billing/offboarding remain open. Verified TLS, serverless pool controls, readiness APIs and a redacted CLI doctor are included. Five complete shared source documents are archived with hashes under specifications/.
 
 Local lint/typecheck, four builds, 23 security, 6 database/provisioning and 5 intelligence regressions passed. Full exact-revision browser/native CI acceptance and publication are recorded in the current checkpoint. Vercel lacks shared database/Cognito/tenant settings; AWS identity/connectivity and real live acceptance remain external blockers. The full ecosystem is not complete. See release-2026-10-09.md and shared-staging-setup.md.
+
+PR #16 merged the 9 October increment at `60e54d03640a8c4d53e57af97020c8c54848427b`. Its full tree matches final candidate `732a70f293fa484e5d04b43a24d8829eddba38c4`, which passed Quality Gate 37885410416 and native packaging 37885410463. See [9 October delivery](main-delivery-2026-10-09.md). Later checkpoint edits are documentation only.
