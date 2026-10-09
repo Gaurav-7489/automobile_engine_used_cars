@@ -80,6 +80,7 @@ export async function recordJourneyEvent(
   payload: Record<string, unknown> = {},
 ) {
   if (typeof window === "undefined") return;
+  if (process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true") return;
   const attribution = readAttribution();
   try {
     await fetch("/api/events", {

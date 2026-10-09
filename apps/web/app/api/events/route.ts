@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import type { JourneyEvent } from "@vandlabs/contracts";
 import { tenantConfig, saveEvent } from "@vandlabs/data";
 
+import { isReadOnlyPreview } from "../../../lib/hosting";
+
 const allowedEvents = new Set<JourneyEvent["type"]>([
   "page_view", "inventory_search", "vehicle_view", "compare", "whatsapp_click",
   "call_click", "lead_created", "test_drive_requested", "finance_interest", "exchange_interest",
 ]);
 
 export async function POST(request: Request) {
+  if (isReadOnlyPreview()) return NextResponse.json({error:"This browsing preview does not accept enquiries or record activity. A shared backend must be configured."}, {status:503});
   const body = (await request.json()) as Partial<JourneyEvent>;
   if (!body.type || !allowedEvents.has(body.type) || !body.sessionId) {
     return NextResponse.json({ error: "Invalid event." }, { status: 400 });

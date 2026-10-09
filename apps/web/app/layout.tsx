@@ -6,9 +6,12 @@ import { SiteFooter } from "../components/site-footer";
 import { JourneyCapture } from "../components/journey-capture";
 import { tenantConfig } from "../lib/config";
 
+import { isReadOnlyPreview } from "../lib/hosting";
+
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  robots: process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true" ? { index: false, follow: false } : undefined,
   metadataBase: new URL(tenantConfig.seo.canonicalBase),
   title: {
     default: tenantConfig.seo.title + " | Powered by VandLabs",
@@ -27,9 +30,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <body>
         <Suspense fallback={null}>
-          <JourneyCapture />
+          {!isReadOnlyPreview() && <JourneyCapture />}
         </Suspense>
         <SiteHeader />
+        {isReadOnlyPreview() && <aside role="status" style={{padding:"12px 24px",background:"#182824",color:"#fff",textAlign:"center"}}>Reference dealership preview — browse sample vehicles. Enquiries and staff operations require the connected backend.</aside>}
         {children}
         <SiteFooter />
       </body>
