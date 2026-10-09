@@ -1,6 +1,6 @@
 # Shared runtime, login and desktop
 
-The website, browser Command Center and native desktop client now share one
+The website, browser Command Center, VandLabs Platform and native desktop client share one
 PostgreSQL data adapter. `DATA_MODE=aurora` selects PostgreSQL; `demo` retains the
 reference adapter. There is no automatic production fallback to demo files.
 
@@ -20,10 +20,12 @@ reference adapter. There is no automatic production fallback to demo files.
   cross-tenant parent links; RLS is forced for operational tables.
 
 The current production automation adapter creates internal tasks. WhatsApp rules
-are held; no message delivery or provider connection is claimed. Staff provisioning
-still uses a server-owned subject-to-scope registry, not self-service onboarding.
-The Platform control-plane screens remain reference administration interfaces;
-they are protected by login but are not production provisioning/billing services.
+are held; no message delivery or provider connection is claimed. The Platform now reads durable hierarchy/operational counts and manages persisted
+staff grants with atomic audit. `AUTH_REGISTRY_MODE=database` enables immediate
+permission changes after verified Cognito access; the legacy environment registry
+remains available for migration and platform bootstrap. Billing, full cloud
+onboarding, runtime entitlements and support impersonation are not implemented.
+See [platform/staff operations](platform-staff-operations.md).
 
 ## Configure AWS and PostgreSQL
 
@@ -70,8 +72,9 @@ unauthenticated browser navigation reaches the login page. API requests return
 
 Configure exact callbacks and logout URLs for each deployment. Set
 `COGNITO_CLIENT_ID` to the web client. `COGNITO_CLIENT_IDS` lists allowed web and
-desktop client IDs from the same pool. Real staff accounts must be provisioned in
-Cognito and in `AUTH_PRINCIPALS_JSON`. Do not put these server settings in a public
+desktop client IDs from the same pool. Real staff accounts must be created in Cognito, then granted through the Platform
+when the database registry is selected; platform bootstrap administrators remain
+explicit in `AUTH_PRINCIPALS_JSON`. Do not put these server settings in a public
 build. No live Cognito account/sign-in was available in this workspace.
 
 ## Desktop application

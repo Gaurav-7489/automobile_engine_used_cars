@@ -44,10 +44,12 @@ and capability grants. Example shape (identifiers must match the active data):
 
 `platform:admin` is a separate explicit cross-dealership administrative grant.
 An authenticated subject missing from the registry receives 403. Missing or
-invalid registry configuration receives 503. The registry is a bootstrap
-provisioning boundary; replace it with an authorized server-side membership
-repository for self-service membership management. Changes currently require a
-server configuration update/restart.
+invalid registry configuration receives 503. `AUTH_REGISTRY_MODE=environment` preserves this bootstrap behavior. The persistent
+`AUTH_REGISTRY_MODE=database` path now resolves dealership staff against the shared
+PostgreSQL membership registry on every verified request. Only explicitly authorized
+platform bootstrap administrators remain environment-owned. See
+[platform-staff-operations.md](platform-staff-operations.md) for scopes, immediate
+revocation, role templates and atomic audit.
 
 Clients may provide `Authorization: Bearer <access-token>`. The browser
 login callback sets `__Host-vandlabs-access-token` with `Secure`, `HttpOnly`,

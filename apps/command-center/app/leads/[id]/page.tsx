@@ -57,6 +57,8 @@ export default async function LeadPage({
             initialVersion={lead.version??0}
             initialOwner={lead.assignedTo}
             initialNotes={lead.notes}
+            staffOptions={data.staffOptions}
+            assignedLeadOnly={data.assignedLeadOnly}
           />
         </section>
 

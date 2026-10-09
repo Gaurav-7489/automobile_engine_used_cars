@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+export { platformSnapshot, saveStaffMember, resolveDatabaseStaff, staffDirectory } from "./platform";
+export { runtimeReadiness } from "./readiness";
 import type { AuthenticatedPrincipal, Lead, LeadActivity, LeadStage, Task, Vehicle, Appointment, JourneyEvent, AutomationRule, AutomationRun, AnalyticsSnapshot, Sale, InventoryChange, StockCost, StockCostChange } from "@vandlabs/contracts";
-import { requireCapability, requireTenant, requireDealership, requireLocation } from "@vandlabs/contracts";
+import { requireCapability, requireTenant, requireDealership, requireLocation, AuthorizationError } from "@vandlabs/contracts";
 import * as demo from "@vandlabs/demo-data";
 import * as runtime from "@vandlabs/demo-data/runtime";
 import { getAutomationRules, evaluateLeadAutomation } from "@vandlabs/demo-data/automation";
@@ -38,6 +40,7 @@ function decodeVehicle(row: Record<string, unknown>): Vehicle {
 function scope(principal: AuthenticatedPrincipal, lead: Lead, capability: "lead:write" | "task:write") {
   requireCapability(principal, capability); requireTenant(principal, lead.tenantId);
   requireDealership(principal, lead.dealershipId); if (lead.locationId) requireLocation(principal, lead.locationId);
+  if(principal.assignedLeadOnly&&lead.assignedTo!==principal.userId)throw new AuthorizationError();
 }
 function demoSnapshot(): Snapshot {
   return { leads: runtime.mergeRuntimeLeads(demo.leads), tasks: runtime.mergeRuntimeTasks(demo.tasks), vehicles: runtime.mergeRuntimeVehicles(demo.vehicles),
@@ -84,10 +87,11 @@ export function postgresStore(pool: SqlPool) {
     snapshot(p:AuthenticatedPrincipal) { return tx(p.tenantId,async c=> {
       for (const cap of ["lead:read","inventory:read","analytics:read"] as const) requireCapability(p,cap);
       const args=[p.tenantId,p.dealershipIds,p.locationIds];
-      const predicate="l.tenant_id=$1 AND l.dealership_id=ANY($2::uuid[]) AND (l.location_id IS NULL OR l.location_id=ANY($3::uuid[]))";
-      const leads=(await c.query(`SELECT l.* FROM leads l WHERE ${predicate} ORDER BY created_at DESC`,args)).rows.map(decodeLead);
+      const leadArgs=[...args,p.assignedLeadOnly?p.userId:null];
+      const predicate="l.tenant_id=$1 AND l.dealership_id=ANY($2::uuid[]) AND (l.location_id IS NULL OR l.location_id=ANY($3::uuid[])) AND ($4::text IS NULL OR l.payload->>'assignedTo'=$4)";
+      const leads=(await c.query(`SELECT l.* FROM leads l WHERE ${predicate} ORDER BY created_at DESC`,leadArgs)).rows.map(decodeLead);
       const vehicles=(await c.query("SELECT * FROM vehicles WHERE tenant_id=$1 AND dealership_id=ANY($2::uuid[]) AND location_id=ANY($3::uuid[]) ORDER BY created_at DESC",args)).rows.map(decodeVehicle);
-      const related=async <T>(table:string)=>payloads<T>((await c.query(`SELECT r.payload FROM ${table} r JOIN leads l ON l.id=r.lead_id AND l.tenant_id=r.tenant_id WHERE ${predicate}`,args)).rows);
+      const related=async <T>(table:string)=>payloads<T>((await c.query(`SELECT r.payload FROM ${table} r JOIN leads l ON l.id=r.lead_id AND l.tenant_id=r.tenant_id WHERE ${predicate}`,leadArgs)).rows);
       const financialRelated=async <T>(table:string)=>p.capabilities.includes("capital:read")?payloads<T>((await c.query(`SELECT r.payload FROM ${table} r JOIN vehicles v ON v.id=r.vehicle_id AND v.tenant_id=r.tenant_id WHERE r.tenant_id=$1 AND v.dealership_id=ANY($2::uuid[]) AND v.location_id=ANY($3::uuid[])`,args)).rows):undefined;
       return {costs:await financialRelated<StockCost>("stock_costs"),costHistory:await financialRelated<StockCostChange>("stock_cost_history"), leads,vehicles,tasks:await related<Task>("tasks"),activities:await related<LeadActivity>("lead_activities"),appointments:await related<Appointment>("appointments"),
         runs:await related<AutomationRun>("automation_runs"),events:payloads<JourneyEvent>((await c.query("SELECT to_jsonb(e) || jsonb_build_object('tenantId',e.tenant_id,'sessionId',e.session_id,'vehicleId',e.vehicle_id,'type',e.event_type,'occurredAt',e.occurred_at) AS payload FROM journey_events e JOIN vehicles v ON v.id=e.vehicle_id AND v.tenant_id=e.tenant_id WHERE e.tenant_id=$1 AND v.dealership_id=ANY($2::uuid[]) AND v.location_id=ANY($3::uuid[])",args)).rows),
@@ -106,6 +110,7 @@ export function postgresStore(pool: SqlPool) {
     }); },
     patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>,expectedVersion:unknown) { return tx(p.tenantId,async c=> {
       const lead=await lockedLead(c,p,id,"lead:write");checkRecordVersion(lead,expectedVersion,"Lead");
+      if(p.assignedLeadOnly&&Object.hasOwn(patch,"assignedTo")&&patch.assignedTo!==lead.assignedTo)throw new AuthorizationError();
       if(patch.stage && patch.stage!=="won" && (await c.query("SELECT id FROM sales WHERE tenant_id=$1 AND lead_id=$2",[p.tenantId,id])).rows.length)throw new ConflictError("Confirmed sale requires an approved reversal.");
   const updated={...lead,...patch,version:(lead.version??0)+1,updatedAt:new Date().toISOString()};
       const records:LeadActivity[]=[];
@@ -223,7 +228,7 @@ export async function publicInventory() {
 export async function staffSnapshot(p:AuthenticatedPrincipal):Promise<Snapshot> {
   if (dataMode()==="aurora") return (await productionStore()).snapshot(p);
   for(const cap of ["lead:read","inventory:read","analytics:read"] as const) requireCapability(p,cap);
-  const s=demoSnapshot();s.leads=s.leads.filter(l=>visible(p,l));s.vehicles=s.vehicles.filter(v=>visible(p,v));
+  const s=demoSnapshot();s.leads=s.leads.filter(l=>visible(p,l)&&(!p.assignedLeadOnly||l.assignedTo===p.userId));s.vehicles=s.vehicles.filter(v=>visible(p,v));
   const ids=new Set(s.leads.map(l=>l.id));s.tasks=s.tasks.filter(t=>ids.has(t.leadId));s.activities=s.activities.filter(a=>ids.has(a.leadId));s.appointments=s.appointments.filter(a=>ids.has(a.leadId));s.runs=s.runs.filter(r=>ids.has(r.leadId));const vehicleIds=new Set(s.vehicles.map(v=>v.id));s.sales=s.sales?.filter(r=>ids.has(r.leadId));s.inventoryHistory=s.inventoryHistory?.filter(r=>s.vehicles.some(v=>v.id===r.vehicleId));s.events=s.events.filter(e=>!!e.vehicleId&&vehicleIds.has(e.vehicleId));s.costs=p.capabilities.includes("capital:read")?s.costs?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;s.costHistory=p.capabilities.includes("capital:read")?s.costHistory?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;return s;
 }
 export async function createLead(input:Omit<Lead,"id"|"stage"|"createdAt"|"updatedAt">) {
@@ -240,6 +245,7 @@ export async function patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial
   if(dataMode()==="aurora")return(await productionStore()).patchLead(p,id,patch,expectedVersion);
   return runtime.demoTransaction(state=> {
     const leads=state["leads.json"] as Lead[];const lead=leads.find(l=>l.id===id)??demo.leads.find(l=>l.id===id);if(!lead)throw new RecordNotFound();scope(p,lead,"lead:write");checkRecordVersion(lead,expectedVersion,"Lead");
+    if(p.assignedLeadOnly&&Object.hasOwn(patch,"assignedTo")&&patch.assignedTo!==lead.assignedTo)throw new AuthorizationError();
     if(patch.stage&&patch.stage!=="won"&&(state["sales.json"] as Sale[]).some(s=>s.leadId===id))throw new ConflictError("Confirmed sale requires an approved reversal.");
     const updated={...lead,...patch,version:(lead.version??0)+1,updatedAt:new Date().toISOString()};const records:LeadActivity[]=[];
     for(const [field,type] of [["stage","stage_changed"],["assignedTo","assignment_changed"],["notes","note_updated"]] as const)if(updated[field]!==lead[field])records.push({id:randomUUID(),tenantId:lead.tenantId,leadId:id,type,actor:p.userId,description:field==="notes"?"Internal lead note updated.":`${field} updated.`,occurredAt:updated.updatedAt});

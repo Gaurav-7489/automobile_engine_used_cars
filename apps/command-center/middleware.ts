@@ -9,7 +9,7 @@ export async function middleware(request: NextRequest) {
     ? pathname : "/command" + (pathname === "/" ? "" : pathname);
   if (path === "/command/login" || path.startsWith("/command/auth/")) return NextResponse.next();
   // Mutation handlers verify identity and resource scope themselves.
-  if (request.nextUrl.pathname.startsWith("/command/api/")) return NextResponse.next();
+  if (path.startsWith("/command/api/")) return NextResponse.next();
   try {
     await authorizeCommandPage(request);
     const response = NextResponse.next();

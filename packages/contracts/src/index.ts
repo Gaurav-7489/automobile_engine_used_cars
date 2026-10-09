@@ -1,4 +1,5 @@
 export type ID = string;
+export * from "./platform";
 
 export type PublishStatus = "draft" | "published" | "archived";
 export type AvailabilityStatus = "available" | "reserved" | "sold";

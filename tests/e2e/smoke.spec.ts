@@ -229,9 +229,9 @@ test("V2.5 analytics exposes campaign outcome reporting", async ({ page }) => {
   await expect(page.getByText("Outcome counts are descriptive records, not modeled attribution or incremental lift.")).toBeVisible();
 });
 
-test("V2.5 platform exposes adapter authority and reconciliation evidence", async ({ page }) => {
+test("platform states external integration readiness honestly", async ({ page }) => {
   await page.goto("http://127.0.0.1:3002/platform/integrations");
-  await expect(page.getByRole("heading", { name: "Field authority" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Recent runs" })).toBeVisible();
-  await expect(page.getByText("Reference evidence does not claim a live external DMS or CRM connection.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Integration readiness" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connected boundaries" })).toBeVisible();
+  await expect(page.getByText(/outbound provider delivery, licensed market feeds and advanced AI are pending/)).toBeVisible();
 });

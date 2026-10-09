@@ -26,12 +26,16 @@ export function LeadOperations({
   initialVersion,
   initialOwner,
   initialNotes,
+  staffOptions,
+  assignedLeadOnly,
 }: {
   leadId: string;
   initialStage: LeadStage;
   initialVersion: number;
   initialOwner?: string;
   initialNotes?: string;
+  staffOptions: {id:string;name:string}[];
+  assignedLeadOnly?:boolean;
 }) {
   const router = useRouter();
   const [version,setVersion]=useState(initialVersion);
@@ -83,10 +87,10 @@ export function LeadOperations({
         </label>
         <label>
           <span>Lead owner</span>
-          <select value={owner} onChange={(event) => setOwner(event.target.value)}>
+          <select value={owner} disabled={assignedLeadOnly} onChange={(event) => setOwner(event.target.value)}>
             <option value="">Unassigned</option>
-            <option value="Maya">Maya</option>
-            <option value="Kabir">Kabir</option>
+            {owner&&!staffOptions.some(s=>s.id===owner)?<option value={owner}>{owner} (previous assignment)</option>:null}
+            {staffOptions.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </label>
       </div>

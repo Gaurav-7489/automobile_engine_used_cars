@@ -1,0 +1,654 @@
+VANDLABS / AUTOMOBILE ENGINE
+
+
+
+75 LOCKED
+PRODUCT + ARCHITECTURE
+DECISIONS
+Dedicated decision register for building the VandLabs Automobile Engine
+
+
+This document records the complete numbered decision baseline agreed for the Automobile
+Engine. It is designed to be handed directly to product, design, engineering and AI coding
+agents so they do not reinterpret the architecture from scratch.
+
+
+
+PRODUCT POSITIONING
+A multi-tenant Automotive Commerce & Growth Engine for used-car dealerships - connecting premium
+dealership experiences, vehicle inventory, acquisition, conversion, CRM, sales operations, attribution,
+automation, analytics and intelligence.
+
+
+
+CORE CUSTOMER LOOP
+DISCOVER -> EVALUATE -> ENQUIRE -> QUALIFY -> VISIT / TEST DRIVE -> SALE -> LEARN / OPTIMIZE
+
+
+
+STATUS: Decisions 1-75 locked as the working architecture baseline.
+Important correction preserved: workshop/service-specific decisions from the earlier context are explicitly reclassified as future optional modules, not
+V1 core.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                                         1
+How to Use This Decision Register
+Treat every numbered item below as a default architectural constraint. An implementation agent may refine implementation
+details, but should not reverse a locked decision without explicitly surfacing the conflict. Decisions 48-51 document the correction
+from the earlier workshop-oriented framing to the actual Automobile Engine domain.
+V1 rule: build the Proof-of-Engine first. Do not silently expand V1 into a workshop ERP, generic CRM, finance
+marketplace, insurance platform, mobile app suite or fully self-service SaaS.
+
+
+
+A. Foundation, Frontend & Performance
+ DECISION 01            Frontend foundation
+ LOCKED:                Next.js + React + TypeScript.
+
+ IMPLEMENTATION         Use a production-grade React stack with strong typing and App Router-era Next.js patterns.
+ :
+
+
+ DECISION 02            Backend direction
+ LOCKED:                AWS-native backend, connected after frontend contracts are stable.
+
+ IMPLEMENTATION         Frontend should work against clean API contracts/mocks first; AWS services plug in without forcing UI
+ :                      rewrites.
+
+
+ DECISION 03            Rendering strategy
+ LOCKED:                Hybrid rendering: SSG/ISR + RSC + SSR + selective client components.
+
+ IMPLEMENTATION         Public SEO pages favor static/ISR; dynamic areas use SSR/RSC; hydrate only what must be interactive; use
+ :                      streaming/Suspense.
+
+
+ DECISION 04            UI system
+ LOCKED:                Tailwind + shadcn/Radix + a custom VandLabs design system.
+
+ IMPLEMENTATION         21st.dev and Skiper UI may supply selected patterns, but all components must be normalized to VandLabs
+ :                      tokens, accessibility and performance.
+
+
+ DECISION 05            Motion stack
+ LOCKED:                Motion/Framer Motion by default; GSAP only for complex cinematic sequences; Lenis where useful.
+
+ IMPLEMENTATION         Simple motion should stay CSS/Web Animations where possible. Always support reduced-motion and
+ :                      low-power fallbacks.
+
+
+ DECISION 06            Media pipeline
+ LOCKED:                Production media pipeline + CDN.
+
+ IMPLEMENTATION         Keep masters, generate AVIF/WebP/JPEG fallbacks, responsive srcset/sizes, LCP priority, lazy loading,
+ :                      immutable caching and later S3 + CloudFront delivery.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                 2
+ DECISION 07          Caching architecture
+ LOCKED:              Layered caching from browser to database.
+
+ IMPLEMENTATION       Browser -> CloudFront/edge -> Next route/data cache -> app cache -> Redis/ElastiCache when justified ->
+ :                    Aurora/Postgres. Prefer event/tag invalidation and stale-while-revalidate.
+
+
+ DECISION 08          Loading & navigation
+ LOCKED:              Instant-first navigation.
+
+ IMPLEMENTATION       Prefetch likely routes, keep persistent layouts, show cached shells immediately, stream missing data, use
+ :                    optimistic UI only for safe actions, and avoid unnecessary loaders.
+
+
+ DECISION 09          Bundle strategy
+ LOCKED:              Strict performance budgets and route-level splitting.
+
+ IMPLEMENTATION       RSC by default, minimal client boundaries, dynamic imports, tree-shaking, lazy heavy animation, bundle
+ :                    analysis/CI limits and deferred third-party scripts.
+
+
+ DECISION 10          Fonts
+ LOCKED:              Self-hosted optimized WOFF2 fonts.
+
+ IMPLEMENTATION       Use minimal families/weights, subsetting, critical preload, variable fonts when useful and stable
+ :                    fallback/font-display behavior.
+
+
+ DECISION 11          Video
+ LOCKED:              Adaptive, non-blocking video delivery.
+
+ IMPLEMENTATION       Poster-first, metadata-only preload, lazy offscreen playback, pause out of view, reduced-data/motion
+ :                    fallbacks, S3/CloudFront, and HLS only for heavier video.
+
+
+ DECISION 12          Third-party scripts
+ LOCKED:              Controlled and deferred execution.
+
+ IMPLEMENTATION       Analytics must be consent-aware; maps load on demand; WhatsApp should avoid heavy SDKs; pixels are
+ :                    deferred/scoped and removed if they harm Core Web Vitals.
+
+
+ DECISION 13          Prefetching
+ LOCKED:              Intelligent predictive prefetch.
+
+ IMPLEMENTATION       Use viewport, hover/touch, navigation likelihood, connection quality, cache state and data-saver signals; stay
+ :                    conservative on slow networks.
+
+
+ DECISION 14          Offline behavior
+ LOCKED:              Online-first for business/customer data.
+
+ IMPLEMENTATION       Static assets may cache locally, but do not queue or fake successful critical business mutations offline.
+ :                    Server remains source of truth.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                     3
+ DECISION 15          Application state
+ LOCKED:              Server-first state architecture.
+
+ IMPLEMENTATION       TanStack Query for interactive server data, Zustand for small global client state, React local state for local UI,
+ :                    URL state for shareable filters, RHF + schema validation for forms.
+
+
+
+
+B. Backend, Data, Reliability & Security
+ DECISION 16          API topology
+ LOCKED:              Browser -> Next.js BFF -> AWS API Gateway -> domain services.
+
+ IMPLEMENTATION       Use typed contracts, REST where sensible, events/queues internally, signed upload URLs, and
+ :                    SSE/WebSocket only when genuinely live behavior is required.
+
+
+ DECISION 17          Resilience
+ LOCKED:              Production reliability patterns from the start.
+
+ IMPLEMENTATION       Timeouts, exponential retry with jitter, fallbacks, idempotency keys, transactions, queue retry/DLQ, health
+ :                    checks, structured errors and centralized monitoring.
+
+
+ DECISION 18          Validation
+ LOCKED:              Shared schemas with independent backend enforcement.
+
+ IMPLEMENTATION       Use Zod + React Hook Form on the frontend; backend validates independently against the same contract
+ :                    intent; generated/shared TypeScript types later.
+
+
+ DECISION 19          Authentication
+ LOCKED:              Amazon Cognito foundation; staff/admin security first.
+
+ IMPLEMENTATION       Privileged dealership/VandLabs users use stronger MFA/RBAC. Customer authentication is not forced in V1
+ :                    and is revisited as optional progressive identity.
+
+
+ DECISION 20          Search infrastructure
+ LOCKED:              Progressive search behind a stable interface.
+
+ IMPLEMENTATION       Start lean; introduce OpenSearch only when scale/features justify it. Do not pay operational complexity early.
+ :
+
+
+ DECISION 21          Real-time
+ LOCKED:              Selective real-time only.
+
+ IMPLEMENTATION       Use live updates where they materially improve operations; avoid WebSockets everywhere.
+ :
+
+
+ DECISION 22          Background work
+ LOCKED:              SQS + EventBridge + Lambda/workers.
+
+ IMPLEMENTATION       Use async processing for media, notifications, analytics, AI, integrations, webhooks and other non-blocking
+ :                    work.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                         4
+ DECISION 23          Primary data stack
+ LOCKED:              Aurora PostgreSQL + Redis + S3; OpenSearch later.
+
+ IMPLEMENTATION       Aurora/Postgres is transactional truth; Redis is cache when needed; S3 stores media/files; DynamoDB only
+ :                    for specific high-scale patterns.
+
+
+ DECISION 24          Database scaling
+ LOCKED:              Optimize before multiplying infrastructure.
+
+ IMPLEMENTATION       RDS Proxy/pooling, indexes, query optimization, cursor pagination, caching, slow-query monitoring and N+1
+ :                    prevention; replicas/scaling only when metrics justify them.
+
+
+ DECISION 25          Traffic & edge
+ LOCKED:              Route53/DNS -> WAF -> CloudFront -> application/API origins.
+
+ IMPLEMENTATION       Use a progressive AWS edge architecture with S3 and scalable application/API origins rather than premature
+ :                    complexity.
+
+
+ DECISION 26          CI/CD
+ LOCKED:              Automated quality gates from branch to production.
+
+ IMPLEMENTATION       PR -> lint/typecheck -> tests -> build/bundle budget -> security scan -> Playwright -> preview -> staging ->
+ :                    production -> monitoring; safe migrations, flags and rollback.
+
+
+ DECISION 27          Observability
+ LOCKED:              OpenTelemetry-first observability.
+
+ IMPLEMENTATION       Use CloudWatch plus optional Sentry/Grafana. Monitor frontend/CWV, APIs/traces, Aurora, cache, queues,
+ :                    Lambda, auth, media, uptime and business-flow failures.
+
+
+ DECISION 28          Security
+ LOCKED:              Risk-based, zero-trust-inspired controls.
+
+ IMPLEMENTATION       WAF, Cognito, MFA for privileged staff, RBAC, least privilege, server authorization, rate limits, CSP/headers,
+ :                    signed S3, encryption, Secrets Manager/KMS, audit logs and security scanning.
+
+
+ DECISION 29          Backup & disaster recovery
+ LOCKED:              PITR + versioning + tested recovery.
+
+ IMPLEMENTATION       Aurora automated backups/PITR, S3 versioning/lifecycle, encrypted backups, IaC rebuildability, restore
+ :                    testing, RPO/RTO targets and cross-region only when justified.
+
+
+ DECISION 30          Testing
+ LOCKED:              Risk-based test pyramid.
+
+ IMPLEMENTATION       Unit, component, integration, contract, Playwright E2E, visual regression, accessibility, performance, load,
+ :                    security and cross-browser/device testing.
+
+
+
+
+C. Experience, SEO, Platform Tooling & AI
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                     5
+ DECISION 31          Accessibility & devices
+ LOCKED:              Responsive, semantic and low-power-aware by design.
+
+ IMPLEMENTATION       Keyboard/focus support, WCAG-oriented contrast/touch targets, reduced motion/contrast, clamp typography,
+ :                    no hover-only flows and responsive media.
+
+
+ DECISION 32          SEO
+ LOCKED:              Engineering-led SEO, with audit tools as support.
+
+ IMPLEMENTATION       SSG/SSR/ISR, semantic HTML, metadata, canonicals, JSON-LD, sitemaps, robots, internal links,
+ :                    image/local SEO, Core Web Vitals, redirects and Search Console/Bing.
+
+
+ DECISION 33          Analytics
+ LOCKED:              Multi-layer analytics with a VandLabs event specification.
+
+ IMPLEMENTATION       Combine acquisition analytics, product analytics, backend/business events and observability. Automotive
+ :                    events must connect source/campaign/vehicle to enquiry, qualification, test drive and outcome.
+
+
+ DECISION 34          Privacy & lifecycle
+ LOCKED:              Classify data and define retention by category.
+
+ IMPLEMENTATION       Separate rules for leads/customers, media, logs, analytics and backups; collect only required data and
+ :                    respect marketing/WhatsApp consent and opt-out.
+
+
+ DECISION 35          Hydration
+ LOCKED:              Server-first with selective hydration.
+
+ IMPLEMENTATION       Ship interactive JavaScript only where it produces real user value.
+ :
+
+
+ DECISION 36          Visual priority
+ LOCKED:              Visual quality first, aggressively optimized.
+
+ IMPLEMENTATION       Target Claude-like professionalism and restraint fused with premium automotive imagery and precision.
+ :                    Performance is engineered underneath, not traded away casually.
+
+
+ DECISION 37          Page transitions
+ LOCKED:              Restrained by default; cinematic when earned.
+
+ IMPLEMENTATION       Use premium, subtle transitions for normal navigation and reserve cinematic sequences for moments where
+ :                    they add meaning.
+
+
+ DECISION 38          Automotive visual language
+ LOCKED:              Precision automotive system.
+
+ IMPLEMENTATION       Editorial composition plus selective technical grids, measurements, vehicle data, diagrams and engineering
+ :                    instrumentation where meaningful.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                 6
+ DECISION 39          Content/CMS
+ LOCKED:              VandLabs-owned hybrid CMS model.
+
+ IMPLEMENTATION       Stable system content stays in code; structured dealership content and inventory use schemas/admin tooling.
+ :                    Avoid forcing every site into a generic CMS.
+
+
+ DECISION 40          Forms & abuse prevention
+ LOCKED:              Invisible layered protection.
+
+ IMPLEMENTATION       Client validation -> honeypot/timing -> BFF -> schema validation -> rate limiting -> bot assessment ->
+ :                    WAF/API. Challenge suspicious traffic only; protect uploads and use idempotency.
+
+
+ DECISION 41          Repository
+ LOCKED:              Professional pnpm + Turborepo monorepo.
+
+ IMPLEMENTATION       Separate apps and shared packages for UI, tokens, schemas, contracts, analytics, auth, SEO, media and
+ :                    config, plus AWS infrastructure and tests/tooling.
+
+
+ DECISION 42          Infrastructure as Code
+ LOCKED:              AWS CDK + TypeScript.
+
+ IMPLEMENTATION       Infrastructure should be reproducible, reviewable and versioned with the application.
+ :
+
+
+ DECISION 43          API contracts
+ LOCKED:              Contract-first REST + OpenAPI + generated TypeScript types.
+
+ IMPLEMENTATION       Special flows use signed S3, SSE/WebSocket or internal events without abandoning clear domain contracts.
+ :
+
+
+ DECISION 44          Maps & location
+ LOCKED:              Static-first, interactive on demand.
+
+ IMPLEMENTATION       Use premium static location presentation and load interactive/native maps only when useful; never fake live
+ :                    location data.
+
+
+ DECISION 45          Notifications
+ LOCKED:              Event-driven multi-channel messaging.
+
+ IMPLEMENTATION       WhatsApp/SMS/email/in-app through provider abstractions; separate transactional from marketing
+ :                    messaging and consent.
+
+
+ DECISION 46          Feature flags
+ LOCKED:              VandLabs progressive feature-control system.
+
+ IMPLEMENTATION       Typed flags support internal/dark/%/full rollout; keep secrets separate; every flag needs ownership and
+ :                    cleanup discipline.
+
+
+
+
+D. Automobile Engine Domain Correction
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                  7
+ DECISION 47          Internal operating system
+ LOCKED:              Dealership Growth/Sales OS, not workshop OS.
+
+ IMPLEMENTATION       The staff product centers on leads, vehicle inventory, campaigns, follow-up, sales operations, reporting,
+ :                    content/configuration, integrations and automation.
+
+
+ DECISION 48          Customer Vehicle Garage
+ LOCKED:              Removed from V1 core; future optional module.
+
+ IMPLEMENTATION       The earlier workshop-oriented garage concept is reclassified because the Automobile Engine does not
+ :                    require customer accounts or post-sale service tooling in standard scope.
+
+
+ DECISION 49          Digital estimates/approvals
+ LOCKED:              Removed from V1 core; future service/workshop module.
+
+ IMPLEMENTATION       Repair estimate approval was a workshop-specific decision and is not part of the used-car commerce/growth
+ :                    engine.
+
+
+ DECISION 50          Payments & billing
+ LOCKED:              Not core to V1; keep architecture extensible.
+
+ IMPLEMENTATION       Do not build workshop invoice/payment flows into the core. Future vehicle finance/payment integrations may
+ :                    plug into dedicated modules.
+
+
+ DECISION 51          Inventory meaning
+ LOCKED:              Replace parts inventory with used-vehicle inventory.
+
+ IMPLEMENTATION       The core inventory domain is vehicles: identity, specifications, price, mileage, ownership/condition, location,
+ :                    media, availability, publish state and channel context.
+
+
+ DECISION 52          AI philosophy
+ LOCKED:              AI-ready + controlled intelligence.
+
+ IMPLEMENTATION       Deterministic systems remain authoritative. AI assists classification, summarization, qualification and
+ :                    recommendations; no silent consequential actions.
+
+
+ DECISION 53          AI provider architecture
+ LOCKED:              VandLabs AI Gateway / Model Router.
+
+ IMPLEMENTATION       Never hardwire the product to one model vendor. Route by task with guardrails, structured-output validation,
+ :                    observability, cost control, prompt/versioning and evaluations.
+
+
+ DECISION 54          Search + RAG
+ LOCKED:              Hybrid deterministic + semantic retrieval.
+
+ IMPLEMENTATION       Database truth first; OpenSearch for indexed discovery; vectors only for semantic/unstructured needs;
+ :                    permissions before retrieval and provenance/citations for grounded outputs.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                      8
+ DECISION 55          Multi-tenancy foundation
+ LOCKED:              C+ multi-tenant Automobile Engine from day one.
+
+ IMPLEMENTATION       Identity, tenant management, permissions, configuration, analytics and integrations are platform concerns.
+ :                    Genuine tenant isolation is foundational; full SaaS billing/onboarding can wait.
+
+
+
+
+E. Automobile Engine Product Decisions
+ DECISION 56          Product scope
+ LOCKED:              Automotive Commerce & Growth Engine with expandable modules.
+
+ IMPLEMENTATION       Core is dealership sales/growth. Future modules such as workshop, parts, insurance, payments and
+ :                    ownership services can plug in without polluting V1.
+
+
+ DECISION 57          Vehicle Inventory Hub
+ LOCKED:              Canonical VandLabs inventory model with multiple ingestion sources.
+
+ IMPLEMENTATION       Support manual entry, CSV/Excel, DMS/CRM and partner APIs. Normalize into stable vehicle records with
+ :                    explicit source-of-truth and conflict rules.
+
+
+ DECISION 58          Dealership Experience Engine
+ LOCKED:              Multi-tenant experience engine + controlled custom design layer.
+
+ IMPLEMENTATION       Share SEO, inventory, analytics, forms, performance and conversion infrastructure while allowing distinct
+ :                    brand, typography, layout, imagery, motion and premium custom modules.
+
+
+ DECISION 59          Lead identity & attribution
+ LOCKED:              Privacy-conscious Customer Journey Graph.
+
+ IMPLEMENTATION       Connect permitted anonymous sessions and campaign/vehicle behavior to a lead when the user identifies.
+ :                    Preserve first-touch, last-touch, lead source, assists and offline outcomes without false certainty.
+
+
+ DECISION 60          CRM pipeline
+ LOCKED:              Opinionated automotive CRM + controlled customization.
+
+ IMPLEMENTATION       Default journey: New -> Contacted -> Qualified -> Appointment -> Visited -> Test Drive -> Negotiation ->
+ :                    Won/Lost/Nurture; allow controlled fields, SLA, ownership and follow-up customization.
+
+
+ DECISION 61          Vehicle discovery
+ LOCKED:              Hybrid structured + natural-language search.
+
+ IMPLEMENTATION       Structured filters remain authoritative; AI can interpret natural-language intent but may never invent vehicle
+ :                    facts. Search behavior feeds future demand intelligence.
+
+
+ DECISION 62          Finance & exchange
+ LOCKED:              Finance & Exchange Orchestration Layer.
+
+ IMPLEMENTATION       V1 captures structured intent and routes it to CRM. Later adapters may connect lenders/NBFCs, valuation
+ :                    and inspection partners; no fake approvals or guaranteed valuations.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                     9
+ DECISION 63          Conversations
+ LOCKED:              Progressive Omnichannel Conversation Engine.
+
+ IMPLEMENTATION       WhatsApp first-class, but channel-neutral timeline for WhatsApp, phone, forms, email, chat and future
+ :                    channels. Automation must preserve fast human handoff.
+
+
+ DECISION 64          Onboarding
+ LOCKED:              Managed automated provisioning.
+
+ IMPLEMENTATION       VandLabs controls onboarding while the platform provisions organization, locations, brand, domain, users,
+ :                    inventory source, channels, analytics, pipeline, entitlements, SEO and QA.
+
+
+
+
+F. Scale, Intelligence, Operations & Final Architecture
+ DECISION 65          Tenant isolation
+ LOCKED:              Strong shared multi-tenancy + optional dedicated isolation.
+
+ IMPLEMENTATION       Enforce isolation in database/RLS where appropriate, service authorization, cache, search, storage, analytics
+ :                    and tests. Enterprise tenants may receive dedicated infrastructure.
+
+
+ DECISION 66          Dealership intelligence
+ LOCKED:              Automotive Intelligence Command Center.
+
+ IMPLEMENTATION       Show business, acquisition, vehicle demand, funnel and operational signals; progress from descriptive to
+ :                    diagnostic to assistive insights using evidence, not fabricated certainty.
+
+
+ DECISION 67          Packages & entitlements
+ LOCKED:              One engine + modular entitlements.
+
+ IMPLEMENTATION       Starter/Growth/Scale are commercial bundles over capabilities. Feature flags control rollout; entitlements
+ :                    control purchased/allowed access. Do not fork codebases by package.
+
+
+ DECISION 68          Integrations
+ LOCKED:              VandLabs Integration Hub + events + optional workflow engine.
+
+ IMPLEMENTATION       Core modules use normalized interfaces and provider adapters. n8n is useful for custom/rapid workflows but
+ :                    is not the foundation of core business logic.
+
+
+ DECISION 69          VandLabs operations
+ LOCKED:              Dedicated Platform Control Center.
+
+ IMPLEMENTATION       Operate tenants, dealer groups, domains, onboarding, entitlements, releases, integrations, health, jobs,
+ :                    usage, AI cost and support from a VandLabs-only control plane with audited access.
+
+
+ DECISION 70          Dealer groups
+ LOCKED:              Hierarchical Organization -> Dealership/Brand -> Location model.
+
+ IMPLEMENTATION       Permissions, inventory, leads, analytics and reporting can roll up or scope down across group, brand,
+ :                    location, salesperson, vehicle and campaign.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                    10
+ DECISION 71          Customer identity
+ LOCKED:              Progressive identity with no forced account.
+
+ IMPLEMENTATION       Anonymous Visitor -> Lead -> Customer -> Optional Account. Staff auth remains separate and strong;
+ :                    customer accounts appear only when they create real value.
+
+
+ DECISION 72          V1 boundary
+ LOCKED:              Proof-of-Engine V1.
+
+ IMPLEMENTATION       Ship premium experience, inventory, discovery, conversion, attribution, basic CRM/pipeline/dashboard and
+ :                    multi-tenant foundation. Defer advanced AI, deep integrations, workshop, parts, insurance and full SaaS
+                      self-service.
+
+
+ DECISION 73          Deployment & domains
+ LOCKED:              Custom-domain-first shared platform.
+
+ IMPLEMENTATION       Each dealer can run on its own domain while CloudFront/edge resolves tenant configuration, brand,
+ :                    inventory, SEO and analytics. Temporary VandLabs domains may support onboarding.
+
+
+ DECISION 74          Roles & permissions
+ LOCKED:              Automotive RBAC + scoped permissions + approvals.
+
+ IMPLEMENTATION       Permissions are capability-based and scoped by organization/dealership/location/assigned records. Sensitive
+ :                    exports, deletion, privileged access and critical integration changes can require approval.
+
+
+ DECISION 75          Overall architecture
+ LOCKED:              Domain-driven modular platform with controlled service evolution.
+
+ IMPLEMENTATION       Start as a disciplined modular monolith/monorepo across Platform Core, Experience, Vehicle Commerce,
+ :                    Growth, CRM, Communication, Intelligence, Automation, Integration Hub and AI; extract services only when
+                      justified.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                  11
+Final Locked Product Shape
+The Automobile Engine is a focused dealership commerce and growth platform built on an expandable automotive architecture.
+Its first production release proves the connected journey from acquisition and vehicle discovery to enquiry, lead operations, test
+drive, outcome and trustworthy reporting.
+
+V1 / PROOF-OF-ENGINE
+• Premium multi-tenant dealership experience on custom domains
+• Canonical Vehicle Inventory Hub with multi-source ingestion
+• Vehicle detail, filters, compare and hybrid discovery
+• WhatsApp/call/forms/test-drive plus finance and exchange intent
+• Privacy-conscious journey graph and vehicle-level attribution
+• Opinionated automotive CRM and basic sales pipeline
+• Automotive Intelligence Command Center
+• Organization/dealership/location hierarchy, RBAC, entitlements and tenant isolation
+• Managed provisioning, Platform Control Center and Integration Hub foundations
+• AWS-native backend path with production-grade performance, security, observability and CI/CD
+
+
+FUTURE / OPTIONAL
+Advanced AI sales assistant, deep CRM/DMS integrations, full WhatsApp automation, lender and valuation integrations,
+advanced BI, customer accounts, workshop/service, spare parts, insurance, payments, native mobile apps and full self-service
+SaaS onboarding.
+
+
+
+AGENT DIRECTIVE
+Build against these 75 decisions as the source of truth. Preserve domain boundaries, tenant isolation, verified
+vehicle/business data, premium-but-optimized UX, human handoff, contract-first APIs and the V1 scope
+boundary. If a new requirement conflicts with a locked decision, report the conflict before changing the
+architecture.
+
+
+
+
+VANDLABS / AUTOMOBILE ENGINE / 75 LOCKED DECISIONS                                                                                   12
+

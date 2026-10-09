@@ -60,7 +60,11 @@ function legacy<T>(file: string): T[] {
 function readArray<T>(file: string): T[] {
   return (readState()[basename(file)] as T[] | undefined) ?? legacy<T>(file);
 }
+export function readPlatformRecords<T>(name: "staff-members.json" | "platform-audit.json"): T[] {
+  return readArray<T>(runtimePath(name));
+}
 export function demoTransaction<T>(action: (state: State) => T): T {
+  if (process.env.VERCEL === "1") throw new Error("Shared PostgreSQL is required for hosted operations.");
   const file = runtimePath("state.json");
   const lock = file + ".lock";
   mkdirSync(dirname(file), { recursive: true });
@@ -68,6 +72,8 @@ export function demoTransaction<T>(action: (state: State) => T): T {
   const temp = file + ".tmp";
   try {
     const state = readState();
+    state["staff-members.json"] ??= [];
+    state["platform-audit.json"] ??= [];
     for (const name of ["leads.json", "tasks.json", "lead-activity.json", "journey-events.json", "automation-rules.json", "automation-runs.json", "vehicles.json", "appointments.json", "sales.json", "inventory-history.json", "stock-costs.json", "stock-cost-history.json"]) {
       state[name] ??= legacy(runtimePath(name));
     }

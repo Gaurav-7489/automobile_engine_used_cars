@@ -105,7 +105,7 @@ export class AutomobileEngineStack extends Stack {
     const userPool = new cognito.UserPool(this, "StaffUserPool", {
       selfSignUpEnabled: false,
       signInAliases: { email: true },
-      mfa: cognito.Mfa.OPTIONAL,
+      mfa: production ? cognito.Mfa.REQUIRED : cognito.Mfa.OPTIONAL,
       mfaSecondFactor: { sms: false, otp: true },
       passwordPolicy: {
         minLength: 12,

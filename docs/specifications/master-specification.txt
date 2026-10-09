@@ -1,0 +1,757 @@
+                                                                                                         VANDLABS / AUTOMOBILE ENGINE
+
+
+
+
+VANDLABS / PRODUCT SYSTEM BLUEPRINT
+
+
+
+
+AUTOMOBILE
+ENGINE
+Master Product + Architecture Specification
+
+A reusable, multi-tenant automotive commerce and growth platform for used-car
+dealerships - connecting premium digital experiences, vehicle inventory,
+acquisition, lead operations, sales workflows, attribution, automation, analytics
+and intelligence.
+
+
+  CORE THESIS The dealership website is the front door, not the whole building. Automobile Engine is the
+  connected operating layer around inventory, discovery, conversion, follow-up, sales outcomes and
+  continuous optimization.
+
+
+
+
+PRIMARY LOOP
+
+DISCOVER → EVALUATE → ENQUIRE → QUALIFY → VISIT / TEST DRIVE → SALE → LEARN /
+OPTIMIZE
+
+
+
+Purpose: Use this document as the shared source of truth for product, design, engineering and AI agents building the VandLabs Automobile
+Engine.
+
+Scope rule: V1 proves the engine. Future modules must not bloat or destabilize the first production system.
+
+
+
+
+                                        MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                           VANDLABS / AUTOMOBILE ENGINE
+
+
+
+1. Product Definition
+VandLabs Automobile Engine is an Automotive Commerce & Growth Engine. It is not a generic dealership website, not
+a workshop ERP, and not a generic CRM. It provides a reusable platform that can power independent dealers, multi-
+location dealerships and dealer groups while preserving each brand's identity.
+
+    Layer                                                     Purpose
+
+
+                                                              Premium dealership web experience, content, trust, SEO
+    Presence
+                                                              and local discovery.
+
+
+                                                              Connect Google, Meta, social, marketplaces, referrals and
+    Acquisition
+                                                              campaign traffic.
+
+
+                                                              Vehicle discovery, detail pages, WhatsApp, calls, forms, test-
+    Conversion
+                                                              drive, finance and exchange intent.
+
+
+                                                              Automotive CRM, ownership, qualification, follow-up,
+    Lead Operations
+                                                              appointments, test drives and outcomes.
+
+
+                                                              Funnel, vehicle demand, attribution, operational health and
+    Intelligence
+                                                              evidence-backed insights.
+
+
+                                                              Events, reminders, routing, messaging and controlled AI-
+    Automation
+                                                              assisted workflows.
+
+
+                                                              Measure → diagnose → experiment → learn; continuous
+    Optimization
+                                                              monthly improvement.
+
+
+
+
+Non-negotiable product principles
+      Do not promise automatic sales. Improve measurable conversion opportunities, response speed, visibility and
+       decision quality.
+      Do not invent attribution, CAC or ROAS when downstream outcome data is unavailable.
+      Do not force customer accounts for basic browsing or enquiry.
+      Do not let website design scope silently become unlimited custom software scope.
+      Do not use AI where deterministic automation is safer and sufficient.
+      Human handoff remains fundamental in sales and customer communication.
+      Standardize the repeatable 80%; custom-build the valuable 20%.
+
+
+
+2. Product Boundaries
+    Core / V1                                                 Future / Optional Modules
+
+
+    Dealership experience + custom domain                     Workshop / service operations
+
+
+    Vehicle Inventory Hub                                     Spare-parts operations
+
+
+    Search, filters and compare                               Customer Garage / ownership portal
+
+
+
+                                    MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                               VANDLABS / AUTOMOBILE ENGINE
+
+
+WhatsApp / call / forms / test drive                             Insurance platform
+
+
+Finance + exchange intent capture                                Full lender / valuation integrations
+
+
+Basic CRM + sales pipeline                                       Advanced DMS/CRM integrations
+
+
+Attribution + journey events                                     Advanced AI sales assistant
+
+
+Basic Command Center                                             Inventory/demand intelligence at scale
+
+
+
+
+                                       MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                         VANDLABS / AUTOMOBILE ENGINE
+
+
+
+3. V1 - Proof-of-Engine
+V1 must prove that Automobile Engine is a connected operating system rather than a beautiful website. The reference
+implementation should demonstrate the complete path from acquisition to vehicle discovery, enquiry, lead record,
+follow-up and reporting.
+
+Customer Experience
+     Premium, responsive dealership website
+     Vehicle inventory grid + vehicle detail pages
+     Structured filters + search + compare
+     WhatsApp, call and enquiry CTAs
+     Test-drive request
+     Finance-interest capture
+     Exchange-interest capture
+
+Growth Engine
+     Source / campaign / UTM tracking
+     Vehicle-level conversion context
+     First-party customer journey events
+     First-touch + last-touch + lead-creation-source attribution
+
+Dealership OS
+     Lead inbox and customer/lead profile
+     Opinionated automotive sales pipeline
+     Vehicle interest context
+     Follow-up tasks and appointments
+     Basic test-drive workflow
+     Basic Automotive Intelligence Command Center
+
+Platform Foundation
+     Multi-tenancy
+     Organization → Dealership/Brand → Location hierarchy
+     RBAC + scoped permissions
+     Inventory Hub
+     Experience Engine
+     Entitlements
+     Platform Control Center basics
+     Integration Hub contracts
+     Audit + observability foundations
+
+    NOT V1 Advanced AI, full DMS integrations, full WhatsApp automation, lender APIs, automated exchange
+    valuation, advanced BI, customer accounts, workshop/service, parts, insurance, native mobile apps and full
+    self-service SaaS onboarding.
+
+
+
+
+Roadmap
+    Release                                                     Outcome
+
+
+
+                                    MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                              VANDLABS / AUTOMOBILE ENGINE
+
+
+                                 Proof-of-Engine: experience + inventory + conversion +
+V1
+                                 attribution + basic CRM/dashboard + platform foundation.
+
+
+                                 Operational depth: stronger pipeline, follow-up, reporting
+V1.5
+                                 and dealership workflows.
+
+
+                                 Automation, vehicle-level attribution depth, reusable
+V2
+                                 campaign templates and richer messaging.
+
+
+                                 CRM/DMS integrations, advanced reporting and enterprise
+V2.5
+                                 integration depth.
+
+
+                                 AI sales assistant, demand insights, inventory intelligence
+V3
+                                 and mature decision support.
+
+
+
+
+       MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                           VANDLABS / AUTOMOBILE ENGINE
+
+
+
+4. System Architecture
+Architecture style: domain-driven modular platform. Start as a disciplined modular monolith / monorepo with hard
+domain boundaries, then extract services only when traffic, reliability, team structure or scaling economics justify it.
+
+ Domain                                                       Responsibility
+
+
+                                                              Organizations, tenancy, identity, RBAC, entitlements,
+ Platform Core
+                                                              configuration, audit.
+
+
+                                                              Dealership sites, content, SEO, design system, custom
+ Experience
+                                                              domains, themes.
+
+
+                                                              Inventory Hub, catalog, search, compare, finance intent,
+ Vehicle Commerce
+                                                              exchange intent.
+
+
+ Growth                                                       Acquisition, campaigns, attribution, journey graph.
+
+
+                                                              Leads, customers, pipeline, tasks, appointments, test drives,
+ CRM
+                                                              outcomes.
+
+
+ Communication                                                WhatsApp, calls, forms, email/SMS, conversation timeline.
+
+
+                                                              Analytics, funnel intelligence, vehicle demand,
+ Intelligence
+                                                              recommendations.
+
+
+ Automation                                                   Events, rules, jobs, workflow orchestration.
+
+
+                                                              DMS, CRM, Meta/Google, finance, valuation and messaging
+ Integration Hub
+                                                              adapters.
+
+
+ AI Platform                                                  AI gateway, model router, retrieval, guardrails, evaluations.
+
+
+
+
+Reference request path
+Customer → DNS / WAF / CloudFront → Next.js Experience Layer → Next BFF → API Gateway / domain APIs → Aurora
+PostgreSQL + cache/search/object storage → events/jobs/integrations → analytics/observability.
+
+ SERVICE EVOLUTION RULE A module becomes a separate service only when independent scaling, fault
+ isolation, deployment cadence or team ownership creates measurable value.
+
+
+
+
+                                   MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                          VANDLABS / AUTOMOBILE ENGINE
+
+
+
+5. Frontend, Experience & Performance
+ Decision                                                 Locked Direction
+
+
+ Framework                                                Next.js + React + TypeScript.
+
+
+                                                          Hybrid SSG/ISR for public SEO, RSC by default, SSR where
+ Rendering                                                dynamic, client components only for interaction,
+                                                          streaming/Suspense.
+
+
+                                                          Tailwind + shadcn/Radix + custom VandLabs design system.
+ UI                                                       External component libraries are selective inputs, never the
+                                                          visual identity.
+
+
+                                                          Motion/Framer Motion for product interaction; GSAP only
+ Motion                                                   for earned cinematic sequences; Lenis where useful;
+                                                          reduced-motion fallbacks.
+
+
+                                                          Claude-like restraint + premium automotive editorial +
+ Visual language                                          precision instrumentation. No generic neon/glass AI
+                                                          aesthetic.
+
+
+                                                          Restrained by default; cinematic only where context earns
+ Transitions
+                                                          it.
+
+
+                                                          Master assets → AVIF/WebP/JPEG, responsive sizes,
+ Media
+                                                          optimized LCP, lazy offscreen media, S3/CloudFront later.
+
+
+                                                          Poster-first, metadata preload, lazy playback, pause
+ Video
+                                                          offscreen, HLS only where justified.
+
+
+                                                          Self-hosted WOFF2, minimal weights/families, subset,
+ Fonts
+                                                          preload critical fonts.
+
+
+                                                          RSC-first, route splitting, dynamic imports, tree-shaking, CI
+ Bundle
+                                                          bundle budgets, deferred third-party scripts.
+
+
+                                                          Prefetch + cached shell + immediate transition + streamed
+ Loading
+                                                          missing data; skeletons only when useful.
+
+
+                                                          Semantic HTML, keyboard/focus, WCAG-oriented
+ Accessibility
+                                                          contrast/touch, reduced motion, pointer-aware interactions.
+
+
+                                                          Engineering-led: metadata, canonicals, JSON-LD, sitemaps,
+ SEO
+                                                          robots, internal links, image/local SEO, redirects, CWV.
+
+
+
+
+Experience Engine
+One shared technical platform powers many dealership experiences. Brand, typography, colors, spacing, imagery,
+navigation, hero composition, motion intensity and page modules are configurable. Premium clients may receive
+custom components without forking the core platform.
+
+                                MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                     VANDLABS / AUTOMOBILE ENGINE
+
+
+
+
+MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                       VANDLABS / AUTOMOBILE ENGINE
+
+
+
+6. Core Data & Identity Model
+Tenant hierarchy
+VandLabs → Organization / Dealer Group → Brand / Dealership → Location → Users / Inventory / Leads / Campaigns /
+Analytics.
+
+Vehicle Inventory Hub
+The canonical VandLabs vehicle record accepts multiple sources: manual entry, CSV/Excel, dealer DMS/CRM, partner
+APIs and future marketplace adapters. External channels are integrations/projections, not uncontrolled sources of
+truth.
+   Stable vehicle identity + tenant/dealership/location ownership
+   Source + external ID + sync state
+   Make, model, variant, year, fuel, transmission, mileage, ownership, condition
+   Price, availability, publish state, location
+   Media, features, tags and structured specifications
+   Finance/exchange eligibility and conversion context
+   Audit timestamps and source-of-truth conflict rules
+
+Progressive customer identity
+Anonymous Visitor → Lead → Customer → Optional Account. No forced signup for browsing, enquiry, WhatsApp, calls
+or test-drive requests.
+
+Journey graph & attribution
+Capture permitted first-party sessions, sources, campaigns, UTMs, vehicle views, searches and conversion events.
+When a person identifies through an enquiry, associate allowed journey context with the lead. Preserve multiple
+attribution views rather than claiming false certainty.
+   first_touch
+   last_touch
+   lead_creation_source
+   campaign_assisted
+   vehicle_interest_history
+   offline_outcome
+
+
+
+
+                                 MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                       VANDLABS / AUTOMOBILE ENGINE
+
+
+
+7. CRM, Sales & Conversation Engine
+Opinionated automotive pipeline
+NEW → CONTACTED → QUALIFIED → APPOINTMENT → VISITED → TEST DRIVE → NEGOTIATION →
+WON / LOST / NURTURE
+
+Dealerships may configure naming, qualification fields, required information, owners, SLA targets, reminders, lost
+reasons, follow-up sequences and selected automation rules - without turning the product into a generic CRM.
+
+Lead context
+     Customer identity and contact permissions
+     Interested vehicle(s)
+     Source and campaign
+     Assigned salesperson/team
+     Conversation timeline
+     Tasks and follow-ups
+     Appointments and test drives
+     Finance and exchange intent
+     Stage history and outcome
+
+Progressive omnichannel conversation engine
+WhatsApp is first-class, but the data model is channel-neutral. WhatsApp, phone, website chat, forms, email and
+future channels feed one timeline. Basic dealers may use click-to-chat; Growth/Scale deployments can add approved
+WhatsApp APIs, templates, routing, reminders and automation.
+
+    HUMAN HANDOFF AI or automation may qualify, summarize and assist, but must never become a wall
+    between a buyer and a salesperson.
+
+
+
+
+Finance & exchange orchestration
+V1 captures structured finance and exchange intent and routes it into CRM. It does not pretend to approve loans or
+guarantee valuations. Later provider adapters can connect banks/NBFCs, valuation systems and inspection partners.
+
+
+
+
+                                  MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                       VANDLABS / AUTOMOBILE ENGINE
+
+
+
+8. Analytics, Intelligence & AI
+Automotive Intelligence Command Center
+   Business: leads, qualified leads, test drives, negotiations, sales outcomes
+   Acquisition: channel, campaign, source and landing-page performance
+   Vehicle demand: views → enquiries → test drives → sales by vehicle/segment
+   Sales funnel: stage conversion and leakage
+   Operations: uncontacted leads, SLA breaches, overdue follow-ups, today's test drives
+   Economics: only when reliable cost and outcome data exist
+   Intelligence: evidence-backed patterns and recommended areas to investigate
+Operating loop: MEASURE → DIAGNOSE → EXPERIMENT → LEARN
+
+Hybrid vehicle discovery
+Structured filters remain authoritative. Natural-language search can interpret intent such as 'automatic SUV under 15
+lakh with low kilometres', but vehicle facts always come from verified inventory records. Search behavior becomes
+demand intelligence over time.
+
+AI architecture
+AI-ready, not AI-dependent. Automobile Engine uses a VandLabs AI Gateway / Model Router so application code is not
+hardwired to one model provider. AI may assist classification, summarization, qualification, retrieval and
+recommendations; consequential actions remain controlled.
+   Structured-output validation
+   Prompt/version management
+   Guardrails and permission checks
+   Cost/latency observability
+   Evaluation datasets
+   Provenance for retrieval-backed answers
+   No silent consequential actions
+
+
+
+
+                                 MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                           VANDLABS / AUTOMOBILE ENGINE
+
+
+
+9. Multi-Tenancy, Security & Permissions
+Standard dealerships use strong shared multi-tenancy; enterprise groups can move to dedicated
+databases/environments when justified. Isolation is enforced at multiple layers rather than relying on a single
+tenant_id filter.
+     Database tenant scoping + PostgreSQL RLS where appropriate
+     Service-layer authorization on every protected action
+     Tenant-scoped cache, search indexes and analytics
+     Tenant-scoped object-storage paths/policies
+     Automated cross-tenant isolation tests
+     Audit logging for privileged actions
+     Controlled, temporary and auditable VandLabs support access
+
+RBAC + scope model
+    Role example                                             Typical scope
+
+
+    Dealer Group Owner                                       Entire organization / multiple dealerships
+
+
+    Dealership Admin                                         Specific dealership
+
+
+    Location Manager                                         One or more locations
+
+
+    Sales Manager                                            Leads, team, pipeline, reports
+
+
+    Salesperson                                              Assigned leads/customers/conversations/tasks/test drives
+
+
+    Inventory Manager                                        Vehicles, price, media, availability
+
+
+    Marketing                                                Campaigns, landing pages, analytics, attribution
+
+
+    Agency                                                   Explicitly granted marketing/content scope
+
+
+    VandLabs Support                                         Controlled + audited support access
+
+
+
+Permissions are capability-based (for example vehicle.publish, lead.assign, lead.export, integration.manage) and then
+scoped by organization, dealership, location or assigned records. Sensitive exports, deletion, privileged access and
+critical integration changes can require approval.
+
+
+
+
+                                  MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                           VANDLABS / AUTOMOBILE ENGINE
+
+
+
+10. Backend, AWS & Reliability
+ Area                                                         Locked Direction
+
+
+                                                              AWS-native, connected after frontend contracts/mocks are
+ Backend
+                                                              stable.
+
+
+                                                              Next.js BFF → API Gateway → domain APIs; contract-first
+ API
+                                                              REST + OpenAPI + generated TypeScript types.
+
+
+ Database                                                     Aurora PostgreSQL as transactional source of truth.
+
+
+                                                              Browser/edge/Next caches first; Redis/ElastiCache when
+ Cache
+                                                              justified.
+
+
+                                                              S3 + CloudFront; signed uploads; validation/scanning where
+ Files
+                                                              warranted.
+
+
+                                                              Progressive search interface; OpenSearch when
+ Search
+                                                              scale/requirements justify it.
+
+
+ Jobs                                                         SQS + EventBridge + Lambda/workers for async work.
+
+
+                                                              SSE/WebSocket only for flows that genuinely require live
+ Realtime
+                                                              updates.
+
+
+ Infrastructure as Code                                       AWS CDK + TypeScript.
+
+
+                                                              Amazon Cognito foundation for staff/admin; stronger MFA
+ Auth
+                                                              for privileged roles.
+
+
+                                                              OpenTelemetry-first; CloudWatch + optional
+ Observability
+                                                              Sentry/Grafana.
+
+
+                                                              Timeouts, retry with jitter, idempotency, transactions,
+ Resilience
+                                                              DLQs, health checks and structured errors.
+
+
+                                                              Aurora PITR, S3 versioning/lifecycle, encrypted backups,
+ Backup/DR
+                                                              IaC rebuildability, restore testing.
+
+
+
+
+Caching model
+Browser → CloudFront/edge → Next route/data cache → application cache → Redis when justified → Aurora/Postgres.
+
+Offline rule
+Business/customer data is online-first. Static browser caching is fine; do not fake successful business mutations offline.
+Server remains the source of truth.
+
+
+
+
+                                   MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                                        VANDLABS / AUTOMOBILE ENGINE
+
+
+
+11. Integrations, Automation & Platform Operations
+VandLabs Integration Hub
+Core modules talk to normalized VandLabs interfaces rather than individual vendors. Provider adapters handle
+DMS/CRM, WhatsApp BSPs, Meta/Google, finance, valuation, email/SMS and future marketplace connections.
+Representative internal contracts: sendMessage(), createLead(), syncVehicle(), updateInventory(), createFinanceEnquiry(),
+recordCampaignEvent(), scheduleFollowUp().
+
+
+n8n may power dealership-specific workflows, rapid experiments and unusual integrations, but core business logic
+must not depend on n8n.
+
+Managed automated provisioning
+New dealership onboarding provisions organization, locations, brand/design profile, domain, staff/permissions,
+inventory source, contact channels, analytics, CRM defaults, entitlements, SEO configuration and QA.
+
+Platform Control Center
+    Dealerships, dealer groups, onboarding and domains
+    Entitlements and feature rollout
+    Integration/webhook/job health
+    Usage, storage and AI cost signals
+    System health, errors and deployment versions
+    Support and controlled tenant access
+
+Feature control
+Feature flags control rollout/experiments; entitlements control what a dealership has purchased or is allowed to use.
+These are separate systems. Commercial packages are bundles over modular capabilities, not separate codebases.
+
+
+
+
+                                        MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                            VANDLABS / AUTOMOBILE ENGINE
+
+
+
+12. Engineering Delivery Standard
+Repository
+Professional pnpm + Turborepo monorepo. Suggested boundaries: apps for dealership web, admin/command center
+and API; packages for UI, tokens, schemas, contracts, analytics, auth, SEO, media and config; infrastructure/aws;
+tests/tooling.
+
+State & forms
+Server-first state. TanStack Query for interactive server data, Zustand for small global client state, React local state for
+local UI, URL parameters for shareable/filter state, React Hook Form + schema validation for forms. Backend
+independently validates contracts.
+
+CI/CD
+Branch → PR → lint/typecheck → unit/integration/contract tests → build + bundle budget → security scan → Playwright
+→ preview → staging → production → monitoring. Use feature flags, safe migrations, rollback and canary/blue-green
+patterns for higher-risk backend changes.
+
+Testing
+   Unit + component tests
+   Integration + API contract tests
+   Playwright critical-path E2E
+   Visual regression
+   Accessibility checks
+   Performance/Core Web Vitals budgets
+   Load testing for critical APIs
+   Security and tenant-isolation tests
+   Cross-browser/device QA
+
+Launch QA
+   Every CTA works and carries correct vehicle context
+   Forms create correct lead records and attribution
+   WhatsApp links/messages carry vehicle context
+   Vehicle data, price, availability and media are verified
+   Analytics events fire once with correct tenant/source/vehicle context
+   Privacy/consent and opt-out behavior is correct
+   SEO/canonicals/structured data/sitemaps are correct
+   No test leads, placeholder credentials or debug data remain
+
+
+
+
+                                   MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+                                                                                          VANDLABS / AUTOMOBILE ENGINE
+
+
+
+13. Agent Build Directive
+ INSTRUCTION TO EVERY IMPLEMENTATION AGENT Build the VandLabs Automobile Engine as a production-
+ grade, multi-tenant automotive commerce and growth platform. Do not reduce it to a dealership template,
+ generic CRM, workshop ERP or AI demo.
+
+
+
+
+Agent priorities
+1. Preserve the domain boundaries in this specification.
+2. Keep V1 focused on the Proof-of-Engine scope; do not silently add future modules.
+3. Prefer shared platform capabilities over dealership-specific forks.
+4. Keep customer-facing experiences premium, restrained, fast and highly responsive.
+5. Treat vehicle, lead, customer, tenant and attribution data as authoritative business data.
+6. Never fabricate analytics, attribution, vehicle facts, availability or business outcomes.
+7. Keep AI assistive and controlled; deterministic systems remain authoritative.
+8. Enforce tenant isolation and server-side authorization regardless of UI behavior.
+9. Use contract-first interfaces so frontend, backend, integrations and AI can evolve independently.
+10. Optimize aggressively without sacrificing the premium visual standard.
+11. Every feature must work across organization → dealership → location scopes where relevant.
+12. When a requirement conflicts with this document, surface the conflict instead of guessing.
+
+Reference implementation success path
+Campaign / Google / social → dealership landing experience → inventory → vehicle detail →
+WhatsApp / form / call / test-drive → lead record → qualification → follow-up → visit/test drive →
+outcome → dashboard → optimization.
+
+Definition of done for the first reference dealership
+A polished, realistic used-car dealership can be provisioned on its own domain, publish verified inventory, attract and
+attribute traffic, convert vehicle interest into structured leads, operate those leads through a basic sales pipeline, and
+view trustworthy operational and conversion reporting - all on the shared VandLabs platform without custom-forking
+the core.
+
+
+                VANDLABS AUTOMOBILE ENGINE • MASTER SPECIFICATION • SOURCE OF TRUTH FOR V1 BUILD
+
+
+
+
+                                   MASTER PRODUCT + ARCHITECTURE SPECIFICATION • v1.0
+

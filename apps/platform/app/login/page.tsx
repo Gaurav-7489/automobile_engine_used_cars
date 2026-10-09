@@ -5,8 +5,8 @@ export const dynamic = "force-dynamic";
 export default async function Login({searchParams}:{searchParams:Promise<{returnTo?:string}>}) {
   const params = await searchParams;
   const target = safeReturnTo(params.returnTo || null, "/platform");
-  const configured = ["APP_ORIGIN", "COGNITO_DOMAIN", "COGNITO_CLIENT_ID", "COGNITO_USER_POOL_ID", "SESSION_SECRET", "AUTH_PRINCIPALS_JSON"]
-    .every(key => Boolean(process.env[key]));
+  const configured = ["APP_ORIGIN", "COGNITO_DOMAIN", "COGNITO_CLIENT_ID", "COGNITO_USER_POOL_ID", "SESSION_SECRET"]
+    .every(key => Boolean(process.env[key])) && (process.env.AUTH_REGISTRY_MODE === "database" || Boolean(process.env.AUTH_PRINCIPALS_JSON));
   return <main className="main"><section className="panel">
     <p className="eyebrow">VandLabs Automobile Engine</p>
     <h1>{configured ? "Sign in to your workspace" : "Staff sign-in is not connected yet"}</h1>

@@ -10,7 +10,7 @@ import { vehicles } from "../../packages/demo-data/src/index";
 test("real PostgreSQL engine: isolation, shared records, atomic audit/task writes and rollback",async()=>{
  const db=new PGlite();await db.waitReady;
  try{
-  for(const name of ["0001_core_tenant_schema.sql","0002_ecosystem_records.sql","0003_sales_inventory_history.sql","0004_stock_costs.sql"]){const sql=await readFile(`infra/database/migrations/${name}`,"utf8");await db.exec(sql.replace("CREATE EXTENSION IF NOT EXISTS pgcrypto;",""));}
+  for(const name of ["0001_core_tenant_schema.sql","0002_ecosystem_records.sql","0003_sales_inventory_history.sql","0004_stock_costs.sql","0005_platform_staff.sql"]){const sql=await readFile(`infra/database/migrations/${name}`,"utf8");await db.exec(sql.replace("CREATE EXTENSION IF NOT EXISTS pgcrypto;",""));}
   const a="11111111-1111-4111-a111-111111111111",b="22222222-2222-4222-a222-222222222222";
   const dealer="33333333-3333-4333-a333-333333333333",location="44444444-4444-4444-a444-444444444444",otherLocation="55555555-5555-4555-a555-555555555555",vehicleId="66666666-6666-4666-a666-666666666666";
   await db.query("INSERT INTO organizations(id,tenant_id,name) VALUES($1,$1,'A'),($2,$2,'B')",[a,b]);

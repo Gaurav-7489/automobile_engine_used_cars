@@ -80,3 +80,9 @@ CRM code `24d277222faead4c7f4f506d02d58aedf89d7ec6` passed [Quality Gate 3779598
 ## Merged main delivery — 8 October 2026
 
 PRs #11–#14 are merged into main at software commit `de24fa90afe85af992f022081fcc361e9e4cb7be`. Fresh [main Quality Gate 37804149388](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37804149388) passed all checks (62 browser, 14 auth HTTP, 18 security, 4 database/demo/CSV, 5 intelligence, builds and AWS/CDK). Native tests and packaging passed at an identical full tree. See [main delivery report](main-delivery-2026-10-08.md). The older increment reports are historical; staging, installed native acceptance and full ecosystem/production completion remain open.
+
+## Connected Platform increment — 9 October 2026
+
+Durable Platform hierarchy/operational counts, staff grants with immediate database-registry revocation, role/scope controls, assigned-lead salesperson restrictions, version conflicts and atomic platform audit are now implemented. Migration 0005 and application-role grants are mandatory. Real-tenant hierarchy/internal-rule provisioning is an atomic migration-admin command; full cloud onboarding/billing/offboarding remain open. Verified TLS, serverless pool controls, readiness APIs and a redacted CLI doctor are included. Five complete shared source documents are archived with hashes under specifications/.
+
+Local lint/typecheck, four builds, 23 security, 6 database/provisioning and 5 intelligence regressions passed. Full exact-revision browser/native CI acceptance and publication are recorded in the current checkpoint. Vercel lacks shared database/Cognito/tenant settings; AWS identity/connectivity and real live acceptance remain external blockers. The full ecosystem is not complete. See release-2026-10-09.md and shared-staging-setup.md.

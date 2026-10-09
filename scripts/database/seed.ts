@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { Pool } from "../../packages/data/src/postgres";
+import { migrationPool } from "../../packages/data/src/postgres";
 import { tenantConfig, vehicles, leads, tasks, appointments } from "../../packages/demo-data/src/index";
 import { getAutomationRules } from "../../packages/demo-data/src/automation";
 // Explicit reference seed only. Never import this dataset into a live dealership.
@@ -13,7 +13,7 @@ function register(value:unknown){if(Array.isArray(value)){value.forEach(register
 register([tenantConfig,vehicles,leads,tasks,appointments,rules]);
 function remap(value:unknown):unknown{if(typeof value==="string")return mapping.get(value)||value;if(Array.isArray(value))return value.map(remap);if(value&&typeof value==="object")return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,remap(v)]));return value;}
 const config=remap(tenantConfig) as typeof tenantConfig;
-const pool=new Pool({connectionString:process.env.MIGRATION_DATABASE_URL});const c=await pool.connect();
+const pool=migrationPool();const c=await pool.connect();
 try{
  await c.query("BEGIN");
  if((await c.query("SELECT id FROM organizations LIMIT 1")).rows.length)throw new Error("Reference seed requires an empty database.");

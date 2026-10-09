@@ -1,8 +1,8 @@
 import { readFile, readdir } from "node:fs/promises";
-import { Pool } from "../../packages/data/src/postgres";
+import { migrationPool } from "../../packages/data/src/postgres";
 const url=process.env.MIGRATION_DATABASE_URL;
 if(!url)throw new Error("Set MIGRATION_DATABASE_URL to a migration/admin connection.");
-const pool=new Pool({connectionString:url});const client=await pool.connect();
+const pool=migrationPool();const client=await pool.connect();
 try {
   await client.query("SELECT pg_advisory_lock(884214)");
   await client.query("CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())");

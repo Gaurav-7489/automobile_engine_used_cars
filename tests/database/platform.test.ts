@@ -1,0 +1,56 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFile, readdir } from "node:fs/promises";
+import { PGlite } from "@electric-sql/pglite";
+import { postgresPlatformStore } from "../../packages/data/src/platform";
+import { postgresStore } from "../../packages/data/src/index";
+import type { SqlPool } from "../../packages/data/src/postgres";
+import { AuthorizationError, type AuthenticatedPrincipal } from "../../packages/contracts/src/index";
+import { ConflictError, InputError } from "../../packages/data/src/errors";
+
+test("platform shares operational records; staff grants revoke immediately and audit atomically under RLS",async()=>{
+  const db=new PGlite();await db.waitReady;
+  const tenant="11111111-1111-4111-a111-111111111111",other="22222222-2222-4222-a222-222222222222";
+  const dealer="33333333-3333-4333-a333-333333333333",location="44444444-4444-4444-a444-444444444444";
+  try {
+    for(const name of (await readdir("infra/database/migrations")).filter(n=>n.endsWith(".sql")).sort())await db.exec((await readFile(`infra/database/migrations/${name}`,"utf8")).replace("CREATE EXTENSION IF NOT EXISTS pgcrypto;",""));
+    await db.query("INSERT INTO organizations(id,tenant_id,name) VALUES($1,$1,'Dealer Group'),($2,$2,'Other Group')",[tenant,other]);
+    await db.query("INSERT INTO dealerships(id,tenant_id,organization_id,name,brand_name) VALUES($1,$2,$2,'Dealer','Dealer')",[dealer,tenant]);
+    await db.query("INSERT INTO locations(id,tenant_id,dealership_id,name,city,state,phone) VALUES($1,$2,$3,'Location','City','State','123')",[location,tenant,dealer]);
+    await db.exec(await readFile("infra/database/application-role.sql","utf8"));await db.exec("SET ROLE vandlabs_app");
+    const pool:SqlPool={async connect(){return {async query(sql,values){const r=await db.query<Record<string,unknown>>(sql,values);return {rows:r.rows};},release(){}};}};
+    const store=postgresPlatformStore(pool);
+    const admin:AuthenticatedPrincipal={userId:"platform-admin",tenantId:tenant,dealershipIds:[],locationIds:[],capabilities:["platform:admin"],platformTenantIds:[tenant]};
+    const input={userId:"cognito-staff",displayName:"Dealer Owner",role:"owner",dealershipIds:[dealer],locationIds:[location],enabled:true};
+    const member=await store.saveStaff(admin,tenant,input,0);assert.equal(member.version,1);
+    const principal=await store.principal(input.userId,tenant);assert.ok(principal);assert.ok(principal.capabilities.includes("capital:write"));
+    const business=postgresStore(pool);
+    const created=await business.createLead({tenantId:tenant,dealershipId:dealer,locationId:location,name:"Buyer",phone:"123",vehicleIds:[],channel:"web",source:"website",intent:"enquiry",consent:{whatsapp:false,marketing:false}});
+    const platform=(await store.snapshot(admin))[0];assert.equal(platform.counts.leads,1);assert.equal(platform.audit.length,1);
+    assert.equal((await business.snapshot(principal)).leads[0].id,created.lead.id);
+    await store.saveStaff(admin,tenant,{...input,userId:"cognito-sales",role:"sales"},0);
+    const salesperson=await store.principal("cognito-sales",tenant);assert.ok(salesperson);
+    assert.equal((await business.snapshot(salesperson)).leads.length,0);
+    await assert.rejects(business.patchLead(salesperson,created.lead.id,{notes:"Unassigned"},0),AuthorizationError);
+    await business.patchLead(principal,created.lead.id,{assignedTo:"cognito-sales"},0);
+    assert.equal((await business.snapshot(salesperson)).leads[0].id,created.lead.id);
+    await assert.rejects(business.patchLead(salesperson,created.lead.id,{assignedTo:"someone-else"},1),AuthorizationError);
+    await business.patchLead(salesperson,created.lead.id,{notes:"Assigned follow-up"},1);
+    await assert.rejects(store.saveStaff(admin,tenant,{...input,role:"viewer"},0),ConflictError);
+    await assert.rejects(store.saveStaff(admin,other,input,0),AuthorizationError);
+    await assert.rejects(store.snapshot(principal),AuthorizationError);
+    await assert.rejects(store.saveStaff(admin,tenant,{...input,locationIds:[other]},1),InputError);
+    await assert.rejects(store.saveStaff(admin,tenant,{...input,role:"platform:admin"},1),InputError);
+    await assert.rejects(store.saveStaff(admin,tenant,{...input,userId:admin.userId},0),InputError);
+    const broken:SqlPool={async connect(){const c=await pool.connect();return {release:()=>c.release(),async query(sql,values){if(sql.startsWith("INSERT INTO platform_audit"))throw new Error("audit failure");return c.query(sql,values);}};}};
+    await assert.rejects(postgresPlatformStore(broken).saveStaff(admin,tenant,{...input,enabled:false},1),/audit failure/);
+    assert.ok(await store.principal(input.userId,tenant));
+    const disabled=await store.saveStaff(admin,tenant,{...input,enabled:false},1);assert.equal(disabled.version,2);
+    assert.equal(await store.principal(input.userId,tenant),null);
+    assert.equal(await store.principal(input.userId,other),null);
+    assert.equal((await store.snapshot({...admin,platformTenantIds:[other]}))[0].counts.leads,0);
+    assert.equal((await store.snapshot(admin))[0].audit.length,3);
+    assert.equal((await db.query("SELECT * FROM staff_members")).rows.length,0);
+    await assert.rejects(db.query("DELETE FROM platform_audit"),/permission denied/);
+  }finally{await db.close();}
+});
