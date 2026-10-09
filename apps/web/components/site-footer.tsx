@@ -6,7 +6,7 @@ export function SiteFooter() {
     <footer className="footer">
       <div className="shell footer-grid">
         <div>
-          <p className="eyebrow">Apex Select Cars</p>
+          <p className="eyebrow">{tenantConfig.brand.logoText}</p>
           <h2>Exceptional cars. Clearly presented.</h2>
         </div>
         <div>
@@ -34,7 +34,7 @@ export function SiteFooter() {
       </div>
       <div className="shell footer-bottom">
         <span>Powered by VandLabs Automobile Engine</span>
-        <span>Proof-of-Engine V1 demo</span>
+        <span>Reference dealership · <Link href="/download">Download the workspace ↗</Link></span>
       </div>
     </footer>
   );

@@ -35,6 +35,9 @@ importers:
 
   apps/command-center:
     dependencies:
+      '@vandlabs/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       '@vandlabs/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -100,6 +103,9 @@ importers:
 
   apps/platform:
     dependencies:
+      '@vandlabs/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       '@vandlabs/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -134,6 +140,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@vandlabs/design-system':
+        specifier: workspace:*
+        version: link:../../packages/design-system
       '@vandlabs/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -196,7 +205,14 @@ importers:
         specifier: workspace:*
         version: link:../contracts
 
-  packages/design-system: {}
+  packages/design-system:
+    dependencies:
+      next:
+        specifier: ^15.5.3
+        version: 15.5.26(@playwright/test@1.63.0)(@types/node@24.19.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react:
+        specifier: ^19.1.1
+        version: 19.3.0
 
   packages/server-auth:
     dependencies:

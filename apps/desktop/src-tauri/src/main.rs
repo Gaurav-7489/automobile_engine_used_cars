@@ -17,6 +17,24 @@ struct AppState { session:Mutex<Option<Session>>, login:Mutex<bool> }
 struct Tokens { access_token:String,refresh_token:Option<String>,expires_in:u64 }
 fn now()->u64{SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()}
 fn client()->Result<reqwest::Client,String>{reqwest::Client::builder().timeout(Duration::from_secs(15)).redirect(reqwest::redirect::Policy::none()).build().map_err(|_|"Network client unavailable.".into())}
+fn workspace_origin(value:&str)->Result<Url,String>{
+ let mut url=Url::parse(value).map_err(|_|"Enter your HTTPS workspace URL.")?;
+ if url.scheme()!="https"||url.host_str().is_none()||!url.username().is_empty()||url.password().is_some()||url.query().is_some()||url.fragment().is_some()||!["/","/command","/command/"].contains(&url.path()){return Err("Use your HTTPS workspace URL without credentials or query parameters.".into());}
+ url.set_path("/");Ok(url)
+}
+#[tauri::command]
+async fn discover_connection(origin:String)->Result<Config,String>{
+ let api=workspace_origin(&origin)?;
+ let response=client()?.get(api.join("command/api/desktop-config").map_err(|_|"Invalid workspace URL.")?).send().await.map_err(|_|"Could not reach this workspace. Check the URL and your connection.")?;
+ if !response.status().is_success(){return Err("Desktop access is not activated for this workspace. Contact your administrator.".into());}
+ if response.content_length().unwrap_or(0)>8192{return Err("Invalid workspace configuration.".into());}
+ let mut bytes=Vec::new();let mut response=response;
+ while let Some(chunk)=response.chunk().await.map_err(|_|"Invalid workspace configuration.")?{if bytes.len()+chunk.len()>8192{return Err("Invalid workspace configuration.".into());}bytes.extend_from_slice(&chunk);}
+ let config:Config=serde_json::from_slice(&bytes).map_err(|_|"Invalid workspace configuration.")?;
+ let (configured,_,_)=validated(&config)?;
+ if configured!=api{return Err("Workspace configuration does not match the requested URL.".into());}
+ Ok(config)
+}
 fn validated(c:&Config)->Result<(Url,Url,String),String>{
  let api=Url::parse(&c.api_origin).map_err(|_|"Invalid API origin.")?;
  let domain=Url::parse(&c.cognito_domain).map_err(|_|"Invalid sign-in domain.")?;
@@ -95,5 +113,9 @@ async fn api_request(config:Config,path:String,method:String,body:Option<serde_j
  if !response.status().is_success(){return Err(match response.status().as_u16(){401=>"Your session expired. Sign in again.",403=>"Your account does not have permission for this operation.",404=>"This record is no longer available.",_=>"The operation could not be completed."}.into());}
  response.json().await.map_err(|_|"Invalid response from dealership API.".into())
 }
-fn main(){tauri::Builder::default().manage(AppState::default()).invoke_handler(tauri::generate_handler![login,restore_session,logout,api_request]).run(tauri::generate_context!()).expect("Desktop startup failed.");}
+fn main(){tauri::Builder::default().manage(AppState::default()).invoke_handler(tauri::generate_handler![login,restore_session,logout,api_request,discover_connection]).run(tauri::generate_context!()).expect("Desktop startup failed.");}
 #[cfg(test)]mod tests{use super::*;#[test]fn paths_are_scoped(){assert!(allowed("/snapshot","GET"));assert!(allowed("/vehicles/abc-123/costs","PUT"));assert!(!allowed("/vehicles/abc-123/costs","DELETE"));assert!(!allowed("/vehicles/abc-123/costs","POST"));assert!(allowed("/leads/abc-123/tasks","POST"));assert!(allowed("/leads/abc-123/sales","POST"));assert!(allowed("/leads/abc-123/appointments","POST"));assert!(allowed("/appointments/abc-123","PATCH"));assert!(!allowed("/leads/abc-123/sales","DELETE"));assert!(!allowed("/../platform","GET"));assert!(!allowed("/vehicles/abc?token=secret","PATCH"));}#[test]fn credentials_are_bound_to_connection(){let c=Config{api_origin:"https://dealer.example".into(),cognito_domain:"https://auth.example".into(),client_id:"abc".into()};assert!(validated(&c).is_ok());let mut bad=c.clone();bad.api_origin="http://dealer.example".into();assert!(validated(&bad).is_err());}}
+
+#[cfg(test)]mod discovery_tests{use super::*;
+ #[test]fn discovery_origin_is_strict(){assert_eq!(workspace_origin("https://dealer.example/command").unwrap().as_str(),"https://dealer.example/");for url in ["http://dealer.example","https://user:pass@dealer.example","https://dealer.example?token=x","https://dealer.example/untrusted"]{assert!(workspace_origin(url).is_err());}}
+}

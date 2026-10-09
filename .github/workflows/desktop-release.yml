@@ -1,0 +1,96 @@
+name: Publish desktop development release
+on:
+  workflow_run:
+    workflows: ['Quality Gate']
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: desktop-release-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+jobs:
+  installers:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.event == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: universal-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: corepack prepare pnpm@10.17.1 --activate
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+        if: runner.os == 'macOS'
+      - uses: dtolnay/rust-toolchain@stable
+        if: runner.os == 'Windows'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @vandlabs/desktop typecheck
+      - name: Native regressions
+        working-directory: apps/desktop/src-tauri
+        run: cargo test
+      - name: Build installer from tested source
+        working-directory: apps/desktop
+        run: pnpm tauri build --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ runner.os }}
+          if-no-files-found: error
+          path: |
+            apps/desktop/src-tauri/target/**/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/**/bundle/dmg/*.dmg
+  publish:
+    needs: installers
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+      - name: Prepare checksums and publish a development prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          QUALITY_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          [[ "$TESTED_SHA" =~ ^[a-f0-9]{40}$ ]]
+          tag="desktop-${TESTED_SHA:0:12}"
+          mapfile -t windows < <(find installers -name '*.exe')
+          mapfile -t mac < <(find installers -name '*.dmg')
+          test "${#windows[@]}" = 1
+          test "${#mac[@]}" = 1
+          cp "${windows[0]}" Automobile-Engine-Windows-x64.exe
+          cp "${mac[0]}" Automobile-Engine-macOS-universal.dmg
+          sha256sum Automobile-Engine-Windows-x64.exe Automobile-Engine-macOS-universal.dmg > SHA256SUMS.txt
+          cat > release-notes.md <<EOF
+          Automated development distribution from tested source $TESTED_SHA.
+
+          Quality Gate: $QUALITY_URL
+
+          Windows x64 and universal macOS installers. Unsigned development builds: signing, notarization and installed HTTPS/Cognito acceptance remain pending. An activated dealership backend is required. These are installers, not a provisioned backend or a production-certified release.
+
+          Verify SHA-256 against the attached SHA256SUMS.txt before installation.
+          EOF
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo 'Release already published; keeping immutable assets.'
+            exit 0
+          fi
+          gh release create "$tag" --target "$TESTED_SHA" --title "Automobile Engine development ${TESTED_SHA:0:12}" --prerelease --notes-file release-notes.md Automobile-Engine-Windows-x64.exe Automobile-Engine-macOS-universal.dmg SHA256SUMS.txt

@@ -12,6 +12,7 @@ export function runtimeReadiness(surface:Surface,env:Environment=process.env) {
     {key:"write-mode",ready:!preview,detail:preview?"Browse-only preview; operational writes disabled":"Operational write mode selected"},
     {key:"tls",ready:env.DATABASE_TLS!=="off",detail:"Database TLS and certificate verification are required"},
   ];
+  if(surface==="web") checks.push({key:"public-rate-limit",ready:Boolean(env.UPSTASH_REDIS_REST_URL&&env.UPSTASH_REDIS_REST_TOKEN),detail:"Public writes require a shared Redis REST limiter; local counters are only for the reference demo"});
   if(surface!=="web") {
     for(const key of ["APP_ORIGIN","COGNITO_DOMAIN","COGNITO_USER_POOL_ID","COGNITO_CLIENT_ID","SESSION_SECRET"])checks.push({key,ready:Boolean(env[key]),detail:`Configure ${key} on this staff application`});
     checks.push({key:"auth-mode",ready:env.AUTH_MODE==="cognito",detail:"Cognito identity verification is required for shared data"});

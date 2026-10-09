@@ -117,3 +117,7 @@ The Platform now reads the same stock/lead/task/sale state as the other apps and
 The Vercel deployments remain protected browse-only previews until shared Aurora connectivity and Cognito settings are supplied and accepted. A successful build is not a live-backend certification.
 
 Final merged evidence, installers, all five source documents and refreshed preview targets: [9 October main delivery](docs/main-delivery-2026-10-09.md).
+
+## Premium showroom and desktop downloads
+
+The current interface includes the public showroom, redesigned Command Center/Platform and matching native workspace. Open `/download` on the public app for automatically resolved Windows/macOS development installers. A successful main Quality Gate triggers both native builds and publishes a source-bound prerelease with SHA-256 checksums. Unsigned development builds require an activated online backend; see [experience and distribution](docs/premium-experience-distribution.md) for the exact behavior, public rate protection and remaining live acceptance.

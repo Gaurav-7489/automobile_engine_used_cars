@@ -1,5 +1,5 @@
 import "./globals.css";
-import Link from "next/link";
+import { WorkspaceNav } from "@vandlabs/design-system/navigation";
 
 const nav = [
   ["Overview", "/"],
@@ -22,6 +22,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
+        <a className="skip-link" href="#workspace-content">Skip to workspace</a>
         <div className="platform-shell">
           <header className="platform-header">
             <div>
@@ -30,14 +31,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <span className="environment">{process.env.DATA_MODE==="aurora"?"SHARED OPERATIONS":"REFERENCE DATA"}</span>
           </header>
-          <nav className="nav" aria-label="Platform navigation">
-            {nav.map(([label, href]) => (
-              <Link key={href} href={href}>
-                {label}
-              </Link>
-            ))}
-          </nav><form action="/platform/auth/logout" method="post"><button type="submit">Sign out</button></form>
-          {children}
+          <WorkspaceNav items={nav} basePath="/platform" className="nav" label="Platform navigation" /><form action="/platform/auth/logout" method="post"><button type="submit">Sign out</button></form>
+          <div id="workspace-content" tabIndex={-1}>{children}</div>
         </div>
       </body>
     </html>

@@ -1,0 +1,1 @@
+export default function Loading() { return <main aria-busy="true" aria-label="Loading platform"><div className="ui-skeleton skeleton-title" /><div className="metrics">{[0,1,2,3,4,5].map(item=><article key={item}><div className="ui-skeleton" /><div className="ui-skeleton skeleton-value" /></article>)}</div><p className="lede">Loading platform records…</p></main>; }

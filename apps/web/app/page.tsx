@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { dealershipService } from "../lib/services";
-import { number } from "../lib/format";
+import { ShowroomHero } from "../components/showroom-hero";
+import { SpotlightCard } from "../components/spotlight-card";
 import { dealershipJsonLd, serializeJsonLd } from "../lib/seo";
 import { VehicleCard } from "../components/vehicle-card";
 
@@ -19,40 +20,7 @@ export default async function Page() {
         }}
       />
 
-      <section className="shell hero">
-        <div className="hero-copy">
-          <p className="eyebrow">
-            {dealer.name} · {dealer.locations.map((item) => item.city).join(" / ")}
-          </p>
-          <h1>Cars worth arriving in.</h1>
-          <p className="lede">
-            Verified premium pre-owned inventory, presented with the context you
-            actually need to decide.
-          </p>
-          <div className="actions">
-            <Link className="button primary" href="/inventory">
-              Explore {snapshot.available} available cars
-            </Link>
-            <Link className="button" href="/contact">
-              Speak to a specialist
-            </Link>
-          </div>
-        </div>
-        <div className="hero-facts" aria-label="Dealership facts">
-          <div>
-            <strong>{snapshot.inventory}</strong>
-            <span>published vehicles</span>
-          </div>
-          <div>
-            <strong>2</strong>
-            <span>studio locations</span>
-          </div>
-          <div>
-            <strong>{number(100)}%</strong>
-            <span>vehicle context preserved</span>
-          </div>
-        </div>
-      </section>
+      <ShowroomHero vehicle={featured[0]} dealer={dealer.name} cities={dealer.locations.map(item => item.city).join(" / ")} available={snapshot.available} locations={dealer.locations.length} />
 
       <section className="shell section">
         <div className="sectionhead">
@@ -108,17 +76,14 @@ export default async function Page() {
         </div>
       </section>
 
-      <section className="dark-band">
-        <div className="shell band-grid">
-          <div>
-            <p className="eyebrow light">Powered by VandLabs Automobile Engine</p>
-            <h2>The website is the front door, not the whole building.</h2>
+      <section className="ecosystem-band">
+        <div className="shell">
+          <div className="sectionhead"><div><p className="eyebrow light">VandLabs Automobile Engine</p><h2>One engine.<br />Every opportunity.</h2></div><p className="subtle">From the first vehicle view to the next sale.<br />A connected workspace for your dealership.</p></div>
+          <div className="ecosystem-grid">
+            <SpotlightCard><span className="feature-number">01 / DISCOVERY</span><h3>A showroom that works for you.</h3><p>Inventory, vehicle details, comparison and enquiry. Every conversation starts with context.</p><Link href="/inventory">Explore the collection ↗</Link></SpotlightCard>
+            <SpotlightCard><span className="feature-number">02 / OPERATIONS</span><h3>Your dealership, within reach.</h3><p>Leads, follow-ups, appointments and stock operations in the Windows and macOS workspace.</p><Link href="/download">Get the desktop app ↗</Link></SpotlightCard>
+            <SpotlightCard><span className="feature-number">03 / CONNECTION</span><h3>Keep the human in the loop.</h3><p>Speak with a specialist about your next car, an exchange or a confirmed showroom visit.</p><Link href="/contact">Start a conversation ↗</Link></SpotlightCard>
           </div>
-          <p>
-            Every permitted source, campaign and vehicle interaction can flow
-            into a structured lead, sales follow-up and trustworthy reporting
-            without forcing a customer account.
-          </p>
         </div>
       </section>
     </main>
