@@ -1,4 +1,6 @@
-# V1 Proof-of-Engine — Release Status
+# Historical V1 Proof-of-Engine release notes
+
+Current delivery and live blockers: [9 October release](release-2026-10-09.md) and [completion register](source-of-truth-completion-register.md). The certification counts and boundaries below describe the September reference release, not the current product or production acceptance.
 
 Version: **1.0.0-proof-of-engine**
 

@@ -100,3 +100,13 @@ code { font-size: 11px; color: #a8d9c3; }
   .check-row { grid-template-columns: 34px 1fr; }
   .check-row > .pill { grid-column: 2; }
 }
+
+button { cursor: pointer; font: inherit; padding: .65rem 1rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+button:disabled { opacity: .55; cursor: wait; }
+.staff-form { display: grid; gap: 16px; max-width: 640px; padding-top: 24px; }
+.staff-form label { display: grid; gap: 7px; }
+.staff-form input:not([type=checkbox]), .staff-form select { width: 100%; min-height: 44px; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.staff-form fieldset { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+.staff-form .check { display: flex; align-items: center; gap: 10px; }
+.staff-form .check input { width: 18px; height: 18px; }
+:focus-visible { outline: 3px solid #81c5a4; outline-offset: 3px; }

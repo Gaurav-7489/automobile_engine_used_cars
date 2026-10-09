@@ -3,10 +3,13 @@ import { accessError } from "@vandlabs/server-auth";
 import { authorizeCommandPage } from "./lib/auth";
 
 export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
+  // NextURL strips the configured basePath before middleware sees pathname.
+  const pathname = request.nextUrl.pathname;
+  const path = pathname === "/command" || pathname.startsWith("/command/")
+    ? pathname : "/command" + (pathname === "/" ? "" : pathname);
   if (path === "/command/login" || path.startsWith("/command/auth/")) return NextResponse.next();
   // Mutation handlers verify identity and resource scope themselves.
-  if (request.nextUrl.pathname.startsWith("/command/api/")) return NextResponse.next();
+  if (path.startsWith("/command/api/")) return NextResponse.next();
   try {
     await authorizeCommandPage(request);
     const response = NextResponse.next();

@@ -62,10 +62,16 @@ function provisionedPrincipal(sub: string, registry: string | undefined): Authen
       !value.capabilities.every((item) => capabilities.includes(item as Capability))) {
     throw new AuthenticationError(503, "Staff authorization is not configured.");
   }
+  if(value.platformTenantIds!==undefined && (!stringList(value.platformTenantIds)||value.platformTenantIds.length===0||!value.capabilities.includes("platform:admin"))) {
+    throw new AuthenticationError(503,"Staff authorization is not configured.");
+  }
+  if(value.assignedLeadOnly!==undefined&&typeof value.assignedLeadOnly!=="boolean")throw new AuthenticationError(503,"Staff authorization is not configured.");
   return {
     userId: sub, tenantId: value.tenantId,
     dealershipIds: [...value.dealershipIds], locationIds: [...value.locationIds],
     capabilities: [...value.capabilities] as Capability[],
+    ...(value.platformTenantIds ? {platformTenantIds:[...value.platformTenantIds as string[]]} : {}),
+    ...(value.assignedLeadOnly===true?{assignedLeadOnly:true}:{}),
   };
 }
 
@@ -88,6 +94,7 @@ export function createPrincipalResolver(options: {
   demoPrincipal: AuthenticatedPrincipal;
   env?: Environment;
   verifyToken?: TokenVerifier;
+  lookupPrincipal?: (sub:string)=>Promise<AuthenticatedPrincipal|null>;
 }) {
   let verifyToken = options.verifyToken;
   return async (request: Request): Promise<AuthenticatedPrincipal> => {
@@ -112,19 +119,35 @@ export function createPrincipalResolver(options: {
       throw new AuthenticationError(401, "Authentication required.");
     }
     if (!sub) throw new AuthenticationError(401, "Authentication required.");
+    if(env.AUTH_REGISTRY_MODE === "database") {
+      // Only platform bootstrap administrators can bypass the database staff registry.
+      let bootstrap:AuthenticatedPrincipal|undefined;
+      if(env.AUTH_PRINCIPALS_JSON) {
+        try {bootstrap=provisionedPrincipal(sub,env.AUTH_PRINCIPALS_JSON);}
+        catch(error) {if(!(error instanceof AuthorizationError))throw error;}
+      }
+      if(bootstrap?.capabilities.includes("platform:admin"))return bootstrap;
+      if(!options.lookupPrincipal)throw new AuthenticationError(503,"Staff authorization is not configured.");
+      const principal=await options.lookupPrincipal(sub);
+      if(!principal || principal.userId!==sub)throw new AuthorizationError();
+      // Apply the same validation to persisted grants as to the server-owned bootstrap registry.
+      return provisionedPrincipal(sub,JSON.stringify({[sub]:principal}));
+    }
+    if(env.AUTH_REGISTRY_MODE && env.AUTH_REGISTRY_MODE!=="environment")throw new AuthenticationError(503,"Staff authorization is not configured.");
     return provisionedPrincipal(sub, env.AUTH_PRINCIPALS_JSON);
   };
 }
 
 export function requireLeadAccess(
   principal: AuthenticatedPrincipal,
-  lead: { tenantId: string; dealershipId: string; locationId?: string },
+  lead: { tenantId: string; dealershipId: string; locationId?: string; assignedTo?:string },
   capability: Capability,
 ) {
   requireCapability(principal, capability);
   requireTenant(principal, lead.tenantId);
   requireDealership(principal, lead.dealershipId);
   if (lead.locationId) requireLocation(principal, lead.locationId);
+  if(principal.assignedLeadOnly&&lead.assignedTo!==principal.userId)throw new AuthorizationError();
 }
 
 export function accessError(error: unknown): { status: number; message: string } | null {

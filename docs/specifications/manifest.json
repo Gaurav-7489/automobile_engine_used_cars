@@ -1,0 +1,32 @@
+[
+  {
+    "original_filename": "VandLabs_Used_Car_AI_Ecosystem_Master_Blueprint(4).pdf",
+    "source_sha256": "9f4992143b519e0e3ff10443b761e14ea5e224c52b61d5ef05b28db23d76f807",
+    "text_file": "master-blueprint.txt",
+    "text_sha256": "ad67477781cb29e7c308fd872d21ea08fd35b3a9cc098fbc153cd84ab02fdffd"
+  },
+  {
+    "original_filename": "Automobile_Engine_75_Decisions_v2(4).pdf",
+    "source_sha256": "e551e37627a89126bf372742ab35dacc7e587d97aa21da0321a7048778cfe5f7",
+    "text_file": "75-locked-decisions.txt",
+    "text_sha256": "b157e74e91aec8862083ea8acd3f10d5c4556ed081d0a6dad19ccf32cc574083"
+  },
+  {
+    "original_filename": "VandLabs used car system (3).pdf",
+    "source_sha256": "09225237bdaa5cd70e5d12a08b32bba76f0d161fedfbd9d3dcffaa33021180ba",
+    "text_file": "digital-growth-strategy.txt",
+    "text_sha256": "f4138085d899f0193091d8d69a44bced8ad0a387fffcc3ce4a41c0b2c4fefd58"
+  },
+  {
+    "original_filename": "VandLabs_Automobile_Engine_Master_Specification(3).pdf",
+    "source_sha256": "550267bc4c6851dfa4c8bc81828afddaf710088001a6579ae705c46683db7374",
+    "text_file": "master-specification.txt",
+    "text_sha256": "cea6e8e9bf8a73d01e298975b9edccaa31b19b9add0511801e20c4d0574d3216"
+  },
+  {
+    "original_filename": "VandLabs_Used_Car_AI_Ecosystem_Overview(1).pdf",
+    "source_sha256": "8a35643423a72eecc43d7689bb77862c2e8d8ca2d885e46844b094737c88d09e",
+    "text_file": "ecosystem-overview.txt",
+    "text_sha256": "f5e75c75041a3213a169919e9d0eb925ba32dc31bb0050aa4eccfd8058c71d0c"
+  }
+]

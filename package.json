@@ -16,7 +16,9 @@
     "test:database": "node --import tsx --test tests/database/*.test.ts",
     "db:provision-role": "node --import tsx scripts/database/provision-role.ts",
     "demo": "node scripts/start-demo.mjs",
-    "test:intelligence": "node --import tsx --test tests/intelligence/*.test.ts"
+    "test:intelligence": "node --import tsx --test tests/intelligence/*.test.ts",
+    "db:provision-tenant": "node --import tsx scripts/database/provision-tenant.ts",
+    "deployment:doctor": "node --import tsx scripts/deployment/doctor.ts"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

@@ -105,3 +105,13 @@ Verified stock-cost and capital operations: [capital-operations.md](docs/capital
 All four increments (PRs #11–#14) are merged into `main`. See the [main delivery report](docs/main-delivery-2026-10-08.md) for fresh main QA, native downloads, pull instructions and remaining acceptance requirements.
 
 Historical CRM consistency increment: [`feat/crm-conflict-safety`, PR #14](https://github.com/Gaurav-7489/automobile_engine_used_cars/pull/14). See [release evidence and local installation](docs/release-crm-2026-10-08.md) for exact commits, checks and independent acceptance gaps.
+
+## Current connected Platform increment
+
+The Platform now reads the same stock/lead/task/sale state as the other apps and manages persisted staff permissions with audit and assigned-lead restrictions. All five supplied specifications are archived in [docs/specifications](docs/specifications/README.md).
+
+- [9 October delivery and remaining scope](docs/release-2026-10-09.md)
+- [Connect all three hosted apps](docs/shared-staging-setup.md)
+- [Platform and persistent staff access](docs/platform-staff-operations.md)
+
+The Vercel deployments remain protected browse-only previews until shared Aurora connectivity and Cognito settings are supplied and accepted. A successful build is not a live-backend certification.

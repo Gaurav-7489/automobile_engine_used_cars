@@ -103,6 +103,9 @@ importers:
       '@vandlabs/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@vandlabs/data':
+        specifier: workspace:*
+        version: link:../../packages/data
       '@vandlabs/demo-data':
         specifier: workspace:*
         version: link:../../packages/demo-data
@@ -173,6 +176,12 @@ importers:
       '@vandlabs/demo-data':
         specifier: workspace:*
         version: link:../demo-data
+      '@vandlabs/server-auth':
+        specifier: workspace:*
+        version: link:../server-auth
+      next:
+        specifier: ^15.5.3
+        version: 15.5.26(@playwright/test@1.63.0)(@types/node@24.19.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       pg:
         specifier: ^8.16.3
         version: 8.23.1

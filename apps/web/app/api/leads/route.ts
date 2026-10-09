@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { LeadIntent, AttributionTouch } from "@vandlabs/contracts";
 import { tenantConfig, createLead, publicInventory, InputError } from "@vandlabs/data";
 
+import { isReadOnlyPreview } from "../../../lib/hosting";
+
 const validIntents: LeadIntent[] = [
   "enquiry",
   "test_drive",
@@ -10,6 +12,7 @@ const validIntents: LeadIntent[] = [
 ];
 
 export async function POST(request: Request) {
+  if (isReadOnlyPreview()) return NextResponse.json({error:"This browsing preview does not accept enquiries or record activity. A shared backend must be configured."}, {status:503});
   try {
   const body = (await request.json()) as {
     name?: string;

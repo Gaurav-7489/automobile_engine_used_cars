@@ -62,6 +62,8 @@ export function LeadForm({
     }
   }
 
+  if (process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true") return <div className="form-success" role="status"><h3>Enquiries are unavailable in this preview.</h3><p>Browse the reference inventory. Booking, finance and exchange requests will be available when the shared backend is connected.</p></div>;
+
   if (state === "success") {
     return (
       <div className="form-success" role="status">

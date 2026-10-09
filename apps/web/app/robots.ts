@@ -1,1 +1,1 @@
-import type{MetadataRoute}from"next";export default function robots():MetadataRoute.Robots{return{rules:{userAgent:"*",allow:"/",disallow:["/command/","/platform/"]},sitemap:"https://example.com/sitemap.xml"}}
+import type{MetadataRoute}from"next";export default function robots():MetadataRoute.Robots{if(process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true")return{rules:{userAgent:"*",disallow:"/"}};return{rules:{userAgent:"*",allow:"/",disallow:["/command/","/platform/"]},sitemap:"https://example.com/sitemap.xml"}}

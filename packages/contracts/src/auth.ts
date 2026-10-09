@@ -15,6 +15,9 @@ export interface AuthenticatedPrincipal {
   dealershipIds: string[];
   locationIds: string[];
   capabilities: Capability[];
+  /** Server-provisioned platform scopes, never taken from JWT/custom headers. */
+  platformTenantIds?: string[];
+  assignedLeadOnly?: boolean;
 }
 
 export class AuthorizationError extends Error {

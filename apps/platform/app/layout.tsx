@@ -10,6 +10,7 @@ const nav = [
   ["Integrations", "/integrations"],
   ["Features", "/features"],
   ["Audit", "/audit"],
+  ["Staff", "/staff"],
 ] as const;
 
 export const metadata = {
@@ -27,7 +28,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <strong>VANDLABS · AUTOMOBILE ENGINE</strong>
               <span>Platform Control Center</span>
             </div>
-            <span className="environment">REFERENCE · V1 MVP</span>
+            <span className="environment">{process.env.DATA_MODE==="aurora"?"SHARED OPERATIONS":"REFERENCE DATA"}</span>
           </header>
           <nav className="nav" aria-label="Platform navigation">
             {nav.map(([label, href]) => (

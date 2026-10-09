@@ -1,8 +1,9 @@
 import { requireCapability, requireTenant, requireDealership } from "@vandlabs/contracts";
 import { createPrincipalResolver } from "@vandlabs/server-auth";
-import { tenantConfig } from "@vandlabs/data";
+import { tenantConfig, resolveDatabaseStaff } from "@vandlabs/data";
 
 const principalResolver = createPrincipalResolver({
+  lookupPrincipal:sub=>resolveDatabaseStaff(sub,tenantConfig.tenantId),
   demoPrincipal: {
     userId: "demo-staff",
     tenantId: tenantConfig.tenantId,

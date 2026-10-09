@@ -1,0 +1,190 @@
+    VANDLABS USED-CAR AI ECOSYSTEM
+ One connected automotive operating system for dealership websites, desktop software,
+ operations, intelligence, automation and VandLabs platform control.
+
+
+
+                                                     THE ECOSYSTEM CORE
+
+
+                                        Identity | Data | Events | APIs | AI | Automation
+
+
+
+
+ Product Definition
+ Automobile Engine is not a dealership website with an admin panel. It is a multi-tenant used-car dealership
+ ecosystem. The customer website, dealer web Command Center, Windows/macOS desktop application, future
+ mobile application and VandLabs platform all operate on the same backend, identity model, inventory, leads,
+ customers, events and intelligence.
+
+    Build capabilities once in the ecosystem core, then expose them through every
+    interface that needs them.
+
+  Surface                    Purpose                                                                       Delivery
+
+  Dealer Website             Customer acquisition, inventory discovery, vehicle pages, enquiries,          Next.js web
+                             finance/exchange/test-drive paths.
+
+  Web Command                Dealer operations: inventory, CRM, tasks, appointments, sales, marketing,     Browser app
+  Center                     analytics and alerts.
+
+
+  Desktop                    First-class dealership operations application using the same ecosystem        Windows .exe
+                             APIs and data.                                                                macOS .app / .dmg
+
+  Mobile                     Future salesperson/manager access using the same domain services and          Later phase
+                             API contracts.
+
+  VandLabs Platform          Multi-dealership administration, provisioning, integrations, health, usage,   Internal SaaS platform
+                             feature flags and billing foundation.
+
+
+
+
+VandLabs Used-Car AI Ecosystem                                                                                                 Page 1
+ How the Ecosystem Works
+ A capability belongs to the ecosystem, not to a single screen. Inventory is managed by domain services; the website
+ reads it, desktop and Command Center operate it, AI analyses it, automation reacts to it, and the VandLabs platform
+ monitors it.
+
+  DEALER OPERATIONS                    ECOSYSTEM CORE                              CUSTOMER EXPERIENCE
+
+
+  Desktop / Web Command Center         Shared APIs + Domain Services               Dealer Website
+
+
+  Add / update vehicle                 Inventory + PostgreSQL                      Vehicle appears online
+
+
+  Manage lead                          CRM + Events + Automation                   Customer enquiry / test drive
+
+
+  Close sale                           Sales + Analytics + Capital                 Inventory availability updates
+
+
+
+
+ Shared Domain Services
+ Inventory: vehicles, pricing, availability, media, status and data quality. CRM: leads, customers, qualification,
+ ownership, pipeline and attribution. Sales: appointments, test drives, negotiation, wins/losses and sale records.
+ Automation: acknowledgements, follow-ups, reminders, assignments, nurture and alerts. Marketing: sources,
+ campaigns, CAC, vehicle demand and conversion. Analytics: journey events, operational metrics and reporting.
+
+ Intelligence Layer
+  Dealer AI                              Inventory AI                           Sales AI
+
+  Daily briefing                         Market opportunity radar               Lead qualification
+
+  Recommendations                        Dead-stock intelligence                Customer-to-car matching
+
+  Summaries                              Depreciation signals                   Lead rescue
+
+  Copilot / assistant                    Pricing + capital risk                 Follow-up intelligence
+
+
+
+
+VandLabs Used-Car AI Ecosystem                                                                                       Page 2
+ Production Architecture
+ The ecosystem uses one production backend rather than separate website and desktop databases.
+ PostgreSQL/Aurora holds transactional data and tenant-isolated records. Cloudflare/R2 is the intended edge and
+ media layer. AWS remains the transactional backend for authentication, APIs, asynchronous jobs, secrets and
+ production infrastructure. Desktop and web clients authenticate and call ecosystem APIs; database or cloud
+ credentials are never embedded in the desktop installer.
+
+  CLIENT SURFACES                Dealer Website | Web Command Center | Desktop | Platform
+
+
+  API / DOMAIN                   Shared API client | domain services | authorization | events
+
+
+  INTELLIGENCE                   AI gateway | rules | recommendations | scoring | market intelligence
+
+
+  DATA                           PostgreSQL / Aurora | tenant RLS | analytics events
+
+
+  MEDIA / EDGE                   Cloudflare | R2 | CDN / WAF / delivery
+
+
+  ASYNC                          SQS / EventBridge / workers | automation / integrations
+
+
+  INTEGRATIONS                   WhatsApp | email | Google / Meta | approved feeds / APIs
+
+
+
+
+ Desktop Application
+ The desktop product should be a first-class Automobile Engine surface, not merely the website placed inside a
+ window. The proposed desktop shell is Tauri 2 so the ecosystem can reuse the React/TypeScript product layer while
+ producing native installable applications for Windows and macOS.
+
+ Windows: installable .exe/application. macOS: .app with .dmg distribution. Desktop-specific capabilities can
+ include secure credential storage, native notifications, tray behavior, file import/export, native dialogs, deep links and
+ controlled updates.
+
+ Security Principle
+ The desktop package is an authenticated client. Production database credentials, AWS secrets and privileged
+ infrastructure credentials remain server-side.
+
+
+
+
+VandLabs Used-Car AI Ecosystem                                                                                         Page 3
+ Development Path to the Complete Ecosystem
+     01       Foundation & QA
+              Keep main build/typecheck/lint/E2E green and protect release quality.
+
+     02       Production Data
+              Replace demo persistence with PostgreSQL/Aurora repositories, migrations, transactions and tenant context.
+
+     03       Identity & Authorization
+              Production authentication, RBAC, tenant/dealership/location boundaries and fail-closed access.
+
+     04       Ecosystem APIs
+              Create stable shared contracts and API-client boundaries for all product surfaces.
+
+     05       Website + CRM Integration
+              Inventory to website; enquiries and journey events back into the operating system.
+
+     06       Desktop
+              Add the installable Windows/macOS Automobile Engine application against production APIs.
+
+     07       Media
+              Vehicle images/files, upload controls, R2 storage and edge delivery.
+
+     08       Automation & Communications
+              Tasks, appointments, follow-ups, WhatsApp/email and asynchronous event processing.
+
+     09       AI
+              Qualification, assistant, matching, summaries, recommendations and guarded automation.
+
+     10       Inventory & Market Intelligence
+              Demand, dead stock, depreciation, pricing, capital and market opportunity radar.
+
+     11       VandLabs Platform
+              Provisioning, multi-dealer control, usage, health, integrations, feature flags and billing foundation.
+
+     12       Production Readiness
+              Observability, security, backups, recovery, staging, deployment and operational runbooks.
+
+
+
+
+ End State
+ The finished VandLabs Used-Car AI Ecosystem is a connected multi-tenant dealership operating system: a premium
+ customer website, browser Command Center, native Windows/macOS desktop software, VandLabs platform control
+ plane, shared production backend, automation and an explainable AI/intelligence layer.
+
+    Inventory -> Discovery -> Vehicle Evaluation -> Enquiry -> Qualification ->
+    Appointment / Test Drive -> Sale -> Reporting -> Optimization
+
+ VandLabs internal product direction - ecosystem overview
+
+
+
+
+VandLabs Used-Car AI Ecosystem                                                                                             Page 4
+

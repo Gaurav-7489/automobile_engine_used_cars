@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: VandLabs Automobile Engine BFF
-  version: 1.0.0
+  version: 1.1.0
   description: >
     Proof-of-Engine HTTP contracts. These endpoints are implemented by the
     Next.js BFF today and can later proxy API Gateway/domain services without
@@ -11,10 +11,10 @@ servers:
 paths:
   /api/health:
     get:
-      summary: Read demo BFF health
+      summary: Read public application liveness
       responses:
         "200":
-          description: Health snapshot
+          description: Liveness and selected adapter only; does not certify database readiness
           content:
             application/json:
               schema:
@@ -377,6 +377,69 @@ paths:
         "403": {description: Capital permission or vehicle scope denied}
         "404": {description: Vehicle not found in active tenant}
         "409": {description: Stale cost version; refresh required}
+  /command/api/readiness:
+    get:
+      summary: Check authenticated configuration and tenant-scoped database reads
+      servers: [{url: "http://127.0.0.1:3001"}]
+      description: Returns only redacted configuration states. Requires lead-read. A local reference adapter is never shared-ready.
+      responses:
+        "200": {description: Configuration and tenant-isolated read passed}
+        "401": {description: Authentication required}
+        "403": {description: Capability or scope denied}
+        "503": {description: Configuration, connectivity, migration or provisioning is incomplete}
+  /platform/api/snapshot:
+    get:
+      summary: Read authorized organizations, live counts, staff grants and recent audit
+      servers: [{url: "http://127.0.0.1:3002"}]
+      description: Requires platform-admin and server-owned tenant scopes. Every organization read uses forced tenant RLS. Response is private and uncached.
+      responses:
+        "200": {description: Authorized tenant snapshots in data array}
+        "401": {description: Authentication required}
+        "403": {description: Platform capability or tenant scope denied}
+        "404": {description: Authorized organization is not provisioned}
+        "503": {description: Authentication or database configuration unavailable}
+  /platform/api/readiness:
+    get:
+      summary: Check authenticated configuration and authorized Platform table reads
+      servers: [{url: "http://127.0.0.1:3002"}]
+      responses:
+        "200": {description: Shared configuration and authorized tenant reads passed}
+        "401": {description: Authentication required}
+        "403": {description: Platform capability or tenant scope denied}
+        "503": {description: Configuration, connectivity, migration or provisioning is incomplete}
+  /platform/api/staff:
+    post:
+      summary: Create or amend a scoped staff grant with atomic audit
+      servers: [{url: "http://127.0.0.1:3002"}]
+      description: Requires platform-admin for the specified server-authorized tenant. Cognito subject must already exist. Self-change is rejected. Database-registry revocation takes effect on the next verified request. This endpoint never creates an identity or changes bootstrap environment grants.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId, member, expectedVersion]
+              properties:
+                tenantId: {type: string}
+                expectedVersion: {type: integer, minimum: 0, description: Zero for first grant; current persisted version for amendment}
+                member:
+                  type: object
+                  required: [userId, displayName, role, dealershipIds, locationIds, enabled]
+                  properties:
+                    userId: {type: string, pattern: '^[a-zA-Z0-9_-]{1,128}$', description: Verified Cognito subject ID}
+                    displayName: {type: string, minLength: 1, maxLength: 120}
+                    role: {type: string, enum: [owner, manager, sales, viewer]}
+                    dealershipIds: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
+                    locationIds: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
+                    enabled: {type: boolean}
+      responses:
+        "200": {description: Versioned grant and immutable audit committed together}
+        "400": {description: Invalid role, subject, hierarchy, version or prohibited self-change}
+        "401": {description: Authentication required}
+        "403": {description: Platform capability or tenant scope denied}
+        "404": {description: Organization is not provisioned}
+        "409": {description: Grant changed since it was loaded}
+        "503": {description: Staff authentication is unconfigured or hosted reference writes disabled}
 components:
   schemas:
     Vehicle:

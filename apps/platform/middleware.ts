@@ -3,7 +3,10 @@ import { authorizePlatform } from "./lib/auth";
 import { accessError } from "@vandlabs/server-auth";
 
 export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
+  // NextURL strips the configured basePath before middleware sees pathname.
+  const pathname = request.nextUrl.pathname;
+  const path = pathname === "/platform" || pathname.startsWith("/platform/")
+    ? pathname : "/platform" + (pathname === "/" ? "" : pathname);
   if (path === "/platform/login" || path.startsWith("/platform/auth/")) return NextResponse.next();
   try {
     await authorizePlatform(request);
