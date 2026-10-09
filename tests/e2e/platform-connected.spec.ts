@@ -37,5 +37,6 @@ test("staff access form saves and disables a persistent grant",async({request,pa
     return (await snapshot.json()).data[0].staff.find((m:{userId:string})=>m.userId===userId)?.enabled;
   }).toBe(false);
   await page.reload();
-  await expect(page.getByText("viewer · disabled · version 2",{exact:true})).toBeVisible();
+  const memberRow=page.locator(".row").filter({has:page.getByText("Form staff "+testInfo.project.name,{exact:true})});
+  await expect(memberRow.getByText("viewer · disabled · version 2",{exact:true})).toBeVisible();
 });
