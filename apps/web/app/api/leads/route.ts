@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { LeadIntent, AttributionTouch } from "@vandlabs/contracts";
 import { tenantConfig, createLead, publicInventory, InputError } from "@vandlabs/data";
 
+import { limitPublicRequest, publicOriginFailure, publicJson } from "../../../lib/public-request";
 import { isReadOnlyPreview } from "../../../lib/hosting";
 
 const validIntents: LeadIntent[] = [
@@ -13,8 +14,10 @@ const validIntents: LeadIntent[] = [
 
 export async function POST(request: Request) {
   if (isReadOnlyPreview()) return NextResponse.json({error:"This browsing preview does not accept enquiries or record activity. A shared backend must be configured."}, {status:503});
+  const originFailure = publicOriginFailure(request); if (originFailure) return originFailure;
+  const limited = await limitPublicRequest(request, tenantConfig.tenantId + ":leads", 12); if (limited) return limited;
   try {
-  const body = (await request.json()) as {
+  const body = (await publicJson(request)) as {
     name?: string;
     phone?: string;
     email?: string;
@@ -134,7 +137,7 @@ export async function POST(request: Request) {
         tasksCreated: automation.filter((run) => run.outcome === "created").length,
       },
     },
-    { status: 201 },
+    { status: 201, headers: {"Cache-Control":"no-store"} },
   );
   } catch(error) {
     if(error instanceof SyntaxError||error instanceof InputError)return NextResponse.json({error:"Invalid enquiry."},{status:400});

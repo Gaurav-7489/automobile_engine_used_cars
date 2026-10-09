@@ -1,0 +1,2 @@
+"use client";
+export default function WorkspaceError({ reset }: { reset: () => void }) { return <main className="page-head"><section className="panel login-panel"><p className="eyebrow">Connection interrupted</p><h1>Your workspace needs a moment.</h1><p>Your saved records remain on the server. Check your connection and try loading this view again.</p><button className="signin-button" onClick={reset}>Try again</button></section></main>; }

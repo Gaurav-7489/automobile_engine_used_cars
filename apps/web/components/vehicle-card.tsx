@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Vehicle } from "@vandlabs/contracts";
 import { money, number } from "../lib/format";
 
@@ -10,10 +11,8 @@ export function VehicleCard({ vehicle, locationLabel = "Dealership" }: { vehicle
       <Link href={"/vehicles/" + vehicle.slug} className="vehicle-card-link">
         <div
           className="vehicle-card-media"
-          role="img"
-          aria-label={image?.alt ?? vehicle.make + " " + vehicle.model}
-          style={image ? { backgroundImage: "url(" + image.url + ")" } : undefined}
         >
+          {image && <Image src={image.url} alt={image.alt || vehicle.make + " " + vehicle.model} fill sizes="(max-width: 640px) 100vw, (max-width: 1050px) 50vw, 33vw" unoptimized={!image.url.startsWith("https://images.unsplash.com/")} style={{objectFit:"cover"}} />}
           <span className={"availability " + vehicle.availabilityStatus}>
             {vehicle.availabilityStatus}
           </span>
