@@ -17,12 +17,12 @@ Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75)
 
 | Workstream | Repo evidence | Remaining acceptance gap |
 | --- | --- | --- |
-| Public website / inventory / VDP | `apps/web`, V1 E2E in `tests/e2e/smoke.spec.ts` | 68 current-revision browser/API cases passed; inspect actual dealership media, broader browsers, accessibility, performance and SEO |
+| Public website / inventory / VDP | `apps/web`, V1 E2E in `tests/e2e/smoke.spec.ts` and distribution/responsive cases | 72 current-revision browser/API cases passed; inspect actual dealership media, broader browsers, accessibility, performance and SEO |
 | Enquiry/attribution | BFF / lead and event E2E smoke tests | Demonstrate real end-to-end lead persistence and consent rules under deployed staging |
 | CRM / follow-ups / automation | `apps/command-center`, lead/task tests; `docs/roadmap.md` V1.5–V2 | Confirm roles, no duplicate follow-ups, full stage transitions and dealer workflows in live environment |
 | PostgreSQL tenant persistence | `docs/production-runtime.md`, migrations, RLS and embedded-DB tests | Deploy staging database; migrate; verify real connectivity, cross-tenant denial, backup/restore |
 | Staff identity | Cognito access verification, persistent scoped grants, assigned-only sales access and immediate database-registry revocation | Provision test staff; verify actual Cognito login, refresh, logout, permissions and MFA policy |
-| Native Windows/macOS | `apps/desktop`, `.github/workflows/desktop-build.yml` | Confirm OS-runner tests/artifact builds; install and exercise real authenticated client; signing/notarization later |
+| Native Windows/macOS | Shared native workspace, HTTPS discovery, OS-runner regression/packaging checks and automatic source-bound development release pipeline | Both native packages and three Rust regressions per OS passed; install and exercise a real authenticated client; signing/notarization and live discovery acceptance remain open |
 | Platform control | Shared hierarchy/counts, persisted staff administration, version conflicts and atomic append-only audit; validated real-tenant provisioning CLI | Live cloud provisioning and acceptance, full role/approval policy, billing/offboarding and operational support services |
 | Intelligence / capital | `/command/intelligence`: deterministic stock validation, task briefing, price history and exact matching | Verified acquisition/cost register implemented in PR #13; full accounting ledger, provider-backed AI and licensed market intelligence remain unfinished; record age remains distinct from acquisition age |
 | Market Radar / external data | Integration contracts & reference adapters in V2.5 | Obtain licensed feeds, approvals and credentials; add ingest normalization, reconciliation and freshness checks |
@@ -88,3 +88,9 @@ Durable Platform hierarchy/operational counts, staff grants with immediate datab
 Local lint/typecheck, four builds, 23 security, 6 database/provisioning and 5 intelligence regressions passed. Full exact-revision browser/native CI acceptance and publication are recorded in the current checkpoint. Vercel lacks shared database/Cognito/tenant settings; AWS identity/connectivity and real live acceptance remain external blockers. The full ecosystem is not complete. See release-2026-10-09.md and shared-staging-setup.md.
 
 PR #16 merged the 9 October increment at `60e54d03640a8c4d53e57af97020c8c54848427b`. Its full tree matches final candidate `732a70f293fa484e5d04b43a24d8829eddba38c4`, which passed Quality Gate 37885410416 and native packaging 37885410463. See [9 October delivery](main-delivery-2026-10-09.md). Later checkpoint edits are documentation only.
+
+## Premium experience and desktop distribution increment — 9 October 2026
+
+PR #17 merged at `6fbcc2fb985bb1d77f48848dc8b3faa767bd75a2`. Main Quality Gate 37903295767 passed 72 browser/API and 22 auth HTTP cases, 27 security, 6 database/provisioning and 5 intelligence regressions, four builds and AWS/CDK synthesis. Candidate native run 37902240161 passed both OS installers and three Rust tests per OS. The photographic public showroom, redesigned staff/desktop surfaces, workspace discovery, bounded public requests, shared Redis limiter adapter and automatic development release pipeline are implemented. Three refreshed protected previews are READY. Detailed evidence and release state are in [premium-experience-distribution.md](premium-experience-distribution.md).
+
+Production Aurora/Cognito/Redis settings and live acceptance are still absent. The limiter's mocked-provider checks do not establish a deployed Redis service. Development installers are unsigned; signing/notarization, installed real-backend acceptance and the advanced blueprint gaps above remain open.

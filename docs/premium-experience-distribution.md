@@ -20,6 +20,17 @@ This increment continues the **Completed work and docs** request. It upgrades th
 
 These builds are **unsigned development distributions**. Code signing, notarization and installed-device acceptance remain open. There is no native auto-updater in this increment. Downloading a new release and installing it is the current update path.
 
+### Published release evidence
+
+[Automatic release run 37903797675](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37903797675) passed both native builds and the publish job from merged source `6fbcc2fb985bb1d77f48848dc8b3faa767bd75a2`. [Development release desktop-6fbcc2fb985b](https://github.com/Gaurav-7489/automobile_engine_used_cars/releases/tag/desktop-6fbcc2fb985b) published on 9 October 2026 at 08:24 UTC. The actual GitHub metadata passed the product's release parser, including complete uploaded assets and exact source/tag/URL binding. The refreshed protected `/download` page returned 200 and displayed both download links and this release tag after its metadata cache refreshed.
+
+| Installer | Bytes | SHA-256 |
+| --- | --- | --- |
+| [Windows x64](https://github.com/Gaurav-7489/automobile_engine_used_cars/releases/download/desktop-6fbcc2fb985b/Automobile-Engine-Windows-x64.exe) | 3,004,097 | `b6444874091a46340288b81f47a3335acec6b0c7b53956a22e5107adae8dc13d` |
+| [Universal macOS](https://github.com/Gaurav-7489/automobile_engine_used_cars/releases/download/desktop-6fbcc2fb985b/Automobile-Engine-macOS-universal.dmg) | 8,718,344 | `6b4345a4b1fa9ab82a8173f03fefdfff7c0815a526218df8106fdbcfc4db0f03` |
+
+These digests are the published GitHub asset digests and the release includes `SHA256SUMS.txt`. They identify the distributed files; they do not prove code signing or installed-device acceptance.
+
 ## Workspace discovery
 
 `GET /command/api/desktop-config` exposes only public HTTPS workspace/sign-in origins and the public native client ID when `AUTH_MODE=cognito`, `DATA_MODE=aurora`, `APP_ORIGIN`, `COGNITO_DOMAIN` and `COGNITO_DESKTOP_CLIENT_ID` are configured. Otherwise it returns 503. This endpoint is intentionally public; it exposes no secret, staff grant, database setting or operational record.
@@ -37,7 +48,19 @@ The native client fetches a bounded response without following redirects, verifi
 
 ## Verification
 
-Local lint, four application typechecks/builds, 27 security regressions, 6 database/provisioning and 5 intelligence regressions passed during development. HTTP and exact-commit browser/native CI results are recorded in the delivery checkpoint after completion. Embedded PostgreSQL tests use PGlite rather than a live Aurora cluster. Browser screenshots are retained in CI evidence for showroom, downloads, Command Center and Platform at desktop/mobile sizes.
+PR #17 merged at `6fbcc2fb985bb1d77f48848dc8b3faa767bd75a2`, with the same full tree `531d2cc54eb39b6f3f93b9217a1f911458c16dd9` as tested candidate `7d93415c4b6719a7cd5048b653383afc6c0c6768`. [Main Quality Gate 37903295767](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37903295767) passed lint, four typechecks/builds, 27 security, 6 database/provisioning, 5 intelligence, 72 Chromium/mobile WebKit browser/API and 22 staff HTTP cases, plus AWS build and staging CDK synthesis. [Candidate native 37902240161](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37902240161) passed Windows and universal macOS packaging with three Rust regressions per OS.
+
+Embedded PostgreSQL tests use PGlite rather than a live Aurora cluster. [Main browser evidence](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/37903295767/artifacts/11603970523) includes showroom, downloads, Command Center and Platform at desktop/mobile sizes. Its artifact ZIP digest is `ead3af2430b23e4f12a246cc5bf0c5fce8ad533aa15f75b4b2716022dca52cfe`. QA inspection confirmed responsive layouts; full-page captures below the viewport can show unloaded lazy images.
+
+## Refreshed protected previews
+
+All three deployments are READY from the merged software commit above, with existing SSO protection retained. Authenticated HTTP checks returned 200 for the download page and both staff login pages. Staff login honestly shows setup pending; `/command/api/desktop-config` returns the expected 503 without exposing a client ID. Baseline security headers are present. These checks do not establish live staff login or shared database acceptance.
+
+| Application | Preview |
+| --- | --- |
+| Website and downloads | https://vandlabs-automobile-qsr7jblvz-gaurav-7489s-projects.vercel.app/download |
+| Command Center | https://vandlabs-automobile-command-2ve8t09b1-gaurav-7489s-projects.vercel.app/command |
+| Platform | https://vandlabs-automobile-platform-cbeag1wfl-gaurav-7489s-projects.vercel.app/platform |
 
 ## Activation still required
 

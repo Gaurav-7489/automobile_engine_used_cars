@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: VandLabs Automobile Engine BFF
-  version: 1.1.0
+  version: 1.2.0
   description: >
     Proof-of-Engine HTTP contracts. These endpoints are implemented by the
     Next.js BFF today and can later proxy API Gateway/domain services without
@@ -97,7 +97,13 @@ paths:
                   vehicleId: { type: [string, "null"] }
                   message: { type: string }
         "400":
-          description: Invalid lead payload
+          description: Invalid lead payload, non-JSON content type or body exceeding 16 KiB
+        "403":
+          description: Foreign browser origin or hosted reference preview writes disabled
+        "429":
+          description: Submission limit exceeded; Retry-After supplies seconds
+        "503":
+          description: Hosted shared limiter is not configured or unavailable
   /api/events:
     post:
       summary: Accept a first-party journey event
@@ -110,7 +116,59 @@ paths:
         "202":
           description: Event accepted
         "400":
-          description: Invalid event
+          description: Invalid event, non-JSON content type or body exceeding 8 KiB
+        "403":
+          description: Foreign browser origin or hosted reference preview writes disabled
+        "429":
+          description: Event limit exceeded; Retry-After supplies seconds
+        "503":
+          description: Hosted shared limiter is not configured or unavailable
+  /api/downloads/{platform}:
+    get:
+      summary: Download a verified Windows or macOS development installer
+      description: >
+        Selects only a complete published prerelease from the fixed project
+        repository, bound to a tested commit. Builds are unsigned development
+        distributions; live backend activation and installed acceptance remain required.
+      parameters:
+        - in: path
+          name: platform
+          required: true
+          schema: { type: string, enum: [windows, mac] }
+      responses:
+        "307":
+          description: Redirect to the verified GitHub installer asset
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+        "404":
+          description: Unsupported platform
+        "503":
+          description: A complete installer release is not available; Retry-After is 300 seconds
+  /command/api/desktop-config:
+    get:
+      summary: Discover public native sign-in settings for an activated workspace
+      servers:
+        - url: http://127.0.0.1:3001
+      description: >
+        Intentionally public. Contains only public HTTPS API and Cognito origins
+        and the native public client ID; no staff grant, secret or operational data.
+        The native client validates same-origin binding and still requires PKCE
+        login plus verified-token authorization for staff APIs.
+      responses:
+        "200":
+          description: Public desktop connection settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [apiOrigin, cognitoDomain, clientId]
+                properties:
+                  apiOrigin: { type: string, format: uri }
+                  cognitoDomain: { type: string, format: uri }
+                  clientId: { type: string }
+        "503":
+          description: Shared Cognito and Aurora workspace access is not activated
   /command/api/leads/{id}:
     patch:
       summary: Update lead stage, owner, or internal notes
