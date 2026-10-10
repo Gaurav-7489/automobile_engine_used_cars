@@ -1,4 +1,7 @@
 import "./globals.css";
+import { ShortlistProvider } from "../components/shortlist";
+import { PageMotion } from "../components/page-motion";
+import { dealershipService } from "../lib/services";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { SiteHeader } from "../components/site-header";
@@ -25,10 +28,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const inventory = await dealershipService.inventory();
+  const catalog = inventory.map(({ id, slug, make, model, year, price, availabilityStatus }) => ({ id, slug, make, model, year, price, availabilityStatus }));
   return (
     <html lang="en">
       <body>
+        <ShortlistProvider catalog={catalog} scope={tenantConfig.tenantId + ":" + tenantConfig.activeDealershipId}>
+        <PageMotion />
         <Suspense fallback={null}>
           {!isReadOnlyPreview() && <JourneyCapture />}
         </Suspense>
@@ -36,6 +43,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {isReadOnlyPreview() && <div role="status" className="preview-notice">Reference dealership preview — browse sample vehicles. Enquiries and staff operations require the connected backend.</div>}
         {children}
         <SiteFooter />
+        </ShortlistProvider>
       </body>
     </html>
   );

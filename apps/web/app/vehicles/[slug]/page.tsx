@@ -7,6 +7,10 @@ import { money, number } from "../../../lib/format";
 import { vehicleJsonLd, serializeJsonLd } from "../../../lib/seo";
 import { LeadForm } from "../../../components/lead-form";
 import { TrackedAction } from "../../../components/tracked-action";
+import { VehicleGallery } from "../../../components/vehicle-gallery";
+import { ShortlistButton } from "../../../components/shortlist";
+import { ShareLink } from "../../../components/share-link";
+import { VehicleCard } from "../../../components/vehicle-card";
 import { VehicleViewEvent } from "../../../components/vehicle-view-event";
 
 type PageProps = { params: Promise<{ slug: string }> };
@@ -50,7 +54,7 @@ export async function generateMetadata({
 
 export default async function Page({ params }: PageProps) {
   const { slug } = await params;
-  const vehicle = await dealershipService.vehicle(slug);
+  const [vehicle, inventory] = await Promise.all([dealershipService.vehicle(slug), dealershipService.inventory()]);
   if (!vehicle) notFound();
 
   const label =
@@ -73,7 +77,7 @@ export default async function Page({ params }: PageProps) {
     tenantConfig.contact.whatsapp.replace(/[^0-9]/g, "") +
     "?text=" +
     whatsappText;
-  const image = vehicle.media[0];
+  const related = inventory.filter(v => v.id !== vehicle.id && v.availabilityStatus === "available").sort((a, b) => Number(b.bodyType === vehicle.bodyType) - Number(a.bodyType === vehicle.bodyType)).slice(0, 3);
 
   return (
     <main>
@@ -88,20 +92,7 @@ export default async function Page({ params }: PageProps) {
       <section className="shell section">
         <Link href="/inventory">← Inventory</Link>
         <div className="vehicle-hero">
-          <div
-            className="vehicle-media-hero"
-            role="img"
-            aria-label={image?.alt ?? label}
-            style={
-              image
-                ? { backgroundImage: "url(" + image.url + ")" }
-                : undefined
-            }
-          >
-            <span className={"availability " + vehicle.availabilityStatus}>
-              {vehicle.availabilityStatus}
-            </span>
-          </div>
+          <div><VehicleGallery media={vehicle.media} label={label} availability={vehicle.availabilityStatus} />{process.env.DATA_MODE !== "aurora" && <p className="meta gallery-disclosure">Editorial demonstration photography. Confirm actual vehicle photos with the dealership.</p>}</div>
           <div className="vehicle-summary">
             <p className="eyebrow">
               {vehicle.stockId} · {locationName(vehicle.locationId)}
@@ -141,6 +132,7 @@ export default async function Page({ params }: PageProps) {
                 <dd>{vehicle.condition}</dd>
               </div>
             </dl>
+            <div className="vehicle-quick-actions"><ShortlistButton id={vehicle.id} /><ShareLink path={`/vehicles/${vehicle.slug}`} label="Share car" /></div>
             <div className="actions">
               <TrackedAction
                 className="button primary"
@@ -158,6 +150,7 @@ export default async function Page({ params }: PageProps) {
               >
                 Call studio
               </TrackedAction>
+              <Link className="button primary" href={`/contact?vehicle=${vehicle.id}&intent=test_drive`}>Request a test drive ↗</Link>
               <a className="button" href="#enquire">
                 Enquire / test drive
               </a>
@@ -165,8 +158,9 @@ export default async function Page({ params }: PageProps) {
           </div>
         </div>
 
-        <section className="detail-grid">
-          <div>
+        <nav className="vehicle-section-nav" aria-label="Vehicle details"><a href="#specifications">Specifications</a><a href="#features">Features</a><a href="#enquire">Enquiry</a><Link href={`/compare?ids=${vehicle.id}`}>Compare this car ↗</Link></nav>
+        <section className="detail-grid" data-reveal>
+          <div id="specifications">
             <p className="eyebrow">Vehicle facts</p>
             <h2>Key specifications</h2>
             <dl className="detail-list">
@@ -186,7 +180,7 @@ export default async function Page({ params }: PageProps) {
               </div>
             </dl>
           </div>
-          <div>
+          <div id="features">
             <p className="eyebrow">Included context</p>
             <h2>Features</h2>
             <ul className="feature-list">
@@ -204,6 +198,7 @@ export default async function Page({ params }: PageProps) {
                 ? "Eligible for discussion"
                 : "Not available"}
             </p>
+            <div className="actions">{vehicle.financeEligible && <Link className="rolling-link" href={`/contact?vehicle=${vehicle.id}&intent=finance`}>Discuss finance ↗</Link>}{vehicle.exchangeEligible && <Link className="rolling-link" href={`/contact?vehicle=${vehicle.id}&intent=exchange`}>Discuss an exchange ↗</Link>}</div>
           </div>
         </section>
       </section>
@@ -224,6 +219,7 @@ export default async function Page({ params }: PageProps) {
           </div>
         </div>
       </section>
+      {related.length > 0 && <section className="shell section" data-reveal><div className="sectionhead"><div><p className="eyebrow">Keep exploring</p><h2>More possibilities.</h2></div><Link href="/inventory" className="rolling-link">View all cars ↗</Link></div><div className="inventory-grid">{related.map(v => <VehicleCard key={v.id} vehicle={v} locationLabel={locationName(v.locationId)} />)}</div></section>}
     </main>
   );
 }
