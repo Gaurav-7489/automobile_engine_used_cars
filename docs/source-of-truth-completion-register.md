@@ -17,7 +17,7 @@ Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75)
 
 | Workstream | Repo evidence | Remaining acceptance gap |
 | --- | --- | --- |
-| Public website / inventory / VDP | `apps/web`, V1 E2E in `tests/e2e/smoke.spec.ts` and distribution/responsive cases | 72 current-revision browser/API cases passed; inspect actual dealership media, broader browsers, accessibility, performance and SEO |
+| Public website / inventory / VDP | `apps/web`, V1 E2E in `tests/e2e/smoke.spec.ts` and distribution/responsive cases | 74 current-revision browser/API cases passed; inspect actual dealership media, broader browsers, accessibility, performance and SEO |
 | Enquiry/attribution | BFF / lead and event E2E smoke tests | Demonstrate real end-to-end lead persistence and consent rules under deployed staging |
 | CRM / follow-ups / automation | `apps/command-center`, lead/task tests; `docs/roadmap.md` V1.5–V2 | Confirm roles, no duplicate follow-ups, full stage transitions and dealer workflows in live environment |
 | PostgreSQL tenant persistence | `docs/production-runtime.md`, migrations, RLS and embedded-DB tests | Deploy staging database; migrate; verify real connectivity, cross-tenant denial, backup/restore |
@@ -94,3 +94,7 @@ PR #16 merged the 9 October increment at `60e54d03640a8c4d53e57af97020c8c5484842
 PR #17 merged at `6fbcc2fb985bb1d77f48848dc8b3faa767bd75a2`. Main Quality Gate 37903295767 passed 72 browser/API and 22 auth HTTP cases, 27 security, 6 database/provisioning and 5 intelligence regressions, four builds and AWS/CDK synthesis. Candidate native run 37902240161 passed both OS installers and three Rust tests per OS. The photographic public showroom, redesigned staff/desktop surfaces, workspace discovery, bounded public requests, shared Redis limiter adapter and automatic development release pipeline are implemented. Three refreshed protected previews are READY. Detailed evidence and release state are in [premium-experience-distribution.md](premium-experience-distribution.md).
 
 Production Aurora/Cognito/Redis settings and live acceptance are still absent. The limiter's mocked-provider checks do not establish a deployed Redis service. Development installers are unsigned; signing/notarization, installed real-backend acceptance and the advanced blueprint gaps above remain open.
+
+## Creative public website increment — 10 October 2026
+
+PR #18 adds a colour-led showroom, keyboard-accessible featured-car selector, original Skiper/21st-inspired CSS interactions and footer/preview-role accessibility fixes. Candidate Quality Gate 38024643071 passed all 74 browser/API cases, including keyboard selection and footer contrast, plus 22 auth HTTP and the existing security/database/build checks. Its full tree matches software merge `9de26cca8865a2c007e12719423684e7ea1e30d1`. The main public preview is refreshed with existing SSO retained. See [creative delivery](creative-showroom-2026-10-10.md). Live backend activation, full accessibility/load acceptance and the advanced blueprint gaps remain open.
