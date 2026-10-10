@@ -1,5 +1,19 @@
 # Active checkpoint — 10 October 2026
 
+## Spreadsheet inventory intake — 10 October 2026
+
+Continued the Automobile Ecosystem work with direct Excel intake and a reviewed spreadsheet workflow. [PR #21](https://github.com/Gaurav-7489/automobile_engine_used_cars/pull/21) is merged at software commit `037c7cab0cd98c1ef350da3cb6765f0d37d07f8d`; its full tree `d9a1c29a2b56c9270349fc578f7c34605ef58b24` equals accepted candidate `d0e29f0647fe4cca2dfa14e64ca2e7dbd01af466`. Later evidence edits are documentation only.
+
+Delivered: direct `.xlsx` and CSV uploads/paste, generated Excel/CSV templates, dropdowns/Guide, bounded ZIP/XML parsing, redacted downloadable row errors, full preview and explicit review acknowledgement before atomic draft creation. Destination permissions precede decompression; identity conflicts remain protected; source/audit records distinguish Excel. File/destination changes invalidate review. Publication remains separate. No schema migration or native intake UI change is required.
+
+[Candidate Quality Gate 38047866346](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38047866346) passed all steps: 86 desktop/mobile browser/API, 23 staff HTTP, 27 security, 10 database/parser and 5 intelligence cases, lint, four application builds/typechecks and AWS/CDK synthesis. Desktop/mobile screenshots were inspected and an independent openpyxl round trip passed. [Native candidate 38047866343](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38047866343) passed Windows/macOS packaging and three Rust tests on each OS.
+
+Merged-main [Quality Gate 38048490987](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38048490987), attempt 2, passed every step on the identical software tree. Attempt 1 had two transient duplicate-element strict-locator failures on public inventory load/reload; all Excel workflow cases passed. The failure snapshots exposed one accessible inventory and the retry passed without a source change. This successful rerun is recorded explicitly rather than treating the first attempt as green.
+
+Three refreshed deployments are READY from the software merge: public production `dpl_39k5bWcbv9bjzbY3XdWixmS8FmMk`, dealer protected preview `dpl_95UWNKhrqmaH6ydRootQ2ZzvDnCX` and Platform protected preview `dpl_9LkS5kZ3uctUXHRMdYJC9WiqpUD7`. Public https://vandlabs-automobile-web.vercel.app/ and both staff main previews resolve to the corresponding source. Public home/inventory/contact/download/health and staff login smoke checks returned 200. Enquiry forms remain disabled, missing staff configuration is explicit and all projects retain SSO. The template URL helper stopped at an authentication redirect; do not count that as an application-endpoint smoke result. See [spreadsheet delivery](spreadsheet-intake-2026-10-10.md) for exact evidence, deployment links and scope.
+
+Shared AWS/Aurora/Cognito/tenant/Redis activation and real live acceptance remain open. Preserve read-only/authorization guards and use shared-staging-setup.md. Direct Excel intake is now delivered in Command Center; older checkpoint references to missing XLSX are historical. S3 media, licensed providers, AI, accounting/reversals, SaaS lifecycle, signing/notarization and installed native acceptance remain unfinished. Full ecosystem status stays NOT COMPLETE / NOT PRODUCTION CERTIFIED.
+
 ## Connected public pages and main-domain publication — 10 October 2026
 
 The latest request was to add connected features throughout the public website, especially inventory, comparison, contact and desktop downloads, while retaining Apple-inspired minimalism and adding restrained Skiper/21st-inspired motion. PR #20 is merged at software commit `163f34828816e4d2b0349641c7845b0b22f9ddc5`. Its full tree `d6b11e3fd7a6cc827375414ca48fdf199a9531c2` matches tested candidate `ffee4f66337f899a42f7ad73b51e947abb69f1dc`.

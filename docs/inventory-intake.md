@@ -1,6 +1,6 @@
 # Inventory entry, review and spreadsheet import
 
-This increment extends the connected demo on `feat/inventory-ingestion`. It preserves the architecture and the appointments/sales delivery in PR #11. No cloud resources or customer records were changed.
+Inventory intake supports individual entry and reviewed CSV/Excel batch imports. The original entry workflow shipped in PR #12; direct Excel support and the spreadsheet review workflow shipped in PR #21. Both preserve the canonical vehicle model and appointments/sales behavior. Shared cloud activation remains a separate gate.
 
 ## Staff workflow
 
@@ -12,7 +12,7 @@ Sold vehicle details cannot be edited through this workflow. Sales corrections/r
 
 ## CSV contract
 
-Download the CSV header template in Inventory. Export Excel as UTF-8 CSV; direct `.xlsx` upload is not implemented. Maximum file size is 250,000 UTF-8 bytes and 200 vehicles. All columns through `interiorColor` are required. `imageUrl`, `financeEligible` and `exchangeEligible` are optional. Optional eligibility cells use exactly `true` or `false`; missing values mean false.
+Download the CSV header template in Inventory. Excel can also be uploaded directly as `.xlsx`; its workbook contract is described below. Maximum file size is 250,000 UTF-8 bytes and 200 vehicles. All columns through `interiorColor` are required. `imageUrl`, `financeEligible` and `exchangeEligible` are optional. Optional eligibility cells use exactly `true` or `false`; missing values mean false.
 
 ```csv
 stockId,make,model,variant,year,price,mileage,fuelType,transmission,ownership,bodyType,condition,exteriorColor,interiorColor,imageUrl,financeEligible,exchangeEligible
@@ -23,7 +23,7 @@ Use decimal prices without currency symbols or grouping commas. Stock IDs use le
 
 The parser supports quoted commas, escaped quotes, CRLF, embedded newlines and a UTF-8 BOM. It rejects unexpected/duplicate columns, malformed quoting and inconsistent field counts. Formulas are never executed. Validation reports record row and field; one invalid row rejects the whole batch.
 
-**Preview import** checks canonical fields and identities without creating records. Changing CSV contents or destination invalidates the browser preview. **Import drafts** revalidates everything against current records; it commits all rows and their creation audits together. Retrying a committed file reports duplicate identities rather than creating another batch.
+**Preview import** checks canonical fields and identities without creating records. Changing file contents or destination invalidates the browser preview and review acknowledgement. **Import drafts** revalidates everything against current records; it commits all rows and their creation audits together. Retrying a committed file reports duplicate identities rather than creating another batch.
 
 ## API and persistence
 
@@ -33,7 +33,7 @@ All endpoints resolve a verified staff principal and enforce `inventory:write`, 
 | --- | --- | --- |
 | `POST /command/api/vehicles` | `{dealershipId, locationId, vehicle}` | 201 with one draft |
 | `POST /command/api/vehicles/import` | `{dealershipId, locationId, csv, mode: "preview"}` | 200 with transient preview records; no writes |
-| Same endpoint, `mode: "commit"` | Same approved CSV and destination | 201 with committed drafts and batch ID |
+| Same endpoint, `mode: "commit"` | Same reviewed file and destination | 201 with committed drafts and batch ID |
 | `PUT /command/api/vehicles/{id}` | `{vehicle, expectedVersion}` with the same intake fields | 200 with edited metadata; identity/status/source preserved |
 
 Client tenant/ID/slug/publication/source fields are rejected in vehicle input. Request JSON is bounded to 1 MB before parsing. Validation returns 400 and row/field issues, scope denial 403, unknown records 404, and concurrent identity conflicts or sold-record correction attempts 409. Embedded URL credentials, local/IP hosts and common secret query parameter names are rejected. Use a publicly served image URL; do not put provider credentials in image fields.
@@ -61,4 +61,4 @@ Excel intake reads the visible worksheet named **Inventory**, or the only visibl
 
 Archives are read lazily with validated entry sizes: at most 80 entries, 2 MB per expanded part and 4 MB total. Actual decompressed bytes are also counted. XML depth, nodes, row positions, columns and shared-string/value sizes are bounded independently. Parser/template dependencies are isolated behind server-only package subpaths and add no Excel runtime to the public website or staff browser bundle.
 
-Verification evidence is recorded in the current checkpoint once the exact-revision Quality Gate finishes. The parser/database tests include Unicode, rich/shared text, booleans, leading-zero stock IDs, renamed worksheet relationships, invalid rows, archive limits, formulas/macros/links, date styles and malformed/hidden/extra data. Browser cases add Excel template→error→preview→commit→publication, retry/scope protection and preview invalidation on file/location changes. The real-cloud configuration and installed native acceptance gates remain open. This increment introduces no new schema migration and does not enable hosted writes.
+Accepted candidate [Quality Gate 38047866346](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38047866346) passed all 86 browser/API cases, 23 staff HTTP cases, 27 security, 10 database/parser and 5 intelligence regressions, lint, four builds/typechecks and AWS/CDK synthesis. Both native packaging jobs passed [run 38047866343](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38047866343). Desktop/mobile browser evidence was inspected, and an independent openpyxl save/load round trip passed. Release/deployment state is recorded in [spreadsheet intake delivery](spreadsheet-intake-2026-10-10.md). The parser/database tests include Unicode, rich/shared text, booleans, leading-zero stock IDs, renamed worksheet relationships, invalid rows, archive limits, formulas/macros/links, date styles and malformed/hidden/extra data. Browser cases add Excel template→error→preview→commit→publication, retry/scope protection and preview invalidation on file/location changes. The real-cloud configuration and installed native acceptance gates remain open. This increment introduces no new schema migration and does not enable hosted writes.
