@@ -16,7 +16,7 @@ export function TrackedAction({
   className?: string;
   children: ReactNode;
 }) {
-  if (process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true") return <span className={className} aria-disabled="true">{children} (preview)</span>;
+  if (process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true") return <span role="link" className={className} aria-disabled="true">{children} (preview)</span>;
   return (
     <a
       href={href}
