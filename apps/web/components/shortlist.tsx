@@ -11,13 +11,14 @@ const Context = createContext<ShortlistState | null>(null);
 
 export function ShortlistProvider({ catalog, scope, children }: { catalog: ShortlistVehicle[]; scope: string; children: ReactNode }) {
   const [ids, updateIds] = useState<string[]>([]);
-  const [ready, setReady] = useState(false);
+  const [readyScope, setReadyScope] = useState("");
   const [notice, setNotice] = useState("");
   const storageKey = `vandlabs:shortlist:v1:${scope}`;
+  const ready = readyScope === storageKey;
   useEffect(() => {
     const sanitize = (raw: unknown) => Array.isArray(raw) ? [...new Set(raw.filter((id): id is string => typeof id === "string" && catalog.some(v => v.id === id)))].slice(0, 3) : [];
     const restore = () => { try { updateIds(sanitize(JSON.parse(localStorage.getItem(storageKey) ?? "[]"))); } catch { updateIds([]); } };
-    restore(); setReady(true);
+    restore(); setReadyScope(storageKey);
     const sync = (event: StorageEvent) => { if (event.key === storageKey || event.key === null) restore(); };
     window.addEventListener("storage", sync);
     return () => window.removeEventListener("storage", sync);

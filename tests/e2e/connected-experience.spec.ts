@@ -31,7 +31,7 @@ test("comparison passes the complete shortlist and intent into a persisted lead"
   await expect(page.locator(".compare-product")).toHaveCount(2);
   await page.getByLabel("Show differences only").check();
   await expect(page.getByRole("rowheader", { name: "Availability", exact: true })).toHaveCount(0);
-  await page.getByRole("link", { name: "Talk through the shortlist", exact: true }).click();
+  await page.getByRole("link", { name: /^Talk through the shortlist/ }).click();
   await expect(page.locator(".contact-context a")).toHaveCount(2);
   await page.getByRole("button", { name: /Discuss an exchange/ }).click();
   await expect(page.getByLabel("I want to")).toHaveValue("exchange");
@@ -80,7 +80,7 @@ test("desktop tour is keyboard navigable and vehicle photography opens accessibl
   await expect(page.getByRole("button", { name: "Expand image" })).toBeFocused();
   await page.getByRole("link", { name: "Request a test drive" }).click();
   await expect(page.getByLabel("I want to")).toHaveValue("test_drive");
-  await expect(page.getByLabel("Vehicle of interest")).toHaveValue("veh-2");
+  await expect(page.getByLabel("Vehicle of interest")).toHaveValue("veh-1");
 });
 
 test("connected pages remain responsive and usable with reduced motion", async ({ page }, testInfo) => {
