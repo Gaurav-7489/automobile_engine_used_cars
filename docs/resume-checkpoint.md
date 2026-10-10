@@ -1,6 +1,20 @@
 # Active checkpoint — 10 October 2026
 
-## Main-domain publication — 10 October 2026
+## Connected public pages and main-domain publication — 10 October 2026
+
+The latest request was to add connected features throughout the public website, especially inventory, comparison, contact and desktop downloads, while retaining Apple-inspired minimalism and adding restrained Skiper/21st-inspired motion. PR #20 is merged at software commit `163f34828816e4d2b0349641c7845b0b22f9ddc5`. Its full tree `d6b11e3fd7a6cc827375414ca48fdf199a9531c2` matches tested candidate `ffee4f66337f899a42f7ad73b51e947abb69f1dc`.
+
+[Quality Gate 38035412278](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38035412278) passed all steps: lint, four application typechecks/builds, 27 security, 6 database/provisioning, 5 intelligence, 82 Chromium/mobile WebKit browser/API and 22 staff HTTP cases, plus AWS/CDK synthesis. Desktop/mobile visual evidence was inspected. The new cases exercise persistent three-car selection, shareable inventory URL state, complete shortlist/intent handoff into a persisted lead, invalid-interest rejection, desktop tour keyboard controls, gallery Escape/focus behavior and five responsive/reduced-motion pages.
+
+Delivered: one tenant/dealer-scoped browser shortlist across home, cards, inventory, vehicle detail and comparison; floating tray/navigation count; search/make/body/fuel/budget/studio/availability/owner filters, sorting, grid/list views and shareable URLs; comparison photo cards, differences table and price gap; contextual enquiry intent/vehicle cards; server-validated multi-vehicle lead interests; accessible photography expansion and related cars; keyboard product-tour tabs, workspace URL format checking, installer cards and FAQs. Motion adds soft spotlights, hover shine, reveals and transitions without new packages and respects reduced motion. See [connected public experience](connected-public-experience-2026-10-10.md) and updated OpenAPI.
+
+Production deployment `dpl_FvooM1B8mLiB5TQTbA52ns341xQL` is READY from the software merge. https://vandlabs-automobile-web.vercel.app/ resolves to that exact deployment/source. Authenticated HTTP checks returned 200 on home, inventory, comparison, contact, desktop download and vehicle detail, with the expected new markup. Contact/vehicle enquiry fieldsets remain disabled with reference notices. A scoped runtime error/fatal count scan returned no groups. Existing demo/read-only environment and SSO protection are retained. User authorization covers main merge and production publication; no shared backend or native activation was attempted. Staff UI and native source remain unchanged. Later evidence commits change documentation only.
+
+The full ecosystem is still NOT COMPLETE / NOT PRODUCTION CERTIFIED. Shared AWS/Aurora/Cognito/Redis configuration and live end-to-end acceptance remain open, along with the advanced blueprint/native-signing gaps below. Preserve all authorization and read-only guards when continuing.
+
+Fresh merged-main [Quality Gate 38035733335](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38035733335) also passed every step on the identical software tree.
+
+## Previous main-domain publication — 10 October 2026
 
 At the user’s request, the public web app is deployed to https://vandlabs-automobile-web.vercel.app/. Production deployment `dpl_DusiWqWB7T1mwT1afwSbGq7icZRJ` is READY from then-current main `ec0221fff5c8ae7c921ee670d845b209bd9ce623`, including the tested Apple-inspired software and its delivery docs. The main software Quality Gate 38032012024 also passed all steps. The domain resolves to this exact deployment. Authenticated HTTP checks returned 200 for `/`, `/inventory`, `/contact`, `/download` and `/api/health`; the homepage contains the new minimal subtitle and reference notice. A scoped runtime error/fatal log count scan returned no groups after these requests; this is a smoke check, not load acceptance.
 

@@ -1,6 +1,6 @@
 # Automobile Engine — Source-of-truth completion register
 
-Date: 2026-10-09
+Date: 2026-10-10
 Status: **NOT COMPLETE / NOT PRODUCTION CERTIFIED**
 Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75), *VandLabs Used-Car AI Ecosystem Master Blueprint* (October 2026, 56 sections), and current code/docs as reviewed. This register documents what can be grounded from repository evidence; it is not a successful test report.
 
@@ -17,7 +17,7 @@ Sources: user's *75 Locked Product + Architecture Decisions* (Decisions 01–75)
 
 | Workstream | Repo evidence | Remaining acceptance gap |
 | --- | --- | --- |
-| Public website / inventory / VDP | `apps/web`, V1 E2E in `tests/e2e/smoke.spec.ts` and distribution/responsive cases | 74 current-revision browser/API cases passed; inspect actual dealership media, broader browsers, accessibility, performance and SEO |
+| Public website / inventory / VDP | `apps/web`, connected discovery E2E, V1 smoke and distribution/responsive cases | 82 current-revision browser/API cases passed; inspect actual dealership media, broader browsers, accessibility, performance and SEO |
 | Enquiry/attribution | BFF / lead and event E2E smoke tests | Demonstrate real end-to-end lead persistence and consent rules under deployed staging |
 | CRM / follow-ups / automation | `apps/command-center`, lead/task tests; `docs/roadmap.md` V1.5–V2 | Confirm roles, no duplicate follow-ups, full stage transitions and dealer workflows in live environment |
 | PostgreSQL tenant persistence | `docs/production-runtime.md`, migrations, RLS and embedded-DB tests | Deploy staging database; migrate; verify real connectivity, cross-tenant denial, backup/restore |
@@ -102,3 +102,9 @@ PR #18 adds a colour-led showroom, keyboard-accessible featured-car selector, or
 ## Minimal showroom refinement — 10 October 2026
 
 PR #19 implements the latest Apple-inspired direction, superseding the earlier bright colour system. Tested candidate `5d418c4eeba2a42ad338def57b35992b2d44d49e` and software merge `4b8df8b59ab0f4f13f5ad5756a0d8fadb7908930` share full tree `79556511f69f95b028cccfeb27ef24a06576b212`. Quality Gate 38031729368 passed 74 browser/API and 22 staff HTTP cases, lint, all four application typechecks/builds, security/database/intelligence checks and AWS/CDK synthesis. Desktop/mobile evidence was inspected. Only the public web visual system changed; shared live backend and broader production gaps remain open. See [minimal showroom delivery](apple-minimal-showroom-2026-10-10.md).
+
+## Connected public experience — 10 October 2026
+
+PR #20 adds tenant-scoped browser shortlist state across public pages, URL-restored inventory tools, interactive differences-only comparison, complete validated shortlist-to-lead handoff, contextual contact intents, accessible vehicle photography and an interactive desktop product tour. The Apple-inspired palette is retained with restrained original Skiper/21st-inspired motion and reduced-motion support. Tested candidate `ffee4f66337f899a42f7ad73b51e947abb69f1dc` and software merge `163f34828816e4d2b0349641c7845b0b22f9ddc5` share full tree `d6b11e3fd7a6cc827375414ca48fdf199a9531c2`. Quality Gate 38035412278 passed all 82 browser/API, 22 staff HTTP and existing security/database/intelligence/build/CDK checks. Desktop/mobile evidence was inspected.
+
+Production deployment `dpl_FvooM1B8mLiB5TQTbA52ns341xQL` is READY at https://vandlabs-automobile-web.vercel.app/ from this software merge. Six authenticated page checks returned 200; contact/vehicle forms retain the disabled read-only state, and existing SSO is preserved. The hosted reference website is published; shared live backend operation and installed native acceptance remain open. See [connected public experience](connected-public-experience-2026-10-10.md). Full ecosystem status remains NOT COMPLETE / NOT PRODUCTION CERTIFIED.
