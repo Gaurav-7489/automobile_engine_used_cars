@@ -31,7 +31,7 @@ export function parseInventoryCsv(text:unknown):Record<string,string>[] {
   return rows.map((r,i)=>{if(r.length!==header.length)issue(i+2,"file","Column count does not match header.");return Object.fromEntries(header.map((h,j)=>[h,r[j]]));});
 }
 
-export function normalizeInventoryRows(input:unknown,csv=false):InventoryDraft[] {
+export function normalizeInventoryRows(input:unknown,csv=false,source?:"csv"|"xlsx"):InventoryDraft[] {
   if(!Array.isArray(input)||!input.length||input.length>200)issue(1,"file","Provide 1–200 vehicles.");
   const issues:InventoryValidationError["issues"]=[];const drafts:InventoryDraft[]=[];const stockIds=new Set<string>();
   input.forEach((value,i)=> {
@@ -41,7 +41,7 @@ export function normalizeInventoryRows(input:unknown,csv=false):InventoryDraft[]
       const v=value as Record<string,unknown>;
       if(Object.keys(v).some(k=>!inventoryColumns.includes(k as typeof inventoryColumns[number])))issue(row,"vehicle","Unknown or protected vehicle field.");
       const str=(k:string,max=120)=>{if(typeof v[k]!=="string"||!(v[k] as string).trim()||(v[k] as string).length>max)issue(row,k,"Required text is missing or too long.");return (v[k] as string).trim();};
-      const num=(k:string,min:number,max:number,integer=false)=>{const raw=v[k];if(typeof raw!=="number"&&(!csv||typeof raw!=="string"||!raw.trim()))issue(row,k,"Enter a valid number.");const n=Number(raw);if(!Number.isFinite(n)||n<min||n>max||(integer&&!Number.isInteger(n)))issue(row,k,"Number is outside the accepted range.");return n;};
+      const num=(k:string,min:number,max:number,integer=false)=>{const raw=v[k];if(typeof raw!=="number"&&(!csv||typeof raw!=="string"||!raw.trim()))issue(row,k,"Enter a valid number.");if(typeof raw==="string"&&!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(raw.trim()))issue(row,k,"Enter a number without currency symbols or units.");const n=Number(raw);if(!Number.isFinite(n)||n<min||n>max||(integer&&!Number.isInteger(n)))issue(row,k,"Number is outside the accepted range.");return n;};
       const choice=<T extends string>(k:string,options:readonly T[]):T=>{const s=str(k).toLowerCase();if(!options.includes(s as T))issue(row,k,`Choose ${options.join(", ")}.`);return s as T;};
       const bool=(k:string)=>{if(v[k]===undefined||v[k]==="")return false;if(v[k]===true||v[k]===false)return v[k] as boolean;if(csv&&(v[k]==="true"||v[k]==="false"))return v[k]==="true";return issue(row,k,"Use true or false.");};
       const stockId=str("stockId",64).toUpperCase();if(!/^[A-Z0-9][A-Z0-9_-]*$/.test(stockId))issue(row,"stockId","Use letters, digits, hyphens or underscores.");
@@ -50,7 +50,7 @@ export function normalizeInventoryRows(input:unknown,csv=false):InventoryDraft[]
       const imageUrl=v.imageUrl===undefined||v.imageUrl===""?undefined:str("imageUrl",2048);
       if(imageUrl){let url:URL;try{url=new URL(imageUrl);}catch{return issue(row,"imageUrl","Use a public HTTPS image URL.");}if(url.protocol!=="https:"||url.username||url.password||!url.hostname.includes(".")||url.hostname.includes(":")||/^[0-9.]+$/.test(url.hostname)||[".local",".localhost",".internal"].some(s=>url.hostname.endsWith(s))||[...url.searchParams.keys()].some(k=>/token|secret|password|credential|signature|api.?key|authorization/i.test(k)))issue(row,"imageUrl","Use a public HTTPS image URL without credentials or secret query parameters.");}
       const make=str("make"),model=str("model");
-      drafts.push({stockId,make,model,variant:str("variant"),year:num("year",1900,new Date().getUTCFullYear()+1,true),price,mileage:num("mileage",0,2000000,true),fuelType:choice("fuelType",["petrol","diesel","hybrid","electric"]),transmission:choice("transmission",["manual","automatic"]),ownership:num("ownership",1,20,true),bodyType:str("bodyType"),condition:choice("condition",["excellent","good","fair"]),exteriorColor:str("exteriorColor"),interiorColor:str("interiorColor"),features:[],specifications:{},media:imageUrl?[{url:imageUrl,alt:`${make} ${model} · ${stockId}`}]:[],availabilityStatus:"available",publishStatus:"draft",source:csv?"csv":"manual",financeEligible:bool("financeEligible"),exchangeEligible:bool("exchangeEligible")});
+      drafts.push({stockId,make,model,variant:str("variant"),year:num("year",1900,new Date().getUTCFullYear()+1,true),price,mileage:num("mileage",0,2000000,true),fuelType:choice("fuelType",["petrol","diesel","hybrid","electric"]),transmission:choice("transmission",["manual","automatic"]),ownership:num("ownership",1,20,true),bodyType:str("bodyType"),condition:choice("condition",["excellent","good","fair"]),exteriorColor:str("exteriorColor"),interiorColor:str("interiorColor"),features:[],specifications:{},media:imageUrl?[{url:imageUrl,alt:`${make} ${model} · ${stockId}`}]:[],availabilityStatus:"available",publishStatus:"draft",source:source??(csv?"csv":"manual"),financeEligible:bool("financeEligible"),exchangeEligible:bool("exchangeEligible")});
       stockIds.add(stockId);
     }catch(e){if(e instanceof InventoryValidationError)issues.push(...e.issues);else throw e;}
   });

@@ -5,17 +5,23 @@
   "exports": {
     ".": "./src/index.ts",
     "./postgres": "./src/postgres.ts",
-    "./http": "./src/http.ts"
+    "./http": "./src/http.ts",
+    "./inventory-spreadsheet": "./src/inventory-spreadsheet.ts",
+    "./inventory-template": "./src/inventory-template.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.900.0",
     "@vandlabs/contracts": "workspace:*",
     "@vandlabs/demo-data": "workspace:*",
-    "pg": "^8.16.3",
-    "@aws-sdk/client-secrets-manager": "^3.900.0",
     "@vandlabs/server-auth": "workspace:*",
-    "next": "^15.5.3"
+    "fflate": "0.8.3",
+    "next": "^15.5.3",
+    "pg": "^8.16.3",
+    "saxes": "6.0.0",
+    "yauzl": "3.4.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.15.5"
+    "@types/pg": "^8.15.5",
+    "@types/yauzl": "2.10.3"
   }
 }

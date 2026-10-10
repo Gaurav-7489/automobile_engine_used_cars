@@ -334,28 +334,45 @@ paths:
         "409": {description: Concurrent identity conflict}
   /command/api/vehicles/import:
     post:
-      summary: Preview or commit a batch of new CSV stock identities
+      summary: Preview or commit a batch of new Excel or CSV stock identities
       servers: [{ url: "http://127.0.0.1:3001" }]
-      description: CSV maximum 250000 UTF-8 bytes and 200 records. Preview does not write; commit revalidates and is atomic. Duplicates do not overwrite existing stock.
+      description: CSV or standard .xlsx up to 250000 file bytes and 200 records. Send exactly one of csv or xlsx (base64). Excel XML is bounded to 2 MB per part and 4 MB total, with at most 80 archive entries. Reads the visible Inventory sheet or a sole visible sheet. Formulas, macros, embedded objects, external workbook links, hidden rows/columns and merged cells are rejected. Preview does not write; commit revalidates and is atomic. Duplicates do not overwrite existing stock.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [dealershipId, locationId, csv, mode]
+              required: [dealershipId, locationId, mode]
+              oneOf:
+                - required: [csv]
+                  not: {required: [xlsx]}
+                - required: [xlsx]
+                  not: {required: [csv]}
               properties:
                 dealershipId: {type: string}
                 locationId: {type: string}
-                csv: {type: string}
+                csv: {type: string, description: UTF-8 CSV contents}
+                xlsx: {type: string, format: byte, description: Standard XLSX file as base64}
                 mode: {type: string, enum: [preview, commit]}
       responses:
         "200": {description: Transient preview records; no writes}
         "201": {description: Batch committed with creation audits}
-        "400": {description: Invalid CSV or row-field issues, including duplicate identities}
+        "400": {description: Invalid workbook, CSV or row-field issues, including duplicate identities}
         "401": {description: Authentication required}
         "403": {description: Capability or location denied}
         "409": {description: Concurrent identity conflict}
+  /command/api/vehicles/template:
+    get:
+      summary: Download an inventory-only Excel or UTF-8 CSV template
+      servers: [{url: "http://127.0.0.1:3001"}]
+      description: Requires inventory read access. The XLSX file has an empty Inventory sheet and a Guide with examples, field rules and dropdowns. Contains no customer or dealership records.
+      parameters: [{in: query, name: format, schema: {type: string, enum: [xlsx, csv], default: xlsx}}]
+      responses:
+        "200": {description: Download attachment with private no-store caching}
+        "400": {description: Unsupported template format}
+        "401": {description: Authentication required}
+        "403": {description: Inventory read capability denied}
   /command/api/vehicles/{id}:
     put:
       summary: Edit canonical vehicle details while preserving identity, scope and state

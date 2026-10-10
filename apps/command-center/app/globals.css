@@ -234,3 +234,30 @@ tr:hover td { background:#f8faf5; }
 
 .ui-skeleton { height:14px; width:65%; background:color-mix(in srgb,var(--muted) 16%,var(--surface));border-radius:6px; }
 .skeleton-title { height:35px;width:55%;margin-bottom:20px; }.skeleton-value { height:45px;width:35%;margin-top:22px; }.skeleton-row { width:100%;height:45px;margin-block:18px; }
+
+/* Spreadsheet intake shares the dealer workspace's stock/review rhythm. */
+.import-workspace { display:grid;gap:22px;padding-top:24px;min-width:0; }
+.import-heading,.import-review-head { display:flex;justify-content:space-between;align-items:flex-start;gap:24px; }
+.import-heading h3,.import-review h3 { margin:6px 0 10px;font-size:24px;font-weight:500;letter-spacing:-.03em; }
+.import-heading p { max-width:620px;line-height:1.65; }
+.import-format { background:#edf2e6;color:#355238;border-radius:20px;padding:9px 14px;font-size:12px;white-space:nowrap; }
+.import-steps { list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:0;margin:0; }
+.import-steps li { padding:18px;border:1px solid var(--line);border-radius:12px;background:#f7f9f3; }
+.import-steps strong,.import-steps span,.import-templates strong,.import-templates span { display:block; }
+.import-steps strong { font-size:13px;margin-bottom:8px; }.import-steps span { font-size:12px;color:var(--muted);line-height:1.6; }
+.import-templates { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
+.import-templates a { border:1px solid #cbd8c1;border-radius:12px;padding:18px;transition:background .18s,border-color .18s; }
+.import-templates a:hover { background:#f1f6e8;border-color:#79936d; }.import-templates span { font-size:12px;color:var(--muted);margin-top:7px; }
+.import-upload { padding:20px;border:1px dashed #91a588;border-radius:12px;background:#fafcf7;min-width:0; }
+.import-upload input { max-width:100%;min-width:0; }.import-upload small { color:var(--muted);line-height:1.7; }
+.import-actions,.import-file { display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap; }
+.import-file { padding:16px;background:#f4f7ef;border-radius:10px; }.import-file div { min-width:0; }.import-file strong { overflow-wrap:anywhere; }.import-file span { display:block;font-size:12px;color:var(--muted);margin-top:5px; }
+.import-errors { border:1px solid #e3bca4;border-radius:12px;overflow:hidden;background:#fffaf6;min-width:0; }
+.import-errors > div:first-child { display:flex;justify-content:space-between;align-items:center;gap:16px;padding:20px;flex-wrap:wrap; }.import-errors h3 { margin:0;font-size:18px; }.import-errors a { text-decoration:underline;font-size:12px; }.import-errors table { min-width:600px; }.import-errors td:last-child { white-space:normal;line-height:1.65; }
+.import-review { border:1px solid #d7e1cc;border-radius:14px;padding:22px;display:grid;gap:20px;min-width:0; }
+.import-review-head p { color:var(--muted);font-size:12px; }.import-review-head > div:last-child { text-align:right;flex-shrink:0; }.import-review-head span,.import-review-head small { display:block;font-size:11px;color:var(--muted); }.import-review-head strong { display:block;margin-block:8px;font-size:25px;font-weight:500;letter-spacing:-.03em; }
+.import-review table { min-width:1700px; }.import-review td > strong { display:block; }.import-review td a { display:block;max-width:230px;overflow-wrap:anywhere;white-space:normal;font-size:11px;line-height:1.6;text-decoration:underline; }
+.inventory-intake .import-confirm { display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.6;cursor:pointer; }.import-confirm input { width:18px;height:18px;min-height:0;flex-shrink:0;margin-top:2px; }
+.import-review > button { justify-self:start; }.import-status { margin:0;font-size:13px;line-height:1.7;overflow-wrap:anywhere; }.stock-import :focus-visible { outline:2px solid #416742;outline-offset:3px; }
+@media(max-width:700px){.import-heading,.import-review-head{flex-direction:column;gap:12px;}.import-steps,.import-templates{grid-template-columns:1fr;}.import-review{padding:16px;}.import-review-head>div:last-child{text-align:left;}.import-format{white-space:normal;}.import-actions{align-items:flex-start;}.import-steps li{padding:14px;}}
+@media(prefers-reduced-motion:reduce){.import-templates a{transition:none;}}
