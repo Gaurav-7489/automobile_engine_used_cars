@@ -2,8 +2,8 @@ import { test, expect } from "@playwright/test";
 
 test("inventory filters round-trip and shortlist persists with a three-car limit", async ({ page }) => {
   await page.goto("/inventory?q=BMW&sort=price-low");
-  await expect(page.getByPlaceholder("BMW, SUV, automatic...")).toHaveValue("BMW");
-  await expect(page.getByLabel("Sort", { exact: true })).toHaveValue("price-low");
+  await expect(page.getByRole("textbox", { name: "Search the collection" })).toHaveValue("BMW");
+  await expect(page.getByRole("combobox", { name: "Sort", exact: true })).toHaveValue("price-low");
   await page.getByRole("button", { name: "List", exact: true }).click();
   await expect(page.locator(".inventory-list")).toBeVisible();
   await page.reload();
