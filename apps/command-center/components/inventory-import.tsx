@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Vehicle } from "@vandlabs/contracts";
 import type { InventoryDestination } from "./inventory-intake";
@@ -9,6 +9,7 @@ interface ImportPreview { vehicles: Vehicle[]; format: "csv" | "xlsx"; worksheet
 const money = (value: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(value);
 export function InventoryImport({ destination, disabled, onBusyChange }: { destination: InventoryDestination; disabled: boolean; onBusyChange: (busy: boolean) => void }) {
   const router = useRouter();
+  const fileInputId = useId();
   const [csv, setCsv] = useState(""), [upload, setUpload] = useState<{ name: string; xlsx: string } | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null), [reviewed, setReviewed] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]), [message, setMessage] = useState(""), [fileKey, setFileKey] = useState(0);
@@ -40,7 +41,7 @@ export function InventoryImport({ destination, disabled, onBusyChange }: { desti
       <div className="import-heading"><div><p className="eyebrow">Bulk inventory intake</p><h3>Your spreadsheet. Reviewed stock.</h3><p className="muted">Add up to 200 vehicles in one batch. Imports create drafts; review and publish each vehicle when it is ready.</p></div><span className="import-format">.xlsx / .csv · 250 KB</span></div>
       <ol className="import-steps"><li><strong>1. Prepare</strong><span>Use the template and plain values.</span></li><li><strong>2. Review</strong><span>Check every row and the destination.</span></li><li><strong>3. Add drafts</strong><span>All rows save together, then appear in stock.</span></li></ol>
       <div className="import-templates"><a href="/command/api/vehicles/template?format=xlsx" download="vandlabs-inventory-template.xlsx"><strong>Excel template</strong><span>Field guide, dropdowns and text stock IDs</span></a><a href="/command/api/vehicles/template?format=csv" download="vandlabs-inventory-template.csv"><strong>CSV template</strong><span>UTF-8 headers for your inventory export</span></a></div>
-      <label className="import-upload"><span>Inventory file</span><input key={fileKey} disabled={disabled} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={event => {
+      <div className="import-upload"><label htmlFor={fileInputId}>Inventory file</label><input id={fileInputId} aria-describedby={`${fileInputId}-help`} key={fileKey} disabled={disabled} type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={event => {
         const file = event.target.files?.[0]; invalidate(); setUpload(null); setCsv("");
         if (!file) return;
         if (file.size > 250000) { setMessage("Choose an Excel or CSV file up to 250 KB."); return; }
@@ -54,7 +55,7 @@ export function InventoryImport({ destination, disabled, onBusyChange }: { desti
             setUpload({ name: file.name, xlsx: btoa(binary) });
           }
         });
-      }}/><small>Excel reads the visible Inventory worksheet, or the only visible sheet. Formulas, macros, linked workbooks, hidden rows and merged cells must be removed.</small></label>
+      }}/><small id={`${fileInputId}-help`}>Excel reads the visible Inventory worksheet, or the only visible sheet. Formulas, macros, linked workbooks, hidden rows and merged cells must be removed.</small></div>
       {upload ? <div className="import-file"><div><strong>{upload.name}</strong><span>Ready to validate on the server.</span></div><button type="button" disabled={disabled} onClick={() => { invalidate(); setUpload(null); setFileKey(key => key + 1); }}>Remove file</button></div> : <label><span>CSV contents</span><textarea disabled={disabled} rows={5} value={csv} maxLength={250000} spellCheck={false} placeholder="Paste CSV here, or choose a file above." onChange={event => { setCsv(event.target.value); invalidate(); }}/></label>}
       <div className="import-actions"><button type="button" disabled={disabled || !(upload || csv.trim())} onClick={() => void run(async () => { setPreview(null); setReviewed(false); const data = await submit("preview"); setPreview(data); setMessage(`${data.vehicles.length} valid ${data.vehicles.length === 1 ? "draft" : "drafts"} ready for review.`); })}>{disabled && pending.current ? "Working…" : "Preview import"}</button><span className="muted">Destination: {destination.label}</span></div>
       {issues.length ? <section className="import-errors" aria-label="Import validation errors"><div><h3>Fix before importing</h3><a download="inventory-import-errors.csv" href={`data:text/csv;charset=utf-8,${encodeURIComponent(report)}`}>Download error report</a></div><div className="table-scroll" role="region" aria-label="Row validation errors" tabIndex={0}><table><thead><tr><th>Worksheet / CSV row</th><th>Field</th><th>What to fix</th></tr></thead><tbody>{issues.map((issue, i) => <tr key={`${issue.row}-${issue.field}-${i}`}><td>{issue.row}</td><td>{issue.field}</td><td>{issue.message}</td></tr>)}</tbody></table></div></section> : null}
