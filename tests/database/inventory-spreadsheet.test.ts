@@ -56,6 +56,8 @@ test("Excel rejects formulas, macro/linked parts, hidden data, merged cells and 
     p => editXml(p, "xl/worksheets/sheet1.xml", x => x.replace('<c r="B2" t="inlineStr">', '<c r="B2" t="e">')),
     p => { editXml(p, "xl/styles.xml", x => x.replace('numFmtId="49"', 'numFmtId="14"')); editXml(p, "xl/worksheets/sheet1.xml", x => x.replace('<c r="F2">', '<c r="F2" s="2">')); },
     p => editXml(p, "xl/worksheets/sheet1.xml", x => x.replace('<c r="F2">', '<c r="F2" s="999">')),
+    p => { editXml(p, "xl/styles.xml", x => x.replace('numFmtId="49"', 'numFmtId="14"')); editXml(p, "xl/worksheets/sheet1.xml", x => x.replace('min="2" max="17"', 'min="2" max="17" style="2"')); },
+    p => { editXml(p, "xl/styles.xml", x => x.replace('numFmtId="49"', 'numFmtId="14"')); editXml(p, "xl/worksheets/sheet1.xml", x => x.replace('<row r="2">', '<row r="2" s="2" customFormat="1">')); },
   ];
   for (const change of changes) await assert.rejects(parseInventoryXlsx(workbook(change)), InventoryValidationError);
   try { await parseInventoryXlsx(workbook(changes[0])); assert.fail(); } catch (error) { assert.ok(error instanceof InventoryValidationError); assert.equal(error.issues[0].row, 2); assert.equal(error.issues[0].field, "price"); }
@@ -75,6 +77,10 @@ test("Excel archives and XML are bounded, malformed values and out-of-header dat
     p => editXml(p, "xl/worksheets/sheet1.xml", x => x.replace('<c r="Q1" t="inlineStr" s="1"><is><t xml:space="preserve">exchangeEligible</t></is></c>', "")),
   ];
   for (const change of changes) await assert.rejects(parseInventoryXlsx(workbook(change)), InventoryValidationError);
+  // A false expanded size must be rejected by actual streaming validation, not just directory metadata.
+  const forged = Buffer.from(workbook(p => { p["forged.xml"] = strToU8(" ".repeat(2000001)); }), "base64");
+  for (let offset = 0; offset < forged.length - 46; offset++) if (forged.readUInt32LE(offset) === 0x02014b50 && forged.subarray(offset + 46, offset + 46 + forged.readUInt16LE(offset + 28)).toString() === "forged.xml") { forged.writeUInt32LE(1000, offset + 24); break; }
+  await assert.rejects(parseInventoryXlsx(forged.toString("base64")), InventoryValidationError);
   const parsed = await parseInventoryXlsx(workbook(undefined, dataRow(row) + dataRow({ ...row, stockId: "002-HONDA", price: -1 }, 3)));
   assert.throws(() => normalizeInventoryRows(parsed.rows, true, "xlsx"), error => error instanceof InventoryValidationError && error.issues[0].row === 3);
   for (const price of ["0x12", "Infinity", "=100000", "12,00,000", "1200000 INR"]) assert.throws(() => normalizeInventoryRows([{ ...parsed.rows[0], price }], true), InventoryValidationError);

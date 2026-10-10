@@ -158,10 +158,12 @@ export async function parseInventoryXlsx(input: unknown): Promise<ParsedInventor
       } else if (type === "inlineStr") value = richText(child(cell, "is"));
       else if (type === "b") { if (raw !== "0" && raw !== "1") invalid("Use true or false for eligibility flags.", rowIndex, field); value = raw === "1" ? "true" : "false"; }
       else if (type === "n" || type === "str") {
-        if (type === "n" && raw && cell.attrs.s) {
-          const style = Number(cell.attrs.s);
-          if (!Number.isInteger(style) || style < 0 || style >= styleFormats.length) invalid("The workbook contains an invalid cell style.", rowIndex, field);
-          if (dateFormat(styleFormats[style])) invalid("Replace date/time cells with plain inventory values before importing.", rowIndex, field);
+        if (type === "n" && raw) {
+          const columnStyle = child(sheet, "cols")?.children.find(c => Number(c.attrs.min) <= column + 1 && Number(c.attrs.max) >= column + 1)?.attrs.style;
+          const rowStyle = row.attrs.customFormat === "1" || row.attrs.customFormat === "true" ? row.attrs.s : undefined;
+          const style = Number(cell.attrs.s ?? rowStyle ?? columnStyle ?? 0);
+          if (!Number.isInteger(style) || style < 0 || (styleFormats.length ? style >= styleFormats.length : style !== 0)) invalid("The workbook contains an invalid cell style.", rowIndex, field);
+          if (dateFormat(styleFormats[style] ?? 0)) invalid("Replace date/time cells with plain inventory values before importing.", rowIndex, field);
         }
         value = raw;
       }
