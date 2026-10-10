@@ -90,7 +90,7 @@ export default async function Page() {
           </div>
         </div>
       </section>
-      <section className="conversation-section"><div className="shell conversation-grid"><div><p className="eyebrow">The road ahead looks good</p><h2>Let's find<br />your <span>next.</span></h2></div><div><p>A question, a shortlist, or just a starting point. Tell us what you have in mind.</p><Link href="/contact" className="button primary">Start a conversation <span aria-hidden="true">↗</span></Link></div></div></section>
+      <section className="conversation-section"><div className="shell conversation-grid"><div><p className="eyebrow">The road ahead looks good</p><h2>Let&apos;s find<br />your <span>next.</span></h2></div><div><p>A question, a shortlist, or just a starting point. Tell us what you have in mind.</p><Link href="/contact" className="button primary">Start a conversation <span aria-hidden="true">↗</span></Link></div></div></section>
     </main>
   );
 }
