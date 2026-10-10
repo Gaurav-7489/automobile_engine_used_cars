@@ -1,5 +1,11 @@
 # Active checkpoint — 10 October 2026
 
+## Main-domain publication — 10 October 2026
+
+At the user’s request, the public web app is deployed to https://vandlabs-automobile-web.vercel.app/. Production deployment `dpl_DusiWqWB7T1mwT1afwSbGq7icZRJ` is READY from then-current main `ec0221fff5c8ae7c921ee670d845b209bd9ce623`, including the tested Apple-inspired software and its delivery docs. The main software Quality Gate 38032012024 also passed all steps. The domain resolves to this exact deployment. Authenticated HTTP checks returned 200 for `/`, `/inventory`, `/contact`, `/download` and `/api/health`; the homepage contains the new minimal subtitle and reference notice. A scoped runtime error/fatal log count scan returned no groups after these requests; this is a smoke check, not load acceptance.
+
+Production now explicitly uses `DATA_MODE=demo` and `NEXT_PUBLIC_PREVIEW_READ_ONLY=true`. Existing preview settings are preserved; SSO remains enabled for all deployments. This publishes the reference website on the main domain, without activating live backend writes or staff authentication. A deployment-only ignored-build override allowed this authorized publication. Staff apps and native code were unchanged. Subsequent documentation commits do not alter the deployed application behavior.
+
 The latest user direction is **Apple-inspired minimalism**, superseding the earlier Skiper/21st colour brief. PR #19 is merged at software commit `4b8df8b59ab0f4f13f5ad5756a0d8fadb7908930`. Its full tree `79556511f69f95b028cccfeb27ef24a06576b212` matches tested candidate `5d418c4eeba2a42ad338def57b35992b2d44d49e`.
 
 [Quality Gate 38031729368](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38031729368) passed lint, four typechecks/builds, 27 security, 6 database/provisioning, 5 intelligence, 74 Chromium/mobile WebKit browser/API and 22 staff HTTP cases, plus AWS/CDK synthesis. Desktop/mobile showroom and desktop download screenshots were inspected. The same keyboard selection, readable footer, preview roles and reduced-motion behavior are retained. Local web typecheck/build passed.
