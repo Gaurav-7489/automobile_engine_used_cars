@@ -23,7 +23,7 @@ export default async function Page() {
 
       <ShowroomHero vehicles={featured.slice(0, 3).map(({ id, slug, make, model, year, variant, price, media }) => ({ id, slug, make, model, year, variant, price, media: media.slice(0, 1) }))} dealer={dealer.name} cities={dealer.locations.map(item => item.city).join(" / ")} available={snapshot.available} locations={dealer.locations.length} />
 
-      <section className="collection-section"><div className="shell section">
+      <section className="collection-section" data-reveal><div className="shell section">
         <div className="sectionhead">
           <div>
             <p className="eyebrow">Featured inventory</p>
@@ -38,7 +38,7 @@ export default async function Page() {
         </div>
       </div></section>
 
-      <section className="discovery-section"><div className="shell section split-section">
+      <section className="discovery-section" data-reveal><div className="shell section split-section">
         <div>
           <p className="eyebrow">Made for your next chapter</p>
           <h2>Less guesswork.<br />More <span>good feeling.</span></h2>
@@ -79,7 +79,7 @@ export default async function Page() {
         </div>
       </div></section>
 
-      <section className="ecosystem-band">
+      <section className="ecosystem-band" data-reveal>
         <div className="shell">
           <div className="sectionhead"><div><p className="eyebrow light">VandLabs Automobile Engine</p><h2>Everything you need.<br />Beautifully connected.</h2></div><p className="subtle">From the first vehicle view to the next sale.<br />A connected workspace for your dealership.</p></div>
           <div className="ecosystem-grid">
@@ -89,7 +89,7 @@ export default async function Page() {
           </div>
         </div>
       </section>
-      <section className="conversation-section"><div className="shell conversation-grid"><div><p className="eyebrow">The road ahead looks good</p><h2>Let&apos;s find your <span>next.</span></h2></div><div><p>A question, a shortlist, or just a starting point. Tell us what you have in mind.</p><Link href="/contact" className="button primary">Start a conversation <span aria-hidden="true">↗</span></Link></div></div></section>
+      <section className="conversation-section" data-reveal><div className="shell conversation-grid"><div><p className="eyebrow">The road ahead looks good</p><h2>Let&apos;s find your <span>next.</span></h2></div><div><p>A question, a shortlist, or just a starting point. Tell us what you have in mind.</p><Link href="/contact" className="button primary">Start a conversation <span aria-hidden="true">↗</span></Link></div></div></section>
     </main>
   );
 }

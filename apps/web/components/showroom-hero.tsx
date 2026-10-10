@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Vehicle } from "@vandlabs/contracts";
 import { money } from "../lib/format";
+import { ShortlistButton } from "./shortlist";
 import { RollingLink } from "./rolling-link";
 
 export function ShowroomHero({ vehicles, dealer, cities, available, locations }: {
@@ -30,6 +31,7 @@ export function ShowroomHero({ vehicles, dealer, cities, available, locations }:
         <div className="hero-details" aria-live="polite" aria-atomic="true">
           {vehicle && <Link href={"/vehicles/" + vehicle.slug} className="hero-vehicle"><div><span className="meta">{vehicle.year} · {vehicle.variant}</span><strong>{vehicle.make} {vehicle.model}</strong><small>{money(vehicle.price)} · Editorial demo photography</small></div><span className="round-arrow" aria-hidden="true">↗</span></Link>}
         </div>
+        {vehicle && <div className="hero-shortlist"><ShortlistButton id={vehicle.id} compact /><Link href={`/contact?vehicle=${vehicle.id}&intent=test_drive`} className="rolling-link">Meet this car ↗</Link></div>}
         {vehicles.length > 1 && <div className="hero-selectors" role="group" aria-label="Choose a featured car">{vehicles.map((item) => <button type="button" key={item.id} onClick={() => setSelectedId(item.id)} aria-pressed={vehicle?.id === item.id} aria-label={`Feature ${item.make} ${item.model}`}><span>{item.make}</span></button>)}</div>}
       </div>
     </div>

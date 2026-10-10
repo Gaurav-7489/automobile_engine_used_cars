@@ -12,7 +12,7 @@ test("inventory discovery loads", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Available now." }),
   ).toBeVisible();
-  await expect(page.getByPlaceholder("BMW, SUV, automatic...")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Search the collection" })).toBeVisible();
 });
 
 test("vehicle detail resolves", async ({ page }) => {

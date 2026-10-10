@@ -8,18 +8,29 @@ export function LeadForm({
   vehicleId,
   vehicleLabel,
   defaultIntent = "enquiry",
+  selectedIntent,
+  onIntentChange,
+  contextNote,
+  vehicleIds,
 }: {
   vehicleId?: string;
   vehicleLabel?: string;
   defaultIntent?: LeadIntent;
+  selectedIntent?: LeadIntent;
+  onIntentChange?: (intent: LeadIntent) => void;
+  contextNote?: string;
+  vehicleIds?: string[];
 }) {
   const [state, setState] = useState<
     "idle" | "submitting" | "success" | "error"
   >("idle");
   const [leadId, setLeadId] = useState("");
+  const [intentChoice, setIntentChoice] = useState(defaultIntent);
+  const readOnly = process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (readOnly || state === "submitting") return;
     const form = event.currentTarget;
     const data = new FormData(form);
     setState("submitting");
@@ -31,7 +42,8 @@ export function LeadForm({
       email: String(data.get("email") || ""),
       intent,
       vehicleId,
-      notes: String(data.get("notes") || ""),
+      vehicleIds: [...new Set([...(vehicleId ? [vehicleId] : []), ...(vehicleIds ?? [])])].slice(0, 3),
+      notes: [contextNote, String(data.get("notes") || "")].filter(Boolean).join("\n"),
       whatsappConsent: data.get("whatsappConsent") === "on",
       marketingConsent: data.get("marketingConsent") === "on",
       attribution: readAttribution(),
@@ -62,8 +74,6 @@ export function LeadForm({
     }
   }
 
-  if (process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true") return <div className="form-success" role="status"><h3>Enquiries are unavailable in this preview.</h3><p>Browse the reference inventory. Booking, finance and exchange requests will be available when the shared backend is connected.</p></div>;
-
   if (state === "success") {
     return (
       <div className="form-success" role="status">
@@ -84,24 +94,26 @@ export function LeadForm({
 
   return (
     <form className="lead-form" onSubmit={submit}>
+      {readOnly && <div className="preview-form-note" role="status"><strong>Explore the form. Enquiries are unavailable in this preview.</strong><p>Sending, bookings and live contact become available when the shared backend is connected.</p></div>}
+      <fieldset disabled={readOnly || state === "submitting"}>
       <div className="form-row">
         <label>
           <span>Name</span>
-          <input name="name" required autoComplete="name" />
+          <input name="name" required autoComplete="name" maxLength={120} />
         </label>
         <label>
           <span>Phone</span>
-          <input name="phone" required inputMode="tel" autoComplete="tel" />
+          <input name="phone" required type="tel" autoComplete="tel" maxLength={32} />
         </label>
       </div>
       <div className="form-row">
         <label>
           <span>Email</span>
-          <input name="email" type="email" autoComplete="email" />
+          <input name="email" type="email" autoComplete="email" maxLength={254} />
         </label>
         <label>
           <span>I want to</span>
-          <select name="intent" defaultValue={defaultIntent}>
+          <select name="intent" value={selectedIntent ?? intentChoice} onChange={e => { const next = e.target.value as LeadIntent; setIntentChoice(next); onIntentChange?.(next); }}>
             <option value="enquiry">Enquire about the car</option>
             <option value="test_drive">Book a test drive</option>
             <option value="finance">Discuss finance</option>
@@ -114,6 +126,7 @@ export function LeadForm({
         <textarea
           name="notes"
           rows={4}
+          maxLength={1600}
           placeholder="Preferred time, current car, questions..."
         />
       </label>
@@ -128,6 +141,7 @@ export function LeadForm({
       <button className="button primary" disabled={state === "submitting"}>
         {state === "submitting" ? "Sending..." : "Send request"}
       </button>
+      </fieldset>
       {state === "error" ? (
         <p className="form-error" role="alert">
           The request could not be sent. Please call or WhatsApp the studio.

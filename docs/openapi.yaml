@@ -95,6 +95,7 @@ paths:
                   leadId: { type: string }
                   stage: { type: string, const: new }
                   vehicleId: { type: [string, "null"] }
+                  vehicleIds: { type: array, maxItems: 3, items: { type: string } }
                   message: { type: string }
         "400":
           description: Invalid lead payload, non-JSON content type or body exceeding 16 KiB
@@ -573,8 +574,13 @@ components:
         intent:
           type: string
           enum: [enquiry, test_drive, finance, exchange]
-        vehicleId: { type: string }
-        notes: { type: string }
+        vehicleId: { type: string, maxLength: 100 }
+        vehicleIds:
+          type: array
+          maxItems: 3
+          items: { type: string, maxLength: 100 }
+          description: Published vehicles in the active dealership. Unique combined interests including the primary vehicle must not exceed three. The primary vehicle must be available.
+        notes: { type: string, maxLength: 2000 }
         whatsappConsent: { type: boolean }
         marketingConsent: { type: boolean }
         attribution:

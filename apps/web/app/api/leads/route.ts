@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     email?: string;
     intent?: LeadIntent;
     vehicleId?: string;
+    vehicleIds?: string[];
     notes?: string;
     whatsappConsent?: boolean;
     marketingConsent?: boolean;
@@ -49,7 +50,8 @@ export async function POST(request: Request) {
     typeof body.phone !== "string" || body.phone.length > 32 ||
     (body.email !== undefined && (typeof body.email !== "string" || body.email.length > 254)) ||
     (body.notes !== undefined && (typeof body.notes !== "string" || body.notes.length > 2000)) ||
-    (body.vehicleId !== undefined && typeof body.vehicleId !== "string") ||
+    (body.vehicleId !== undefined && (typeof body.vehicleId !== "string" || body.vehicleId.length > 100)) ||
+    (body.vehicleIds !== undefined && (!Array.isArray(body.vehicleIds) || body.vehicleIds.length > 3 || body.vehicleIds.some(id => typeof id !== "string" || id.length > 100))) ||
     (body.whatsappConsent !== undefined && typeof body.whatsappConsent !== "boolean") ||
     (body.marketingConsent !== undefined && typeof body.marketingConsent !== "boolean")) {
     return NextResponse.json({error:"Invalid enquiry."},{status:400});
@@ -71,6 +73,8 @@ export async function POST(request: Request) {
   const vehicle = body.vehicleId
     ? vehicles.find((item) => item.id === body.vehicleId)
     : undefined;
+  const interestIds = [...new Set([...(body.vehicleId ? [body.vehicleId] : []), ...(body.vehicleIds ?? [])])];
+  if (interestIds.length > 3 || interestIds.some(id => !vehicles.some(item => item.id === id))) return NextResponse.json({error:"Invalid vehicle shortlist."}, {status:400});
   const cleanTouch = (touch?: Partial<AttributionTouch>) => {
     if (!touch || typeof touch.source !== "string" || touch.source.length > 100 ||
       typeof touch.landingPath !== "string" || touch.landingPath.length > 1000 ||
@@ -87,7 +91,7 @@ export async function POST(request: Request) {
     dealershipId: tenantConfig.activeDealershipId,
     locationId: vehicle?.locationId ?? tenantConfig.organization.dealerships.find(d=>d.id===tenantConfig.activeDealershipId)?.locations[0]?.id,
     vehicleId: vehicle?.id,
-    vehicleIds: vehicle ? [vehicle.id] : [],
+    vehicleIds: interestIds,
     name,
     phone,
     email: body.email?.trim() || undefined,
@@ -121,7 +125,7 @@ export async function POST(request: Request) {
               capturedAt: lastTouch.capturedAt,
             }
           : undefined,
-      vehicleInterestHistory: vehicle ? [vehicle.id] : [],
+      vehicleInterestHistory: interestIds,
     },
   });
 
@@ -131,6 +135,7 @@ export async function POST(request: Request) {
       leadId: lead.id,
       stage: lead.stage,
       vehicleId: lead.vehicleId,
+      vehicleIds: lead.vehicleIds,
       message: "Your enquiry has been received.",
       automation: {
         evaluated: automation.length,

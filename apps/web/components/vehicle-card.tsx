@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ShortlistButton } from "./shortlist";
 import Image from "next/image";
 import type { Vehicle } from "@vandlabs/contracts";
 import { money, number } from "../lib/format";
@@ -7,7 +8,7 @@ import { money, number } from "../lib/format";
 export function VehicleCard({ vehicle, locationLabel = "Dealership" }: { vehicle: Vehicle; locationLabel?: string }) {
   const image = vehicle.media[0];
   return (
-    <article className="vehicle-card">
+    <article className="vehicle-card" data-reveal>
       <Link href={"/vehicles/" + vehicle.slug} className="vehicle-card-link">
         <div
           className="vehicle-card-media"
@@ -32,6 +33,7 @@ export function VehicleCard({ vehicle, locationLabel = "Dealership" }: { vehicle
           </div>
         </div>
       </Link>
+      <div className="vehicle-card-actions"><ShortlistButton id={vehicle.id} compact /><Link href={`/contact?vehicle=${vehicle.id}&intent=${vehicle.availabilityStatus === "available" ? "test_drive" : "enquiry"}`} className="card-drive-link">{vehicle.availabilityStatus === "available" ? "Test drive" : "Ask availability"} <span aria-hidden="true">↗</span></Link></div>
     </article>
   );
 }
