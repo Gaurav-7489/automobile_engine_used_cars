@@ -36,6 +36,7 @@ export function SiteFooter() {
         <span>Powered by VandLabs Automobile Engine</span>
         <span>Reference dealership · <Link href="/download">Download the workspace ↗</Link></span>
       </div>
+      <div className="shell design-credits">Interaction inspiration: <a href="https://skiper-ui.com/v1/skiper40">Skiper UI</a> · <a href="https://21st.dev/">21st.dev</a></div>
     </footer>
   );
 }

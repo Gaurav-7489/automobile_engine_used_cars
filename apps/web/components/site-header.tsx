@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { tenantConfig } from "../lib/config";
+import { RollingLink } from "./rolling-link";
 
 export function SiteHeader() {
   return (
@@ -10,11 +11,11 @@ export function SiteHeader() {
         </Link>
         <nav aria-label="Primary">
           {tenantConfig.navigation.map((item) => (
-            <Link key={item.href} href={item.href}>
+            <RollingLink key={item.href} href={item.href}>
               {item.label}
-            </Link>
+            </RollingLink>
           ))}
-          <Link href="/download">Desktop app</Link>
+          <RollingLink href="/download">Desktop app</RollingLink>
         </nav>
         <a className="nav-call" href={"tel:" + tenantConfig.contact.phone}>
           Call studio

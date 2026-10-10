@@ -33,7 +33,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {!isReadOnlyPreview() && <JourneyCapture />}
         </Suspense>
         <SiteHeader />
-        {isReadOnlyPreview() && <aside role="status" style={{padding:"12px 24px",background:"#182824",color:"#fff",textAlign:"center"}}>Reference dealership preview — browse sample vehicles. Enquiries and staff operations require the connected backend.</aside>}
+        {isReadOnlyPreview() && <div role="status" className="preview-notice">Reference dealership preview — browse sample vehicles. Enquiries and staff operations require the connected backend.</div>}
         {children}
         <SiteFooter />
       </body>
