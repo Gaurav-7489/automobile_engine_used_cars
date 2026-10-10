@@ -1,6 +1,16 @@
 # Active checkpoint — 10 October 2026
 
-The latest user request is a more attractive, creative public website using Skiper UI/21st references and a stronger colour combination. The uploaded screenshot also showed footer contrast and inappropriate-role warnings. PR #18 is merged at software commit `9de26cca8865a2c007e12719423684e7ea1e30d1`. Its full tree `394028123d858ec998b4f65eb092b65b5303c678` matches tested candidate `2439d1e5990e76d95018ff3c71e94278cd315dbb`.
+The latest user direction is **Apple-inspired minimalism**, superseding the earlier Skiper/21st colour brief. PR #19 is merged at software commit `4b8df8b59ab0f4f13f5ad5756a0d8fadb7908930`. Its full tree `79556511f69f95b028cccfeb27ef24a06576b212` matches tested candidate `5d418c4eeba2a42ad338def57b35992b2d44d49e`.
+
+[Quality Gate 38031729368](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38031729368) passed lint, four typechecks/builds, 27 security, 6 database/provisioning, 5 intelligence, 74 Chromium/mobile WebKit browser/API and 22 staff HTTP cases, plus AWS/CDK synthesis. Desktop/mobile showroom and desktop download screenshots were inspected. The same keyboard selection, readable footer, preview roles and reduced-motion behavior are retained. Local web typecheck/build passed.
+
+Delivered: white/soft grey surfaces, system typography, restrained blue accents, slimmer translucent navigation, centred headline and wide photography, quieter vehicle cards and charcoal workspace panels. Decorative stickers, bright bands, rolling text and shimmer effects are removed. Existing flows, tenant identity and visible reference attribution are preserved. See [minimal showroom delivery](apple-minimal-showroom-2026-10-10.md).
+
+The public preview is READY from the merged minimal software source. Stable URL: https://vandlabs-automobile-web-git-main-gaurav-7489s-projects.vercel.app/ Pinned URL: https://vandlabs-automobile-7y1ygj9wk-gaurav-7489s-projects.vercel.app/ Existing SSO and browse-only restrictions are retained, with authenticated HTTP 200 confirming the new experience. Staff/native source was unchanged. Shared backend activation and broader blueprint gaps below still apply. Later evidence commits change documentation only.
+
+## Earlier colour-led delivery — 10 October 2026
+
+The earlier user request was a more attractive, creative public website using Skiper UI/21st references and a stronger colour combination. The uploaded screenshot also showed footer contrast and inappropriate-role warnings. PR #18 is merged at software commit `9de26cca8865a2c007e12719423684e7ea1e30d1`. Its full tree `394028123d858ec998b4f65eb092b65b5303c678` matches tested candidate `2439d1e5990e76d95018ff3c71e94278cd315dbb`.
 
 [Quality Gate 38024643071](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38024643071) passed lint, four typechecks/builds, 27 security, 6 database/provisioning, 5 intelligence, 74 Chromium/mobile WebKit browser/API and 22 staff HTTP cases, plus AWS/CDK synthesis. The added cases verify keyboard car selection and footer contrast >= 4.5:1. Desktop/mobile screenshots were inspected. Local web typecheck and production build passed; the managed local lint environment lacks a plugin, so complete lint acceptance comes from the exact-revision CI above.
 

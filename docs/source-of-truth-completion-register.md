@@ -98,3 +98,7 @@ Production Aurora/Cognito/Redis settings and live acceptance are still absent. T
 ## Creative public website increment — 10 October 2026
 
 PR #18 adds a colour-led showroom, keyboard-accessible featured-car selector, original Skiper/21st-inspired CSS interactions and footer/preview-role accessibility fixes. Candidate Quality Gate 38024643071 passed all 74 browser/API cases, including keyboard selection and footer contrast, plus 22 auth HTTP and the existing security/database/build checks. Its full tree matches software merge `9de26cca8865a2c007e12719423684e7ea1e30d1`. The main public preview is refreshed with existing SSO retained. See [creative delivery](creative-showroom-2026-10-10.md). Live backend activation, full accessibility/load acceptance and the advanced blueprint gaps remain open.
+
+## Minimal showroom refinement — 10 October 2026
+
+PR #19 implements the latest Apple-inspired direction, superseding the earlier bright colour system. Tested candidate `5d418c4eeba2a42ad338def57b35992b2d44d49e` and software merge `4b8df8b59ab0f4f13f5ad5756a0d8fadb7908930` share full tree `79556511f69f95b028cccfeb27ef24a06576b212`. Quality Gate 38031729368 passed 74 browser/API and 22 staff HTTP cases, lint, all four application typechecks/builds, security/database/intelligence checks and AWS/CDK synthesis. Desktop/mobile evidence was inspected. Only the public web visual system changed; shared live backend and broader production gaps remain open. See [minimal showroom delivery](apple-minimal-showroom-2026-10-10.md).

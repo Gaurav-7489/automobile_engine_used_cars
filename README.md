@@ -122,4 +122,4 @@ Final merged evidence, installers, all five source documents and refreshed previ
 
 The current interface includes the public showroom, redesigned Command Center/Platform and matching native workspace. Open `/download` on the public app for automatically resolved Windows/macOS development installers. A successful main Quality Gate triggers both native builds and publishes a source-bound prerelease with SHA-256 checksums. Unsigned development builds require an activated online backend; see [experience and distribution](docs/premium-experience-distribution.md) for the exact behavior, public rate protection and remaining live acceptance.
 
-The public website now uses a midnight/lime/lavender/coral visual system, interactive featured-car selection and accessible hover details. Current preview and exact verification: [creative showroom delivery](docs/creative-showroom-2026-10-10.md).
+The public website now follows Apple-inspired minimalism: white and soft grey surfaces, restrained blue accents, centred photography and interactive featured-car selection. Current preview and exact verification: [minimal showroom delivery](docs/apple-minimal-showroom-2026-10-10.md).
