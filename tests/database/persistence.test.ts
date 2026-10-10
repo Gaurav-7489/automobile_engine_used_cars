@@ -85,7 +85,8 @@ test("real PostgreSQL engine: isolation, shared records, atomic audit/task write
   const auditBroken:SqlPool={async connect(){const c=await pool.connect();return {release:()=>c.release(),async query(sql,values){if(sql.startsWith("INSERT INTO inventory_history"))throw new Error("inventory audit failure");return c.query(sql,values);}};}};
   await assert.rejects(postgresStore(auditBroken).createInventoryBatch(p,dealer,location,[intake]),/inventory audit failure/);
   assert.equal((await store.snapshot(p)).vehicles.length,count);
-  const imported=await store.createInventoryBatch(p,dealer,location,[intake,{...intake,stockId:"NEW-2"}]);
+  const imported=await store.createInventoryBatch(p,dealer,location,[intake,{...intake,stockId:"NEW-2"}],{source:"xlsx"});
+  assert.equal(imported.vehicles[0].source,"xlsx");
   assert.equal(imported.vehicles.length,2);assert.equal(imported.vehicles[0].publishStatus,"draft");assert.equal(imported.vehicles[0].tenantId,a);
   assert.equal((await store.inventory(a,dealer)).some(v=>v.stockId==="NEW-1"),false);
   assert.equal((await store.snapshot(p)).inventoryHistory?.filter(h=>h.batchId===imported.batchId&&h.action==="created").length,2);

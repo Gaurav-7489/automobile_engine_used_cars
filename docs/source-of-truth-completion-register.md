@@ -65,7 +65,7 @@ Respect all 75 decisions. Separate **implemented** from **tested** and **deploye
 
 ## Inventory intake increment
 
-`feat/inventory-ingestion` adds canonical draft entry, detail/image editing, CSV validation/preview/atomic insertion and creation/update audit evidence. Exact PR checks govern acceptance. Direct XLSX, external reconciliation and complete economic/administration modules remain unfinished; see `inventory-intake.md`.
+`feat/inventory-ingestion` adds canonical draft entry, detail/image editing, CSV validation/preview/atomic insertion and creation/update audit evidence. Exact PR checks govern acceptance. External reconciliation and complete economic/administration modules remain unfinished; see `inventory-intake.md`.
 
 ## Verified capital increment
 
@@ -108,3 +108,8 @@ PR #19 implements the latest Apple-inspired direction, superseding the earlier b
 PR #20 adds tenant-scoped browser shortlist state across public pages, URL-restored inventory tools, interactive differences-only comparison, complete validated shortlist-to-lead handoff, contextual contact intents, accessible vehicle photography and an interactive desktop product tour. The Apple-inspired palette is retained with restrained original Skiper/21st-inspired motion and reduced-motion support. Tested candidate `ffee4f66337f899a42f7ad73b51e947abb69f1dc` and software merge `163f34828816e4d2b0349641c7845b0b22f9ddc5` share full tree `d6b11e3fd7a6cc827375414ca48fdf199a9531c2`. Quality Gate 38035412278 passed all 82 browser/API, 22 staff HTTP and existing security/database/intelligence/build/CDK checks. Desktop/mobile evidence was inspected.
 
 Production deployment `dpl_FvooM1B8mLiB5TQTbA52ns341xQL` is READY at https://vandlabs-automobile-web.vercel.app/ from this software merge. Six authenticated page checks returned 200; contact/vehicle forms retain the disabled read-only state, and existing SSO is preserved. The hosted reference website is published; shared live backend operation and installed native acceptance remain open. See [connected public experience](connected-public-experience-2026-10-10.md). Full ecosystem status remains NOT COMPLETE / NOT PRODUCTION CERTIFIED.
+
+
+## Spreadsheet intake continuation — 10 October 2026
+
+Direct `.xlsx` intake, generated Excel/CSV templates, field instructions/dropdowns, structured downloadable row errors and explicit review approval now share the canonical atomic inventory batch API. New stock stays in draft state, source metadata remains explicit, and destination scopes are enforced before workbook parsing. Server-side ZIP/XML/row limits and rejection of formulas/macros/external workbook links/hidden data/date cells are implemented. Exact-revision acceptance and publication are recorded in the current checkpoint; see [inventory intake](inventory-intake.md). S3 image processing, licensed-source ingestion/reconciliation, shared AWS activation, signing and the broader remaining modules are still unfinished.

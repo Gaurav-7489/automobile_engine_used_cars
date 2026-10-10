@@ -21,13 +21,14 @@
     "deployment:doctor": "node --import tsx scripts/deployment/doctor.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.55.0",
     "eslint": "^9.35.0",
     "eslint-config-next": "^15.5.3",
-    "turbo": "^2.5.6",
-    "typescript": "^5.9.2",
+    "fflate": "0.8.3",
     "tsx": "^4.20.6",
-    "@electric-sql/pglite": "^0.3.14"
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.2"
   }
 }

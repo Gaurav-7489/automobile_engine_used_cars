@@ -1,4 +1,4 @@
-# Inventory entry, review and CSV import
+# Inventory entry, review and spreadsheet import
 
 This increment extends the connected demo on `feat/inventory-ingestion`. It preserves the architecture and the appointments/sales delivery in PR #11. No cloud resources or customer records were changed.
 
@@ -44,6 +44,21 @@ Unit/persistence tests cover CSV edge cases, protected-field rejection, duplicat
 
 ## Remaining inventory scope
 
-Direct Excel parsing, image upload/storage processing, richer feature/gallery editors, authorized external ingestion/reconciliation, a full accounting ledger remain unfinished. These CSV/manual operations do not activate market scraping, provider messaging or an AI model.
+Image upload/storage processing, richer feature/gallery editors, authorized external ingestion/reconciliation, a full accounting ledger remain unfinished. These CSV/manual operations do not activate market scraping, provider messaging or an AI model.
 
 Inventory PUT/PATCH now require `expectedVersion` from the scoped snapshot (`version ?? 0` for legacy records). Drafts start at version 0; metadata, price/publication updates and confirmed sales increment it. Missing versions return 400; stale edits return 409 without writes. Refresh and review before retrying. Browser and desktop clients submit the current version. Deploy the bundled clients with this API change. See [capital operations](capital-operations.md) for verified acquisition costs.
+
+
+## Excel and spreadsheet review — 10 October 2026
+
+Command Center → Inventory → **Import Excel or CSV** accepts `.xlsx` directly, as well as pasted/uploaded UTF-8 CSV. Both formats retain the 250 KB file / 200 vehicle limit. Downloadable templates are generated from the same canonical column names. Excel provides an empty **Inventory** worksheet, text-formatted stock IDs, field dropdowns and a separate **Guide** containing examples and required/optional rules. The guide is never imported.
+
+Select an assigned destination, upload the file, then **Preview import**. Preview shows every vehicle field, the chosen worksheet/location, total asking price and unpublished draft state. Validation errors retain worksheet/CSV row numbers and offer a download containing only row, field and instructions. No source vehicle values are copied into the error report. The user checks the review acknowledgement before adding drafts; changing file contents or destination clears the preview and approval. The acknowledgement is a browser review aid, not a new server authorization boundary. Server-side commit still validates the full batch against current stock and permissions.
+
+Send exactly one of `csv` (text) or `xlsx` (base64 file bytes) to the existing import endpoint. Destination permissions are checked before Excel decompression. Responses add `format` and, for Excel, `worksheet`; saved vehicles/creation audits retain `source: xlsx`. Existing CSV/native callers remain compatible. The protected `GET /command/api/vehicles/template?format=xlsx|csv` requires inventory read access and returns an attachment with private/no-store caching. It contains no dealership/customer data.
+
+Excel intake reads the visible worksheet named **Inventory**, or the only visible sheet. Supported values are UTF-8 XML inline/shared/rich text, finite canonical numbers and boolean eligibility cells. Stock IDs must be text to preserve exact identities and leading zeros. Formulas, macro content, embedded objects, linked workbooks, hidden Inventory rows/columns, merged cells, date/time or error cells, unsupported cell types, extra non-template columns, malformed archives/XML and entity declarations are rejected. Nothing is evaluated, fetched or extracted to disk. Sparse rows retain their actual row position; blank rows inside the data fail ordinary required-field validation. Price/mileage strings reject currency symbols, units, hexadecimal coercion and invalid numbers.
+
+Archives are read lazily with validated entry sizes: at most 80 entries, 2 MB per expanded part and 4 MB total. Actual decompressed bytes are also counted. XML depth, nodes, row positions, columns and shared-string/value sizes are bounded independently. Parser/template dependencies are isolated behind server-only package subpaths and add no Excel runtime to the public website or staff browser bundle.
+
+Verification evidence is recorded in the current checkpoint once the exact-revision Quality Gate finishes. The parser/database tests include Unicode, rich/shared text, booleans, leading-zero stock IDs, renamed worksheet relationships, invalid rows, archive limits, formulas/macros/links, date styles and malformed/hidden/extra data. Browser cases add Excel template→error→preview→commit→publication, retry/scope protection and preview invalidation on file/location changes. The real-cloud configuration and installed native acceptance gates remain open. This increment introduces no new schema migration and does not enable hosted writes.

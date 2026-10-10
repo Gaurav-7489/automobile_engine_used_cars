@@ -5,7 +5,7 @@ const spoofed = {
   "x-vandlabs-dealership-ids": "dealer-apex", "x-vandlabs-location-ids": "loc-kochi,loc-bengaluru",
   "x-vandlabs-capabilities": "lead:read,lead:write,task:write,analytics:read,platform:admin",
 };
-for (const path of ["/command", "/command/", "/command?__rsc=probe", "/command/leads", "/command/leads/lead-1", "/command/tasks", "/command/analytics", "/command/api/snapshot", "/command/api/readiness"]) {
+for (const path of ["/command", "/command/", "/command?__rsc=probe", "/command/leads", "/command/leads/lead-1", "/command/tasks", "/command/analytics", "/command/api/snapshot", "/command/api/readiness", "/command/api/vehicles/template?format=xlsx"]) {
   test(`staff page ${path} denies anonymous and forged headers`, async ({ request }) => {
     for (const headers of [{}, spoofed]) {
       const response = await request.get(`http://127.0.0.1:3001${path}`, { headers });

@@ -193,7 +193,7 @@ export function postgresStore(pool: SqlPool) {
     });},
     async createInventoryBatch(p:AuthenticatedPrincipal,dealershipId:string,locationId:string,input:unknown,options:InventoryBatchOptions={}) {
       inventoryDestination(p,dealershipId,locationId);
-      const drafts=normalizeInventoryRows(input,options.csv);
+      const drafts=normalizeInventoryRows(input,options.csv,options.source);
       try {return await tx(p.tenantId,async c=> {
         // Serialize identity checks and inserts for the tenant, including different dealers.
         await c.query("SELECT id FROM organizations WHERE tenant_id=$1 FOR UPDATE",[p.tenantId]);
@@ -380,7 +380,7 @@ export async function confirmSale(p:AuthenticatedPrincipal,id:string,input:SaleI
 function runtimeTasks(items:Task[]) {return [...items,...demo.tasks.filter(t=>!items.some(i=>i.id===t.id))];}
 export { inventoryInsights, matchInventory } from "./intelligence";
 
-export interface InventoryBatchOptions {csv?:boolean;preview?:boolean}
+export interface InventoryBatchOptions {csv?:boolean;preview?:boolean;source?:"csv"|"xlsx"}
 function inventoryDestination(p:AuthenticatedPrincipal,dealershipId:string,locationId:string) {
   requireCapability(p,"inventory:write");requireDealership(p,dealershipId);requireLocation(p,locationId);
 }
@@ -401,7 +401,7 @@ export async function createInventoryBatch(p:AuthenticatedPrincipal,dealershipId
   if(dataMode()==="aurora")return(await productionStore()).createInventoryBatch(p,dealershipId,locationId,input,options);
   inventoryDestination(p,dealershipId,locationId);
   if(p.tenantId!==tenantConfig.tenantId||!tenantConfig.organization.dealerships.some(d=>d.id===dealershipId&&d.locations.some(l=>l.id===locationId)))throw new InputError("Unknown destination.");
-  const drafts=normalizeInventoryRows(input,options.csv);
+  const drafts=normalizeInventoryRows(input,options.csv,options.source);
   const prepare=(existing:Vehicle[])=> {
     rejectExistingStock(drafts,existing.filter(v=>v.tenantId===p.tenantId).map(v=>v.stockId),options.csv);
     return {batchId:randomUUID(),preview:!!options.preview,vehicles:drafts.map(d=>draftVehicle(p,dealershipId,locationId,d))};

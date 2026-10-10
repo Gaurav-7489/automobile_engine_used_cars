@@ -29,12 +29,14 @@ test("staff enter a draft, review details and publish to the owned website",asyn
 test("CSV preview creates nothing; reviewed batches persist once with duplicate and scope protection",async({page,request},info)=> {
   const stockId=`CSV-${info.project.name.toUpperCase()}`;
   const csv='stockId,make,model,variant,year,price,mileage,fuelType,transmission,ownership,bodyType,condition,exteriorColor,interiorColor\n'+`${stockId},Honda,City,"ZX, Premium",2022,1200000,25000,petrol,automatic,1,Sedan,good,White,Black\n`;
-  await page.goto("http://127.0.0.1:3001/command/inventory");await page.getByText("Import CSV",{exact:true}).click();
+  await page.goto("http://127.0.0.1:3001/command/inventory");await page.getByText("Import Excel or CSV",{exact:true}).click();
   const textarea=page.getByLabel("CSV contents");await expect(textarea).toBeEnabled();await textarea.fill(csv);
-  await page.getByRole("button",{name:"Preview import",exact:true}).click();await expect(page.getByRole("button",{name:"Import 1 drafts",exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Preview import",exact:true}).click();await expect(page.getByRole("button",{name:"Import 1 draft",exact:true})).toBeVisible();
   let snapshot=(await (await request.get(`${api}/snapshot`)).json()).data;
   expect(snapshot.vehicles.some((v:{stockId:string})=>v.stockId===stockId)).toBeFalsy();
-  await page.getByRole("button",{name:"Import 1 drafts",exact:true}).click();await expect(page.getByRole("status").filter({hasText:"Imported 1 draft vehicles."})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Import 1 draft",exact:true})).toBeDisabled();
+  await page.getByLabel("I checked all rows, the destination and the rights to any supplied images.").check();
+  await page.getByRole("button",{name:"Import 1 draft",exact:true}).click();await expect(page.getByRole("status").filter({hasText:"Imported 1 draft vehicle."})).toBeVisible();
   snapshot=(await (await request.get(`${api}/snapshot`)).json()).data;const vehicle=snapshot.vehicles.find((v:{stockId:string})=>v.stockId===stockId);expect(vehicle.variant).toBe("ZX, Premium");expect(vehicle.publishStatus).toBe("draft");
   expect(snapshot.inventoryHistory.filter((h:{vehicleId:string;action:string})=>h.vehicleId===vehicle.id&&h.action==="created")).toHaveLength(1);
   const body={dealershipId:vehicle.dealershipId,locationId:vehicle.locationId,csv,mode:"commit"};
@@ -43,4 +45,77 @@ test("CSV preview creates nothing; reviewed batches persist once with duplicate 
   expect((await request.post(`${api}/vehicles/import`,{data:{...body,csv:"x".repeat(1000001)}})).status()).toBe(400);
   await page.screenshot({path:`test-results/inventory-intake-${info.project.name}.png`,fullPage:true});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+});
+
+test("Excel download, row-error review and atomic draft import connect to published inventory", async ({ page, request }, info) => {
+  const { unzipSync, zipSync, strToU8, strFromU8 } = await import("fflate");
+  const stockId = `XLSX-${info.project.name.toUpperCase()}`;
+  const values = [stockId, "Honda", "City", "ZX Excel", 2022, 1200000.25, 25000, "petrol", "automatic", 1, "Sedan", "good", "White", "Black", "https://images.example.com/stock.jpg", false, true];
+  const templateResponse = await request.get(`${api}/vehicles/template?format=xlsx`);
+  expect(templateResponse.status()).toBe(200);
+  expect(templateResponse.headers()["content-disposition"]).toContain("vandlabs-inventory-template.xlsx");
+  expect(templateResponse.headers()["cache-control"]).toContain("no-store");
+  const template = await templateResponse.body();
+  const workbook = (price: number) => {
+    const parts = unzipSync(template), path = "xl/worksheets/sheet1.xml";
+    const cells = values.map((v, i) => {
+      const value = i === 5 ? price : v, ref = `${String.fromCharCode(65 + i)}2`;
+      return typeof value === "number" ? `<c r="${ref}"><v>${value}</v></c>` : typeof value === "boolean" ? `<c r="${ref}" t="b"><v>${value ? 1 : 0}</v></c>` : `<c r="${ref}" t="inlineStr"><is><t>${value}</t></is></c>`;
+    }).join("");
+    parts[path] = strToU8(strFromU8(parts[path]).replace("</sheetData>", `<row r="2">${cells}</row></sheetData>`));
+    return Buffer.from(zipSync(parts));
+  };
+  await page.goto("http://127.0.0.1:3001/command/inventory");
+  await page.getByText("Import Excel or CSV", { exact: true }).click();
+  const input = page.getByLabel("Inventory file", { exact: true }); await expect(input).toBeEnabled();
+  await input.setInputFiles({ name: "dealer-stock.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: workbook(-1) });
+  const preview = page.getByRole("button", { name: "Preview import", exact: true }); await expect(preview).toBeEnabled(); await preview.click();
+  const errors = page.getByRole("region", { name: "Import validation errors", exact: true });
+  await expect(errors.getByRole("cell", { name: "price", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download error report" })).toBeVisible();
+  const before = (await (await request.get(`${api}/snapshot`)).json()).data;
+  expect(before.vehicles.some((v: { stockId: string }) => v.stockId === stockId)).toBeFalsy();
+  await expect(page.getByRole("button", { name: "Import 1 draft", exact: true })).toHaveCount(0);
+  await input.setInputFiles({ name: "dealer-stock.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: workbook(1200000.25) });
+  await expect(preview).toBeEnabled(); await preview.click();
+  const review = page.getByRole("region", { name: "Import review", exact: true });
+  await expect(review.getByRole("heading", { name: "1 draft to review" })).toBeVisible();
+  await expect(review.getByText(/Worksheet: Inventory/)).toBeVisible();
+  await expect(review.getByRole("button", { name: "Import 1 draft" })).toBeDisabled();
+  const during = (await (await request.get(`${api}/snapshot`)).json()).data;
+  expect(during.vehicles.some((v: { stockId: string }) => v.stockId === stockId)).toBeFalsy();
+  await page.screenshot({ path: `test-results/excel-review-${info.project.name}.png`, fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  await page.getByLabel("I checked all rows, the destination and the rights to any supplied images.").check();
+  await review.getByRole("button", { name: "Import 1 draft" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Imported 1 draft vehicle." })).toBeVisible();
+  const snapshot = (await (await request.get(`${api}/snapshot`)).json()).data;
+  const vehicle = snapshot.vehicles.find((v: { stockId: string }) => v.stockId === stockId);
+  expect(vehicle.source).toBe("xlsx"); expect(vehicle.publishStatus).toBe("draft"); expect(vehicle.price).toBe(1200000.25);
+  expect(snapshot.inventoryHistory.filter((h: { vehicleId: string; action: string; source: string }) => h.vehicleId === vehicle.id && h.action === "created" && h.source === "xlsx")).toHaveLength(1);
+  expect((await (await request.get("/api/vehicles")).json()).data.some((v: { id: string }) => v.id === vehicle.id)).toBeFalsy();
+  expect((await request.patch(`${api}/vehicles/${vehicle.id}`, { data: { price: vehicle.price, publishStatus: "published", availabilityStatus: "available", expectedVersion: vehicle.version } })).status()).toBe(200);
+  await expect.poll(async () => (await (await request.get("/api/vehicles")).json()).data.some((v: { id: string }) => v.id === vehicle.id)).toBeTruthy();
+  const repeat = await request.post(`${api}/vehicles/import`, { data: { dealershipId: vehicle.dealershipId, locationId: vehicle.locationId, xlsx: workbook(1200000.25).toString("base64"), mode: "commit" } });
+  expect(repeat.status()).toBe(400); expect((await repeat.json()).issues[0].field).toBe("stockId");
+  expect((await request.post(`${api}/vehicles/import`, { data: { dealershipId: vehicle.dealershipId, locationId: "forged", xlsx: "invalid", mode: "preview" } })).status()).toBe(403);
+  expect((await request.post(`${api}/vehicles/import`, { data: { dealershipId: vehicle.dealershipId, locationId: vehicle.locationId, csv: "", xlsx: "invalid", mode: "preview" } })).status()).toBe(400);
+});
+
+test("editing CSV or changing the destination invalidates the reviewed import", async ({ page }, info) => {
+  const stockId = `REVIEW-${info.project.name.toUpperCase()}`;
+  const csv = 'stockId,make,model,variant,year,price,mileage,fuelType,transmission,ownership,bodyType,condition,exteriorColor,interiorColor\n' + `${stockId},Honda,City,ZX,2022,1200000,25000,petrol,automatic,1,Sedan,good,White,Black\n`;
+  await page.goto("http://127.0.0.1:3001/command/inventory"); await page.getByText("Import Excel or CSV", { exact: true }).click();
+  const textarea = page.getByLabel("CSV contents"); await expect(textarea).toBeEnabled(); await textarea.fill(csv);
+  await page.getByRole("button", { name: "Preview import", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Import review", exact: true })).toBeVisible();
+  await page.getByLabel("I checked all rows, the destination and the rights to any supplied images.").check();
+  await textarea.fill(csv.replace("1200000", "1250000")); await expect(page.getByRole("region", { name: "Import review", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Preview import", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Import 1 draft", exact: true })).toBeDisabled();
+  const destination = page.getByLabel("Inventory destination");
+  await destination.selectOption({ index: 1 });
+  await expect(page.getByRole("region", { name: "Import review", exact: true })).toHaveCount(0);
+  await page.getByText("Import Excel or CSV", { exact: true }).click();
+  await expect(page.getByLabel("CSV contents")).toHaveValue("");
 });
