@@ -89,10 +89,10 @@ test("connected pages remain responsive and usable with reduced motion", async (
   await page.emulateMedia({ reducedMotion: "reduce" });
   for (const [name, path] of [["inventory", "/inventory"], ["compare", "/compare?ids=veh-2,veh-4"], ["contact", "/contact?ids=veh-2,veh-4"], ["desktop-app", "/download"], ["vehicle", "/vehicles/bmw-330li-2024"]]) {
     await page.goto(path);
-    await expect(page.locator("h1")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // Load viewport-triggered vehicle photos before collecting a full-page visual reference.
-    const cards = page.locator(".vehicle-card");
+    const cards = page.locator(".vehicle-card:visible");
     for (let i = 0; i < await cards.count(); i++) await cards.nth(i).scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: testInfo.outputPath(name + ".png"), fullPage: true });

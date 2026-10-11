@@ -48,7 +48,7 @@ test("desktop distribution has honest availability, safe routes and responsive p
 
   for (const [name, url] of [["showroom", "/"], ["dealer-workspace", "http://127.0.0.1:3001/command"], ["platform", "http://127.0.0.1:3002/platform"]]) {
     await page.goto(url);
-    await expect(page.locator("h1")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(name + ".png"), fullPage: true });
   }
