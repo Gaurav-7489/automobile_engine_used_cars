@@ -88,15 +88,15 @@ test("enquiry failures explain the recovery and retain entered details", async (
   for (const [status, expected] of [[400, "Check your details"], [429, "Too many requests"], [503, "temporarily unavailable"]] as const) {
     await page.route("**/api/leads", route => route.fulfill({ status, contentType: "application/json", body: '{"error":"internal provider detail"}' }));
     await page.getByRole("button", { name: "Send request", exact: true }).click();
-    await expect(page.getByRole("alert")).toContainText(expected);
-    await expect(page.getByRole("alert")).not.toContainText("internal provider detail");
+    await expect(page.getByRole("form", { name: "Vehicle enquiry" }).getByRole("alert")).toContainText(expected);
+    await expect(page.getByRole("form", { name: "Vehicle enquiry" }).getByRole("alert")).not.toContainText("internal provider detail");
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Recovery QA");
     await expect(page.getByRole("button", { name: "Send request", exact: true })).toBeEnabled();
     await page.unroute("**/api/leads");
   }
   await page.route("**/api/leads", route => route.abort("failed"));
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("It may have been received");
+  await expect(page.getByRole("form", { name: "Vehicle enquiry" }).getByRole("alert")).toContainText("It may have been received");
 });
 
 test("share fallback clears when the inventory search changes", async ({ page }) => {

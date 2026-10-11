@@ -113,7 +113,7 @@ export function LeadForm({
   }
 
   return (
-    <form className="lead-form" onSubmit={submit} aria-busy={state === "submitting"}>
+    <form className="lead-form" aria-label="Vehicle enquiry" onSubmit={submit} aria-busy={state === "submitting"}>
       {readOnly && <div className="preview-form-note" role="status"><strong>Explore the form. Enquiries are unavailable in this preview.</strong><p>Sending, bookings and live contact become available when the shared backend is connected.</p></div>}
       <fieldset disabled={readOnly || state === "submitting"}>
       <div className="form-row">
