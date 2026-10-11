@@ -13,7 +13,7 @@ export function VehicleCard({ vehicle, locationLabel = "Dealership" }: { vehicle
         <div
           className="vehicle-card-media"
         >
-          {image && <Image src={image.url} alt={image.alt || vehicle.make + " " + vehicle.model} fill sizes="(max-width: 640px) 100vw, (max-width: 1050px) 50vw, 33vw" unoptimized={!image.url.startsWith("https://images.unsplash.com/")} style={{objectFit:"cover"}} />}
+          {image ? <Image src={image.url} alt={image.alt || vehicle.make + " " + vehicle.model} fill sizes="(max-width: 640px) 100vw, (max-width: 1050px) 50vw, 33vw" unoptimized={!image.url.startsWith("https://images.unsplash.com/")} style={{objectFit:"cover"}} /> : <span className="photo-pending">Photography coming soon</span>}
           <span className={"availability " + vehicle.availabilityStatus}>
             {vehicle.availabilityStatus}
           </span>

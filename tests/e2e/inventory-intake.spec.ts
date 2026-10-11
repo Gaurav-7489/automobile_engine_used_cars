@@ -12,6 +12,8 @@ test("staff enter a draft, review details and publish to the owned website",asyn
   const vehicle=snapshot.vehicles.find((v:{stockId:string})=>v.stockId===stockId);
   expect(vehicle.publishStatus).toBe("draft");expect((await (await request.get("/api/vehicles")).json()).data.some((v:{id:string})=>v.id===vehicle.id)).toBeFalsy();
   const row=page.getByRole("row").filter({has:page.getByRole("cell",{name:stockId,exact:true})});
+  await expect(row).toBeVisible();
+  const controls=row.getByRole("button",{name:"Manage inventory",exact:true});if(await controls.isVisible())await controls.click();
   await row.getByText("Edit vehicle details",{exact:true}).click();
   const detailForm=row.locator("form").filter({has:page.getByRole("button",{name:"Save vehicle details",exact:true})});
   await detailForm.locator('[name="variant"]').fill("ZX reviewed");
