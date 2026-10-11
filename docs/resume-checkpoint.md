@@ -1,4 +1,16 @@
-# Active checkpoint — 10 October 2026
+# Active checkpoint — 12 October 2026
+
+## Frontend usability review — 12 October 2026
+
+The requested frontend review is implemented and [PR #22](https://github.com/Gaurav-7489/automobile_engine_used_cars/pull/22) is merged. UI merge `ed8a07ea6c996df46ef716505fe99d3358446f0f` and accepted candidate `73a132407bfab6ff811304e0f54af0dd4d7cb045` share full tree `ddbebaa1a12d7949354e5759b38fc739c979f78f`. Delivered: compact public/dealer/Platform menus with mobile sign-out, labelled phone inventory cards with expandable controls, on-demand public mobile filters, Safari role-selector contrast, keyboard skip/comparison/gallery access, bounded enquiry recovery without automatic retries, and fresh share-link fallback state. The existing Apple-inspired and staff visual systems are preserved.
+
+[Candidate Quality Gate 38170101343](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38170101343) passed 98 desktop/mobile browser/API, 23 staff HTTP, 27 security, 10 database/parser and 5 intelligence cases, lint, four application typechecks/builds and AWS/CDK synthesis. Downloaded screenshot evidence was checksum verified and visually inspected. [Native candidate 38170101335](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38170101335) passed both OS packages and three Rust tests per OS; native UI is unchanged.
+
+The first merged-main run failed an older generic heading locator matching hidden streamed markup, with 97 browser cases passing. Test-only follow-up `2bb43d0ef068406c311672c167ddf1cef0575ea8` fixes the heading/card assertions; application source is unchanged. [Follow-up main Quality Gate 38170936231](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38170936231) passed every step on that exact commit: 98 browser/API, 23 staff HTTP and all lint/typecheck/security/database/intelligence/build/CDK checks.
+
+Website production `dpl_Hj6BEeVY15eS7KfkVvduzR2Woy4k`, protected dealer preview `dpl_8papSdYr6AAPWjPnQnFBzKaCjLVJ` and protected Platform preview `dpl_DGGRPcWmqougb7GgYfWs3V2ftNW8` are READY from the UI merge. All stable aliases match that exact source. Eight authenticated page/health smoke checks returned 200; menus/skip targets render, public enquiries remain disabled and staff sign-in setup remains explicitly pending. SSO and all hosted guards are preserved. See [frontend delivery](frontend-polish-2026-10-12.md) for evidence and links. Later test/documentation edits change no deployed application behavior.
+
+The frontend within the implemented product is improved; the full ecosystem stays NOT COMPLETE / NOT PRODUCTION CERTIFIED. The next external gate is shared AWS/Aurora/Cognito/tenant/Redis activation and real live acceptance, following shared-staging-setup.md. S3 media, licensed feeds/providers, advanced AI, accounting/reversals, SaaS lifecycle, signing/notarization and installed native acceptance remain open. Do not enable isolated serverless writes or weaken staff authorization to make previews appear live.
 
 ## Spreadsheet inventory intake — 10 October 2026
 

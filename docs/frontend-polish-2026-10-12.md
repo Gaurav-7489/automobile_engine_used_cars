@@ -14,7 +14,39 @@ This increment preserves the Apple-inspired public showroom and the dealer/platf
 
 ## Acceptance and deployment
 
-Exact-revision CI, desktop/mobile visual evidence, deployment state and source commit will be recorded here after validation. Local browser downloads are unavailable in this workspace, so full Chromium/mobile WebKit acceptance runs through the repository Quality Gate. Enquiry error cases simulate provider HTTP/network failures; they do not establish live provider/backend readiness. Connected demo browser/API cases establish persisted workflow behavior.
+[PR #22](https://github.com/Gaurav-7489/automobile_engine_used_cars/pull/22) is merged at UI software commit `ed8a07ea6c996df46ef716505fe99d3358446f0f`. Its full tree `ddbebaa1a12d7949354e5759b38fc739c979f78f` equals accepted candidate `73a132407bfab6ff811304e0f54af0dd4d7cb045`.
+
+[Candidate Quality Gate 38170101343](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38170101343) passed every step:
+
+| Check | Result |
+| --- | --- |
+| Chromium and mobile WebKit browser/API | 98 passed |
+| Staff HTTP access | 23 passed |
+| Staff security | 27 passed |
+| Database/parser | 10 passed |
+| Intelligence/evidence | 5 passed |
+| Lint, typecheck and four application builds | Passed |
+| AWS infrastructure build and staging CDK synthesis | Passed |
+
+[Native candidate 38170101335](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38170101335) passed Windows/macOS packaging and three Rust tests on each OS. Native UI is unchanged; this does not establish signed or installed live-backend acceptance.
+
+[Browser artifact 11713407276](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38170101343/artifacts/11713407276) was downloaded with verified SHA256 `5800641304d2e3fb9984a9048d5bc119b28b3a0c79e83431c50eb7404b60b4e9`. Chromium/mobile WebKit mobile dealer cards and Platform forms, phone/tablet navigation, compact public inventory and wide desktop inventory screenshots were inspected. The earlier screenshots led to the inventory-card and Safari selector fixes. Earlier candidate failures in form-alert scoping and draft-refresh timing were corrected before the accepted run. Local browser downloads are unavailable in this workspace; browser acceptance ran through GitHub Actions.
+
+The first merged-main run [38170550283](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38170550283) passed 97 browser cases and failed an older generic `h1` selector that matched visible and hidden streamed markup. Its accessibility snapshot shows one actual inventory heading. Follow-up test-only commit `2bb43d0ef068406c311672c167ddf1cef0575ea8` uses accessible level-one heading assertions and visible vehicle cards in responsive checks; it changes no application source. [Follow-up main Quality Gate 38170936231](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38170936231) passed every step on that exact commit: 98 browser/API, 23 staff HTTP and all lint/typecheck/security/database/intelligence/build/CDK checks. Do not count the failed first main run as green. Its replacement browser evidence is [artifact 11713309866](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38170936231/artifacts/11713309866); GitHub records SHA256 `77fdf9e81f9a79551217129950c524c2a46f60e39c4082c0fca4a1ed18aaafcd`.
+
+Enquiry error cases simulate provider HTTP/network failures; they do not establish live provider/backend readiness. Connected demo browser/API cases establish persisted workflow behavior, including stock intake/edit/publication, lead creation and verified sale withdrawal.
+
+## Published deployments
+
+All three refreshed deployments are READY from UI software merge `ed8a07ea6c996df46ef716505fe99d3358446f0f`. Their stable aliases resolve to the exact deployment and source commit:
+
+| App | Deployment | Stable URL |
+| --- | --- | --- |
+| Website production | `dpl_Hj6BEeVY15eS7KfkVvduzR2Woy4k` | https://vandlabs-automobile-web.vercel.app/ |
+| Command Center protected preview | `dpl_8papSdYr6AAPWjPnQnFBzKaCjLVJ` | https://vandlabs-automobile-command-git-main-gaurav-7489s-projects.vercel.app/command |
+| Platform protected preview | `dpl_DGGRPcWmqougb7GgYfWs3V2ftNW8` | https://vandlabs-automobile-platform-git-main-gaurav-7489s-projects.vercel.app/platform |
+
+Authenticated HTTP checks returned 200 for public home, inventory with query values, comparison, contact, desktop download, health and both staff login pages. The five public page responses include the new menu and skip target. The enquiry fieldset remains disabled, and both staff pages explicitly report that sign-in/shared database setup is pending. These are page smoke checks, not live backend acceptance or anonymous-access certification. All projects retain SSO for all deployments and their existing read-only/authentication configuration. Deployment-only ignored-build overrides allowed the authorized refresh; permanent project build settings were not changed. Later test and delivery-document edits change no deployed application behavior.
 
 ## Remaining scope
 
