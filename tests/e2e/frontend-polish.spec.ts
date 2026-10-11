@@ -121,6 +121,23 @@ test("all staff sections stay within a narrow screen", async ({ page }, info) =>
       await page.goto(base + (section ? "/" + section : ""));
       await expect(page.getByRole("main")).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${base}/${section}`).toBe(true);
+      if (base === command && section === "inventory") {
+        const inventory = page.getByRole("table", { name: "Dealership inventory" });
+        const row = inventory.getByRole("row").nth(1);
+        await expect(row.getByRole("cell")).toHaveCount(7);
+        const controls = row.getByRole("button", { name: "Manage inventory", exact: true });
+        await expect(controls).toHaveAttribute("aria-expanded", "false");
+        await expect(row.getByRole("button", { name: "Save inventory", exact: true })).not.toBeVisible();
+        await controls.click();
+        await expect(row.getByRole("button", { name: "Save inventory", exact: true })).toBeVisible();
+        await controls.click();
+        expect(await row.evaluate(element => element.getBoundingClientRect().height)).toBeLessThan(420);
+      }
+      if (base === platform && section === "staff") {
+        const role = page.getByRole("combobox", { name: "Role", exact: true });
+        await expect(role).toHaveCSS("appearance", "none");
+        await expect(role).toHaveCSS("color", "rgb(239, 243, 230)");
+      }
       if (["inventory", "staff"].includes(section)) await page.screenshot({ path: info.outputPath(`${base.includes("command") ? "dealer" : "platform"}-${section}-narrow.png`), fullPage: true });
     }
   }

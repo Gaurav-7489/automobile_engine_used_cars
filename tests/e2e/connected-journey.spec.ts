@@ -54,6 +54,7 @@ test("inventory edit propagates to website with history",async({page,request})=>
   const s=await (await request.get(`${command}/api/snapshot`)).json();const vehicle=s.data.vehicles.find((v:{id:string})=>v.id==="veh-13");
   await page.goto(`${command}/inventory`);
   const row=page.locator("tr").filter({has:page.getByLabel(`Price ${vehicle.stockId}`,{exact:true})});
+  const controls=row.getByRole("button",{name:"Manage inventory",exact:true});if(await controls.isVisible())await controls.click();
   await row.getByLabel(`Price ${vehicle.stockId}`,{exact:true}).fill(String(vehicle.price+100));
   await row.getByRole("button",{name:"Save inventory"}).click();await expect(row.getByRole("status")).toHaveText("Saved");
   const response=await request.get("/api/vehicles");const inventory=await response.json();expect(inventory.data.find((v:{id:string})=>v.id==="veh-13").price).toBe(vehicle.price+100);

@@ -268,43 +268,43 @@ function InventorySection({ data }: {data:Snapshot}) {
         body="The staff surface reads the same identity, price, availability, location and publish state that power the public experience."
       />
       {data.capabilities?.includes("inventory:write") ? <InventoryIntake destinations={data.inventoryDestinations??[]}/> : null}
-      <section className="panel table-panel">
+      <section className="panel table-panel inventory-cards">
         <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Vehicle</th>
-                <th>Stock</th>
-                <th>Location</th>
-                <th>Price</th>
-                <th>Mileage</th>
-                <th>Status</th><th>Operations</th>
+          <table role="table" aria-label="Dealership inventory">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader">Vehicle</th>
+                <th scope="col" role="columnheader">Stock</th>
+                <th scope="col" role="columnheader">Location</th>
+                <th scope="col" role="columnheader">Price</th>
+                <th scope="col" role="columnheader">Mileage</th>
+                <th scope="col" role="columnheader">Status</th><th scope="col" role="columnheader">Operations</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {vehicles.map((vehicle) => (
-                <tr key={vehicle.id}>
-                  <td>
+                <tr key={vehicle.id} role="row">
+                  <td role="cell" data-label="Vehicle">
                     <strong>
                       {vehicle.make} {vehicle.model}
                     </strong>
                     <small>{vehicle.variant}</small>
                   </td>
-                  <td>{vehicle.stockId}</td>
-                  <td>
+                  <td role="cell" data-label="Stock">{vehicle.stockId}</td>
+                  <td role="cell" data-label="Location">
                     {
                       activeDealership.locations.find(
                         (location) => location.id === vehicle.locationId,
                       )?.city
                     }
                   </td>
-                  <td>{money(vehicle.price)}</td>
-                  <td>{number(vehicle.mileage)} km</td>
-                  <td>
+                  <td role="cell" data-label="Price">{money(vehicle.price)}</td>
+                  <td role="cell" data-label="Mileage">{number(vehicle.mileage)} km</td>
+                  <td role="cell" data-label="Status">
                     <span className={"stage " + vehicle.availabilityStatus}>
                       {vehicle.availabilityStatus}
                     </span>
-                  </td><td>{data.capabilities?.includes("inventory:write") ? <InventoryOperations vehicle={vehicle}/> : "Read only"}</td>
+                  </td><td role="cell" data-label="Operations">{data.capabilities?.includes("inventory:write") ? <InventoryOperations vehicle={vehicle}/> : "Read only"}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,6 +1,6 @@
 "use client";
 import { VehicleFields, vehicleFormInput } from "./vehicle-fields";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Appointment, Sale, Vehicle } from "@vandlabs/contracts";
 async function mutation(path:string,body:unknown,method="POST") {
@@ -33,10 +33,11 @@ export function SaleForm({leadId,sale}:{leadId:string;sale?:Sale}) {
 }
 export function InventoryOperations({vehicle}:{vehicle:Vehicle}) {
   const {busy,message,run}=useMutation();const [editing,setEditing]=useState(false);
-  return <><form className="operations-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void run(()=>mutation(`/vehicles/${vehicle.id}`,{price:Number(f.get("price")),availabilityStatus:f.get("availability"),publishStatus:f.get("publication"),expectedVersion:vehicle.version??0},"PATCH"));}}>
+  const [expanded,setExpanded]=useState(false);const controlsId=useId();
+  return <div className="inventory-controls"><button type="button" className="inventory-controls-toggle" aria-expanded={expanded} aria-controls={controlsId} onClick={()=>setExpanded(value=>!value)}>Manage inventory <span aria-hidden="true">{expanded?"−":"+"}</span></button><div id={controlsId} className={`inventory-controls-body ${expanded?"is-expanded":""}`}><form className="operations-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void run(()=>mutation(`/vehicles/${vehicle.id}`,{price:Number(f.get("price")),availabilityStatus:f.get("availability"),publishStatus:f.get("publication"),expectedVersion:vehicle.version??0},"PATCH"));}}>
     <label><span>Asking price</span><input aria-label={`Price ${vehicle.stockId}`} key={vehicle.price} name="price" type="number" min="0" step="0.01" defaultValue={vehicle.price} required/></label>
     <label><span>Availability</span><select name="availability" key={vehicle.availabilityStatus} defaultValue={vehicle.availabilityStatus}>{["available","reserved","sold"].map(s=><option key={s}>{s}</option>)}</select></label>
     <label><span>Publication</span><select name="publication" key={vehicle.publishStatus} defaultValue={vehicle.publishStatus}>{["draft","published","archived"].map(s=><option key={s}>{s}</option>)}</select></label>
     <button disabled={busy}>Save inventory</button><small role="status">{message}</small>
-  </form>{vehicle.availabilityStatus!=="sold"?<details onToggle={e=>setEditing(e.currentTarget.open)}><summary>Edit vehicle details</summary>{editing?<form className="operations-form" onSubmit={e=>{e.preventDefault();const details=vehicleFormInput(e.currentTarget);void run(()=>mutation(`/vehicles/${vehicle.id}`,{vehicle:details,expectedVersion:vehicle.version??0},"PUT"));}}><fieldset disabled={busy}><VehicleFields vehicle={vehicle} key={vehicle.updatedAt}/><button>Save vehicle details</button></fieldset></form>:null}</details>:null}</>;
+  </form>{vehicle.availabilityStatus!=="sold"?<details onToggle={e=>setEditing(e.currentTarget.open)}><summary>Edit vehicle details</summary>{editing?<form className="operations-form" onSubmit={e=>{e.preventDefault();const details=vehicleFormInput(e.currentTarget);void run(()=>mutation(`/vehicles/${vehicle.id}`,{vehicle:details,expectedVersion:vehicle.version??0},"PUT"));}}><fieldset disabled={busy}><VehicleFields vehicle={vehicle} key={vehicle.updatedAt}/><button>Save vehicle details</button></fieldset></form>:null}</details>:null}</div></div>;
 }
