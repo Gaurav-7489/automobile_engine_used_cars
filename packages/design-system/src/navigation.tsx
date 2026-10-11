@@ -2,6 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, type ReactNode } from "react";
+
+/** Native disclosure stays usable before hydration and never traps focus. */
+export function NavigationDisclosure({ title, label, className, children }: {
+  title: string; label: string; className: string; children: ReactNode;
+}) {
+  const pathname = usePathname();
+  const disclosure = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { if (disclosure.current) disclosure.current.open = false; }, [pathname]);
+  return <details className={className} ref={disclosure} onKeyDown={event => {
+    if (event.key === "Escape" && disclosure.current?.open) {
+      event.preventDefault(); disclosure.current.open = false;
+      disclosure.current.querySelector("summary")?.focus();
+    }
+  }}><summary aria-label={label}><span>{title}</span><span className="menu-mark" aria-hidden="true">+</span></summary><div className="navigation-panel" onClick={event => {
+    if ((event.target as HTMLElement).closest("a") && disclosure.current) disclosure.current.open = false;
+  }}>{children}</div></details>;
+}
 
 const paths: Record<string, string> = {
   Overview: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
@@ -18,6 +36,18 @@ const paths: Record<string, string> = {
 
 export function NavIcon({ label }: { label: string }) {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[label] ?? "M4 4h16v16H4z M8 9h8 M8 15h8"} /></svg>;
+}
+
+export function WorkspaceMenu({ items, basePath, label }: {
+  items: readonly (readonly [string, string])[]; basePath: string; label: string;
+}) {
+  const pathname = usePathname();
+  const local = pathname.startsWith(basePath + "/") ? pathname.slice(basePath.length) : pathname === basePath ? "/" : pathname;
+  const current = items.find(([, href]) => href === "/" ? local === "/" : local === href || local.startsWith(href + "/"));
+  return <NavigationDisclosure className="workspace-menu" title={current?.[0] ?? "Workspace"} label={`${label} menu`}>
+    <WorkspaceNav items={items} basePath={basePath} label={`${label} mobile`} />
+    <form action={`${basePath}/auth/logout`} method="post"><button type="submit">Sign out</button></form>
+  </NavigationDisclosure>;
 }
 
 export function WorkspaceNav({ items, basePath = "", className, label }: {

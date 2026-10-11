@@ -34,6 +34,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
   return (
     <html lang="en">
       <body>
+        <a className="skip-link" href="#main-content">Skip to content</a>
         <ShortlistProvider catalog={catalog} scope={tenantConfig.tenantId + ":" + tenantConfig.activeDealershipId}>
         <PageMotion />
         <Suspense fallback={null}>
@@ -41,7 +42,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
         </Suspense>
         <SiteHeader />
         {isReadOnlyPreview() && <div role="status" className="preview-notice">Reference dealership preview — browse sample vehicles. Enquiries and staff operations require the connected backend.</div>}
-        {children}
+        <div id="main-content" tabIndex={-1}>{children}</div>
         <SiteFooter />
         </ShortlistProvider>
       </body>

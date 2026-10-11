@@ -1,13 +1,14 @@
 import { test, expect } from "@playwright/test";
 
-test("inventory filters round-trip and shortlist persists with a three-car limit", async ({ page }) => {
+test("inventory filters round-trip and shortlist persists with a three-car limit", async ({ page }, info) => {
   await page.goto("/inventory?q=BMW&sort=price-low");
   await expect(page.getByRole("textbox", { name: "Search the collection" })).toHaveValue("BMW");
+  if (info.project.name === "mobile") await page.getByRole("button", { name: "Filters", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Sort", exact: true })).toHaveValue("price-low");
   await page.getByRole("button", { name: "List", exact: true }).click();
-  await expect(page.locator(".inventory-list")).toBeVisible();
+  await expect(page.locator(".inventory-list:visible")).toBeVisible();
   await page.reload();
-  await expect(page.locator(".inventory-list")).toBeVisible();
+  await expect(page.locator(".inventory-list:visible")).toBeVisible();
   await page.getByRole("button", { name: "Reset all" }).click();
   const cards = page.locator(".vehicle-card");
   for (let i = 0; i < 3; i++) await cards.nth(i).getByRole("button", { name: "Add to compare", exact: true }).click();
@@ -22,6 +23,7 @@ test("inventory filters round-trip and shortlist persists with a three-car limit
   await expect(page.locator(".compare-product")).toHaveCount(3);
   await page.locator(".compare-product").first().getByRole("button", { name: /^Remove / }).click();
   await expect(page.locator(".compare-product")).toHaveCount(2);
+  if (info.project.name === "mobile") await page.getByLabel("Website menu", { exact: true }).click();
   await page.getByRole("link", { name: "Inventory", exact: true }).click();
   await expect(page.locator(".vehicle-card button[aria-pressed=true]")).toHaveCount(2);
 });
@@ -51,7 +53,7 @@ test("comparison passes the complete shortlist and intent into a persisted lead"
   const stored = snapshot.data.leads.find((item: { id: string }) => item.id === lead.leadId);
   expect(stored.vehicleIds).toEqual(["veh-2", "veh-4"]);
   expect(stored.journey.vehicleInterestHistory).toEqual(["veh-2", "veh-4"]);
-  await expect(page.getByRole("heading", { name: "We have the context." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "We have the context." })).toBeFocused();
   for (const vehicleIds of [["veh-2", "not-published"], ["veh-1", "veh-2", "veh-3", "veh-4"]]) {
     const invalid = await request.post("/api/leads", { data: { name: "Invalid shortlist", phone: "123", vehicleIds } });
     expect(invalid.status()).toBe(400);

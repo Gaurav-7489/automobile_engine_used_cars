@@ -52,7 +52,8 @@ test("desktop distribution has honest availability, safe routes and responsive p
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(name + ".png"), fullPage: true });
   }
-  await expect(page.getByRole("navigation", {name:"Platform navigation"}).getByRole("link",{name:"Overview"})).toHaveAttribute("aria-current","page");
+  if (testInfo.project.name === "mobile") await page.getByLabel("Platform menu", { exact: true }).click();
+  await expect(page.getByRole("navigation", {name:testInfo.project.name === "mobile" ? "Platform mobile" : "Platform navigation"}).getByRole("link",{name:"Overview"})).toHaveAttribute("aria-current","page");
 });
 
 test("public writes reject foreign origins and oversized event bodies before persistence", async ({ request }) => {

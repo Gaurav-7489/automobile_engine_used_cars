@@ -1,5 +1,5 @@
 import "./globals.css";
-import { WorkspaceNav } from "@vandlabs/design-system/navigation";
+import { WorkspaceNav, WorkspaceMenu } from "@vandlabs/design-system/navigation";
 
 const nav = [
   ["Overview", "/"],
@@ -31,7 +31,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <span className="environment">{process.env.DATA_MODE==="aurora"?"SHARED OPERATIONS":"REFERENCE DATA"}</span>
           </header>
-          <WorkspaceNav items={nav} basePath="/platform" className="nav" label="Platform navigation" /><form action="/platform/auth/logout" method="post"><button type="submit">Sign out</button></form>
+          <WorkspaceNav items={nav} basePath="/platform" className="nav" label="Platform navigation" /><form className="desktop-signout" action="/platform/auth/logout" method="post"><button type="submit">Sign out</button></form>
+          <WorkspaceMenu items={nav} basePath="/platform" label="Platform" />
           <div id="workspace-content" tabIndex={-1}>{children}</div>
         </div>
       </body>

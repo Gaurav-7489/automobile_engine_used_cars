@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Vehicle } from "@vandlabs/contracts";
@@ -10,6 +10,8 @@ import { ShareLink } from "./share-link";
 
 export function InventoryBrowser({ vehicles, locationNames }: { vehicles: Vehicle[]; locationNames: Record<string, string> }) {
   const params = useSearchParams();
+  const [expanded, setExpanded] = useState(false);
+  const filterId = useId();
   const { ids } = useShortlist();
   const query = (params.get("q") ?? "").slice(0, 120);
   const body = params.get("body") ?? "all", fuel = params.get("fuel") ?? "all", make = params.get("make") ?? "all", location = params.get("location") ?? "all";
@@ -23,7 +25,7 @@ export function InventoryBrowser({ vehicles, locationNames }: { vehicles: Vehicl
     if (!value || value === "all" || value === "recommended" || (key === "view" && value === "grid")) next.delete(key); else next.set(key, value);
     window.history.replaceState(null, "", "/inventory" + (next.size ? "?" + next : ""));
   }
-  function reset() { window.history.replaceState(null, "", "/inventory"); }
+  function reset() { window.history.replaceState(null, "", "/inventory"); setExpanded(false); }
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     const maxPrice = Number(budget);
@@ -39,8 +41,8 @@ export function InventoryBrowser({ vehicles, locationNames }: { vehicles: Vehicl
 
   return <>
     <div className="collection-tabs" aria-label="Quick collections"><button type="button" aria-pressed={body === "all"} onClick={() => update("body", "all")}>All cars</button>{bodies.map(item => <button type="button" key={item} aria-pressed={body === item} onClick={() => update("body", item)}>{item}</button>)}<button type="button" aria-pressed={firstOwner} onClick={() => update("owner", firstOwner ? "" : "1")}>First owner</button><button type="button" aria-pressed={savedOnly} onClick={() => update("shortlist", savedOnly ? "" : "1")}>My shortlist ({ids.length})</button></div>
-    <div className="inventory-toolbar" aria-label="Inventory filters">
-      <label className="filter-wide"><span>Search the collection</span><input value={query} onChange={e => update("q", e.target.value)} placeholder="BMW, SUV, automatic..." /></label>
+    <div className="inventory-search"><label className="filter-wide"><span>Search the collection</span><input value={query} onChange={e => update("q", e.target.value)} placeholder="BMW, SUV, automatic..." maxLength={120} /></label><button type="button" className="filters-toggle button compact" aria-expanded={expanded} aria-controls={filterId} onClick={() => setExpanded(value => !value)}>Filters<span aria-hidden="true">{expanded ? "−" : "+"}</span></button></div>
+    <div id={filterId} className={`inventory-toolbar ${expanded ? "is-expanded" : ""}`} aria-label="Inventory filters">
       <label><span>Body</span><select aria-label="Body" value={body} onChange={e => update("body", e.target.value)}><option value="all">All body types</option>{bodies.map(item => <option key={item}>{item}</option>)}</select></label>
       <label><span>Fuel</span><select aria-label="Fuel" value={fuel} onChange={e => update("fuel", e.target.value)}><option value="all">All fuel types</option>{fuels.map(item => <option key={item}>{item}</option>)}</select></label>
       <label><span>Make</span><select aria-label="Make" value={make} onChange={e => update("make", e.target.value)}><option value="all">All makes</option>{makes.map(item => <option key={item}>{item}</option>)}</select></label>
@@ -50,7 +52,7 @@ export function InventoryBrowser({ vehicles, locationNames }: { vehicles: Vehicl
       <label className="check-row filter-check"><input type="checkbox" checked={availableOnly} onChange={e => update("available", e.target.checked ? "1" : "")} /><span>Available only</span></label>
     </div>
     {active.length > 0 && <div className="filter-chips" aria-label="Active filters">{active.map(([key, value]) => <button type="button" key={key} aria-label={`Remove ${key} filter`} onClick={() => update(key, "")}>{key === "location" ? locationNames[value] ?? value : key === "budget" ? `Up to ₹${Number(value) / 100000}L` : value} <span aria-hidden="true">×</span></button>)}<button type="button" className="text-button" onClick={reset}>Reset all</button></div>}
-    <div className="inventory-summary"><span role="status">{filtered.length} matching vehicles</span><div className="inventory-view-actions"><div className="segmented-control" aria-label="Inventory view"><button type="button" aria-pressed={view === "grid"} onClick={() => update("view", "grid")}>Grid</button><button type="button" aria-pressed={view === "list"} onClick={() => update("view", "list")}>List</button></div><ShareLink label="Share search" /></div></div>
+    <div className="inventory-summary"><span role="status">{filtered.length} matching vehicles</span><div className="inventory-view-actions"><div className="segmented-control" aria-label="Inventory view"><button type="button" aria-pressed={view === "grid"} onClick={() => update("view", "grid")}>Grid</button><button type="button" aria-pressed={view === "list"} onClick={() => update("view", "list")}>List</button></div><ShareLink path={`/inventory${params.size ? "?" + params.toString() : ""}`} label="Share search" /></div></div>
     {filtered.length ? <div className={`inventory-grid ${view === "list" ? "inventory-list" : ""}`}>{filtered.map(v => <VehicleCard key={v.id} vehicle={v} locationLabel={locationNames[v.locationId]} />)}</div> : <section className="empty-state" role="status"><p className="eyebrow">A little more room</p><h2>{savedOnly ? "Your shortlist starts here." : "Try a wider search."}</h2><p>{savedOnly ? "Add cars from the collection, then compare the ones you like." : "No cars match these filters. Adjust a detail or explore the full collection."}</p><button type="button" className="button primary" onClick={reset}>Explore all vehicles</button></section>}
     <section className="discovery-note" data-reveal><div><p className="eyebrow">A little help choosing</p><h2>Find your kind of drive.</h2><p>Save up to three cars, compare the details, then take your shortlist into a conversation.</p></div><Link className="button primary" href={ids.length ? `/compare?ids=${ids.join(",")}` : "/compare"}>Open comparison <span aria-hidden="true">↗</span></Link><Link className="button" href="/contact">Help me choose</Link></section>
   </>;

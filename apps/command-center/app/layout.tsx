@@ -1,5 +1,5 @@
 import "./globals.css";
-import { WorkspaceNav } from "@vandlabs/design-system/navigation";
+import { WorkspaceNav, WorkspaceMenu } from "@vandlabs/design-system/navigation";
 import { tenantConfig } from "@vandlabs/data";
 
 const nav = [
@@ -40,7 +40,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </aside>
           <div className="app-content" id="workspace-content" tabIndex={-1}>
-            <WorkspaceNav items={nav} basePath="/command" className="mobile-nav" label="Command Center mobile" />
+            <WorkspaceMenu items={nav} basePath="/command" label="Command Center" />
             {children}
           </div>
         </div>
