@@ -284,27 +284,27 @@ function InventorySection({ data }: {data:Snapshot}) {
             <tbody role="rowgroup">
               {vehicles.map((vehicle) => (
                 <tr key={vehicle.id} role="row">
-                  <td role="cell" data-label="Vehicle">
+                  <td role="cell" data-label="Vehicle"><span className="mobile-cell-label" aria-hidden="true">Vehicle</span>
                     <strong>
                       {vehicle.make} {vehicle.model}
                     </strong>
                     <small>{vehicle.variant}</small>
                   </td>
-                  <td role="cell" data-label="Stock">{vehicle.stockId}</td>
-                  <td role="cell" data-label="Location">
+                  <td role="cell" data-label="Stock"><span className="mobile-cell-label" aria-hidden="true">Stock</span>{vehicle.stockId}</td>
+                  <td role="cell" data-label="Location"><span className="mobile-cell-label" aria-hidden="true">Location</span>
                     {
                       activeDealership.locations.find(
                         (location) => location.id === vehicle.locationId,
                       )?.city
                     }
                   </td>
-                  <td role="cell" data-label="Price">{money(vehicle.price)}</td>
-                  <td role="cell" data-label="Mileage">{number(vehicle.mileage)} km</td>
-                  <td role="cell" data-label="Status">
+                  <td role="cell" data-label="Price"><span className="mobile-cell-label" aria-hidden="true">Price</span>{money(vehicle.price)}</td>
+                  <td role="cell" data-label="Mileage"><span className="mobile-cell-label" aria-hidden="true">Mileage</span>{number(vehicle.mileage)} km</td>
+                  <td role="cell" data-label="Status"><span className="mobile-cell-label" aria-hidden="true">Status</span>
                     <span className={"stage " + vehicle.availabilityStatus}>
                       {vehicle.availabilityStatus}
                     </span>
-                  </td><td role="cell" data-label="Operations">{data.capabilities?.includes("inventory:write") ? <InventoryOperations vehicle={vehicle}/> : "Read only"}</td>
+                  </td><td role="cell" data-label="Operations"><span className="mobile-cell-label" aria-hidden="true">Operations</span>{data.capabilities?.includes("inventory:write") ? <InventoryOperations vehicle={vehicle}/> : "Read only"}</td>
                 </tr>
               ))}
             </tbody>
