@@ -1,3 +1,4 @@
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
 import {
   AuthorizationError,
@@ -22,9 +23,9 @@ export class AuthenticationError extends Error {
   }
 }
 
-export function authMode(env: Environment = process.env): "demo" | "cognito" {
-  if (env.AUTH_MODE === "cognito" || env.AUTH_MODE === "demo") return env.AUTH_MODE;
-  if (!env.AUTH_MODE && env.NODE_ENV !== "production" && env.DATA_MODE !== "aurora") return "demo";
+export function authMode(env: Environment = process.env): "demo" | "cognito" | "oidc" {
+  if (env.AUTH_MODE === "oidc" || env.AUTH_MODE === "cognito" || env.AUTH_MODE === "demo") return env.AUTH_MODE;
+  if (!env.AUTH_MODE && env.NODE_ENV !== "production" && !["aurora", "neon"].includes(env.DATA_MODE ?? "")) return "demo";
   throw new AuthenticationError(503, "Staff authentication is not configured.");
 }
 
@@ -100,19 +101,23 @@ export function createPrincipalResolver(options: {
   return async (request: Request): Promise<AuthenticatedPrincipal> => {
     const env = options.env ?? process.env;
     if (authMode(env) === "demo") {
-      if (env.DATA_MODE === "aurora") throw new AuthenticationError(503, "Production data requires Cognito authentication.");
+      if (["aurora", "neon"].includes(env.DATA_MODE ?? "")) throw new AuthenticationError(503, "Production data requires verified staff authentication.");
       return structuredClone(options.demoPrincipal);
     }
     const credential = accessToken(request);
     if (credential.cookie && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
-      if (request.headers.get("origin") !== new URL(request.url).origin ||
+      if (request.headers.get("origin") !== new URL(env.APP_ORIGIN ?? request.url).origin ||
           request.headers.get("sec-fetch-site") === "cross-site") {
         throw new AuthorizationError("Invalid request origin");
       }
     }
     if (!verifyToken) {
-      const verifier = createCognitoVerifier(env);
-      verifyToken = (token) => verifier.verify(token);
+      if (authMode(env) === "oidc") {
+        verifyToken = createOidcVerifier(env);
+      } else {
+        const verifier = createCognitoVerifier(env);
+        verifyToken = (token) => verifier.verify(token);
+      }
     }
     let sub: string;
     try { sub = (await verifyToken(credential.token)).sub; } catch {
@@ -154,4 +159,17 @@ export function accessError(error: unknown): { status: number; message: string }
   if (error instanceof AuthenticationError) return { status: error.status, message: error.message };
   if (error instanceof AuthorizationError) return { status: 403, message: "Forbidden." };
   return null;
+}
+
+export function createOidcVerifier(env:Environment=process.env, suppliedKeys?:JWTVerifyGetKey):TokenVerifier {
+  if(!env.OIDC_ISSUER || !env.OIDC_AUDIENCE || !env.OIDC_JWKS_URL)throw new AuthenticationError(503,"OIDC is not configured.");
+  const issuer=new URL(env.OIDC_ISSUER),jwks=new URL(env.OIDC_JWKS_URL);
+  if(issuer.protocol!=="https:" || jwks.protocol!=="https:" || issuer.username || jwks.username || issuer.password || jwks.password ||
+    env.OIDC_AUDIENCE===env.OIDC_CLIENT_ID || env.OIDC_AUDIENCE===env.OIDC_DESKTOP_CLIENT_ID)throw new AuthenticationError(503,"Configure HTTPS OIDC endpoints and a separate API audience.");
+  const keys=suppliedKeys ?? createRemoteJWKSet(jwks,{timeoutDuration:5000,cooldownDuration:30000});
+  return async token=>{
+    const {payload}=await jwtVerify(token,keys,{issuer:env.OIDC_ISSUER,audience:env.OIDC_AUDIENCE,algorithms:["RS256","ES256"],requiredClaims:["sub","exp","iat"],maxTokenAge:"1h",clockTolerance:3});
+    if(typeof payload.sub!=="string" || (payload.token_use && payload.token_use!=="access"))throw new AuthenticationError(401,"Invalid identity.");
+    return {sub:payload.sub};
+  };
 }

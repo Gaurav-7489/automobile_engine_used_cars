@@ -1,6 +1,8 @@
 import { migrationPool, databaseSecret } from "../../packages/data/src/postgres";
-if(!process.env.MIGRATION_DATABASE_URL||!process.env.APPLICATION_DATABASE_SECRET_ARN)throw new Error("Migration URL and APPLICATION_DATABASE_SECRET_ARN are required.");
-const secret=await databaseSecret(process.env.APPLICATION_DATABASE_SECRET_ARN);
+if(!process.env.MIGRATION_DATABASE_URL)throw new Error("Migration URL is required.");
+const secret=process.env.APPLICATION_DATABASE_PASSWORD ? {username:"vandlabs_app",password:process.env.APPLICATION_DATABASE_PASSWORD} :
+  process.env.APPLICATION_DATABASE_SECRET_ARN ? await databaseSecret(process.env.APPLICATION_DATABASE_SECRET_ARN) : undefined;
+if(!secret)throw new Error("Configure APPLICATION_DATABASE_PASSWORD securely for Neon, or an AWS role secret.");
 if(secret.username!=="vandlabs_app"||!secret.password)throw new Error("Expected the application-role secret.");
 const pool=migrationPool();const client=await pool.connect();
 try{
@@ -15,5 +17,6 @@ try{
  await client.query("GRANT SELECT,INSERT ON stock_cost_history TO vandlabs_app");
  await client.query("GRANT SELECT,INSERT,UPDATE ON staff_members TO vandlabs_app");
  await client.query("GRANT SELECT,INSERT ON platform_audit TO vandlabs_app");
+ await client.query("GRANT SELECT,INSERT,UPDATE ON notification_outbox TO vandlabs_app");
  await client.query("COMMIT");console.log("Application role provisioned from its secret.");
 }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();await pool.end();}

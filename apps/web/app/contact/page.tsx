@@ -1,3 +1,4 @@
+import { pageMetadata } from "../../lib/seo";
 import { isReadOnlyPreview } from "../../lib/hosting";
 import type { LeadIntent } from "@vandlabs/contracts";
 import { ContactWorkspace } from "../../components/contact-workspace";
@@ -5,7 +6,7 @@ import { TrackedAction } from "../../components/tracked-action";
 import { activeDealership, tenantConfig } from "../../lib/config";
 import { dealershipService } from "../../lib/services";
 
-export const metadata = { title: "Contact", description: "Bring your shortlist into a personal conversation about a vehicle, a visit, finance or an exchange." };
+export const metadata = pageMetadata('Contact the Dealership & Book a Test Drive', 'Ask about available cars, arrange a test drive or discuss finance and exchange options. Contact the dealership by phone, WhatsApp or enquiry form.', "/contact");
 export default async function Page({ searchParams }: { searchParams: Promise<{ vehicle?: string; ids?: string; intent?: string }> }) {
   const [params, inventory] = await Promise.all([searchParams, dealershipService.inventory()]);
   const vehicles = inventory.map(({ id, slug, make, model, year, price, availabilityStatus }) => ({ id, slug, make, model, year, price, availabilityStatus }));

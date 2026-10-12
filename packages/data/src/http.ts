@@ -1,15 +1,20 @@
+import { randomUUID } from "node:crypto";
+import { headers as incomingHeaders } from "next/headers";
 import { NextResponse } from "next/server";
 import { InputError, RecordNotFound, ConflictError, InventoryValidationError } from "./errors";
 import { accessError } from "@vandlabs/server-auth";
 export async function api(action:()=>Promise<Response>) {
-  const headers={"Cache-Control":"private, no-store"};
+  let requestId=randomUUID() as string;
+  try {const provided=(await incomingHeaders()).get("x-request-id");if(provided && /^[0-9a-f-]{36}$/i.test(provided))requestId=provided;}catch{/* Standalone tests have no Next request context. */}
+  const headers={"Cache-Control":"private, no-store","X-Request-ID":requestId};
   try {const response=await action();response.headers.set("Cache-Control",headers["Cache-Control"]);return response;} catch(error) {
     const auth=accessError(error); if(auth)return NextResponse.json({error:auth.message},{status:auth.status,headers});
     if(error instanceof InventoryValidationError)return NextResponse.json({error:error.message,issues:error.issues},{status:400,headers});
     if(error instanceof InputError || error instanceof SyntaxError)return NextResponse.json({error:"Invalid request."},{status:400,headers});
     if(error instanceof ConflictError)return NextResponse.json({error:error.message},{status:409,headers});
     if(error instanceof RecordNotFound)return NextResponse.json({error:"Record not found."},{status:404,headers});
-    return NextResponse.json({error:"Service unavailable."},{status:503,headers});
+    console.error(JSON.stringify({event:"api_failure",requestId}));
+    return NextResponse.json({error:"Service unavailable.",requestId},{status:503,headers});
   }
 }
 export async function objectBody(request:Request):Promise<Record<string,unknown>> {

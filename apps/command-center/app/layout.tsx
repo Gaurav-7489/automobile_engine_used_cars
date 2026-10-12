@@ -36,7 +36,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <WorkspaceNav items={nav} basePath="/command" label="Command Center" /><form action="/command/auth/logout" method="post"><button type="submit">Sign out</button></form>
             <div className="sidebar-foot">
               <span className="status-dot" />
-              {process.env.DATA_MODE === "aurora" ? "Connected operations" : "Demonstration data"}
+              {["aurora", "neon"].includes(process.env.DATA_MODE ?? "") ? "Connected operations" : "Demonstration data"}
             </div>
           </aside>
           <div className="app-content" id="workspace-content" tabIndex={-1}>

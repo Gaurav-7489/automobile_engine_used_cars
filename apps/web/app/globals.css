@@ -977,3 +977,8 @@ button:disabled { cursor:not-allowed; }
 }
 
 @media(max-width:600px) { .lead-form input:not([type=checkbox]),.lead-form select,.lead-form textarea,.inventory-search input,.inventory-toolbar select,.workspace-check input { font-size:16px; } }
+
+/* Resilient long vehicle labels, touch layouts and accessible headings. */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.vehicle-card-body,.vehicle-summary,.contact-form-layout>*{min-width:0;overflow-wrap:anywhere}
+@media(max-width:640px){.actions{flex-wrap:wrap}.spec-grid{grid-template-columns:repeat(2,minmax(0,1fr))}input,select,textarea{max-width:100%;font-size:16px}.vehicle-section-nav{overflow-x:auto;white-space:nowrap}.page-title{overflow-wrap:anywhere}}

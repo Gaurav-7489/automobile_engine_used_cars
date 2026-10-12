@@ -1,12 +1,18 @@
 import { createCipheriv, createDecipheriv, randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { AuthenticationError } from "./index";
-export interface OAuthConfig { origin:string; domain:string; clientId:string; secret:string; basePath:string }
+export interface OAuthConfig { origin:string; domain:string; clientId:string; secret:string; basePath:string; authorizeUrl?:string; tokenUrl?:string; revokeUrl?:string; oidc?:boolean; audience?:string; resource?:string }
 export function oauthConfig(basePath:string):OAuthConfig {
-  const {APP_ORIGIN,COGNITO_DOMAIN,COGNITO_CLIENT_ID,SESSION_SECRET}=process.env;
+  const oidc=process.env.AUTH_MODE === "oidc";
+  const {APP_ORIGIN,SESSION_SECRET}=process.env;
+  const COGNITO_DOMAIN=oidc?process.env.OIDC_ISSUER:process.env.COGNITO_DOMAIN;
+  const COGNITO_CLIENT_ID=oidc?process.env.OIDC_CLIENT_ID:process.env.COGNITO_CLIENT_ID;
   if(!APP_ORIGIN||!COGNITO_DOMAIN||!COGNITO_CLIENT_ID||!SESSION_SECRET)throw new AuthenticationError(503,"Sign-in is not configured.");
   const origin=new URL(APP_ORIGIN).origin, domain=new URL(COGNITO_DOMAIN).origin;
   if(!origin.startsWith("https://")||!domain.startsWith("https://")||Buffer.from(SESSION_SECRET,"base64").length!==32)throw new AuthenticationError(503,"Sign-in configuration is invalid.");
-  return {origin,domain,clientId:COGNITO_CLIENT_ID,secret:SESSION_SECRET,basePath};
+  const endpoints=oidc?[process.env.OIDC_AUTHORIZE_URL,process.env.OIDC_TOKEN_URL,process.env.OIDC_REVOKE_URL]:[];
+  if(oidc && endpoints.some(url=>{try{const parsed=new URL(url!);return parsed.protocol!=="https:" || Boolean(parsed.username||parsed.password);}catch{return true;}}))throw new AuthenticationError(503,"OIDC endpoints require HTTPS.");
+  return {origin,domain,clientId:COGNITO_CLIENT_ID,secret:SESSION_SECRET,basePath,oidc,
+    authorizeUrl:endpoints[0],tokenUrl:endpoints[1],revokeUrl:endpoints[2],audience:oidc?process.env.OIDC_AUDIENCE:undefined,resource:oidc?process.env.OIDC_RESOURCE:undefined};
 }
 export function seal(value:unknown,secret:string) {
   const iv=randomBytes(12);const cipher=createCipheriv("aes-256-gcm",Buffer.from(secret,"base64"),iv);
@@ -33,7 +39,7 @@ function setCookie(response:Response,name:string,value:string,seconds:number) {
 function redirect(url:string) {return new Response(null,{status:303,headers:{Location:url,"Cache-Control":"private, no-store"}});}
 interface Tokens { access_token:string; refresh_token?:string; expires_in:number }
 export async function exchange(config:OAuthConfig,params:Record<string,string>):Promise<Tokens> {
-  const response=await fetch(config.domain+"/oauth2/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:config.clientId,...params}),signal:AbortSignal.timeout(10000),cache:"no-store",redirect:"error"});
+  const response=await fetch(config.tokenUrl ?? config.domain+"/oauth2/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:config.clientId,...params}),signal:AbortSignal.timeout(10000),cache:"no-store",redirect:"error"});
   if(!response.ok)throw new AuthenticationError(401,"Sign-in failed.");const value=await response.json() as Tokens;
   if(typeof value.access_token!=="string"||!Number.isFinite(value.expires_in)||value.expires_in<=0||value.expires_in>86400)throw new AuthenticationError(401,"Invalid sign-in response.");return value;
 }
@@ -54,7 +60,9 @@ export function createOAuthHandlers(basePath:string,authorize:(request:Request)=
     login(request:Request){return protect(async()=>{
       const c=oauthConfig(basePath);const verifier=randomBytes(32).toString("base64url"),state=randomBytes(32).toString("base64url");
       const returnTo=safeReturnTo(new URL(request.url).searchParams.get("returnTo"),basePath);
-      const url=new URL(c.domain+"/oauth2/authorize");url.search=new URLSearchParams({response_type:"code",client_id:c.clientId,redirect_uri:c.origin+basePath+"/auth/callback",scope:"openid email profile",state,code_challenge_method:"S256",code_challenge:createHash("sha256").update(verifier).digest("base64url")}).toString();
+      const url=new URL(c.authorizeUrl ?? c.domain+"/oauth2/authorize");url.search=new URLSearchParams({response_type:"code",client_id:c.clientId,redirect_uri:c.origin+basePath+"/auth/callback",scope:"openid email profile",state,code_challenge_method:"S256",code_challenge:createHash("sha256").update(verifier).digest("base64url")}).toString();
+      if(c.audience)url.searchParams.set("audience",c.audience);
+      if(c.resource)url.searchParams.set("resource",c.resource);
       const response=redirect(url.toString());setCookie(response,"__Host-vandlabs-oauth",seal({state,verifier,returnTo,expires:Date.now()+600000},c.secret),600);return response;
     });},
     callback(request:Request){return protect(async()=>{
@@ -77,8 +85,13 @@ export function createOAuthHandlers(basePath:string,authorize:(request:Request)=
     logout(request:Request){return protect(async()=>{
       const c=oauthConfig(basePath);csrf(request,c);
       try{const stored=unseal<{token:string}>(cookie(request,"__Host-vandlabs-refresh"),c.secret);
-        await fetch(c.domain+"/oauth2/revoke",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:c.clientId,token:stored.token}),signal:AbortSignal.timeout(5000)});
+        await fetch(c.revokeUrl ?? c.domain+"/oauth2/revoke",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:c.clientId,token:stored.token}),signal:AbortSignal.timeout(5000)});
       }catch{/* Always clear local session even if provider revocation is unavailable. */}
+      if(c.oidc) {
+        const response=redirect(c.origin+basePath+"/login");
+        for(const name of ["__Host-vandlabs-access-token","__Host-vandlabs-refresh","__Host-vandlabs-oauth"])setCookie(response,name,"",0);
+        return response;
+      }
       const url=new URL(c.domain+"/logout");url.search=new URLSearchParams({client_id:c.clientId,logout_uri:c.origin+basePath+"/login"}).toString();const response=redirect(url.toString());
       for(const name of ["__Host-vandlabs-access-token","__Host-vandlabs-refresh","__Host-vandlabs-oauth"])setCookie(response,name,"",0);return response;
     });},

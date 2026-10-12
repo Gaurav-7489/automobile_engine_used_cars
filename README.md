@@ -123,3 +123,13 @@ Final merged evidence, installers, all five source documents and refreshed previ
 The current interface includes the public showroom, redesigned Command Center/Platform and matching native workspace. Open `/download` on the public app for automatically resolved Windows/macOS development installers. A successful main Quality Gate triggers both native builds and publishes a source-bound prerelease with SHA-256 checksums. Unsigned development builds require an activated online backend; see [experience and distribution](docs/premium-experience-distribution.md) for the exact behavior, public rate protection and remaining live acceptance.
 
 The public website combines Apple-inspired minimalism with connected discovery: shareable inventory filters, a persistent three-car shortlist, differences-only comparison, contextual enquiries, an accessible vehicle gallery and an interactive desktop product tour. Restrained Skiper/21st-inspired motion respects reduced motion. Current delivery and exact verification: [connected public experience](docs/connected-public-experience-2026-10-10.md).
+
+## Cloudflare + R2 + Neon deployment
+
+The repository now includes Cloudflare Worker builds for all three apps, a private-service gateway, durable rate/concurrency controls, Neon transaction pooling, R2 photo upload, OIDC identity support and a Resend notification outbox. Live cutover requires account credentials and acceptance on Workers.
+
+- [Deployment, architecture, cost and cutover runbook](docs/CLOUDFLARE_NEON_MIGRATION.md)
+- [SEO, Search Console and backlink plan](docs/SEO_AND_BACKLINK_PLAN.md)
+- `pnpm cf:build` builds the three Worker bundles.
+- `pnpm test:cloudflare` exercises distributed admission and migration safeguards.
+- `pnpm cf:configure` and `pnpm cf:deploy` use secure environment settings; see the runbook first.

@@ -7,12 +7,11 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const vehicles = await dealershipService.inventory();
   const base = tenantConfig.seo.canonicalBase.replace(/\/$/, "");
-  const staticRoutes = ["", "/inventory", "/compare", "/contact"];
+  const staticRoutes = ["", "/inventory", "/compare", "/contact", "/download"];
 
   return [
     ...staticRoutes.map((path) => ({
       url: base + path,
-      lastModified: new Date(),
       changeFrequency: path === "/inventory" ? ("daily" as const) : ("weekly" as const),
       priority: path === "" ? 1 : 0.8,
     })),

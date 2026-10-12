@@ -25,7 +25,7 @@ export function ShowroomHero({ vehicles, dealer, cities, available, locations }:
       </div>
       <div className="showroom-visual">
         <div className="hero-photo" key={vehicle?.id ?? "empty"}>
-          {vehicle?.media[0] ? <Image src={vehicle.media[0].url} alt={vehicle.media[0].alt} fill priority sizes="(max-width: 1200px) 100vw, 1100px" className="hero-image" unoptimized={!vehicle.media[0].url.startsWith("https://images.unsplash.com/")} /> : <span>New inventory arriving soon</span>}
+          {vehicle?.media[0] ? <Image src={vehicle.media[0].url} alt={vehicle.media[0].alt || `${vehicle.year} ${vehicle.make} ${vehicle.model}`} fill priority sizes="(max-width: 1200px) 100vw, 1100px" className="hero-image" unoptimized={!vehicle.media[0].url.startsWith("https://images.unsplash.com/")} /> : <span>New inventory arriving soon</span>}
           <span className="photo-index" aria-hidden="true">{String(selected + 1).padStart(2, "0")} / {String(vehicles.length).padStart(2, "0")}</span>
         </div>
         <div className="hero-details" aria-live="polite" aria-atomic="true">

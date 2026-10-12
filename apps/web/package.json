@@ -6,16 +6,20 @@
     "start": "next start -H 127.0.0.1 -p 3000",
     "build": "next build",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare deploy"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.10",
     "@vandlabs/contracts": "workspace:*",
-    "@vandlabs/demo-data": "workspace:*",
-    "next": "^15.5.3",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
     "@vandlabs/data": "workspace:*",
-    "@vandlabs/design-system": "workspace:*"
+    "@vandlabs/demo-data": "workspace:*",
+    "@vandlabs/design-system": "workspace:*",
+    "next": "^15.5.27",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",

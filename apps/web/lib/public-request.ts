@@ -1,3 +1,4 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 import { NextResponse } from "next/server";
@@ -9,7 +10,7 @@ const script = "local n=redis.call('INCR',KEYS[1]);if n==1 then redis.call('PEXP
 
 export function requestIdentity(request: Request, env: Environment = process.env): string {
   // Only trust platform-injected headers or a proxy that the operator explicitly trusts.
-  const header = env.VERCEL === "1" ? "x-forwarded-for" : env.RATE_LIMIT_TRUSTED_IP_HEADER;
+  const header = env.HOSTING_PROVIDER === "cloudflare" ? "cf-connecting-ip" : env.VERCEL === "1" ? "x-forwarded-for" : env.RATE_LIMIT_TRUSTED_IP_HEADER;
   const value = header ? request.headers.get(header)?.split(",")[0].trim() : undefined;
   return value && isIP(value) ? value : "shared-unknown-client";
 }
@@ -22,7 +23,16 @@ export async function limitPublicRequest(request: Request, scope: string, max: n
   const key = "engine:limit:" + createHash("sha256").update(`${env.RATE_LIMIT_NAMESPACE ?? "default"}|${scope}|${requestIdentity(request, env)}`).digest("hex");
   let count: number, ttl: number;
   try {
-    if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
+    if(env.HOSTING_PROVIDER === "cloudflare") {
+      const {env:bindings} = await getCloudflareContext({async:true});
+      const admission=(bindings as unknown as {ADMISSION:{idFromName(name:string):unknown;get(id:unknown):{fetch(input:string,init:RequestInit):Promise<Response>}}}).ADMISSION;
+      if(!admission) throw new Error();
+      const response=await admission.get(admission.idFromName(key)).fetch("https://admission.internal",{method:"POST",body:JSON.stringify({op:"rate",scope:"public",limit:max,windowMs})});
+      if(!response.ok)throw new Error();
+      const result=await response.json() as {success:boolean;retryAfter:number};
+      if(typeof result.success!=="boolean" || !Number.isFinite(result.retryAfter))throw new Error();
+      return result.success?null:NextResponse.json({error:"Too many requests. Please wait."},{status:429,headers:{"Retry-After":String(result.retryAfter),"Cache-Control":"no-store"}});
+    } else if (env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) {
       const url = new URL(env.UPSTASH_REDIS_REST_URL);
       if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || url.pathname !== "/") throw new Error();
       const response = await (options.fetcher ?? fetch)(url, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.UPSTASH_REDIS_REST_TOKEN}` }, body: JSON.stringify(["EVAL", script, "1", key, String(windowMs)]), signal: AbortSignal.timeout(2500), cache: "no-store" });
@@ -32,7 +42,7 @@ export async function limitPublicRequest(request: Request, scope: string, max: n
       if (!Array.isArray(result) || result.length !== 2 || !Number.isSafeInteger(result[0]) || result[0] < 1 || !Number.isSafeInteger(result[1]) || result[1] < 0) throw new Error();
       [count, ttl] = result;
     } else {
-      if (env.DATA_MODE === "aurora" || env.VERCEL === "1") throw new Error();
+      if (["aurora", "neon"].includes(env.DATA_MODE ?? "") || env.VERCEL === "1") throw new Error();
       for (const [id, bucket] of buckets) if (bucket.reset <= now) buckets.delete(id);
       let bucket = buckets.get(key);
       if (!bucket) { if (buckets.size >= 10000) throw new Error(); bucket = { count: 0, reset: now + windowMs }; buckets.set(key, bucket); }

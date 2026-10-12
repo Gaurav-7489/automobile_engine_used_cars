@@ -358,7 +358,7 @@ function AnalyticsSection({ data }: {data:Snapshot}) {
     ? Math.round((leads.filter((lead) => leadsWithNextAction.has(lead.id)).length / leads.length) * 100)
     : 0;
   const runtimeCount = leads.filter(
-    (lead) => dataMode() === "aurora" || !seededLeads.some((seeded) => seeded.id === lead.id),
+    (lead) => dataMode() !== "demo" || !seededLeads.some((seeded) => seeded.id === lead.id),
   ).length;
   const sourceCounts = leads.reduce<Record<string, number>>((acc, lead) => {
     acc[lead.source] = (acc[lead.source] ?? 0) + 1;

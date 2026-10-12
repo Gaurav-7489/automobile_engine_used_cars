@@ -95,7 +95,7 @@ export function postgresPlatformStore(pool:SqlPool) {
   };
 }
 export async function platformSnapshot(p:AuthenticatedPrincipal):Promise<PlatformTenant[]> {
-  if(dataMode()==="aurora")return postgresPlatformStore(await databasePool()).snapshot(p);
+  if(dataMode()!=="demo")return postgresPlatformStore(await databasePool()).snapshot(p);
   if(!platformScopes(p).includes(tenantConfig.tenantId))return [];
   const v=runtime.mergeRuntimeVehicles(vehicles).filter(x=>x.tenantId===tenantConfig.tenantId);
   const l=runtime.mergeRuntimeLeads(leads).filter(x=>x.tenantId===tenantConfig.tenantId);
@@ -106,7 +106,7 @@ export async function platformSnapshot(p:AuthenticatedPrincipal):Promise<Platfor
     audit:runtime.readPlatformRecords<PlatformAudit>("platform-audit.json").filter(x=>x.tenantId===tenantConfig.tenantId).slice(0,100)}];
 }
 export async function saveStaffMember(p:AuthenticatedPrincipal,tenantId:string,input:unknown,expectedVersion:unknown) {
-  if(dataMode()==="aurora")return postgresPlatformStore(await databasePool()).saveStaff(p,tenantId,input,expectedVersion);
+  if(dataMode()!=="demo")return postgresPlatformStore(await databasePool()).saveStaff(p,tenantId,input,expectedVersion);
   platformScope(p,tenantId);
   if(tenantId!==tenantConfig.tenantId)throw new RecordNotFound();
   const b=staffInput(tenantId,input);validateDestinations(b,tenantConfig.organization.dealerships);
@@ -119,13 +119,13 @@ export async function saveStaffMember(p:AuthenticatedPrincipal,tenantId:string,i
 }
 /** Called only after Cognito verifies subject, issuer, client and expiry. */
 export async function resolveDatabaseStaff(sub:string,tenantId:string) {
-  if(dataMode()!=="aurora")throw new Error("Database staff registry requires shared PostgreSQL.");
+  if(dataMode()==="demo")throw new Error("Database staff registry requires shared PostgreSQL.");
   return postgresPlatformStore(await databasePool()).principal(sub,tenantId);
 }
 export async function staffDirectory(p:AuthenticatedPrincipal) {
   requireCapability(p,"lead:read");
   if(p.assignedLeadOnly)return [{id:p.userId,name:"You"}];
-  const rows=dataMode()==="aurora"?await tenantTransaction(await databasePool(),p.tenantId,async c=>(await c.query("SELECT payload FROM staff_members WHERE tenant_id=$1",[p.tenantId])).rows.map(r=>r.payload as StaffMember)):
+  const rows=dataMode()!=="demo"?await tenantTransaction(await databasePool(),p.tenantId,async c=>(await c.query("SELECT payload FROM staff_members WHERE tenant_id=$1",[p.tenantId])).rows.map(r=>r.payload as StaffMember)):
     runtime.readPlatformRecords<StaffMember>("staff-members.json");
   const result=rows.filter(m=>m.enabled&&m.tenantId===p.tenantId&&m.dealershipIds.some(id=>p.dealershipIds.includes(id))&&m.locationIds.some(id=>p.locationIds.includes(id))).map(m=>({id:m.userId,name:m.displayName}));
   return dataMode()==="demo"?[{id:"Maya",name:"Maya"},{id:"Kabir",name:"Kabir"},...result]:result;

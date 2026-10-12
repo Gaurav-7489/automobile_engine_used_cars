@@ -9,3 +9,5 @@ GRANT SELECT,INSERT,UPDATE ON stock_costs TO vandlabs_app;
 GRANT SELECT,INSERT ON stock_cost_history TO vandlabs_app;
 GRANT SELECT,INSERT,UPDATE ON staff_members TO vandlabs_app;
 GRANT SELECT,INSERT ON platform_audit TO vandlabs_app;
+
+GRANT SELECT,INSERT,UPDATE ON notification_outbox TO vandlabs_app;

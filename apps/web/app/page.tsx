@@ -1,3 +1,4 @@
+import { pageMetadata } from "../lib/seo";
 import Link from "next/link";
 import { dealershipService } from "../lib/services";
 import { ShowroomHero } from "../components/showroom-hero";
@@ -93,3 +94,5 @@ export default async function Page() {
     </main>
   );
 }
+
+export const metadata = pageMetadata("Used Cars & Personal Dealership Service", "Explore available used cars, compare your favourites and book a test drive. Discover vehicle prices, specifications and dealership contact options.", "/");

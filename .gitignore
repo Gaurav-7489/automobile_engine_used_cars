@@ -88,3 +88,10 @@ temp/
 **/cdk.out/
 
 auth-test-results/
+
+.open-next/
+.wrangler/
+.dev.vars*
+cloudflare-env.d.ts
+
+infra/cloudflare/bootstrap.wrangler.jsonc

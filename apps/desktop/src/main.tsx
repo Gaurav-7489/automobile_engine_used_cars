@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Lead, Task, Vehicle, LeadStage, AuthenticatedPrincipal, Appointment, Sale, StockCost } from "@vandlabs/contracts";
 import "./style.css";
 import { DesktopCostRecord } from "./cost-record";
-interface Config { apiOrigin:string; cognitoDomain:string; clientId:string }
+interface Config { apiOrigin:string; cognitoDomain:string; clientId:string; authorizeUrl?:string; tokenUrl?:string; revokeUrl?:string; audience?:string; resource?:string }
 interface Dashboard { data:{leads:Lead[];tasks:Task[];vehicles:Vehicle[];appointments:Appointment[];sales:Sale[];costs?:StockCost[]};principal:AuthenticatedPrincipal;metrics:{available:number;leads:number;wins:number} }
 const stages:LeadStage[]=["new","contacted","qualified","appointment","visited","test_drive","negotiation","won","lost","nurture"];
 function App(){

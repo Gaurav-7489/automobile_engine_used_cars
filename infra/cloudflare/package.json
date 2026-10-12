@@ -1,0 +1,1 @@
+{"name":"@vandlabs/cloudflare","private":true,"type":"module","scripts":{"typecheck":"tsc --noEmit","build":"tsc --noEmit"},"dependencies":{"@vandlabs/data":"workspace:*","@neondatabase/serverless":"^1.0.2"}}

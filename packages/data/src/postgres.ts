@@ -1,4 +1,5 @@
 import { Pool, type PoolConfig } from "pg";
+import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
 import { readFileSync } from "node:fs";
 import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
 
@@ -24,7 +25,7 @@ export function databaseOptions(env:Record<string,string|undefined>=process.env,
     connectionString=url.toString();
   }
   if(!connectionString&&!credentials.password)throw new Error("Database connection is not configured.");
-  const max=Number(env.DATABASE_POOL_MAX??(env.VERCEL==="1"?"2":"10"));
+  const max=Number(env.DATABASE_POOL_MAX??(env.VERCEL==="1"||env.HOSTING_PROVIDER==="cloudflare"?"2":"10"));
   if(!Number.isInteger(max)||max<1||max>50)throw new Error("DATABASE_POOL_MAX must be between 1 and 50.");
   return {connectionString,host:env.DATABASE_HOST||credentials.host,database:env.DATABASE_NAME||credentials.dbname,
     user:credentials.username,password:credentials.password,port:Number(env.DATABASE_PORT||credentials.port||5432),
@@ -32,6 +33,24 @@ export function databaseOptions(env:Record<string,string|undefined>=process.env,
     max,connectionTimeoutMillis:5000,idleTimeoutMillis:30000,statement_timeout:15000,application_name:"vandlabs-automobile-engine"};
 }
 export function databasePool(): Promise<SqlPool> {
+  if (process.env.HOSTING_PROVIDER === "cloudflare") {
+    if (process.env.DATABASE_SECRET_ARN) throw new Error("Use a Worker DATABASE_URL secret on Cloudflare.");
+    const options = databaseOptions();
+    const url = new URL(options.connectionString!);
+    if (!url.hostname.endsWith(".neon.tech") || !url.hostname.includes("-pooler.")) throw new Error("Cloudflare requires a pooled Neon application-role URL.");
+    neonConfig.webSocketConstructor = WebSocket;
+    // One connection per tenant transaction; close within the originating request.
+    // Neon PgBouncer bounds backend connections across all Worker isolates.
+    return Promise.resolve({ async connect() {
+      const pool = new NeonPool({...options, max: 1});
+      pool.on("error",()=>console.error(JSON.stringify({event:"database_connection_failure"})));
+      try {
+        const client = await pool.connect();
+        return {query: (sql:string, values?:unknown[]) => client.query(sql, values),
+          release() { client.release(); void pool.end().catch(() => undefined); }};
+      } catch (error) { await pool.end().catch(() => undefined); throw error; }
+    }});
+  }
   return poolPromise ??= (async () => {
     let credentials: Record<string, string> = {};
     if (process.env.DATABASE_SECRET_ARN) {

@@ -106,6 +106,7 @@ export function postgresStore(pool: SqlPool) {
       }
       const now=new Date().toISOString(); const lead:Lead={...input,version:0,id:randomUUID(),stage:"new",createdAt:now,updatedAt:now};
       await c.query("INSERT INTO leads(id,tenant_id,dealership_id,location_id,vehicle_id,payload,stage,source,campaign,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)",[lead.id,lead.tenantId,lead.dealershipId,lead.locationId,lead.vehicleId,lead,lead.stage,lead.source,lead.campaign,now]);
+      if(process.env.NOTIFICATIONS_ENABLED === "true") await c.query("INSERT INTO notification_outbox(id,tenant_id,lead_id) VALUES($1,$2,$3)",[randomUUID(),lead.tenantId,lead.id]);
       return {lead,automation:await automate(c,lead,"lead_created")};
     }); },
     patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>,expectedVersion:unknown) { return tx(p.tenantId,async c=> {
@@ -223,17 +224,17 @@ export function postgresStore(pool: SqlPool) {
 }
 async function productionStore() { return postgresStore(await databasePool()); }
 export async function publicInventory() {
-  const s=publicScope(); return dataMode()==="aurora"?(await productionStore()).inventory(s.tenantId,s.dealershipId):runtime.mergeRuntimeVehicles(demo.vehicles).filter(v=>v.publishStatus==="published");
+  const s=publicScope(); return dataMode()!=="demo"?(await productionStore()).inventory(s.tenantId,s.dealershipId):runtime.mergeRuntimeVehicles(demo.vehicles).filter(v=>v.publishStatus==="published");
 }
 export async function staffSnapshot(p:AuthenticatedPrincipal):Promise<Snapshot> {
-  if (dataMode()==="aurora") return (await productionStore()).snapshot(p);
+  if (dataMode()!=="demo") return (await productionStore()).snapshot(p);
   for(const cap of ["lead:read","inventory:read","analytics:read"] as const) requireCapability(p,cap);
   const s=demoSnapshot();s.leads=s.leads.filter(l=>visible(p,l)&&(!p.assignedLeadOnly||l.assignedTo===p.userId));s.vehicles=s.vehicles.filter(v=>visible(p,v));
   const ids=new Set(s.leads.map(l=>l.id));s.tasks=s.tasks.filter(t=>ids.has(t.leadId));s.activities=s.activities.filter(a=>ids.has(a.leadId));s.appointments=s.appointments.filter(a=>ids.has(a.leadId));s.runs=s.runs.filter(r=>ids.has(r.leadId));const vehicleIds=new Set(s.vehicles.map(v=>v.id));s.sales=s.sales?.filter(r=>ids.has(r.leadId));s.inventoryHistory=s.inventoryHistory?.filter(r=>s.vehicles.some(v=>v.id===r.vehicleId));s.events=s.events.filter(e=>!!e.vehicleId&&vehicleIds.has(e.vehicleId));s.costs=p.capabilities.includes("capital:read")?s.costs?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;s.costHistory=p.capabilities.includes("capital:read")?s.costHistory?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;return s;
 }
 export async function createLead(input:Omit<Lead,"id"|"stage"|"createdAt"|"updatedAt">) {
   const s=publicScope();if(input.tenantId!==s.tenantId||input.dealershipId!==s.dealershipId) throw new InputError("Invalid dealership.");
-  if(dataMode()==="aurora")return(await productionStore()).createLead(input);
+  if(dataMode()!=="demo")return(await productionStore()).createLead(input);
   const now=new Date().toISOString();const lead:Lead={...input,version:0,id:randomUUID(),stage:"new",createdAt:now,updatedAt:now};
   return runtime.demoTransaction(state=> {
     if(input.vehicleId){const vehicle=(state["vehicles.json"] as Vehicle[]).find(v=>v.id===input.vehicleId)??demo.vehicles.find(v=>v.id===input.vehicleId);if(!vehicle||vehicle.tenantId!==input.tenantId||vehicle.dealershipId!==input.dealershipId||vehicle.locationId!==input.locationId||vehicle.availabilityStatus!=="available"||vehicle.publishStatus!=="published")throw new InputError("Vehicle unavailable.");}
@@ -242,7 +243,7 @@ export async function createLead(input:Omit<Lead,"id"|"stage"|"createdAt"|"updat
   });
 }
 export async function patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial<Pick<Lead,"stage"|"assignedTo"|"notes">>,expectedVersion:unknown) {
-  if(dataMode()==="aurora")return(await productionStore()).patchLead(p,id,patch,expectedVersion);
+  if(dataMode()!=="demo")return(await productionStore()).patchLead(p,id,patch,expectedVersion);
   return runtime.demoTransaction(state=> {
     const leads=state["leads.json"] as Lead[];const lead=leads.find(l=>l.id===id)??demo.leads.find(l=>l.id===id);if(!lead)throw new RecordNotFound();scope(p,lead,"lead:write");checkRecordVersion(lead,expectedVersion,"Lead");
     if(p.assignedLeadOnly&&Object.hasOwn(patch,"assignedTo")&&patch.assignedTo!==lead.assignedTo)throw new AuthorizationError();
@@ -254,7 +255,7 @@ export async function patchLead(p:AuthenticatedPrincipal,id:string,patch:Partial
   });
 }
 export async function createTask(p:AuthenticatedPrincipal,id:string,input:Pick<Task,"title"|"owner"|"dueAt"|"priority">) {
-  if(dataMode()==="aurora")return(await productionStore()).createTask(p,id,input);
+  if(dataMode()!=="demo")return(await productionStore()).createTask(p,id,input);
   return runtime.demoTransaction(state=> {
     const lead=(state["leads.json"] as Lead[]).find(l=>l.id===id)??demo.leads.find(l=>l.id===id);if(!lead)throw new RecordNotFound();scope(p,lead,"task:write");
     const task:Task={...input,version:0,id:randomUUID(),tenantId:p.tenantId,leadId:id,completed:false,origin:"human"};const record:LeadActivity={id:randomUUID(),tenantId:p.tenantId,leadId:id,type:"follow_up_created",actor:p.userId,description:`Follow-up scheduled for ${task.owner}.`,occurredAt:new Date().toISOString()};
@@ -262,7 +263,7 @@ export async function createTask(p:AuthenticatedPrincipal,id:string,input:Pick<T
   });
 }
 export async function completeTask(p:AuthenticatedPrincipal,id:string,completed:boolean,expectedVersion:unknown) {
-  if(dataMode()==="aurora")return(await productionStore()).completeTask(p,id,completed,expectedVersion);
+  if(dataMode()!=="demo")return(await productionStore()).completeTask(p,id,completed,expectedVersion);
   return runtime.demoTransaction(state=> {
     const tasks=runtimeTasks(state["tasks.json"] as Task[]);const task=tasks.find(t=>t.id===id);const lead=(state["leads.json"] as Lead[]).find(l=>l.id===task?.leadId)??demo.leads.find(l=>l.id===task?.leadId);if(!task||!lead)throw new RecordNotFound();scope(p,lead,"task:write");checkRecordVersion(task,expectedVersion,"Follow-up");
     if(!completed&&task.closedBySaleId)throw new ConflictError("A follow-up closed by a confirmed sale cannot be reopened.");
@@ -275,12 +276,12 @@ function demoAutomate(state:Parameters<Parameters<typeof runtime.demoTransaction
   state["tasks.json"]=[...result.tasks,...state["tasks.json"]];state["automation-runs.json"]=[...result.runs,...state["automation-runs.json"]];return result.runs;
 }
 export async function saveEvent(event:JourneyEvent) {
-  const s=publicScope();if(dataMode()==="aurora")return(await productionStore()).saveEvent(event,s.dealershipId);
+  const s=publicScope();if(dataMode()!=="demo")return(await productionStore()).saveEvent(event,s.dealershipId);
   if(!runtime.persistRuntimeJourneyEvent(event))throw new Error("Event persistence failed.");
 }
 export async function updateVehicle(p:AuthenticatedPrincipal,id:string,patch:Pick<Vehicle,"price"|"availabilityStatus"|"publishStatus">,expectedVersion:unknown) {
   validateVehiclePatch(patch);
-  if(dataMode()==="aurora")return(await productionStore()).updateVehicle(p,id,patch,expectedVersion);
+  if(dataMode()!=="demo")return(await productionStore()).updateVehicle(p,id,patch,expectedVersion);
   return runtime.demoTransaction(state=> {
     const current=state["vehicles.json"] as Vehicle[];
     const vehicle=current.find(v=>v.id===id)??demo.vehicles.find(v=>v.id===id);
@@ -331,7 +332,7 @@ function sameSale(sale:Sale,input:SaleInput) {
   return {data:sale};
 }
 export async function scheduleAppointment(p:AuthenticatedPrincipal,id:string,input:AppointmentInput) {
-  if(dataMode()==="aurora")return(await productionStore()).scheduleAppointment(p,id,input);
+  if(dataMode()!=="demo")return(await productionStore()).scheduleAppointment(p,id,input);
   validateAppointment(input);
   return runtime.demoTransaction(state=> {
     const lead=(state["leads.json"] as Lead[]).find(l=>l.id===id)??demo.leads.find(l=>l.id===id);if(!lead)throw new RecordNotFound();scope(p,lead,"lead:write");requireCapability(p,"task:write");
@@ -346,7 +347,7 @@ export async function scheduleAppointment(p:AuthenticatedPrincipal,id:string,inp
   });
 }
 export async function setAppointmentStatus(p:AuthenticatedPrincipal,id:string,status:Appointment["status"]) {
-  if(dataMode()==="aurora")return(await productionStore()).setAppointmentStatus(p,id,status);
+  if(dataMode()!=="demo")return(await productionStore()).setAppointmentStatus(p,id,status);
   validateAppointmentStatus(status);
   return runtime.demoTransaction(state=> {
     const appointments=state["appointments.json"] as Appointment[];
@@ -357,7 +358,7 @@ export async function setAppointmentStatus(p:AuthenticatedPrincipal,id:string,st
   });
 }
 export async function confirmSale(p:AuthenticatedPrincipal,id:string,input:SaleInput) {
-  if(dataMode()==="aurora")return(await productionStore()).confirmSale(p,id,input);
+  if(dataMode()!=="demo")return(await productionStore()).confirmSale(p,id,input);
   validateSale(input);
   return runtime.demoTransaction(state=> {
     const leads=state["leads.json"] as Lead[];
@@ -398,7 +399,7 @@ function creationHistory(p:AuthenticatedPrincipal,v:Vehicle,batchId:string):Inve
   return {...inventoryChange(p,v,v),action:"created",batchId,source:v.source,afterRecord:v};
 }
 export async function createInventoryBatch(p:AuthenticatedPrincipal,dealershipId:string,locationId:string,input:unknown,options:InventoryBatchOptions={}) {
-  if(dataMode()==="aurora")return(await productionStore()).createInventoryBatch(p,dealershipId,locationId,input,options);
+  if(dataMode()!=="demo")return(await productionStore()).createInventoryBatch(p,dealershipId,locationId,input,options);
   inventoryDestination(p,dealershipId,locationId);
   if(p.tenantId!==tenantConfig.tenantId||!tenantConfig.organization.dealerships.some(d=>d.id===dealershipId&&d.locations.some(l=>l.id===locationId)))throw new InputError("Unknown destination.");
   const drafts=normalizeInventoryRows(input,options.csv,options.source);
@@ -427,7 +428,7 @@ function detailHistory(p:AuthenticatedPrincipal,before:Vehicle,after:Vehicle):In
   return {...inventoryChange(p,before,after),action:"updated",beforeRecord:before,afterRecord:after};
 }
 export async function updateVehicleDetails(p:AuthenticatedPrincipal,id:string,input:unknown,expectedVersion:unknown) {
-  if(dataMode()==="aurora")return(await productionStore()).updateVehicleDetails(p,id,input,expectedVersion);
+  if(dataMode()!=="demo")return(await productionStore()).updateVehicleDetails(p,id,input,expectedVersion);
   requireCapability(p,"inventory:write");const draft=normalizeInventoryRows([input])[0];
   return runtime.demoTransaction(state=> {
     const current=state["vehicles.json"] as Vehicle[];
@@ -447,7 +448,7 @@ function stockCostChange(p:AuthenticatedPrincipal,vehicleId:string,before:StockC
   return {id:randomUUID(),tenantId:p.tenantId,vehicleId,before:before??null,after};
 }
 export async function saveStockCost(p:AuthenticatedPrincipal,id:string,input:unknown,expectedVersion:unknown) {
-  if(dataMode()==="aurora")return(await productionStore()).saveStockCost(p,id,input,expectedVersion);
+  if(dataMode()!=="demo")return(await productionStore()).saveStockCost(p,id,input,expectedVersion);
   requireCapability(p,"capital:write");const values=costInput(input);validateCostVersion(expectedVersion);
   return runtime.demoTransaction(state=> {
     const vehicle=(state["vehicles.json"] as Vehicle[]).find(v=>v.id===id)??demo.vehicles.find(v=>v.id===id);if(!vehicle)throw new RecordNotFound();financialScope(p,vehicle);
