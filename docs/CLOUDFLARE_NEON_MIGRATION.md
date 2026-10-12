@@ -33,7 +33,7 @@ Cloudflare distributes execution across its network. A separately billed multi-o
 | Concurrency | Durable gateway leases | 24 concurrent dynamic requests across the deployment; capacity exhaustion returns 503 + Retry-After |
 | SQL connections | Request-bound Neon WebSocket pool | One connection per tenant transaction, closed in the originating request; Neon pooler manages backend connections |
 | SQL timeouts | Verified TLS + connection/statement limits | 5-second connection deadline; 15-second SQL deadline |
-| Database authorization | `vandlabs_app` + FORCE RLS | No superuser or BYPASSRLS; transaction-local tenant context; no session-level tenant state |
+| Database authorization | `vandlabs_runtime` + FORCE RLS | No superuser or BYPASSRLS; transaction-local tenant context; no session-level tenant state |
 | Staff identity | Signed OIDC API JWT + server-owned permissions | Issuer, API audience, algorithm, expiry and issued-at verified; database registry checked on requests |
 | Staff sessions | PKCE + encrypted refresh cookie | Secure, HttpOnly, SameSite; exact origin check for mutations; credentials never in browser storage |
 | Writes | Existing optimistic versions and transactional audit | Stale edits conflict; confirmed sales stay atomic |
@@ -65,8 +65,8 @@ Choose the Neon region closest to the initial customers and enable scale-to-zero
 
 1. Create a Neon project and a separate staging branch. Admin URLs stay in secure provisioning configuration, not Worker runtime.
 2. Set `MIGRATION_DATABASE_URL` to the direct admin connection. Run `pnpm db:migrate` (migration 0006 adds the email outbox).
-3. Set `APPLICATION_DATABASE_PASSWORD` through secure environment input and run `pnpm db:provision-role`. This creates the non-bypass `vandlabs_app` role without AWS Secrets Manager. Provision the tenant with the existing validated provisioning command; do not seed reference vehicles into a live dealership.
-4. Copy the pooled `vandlabs_app` URL into `DATABASE_URL` for the three Workers and notification job. Use the same production `TENANT_CONFIG_JSON` and identifiers across all apps.
+3. Set `DATA_MODE=neon`, `APPLICATION_DATABASE_USER=vandlabs_runtime`, and `APPLICATION_DATABASE_PASSWORD` through secure environment input and run `pnpm db:provision-role`. This creates the non-bypass `vandlabs_runtime` role without AWS Secrets Manager. Provision the tenant with the existing validated provisioning command; do not seed reference vehicles into a live dealership.
+4. Copy the pooled `vandlabs_runtime` URL into `DATABASE_URL` for the three Workers and notification job. Use the same production `TENANT_CONFIG_JSON` and identifiers across all apps.
 5. If a real source database already exists, take a verified backup, rehearse a restore into staging and compare counts, tenant IDs, availability, leads, appointments, tasks, sales and audit history. Rehearse R2 photo transfer and URL mapping. Freeze source writes for the final transfer, verify totals and switch only after end-to-end acceptance. Do not delete source infrastructure until the agreed recovery window ends.
 
 Migration credentials never go into the app Workers. The runtime role is checked on every transaction. `DATA_MODE=neon` uses the shared PostgreSQL store; the legacy Aurora mode remains supported for recovery.
@@ -112,3 +112,5 @@ Before DNS cutover, verify on real Cloudflare Workers:
 Use Cloudflare Workers error/CPU/request dashboards and structured request IDs. Add external uptime checks to the public health URL; use protected readiness APIs for database health. Alert on error ratio, retry backlog, Neon connection/compute pressure and R2 usage. No account alert or uptime check was created in this unauthenticated session. Keep previous Worker versions and a tested database backup. Rollback application versions and route to the prior host if acceptance fails; do not roll back a database by deleting records.
 
 See `SEO_AND_BACKLINK_PLAN.md` for Search Console verification and the content/link acquisition process.
+
+Neon API-created roles may inherit `neon_superuser` and bypass RLS. Create the runtime role through SQL with NOSUPERUSER, NOBYPASSRLS, NOCREATEDB, NOCREATEROLE and NOINHERIT; verify its flags before deploying. Neon Managed Better Auth is not a generic OIDC provider and must not be substituted into the OIDC endpoint variables.

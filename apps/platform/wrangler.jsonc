@@ -50,6 +50,11 @@
     "DATA_MODE": "demo",
     "AUTH_MODE": "demo",
     "NEXT_PUBLIC_PREVIEW_READ_ONLY": "true",
-    "DATABASE_POOL_MAX": "2"
-  }
+    "DATABASE_POOL_MAX": "2",
+    "APP_ORIGIN": "https://vandlabs-gateway.vandlabs-automobile.workers.dev",
+    "SITE_ORIGIN": "https://vandlabs-gateway.vandlabs-automobile.workers.dev",
+    "SEO_INDEXABLE": "false",
+    "NOTIFICATIONS_ENABLED": "false"
+  },
+  "account_id": "98f548fdf2e2be84591c6669493f330b"
 }

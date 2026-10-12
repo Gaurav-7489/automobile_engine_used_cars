@@ -4,7 +4,7 @@ function run(command,args,cwd=".",input) {
  return new Promise((resolve,reject)=>{const child=spawn(command,args,{cwd,env:process.env,stdio:[input?"pipe":"inherit","inherit","inherit"]});if(input)child.stdin.end(input);child.on("error",reject);child.on("exit",code=>code===0?resolve():reject(new Error(`${command} failed (${code})`)));});
 }
 const gateway=JSON.parse(await readFile("infra/cloudflare/wrangler.jsonc","utf8"));
-if(!gateway.routes?.length || gateway.vars.PUBLIC_ORIGIN.includes(".example"))throw new Error("Run pnpm cf:configure with the deployment origin first.");
+if((!gateway.routes?.length && !gateway.workers_dev) || gateway.vars.PUBLIC_ORIGIN.includes(".example"))throw new Error("Run pnpm cf:configure with the deployment origin first.");
 if(!process.env.CLOUDFLARE_API_TOKEN)throw new Error("Provide a scoped CLOUDFLARE_API_TOKEN through the secret store.");
 const app=JSON.parse(await readFile("apps/web/wrangler.jsonc","utf8"));
 if(app.vars.DATA_MODE === "neon") {

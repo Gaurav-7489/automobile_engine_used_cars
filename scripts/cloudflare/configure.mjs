@@ -8,7 +8,7 @@ const origin=deploymentOrigin(process.env.CF_PUBLIC_ORIGIN);
 const shared=process.env.CF_SHARED_DATA === "true";
 if(shared) {
   const url=new URL(process.env.DATABASE_URL ?? "");
-  if(!url.hostname.endsWith(".neon.tech")||!url.hostname.includes("-pooler.")||url.username!=="vandlabs_app")throw new Error("Use the pooled Neon vandlabs_app role URL.");
+  if(!url.hostname.endsWith(".neon.tech")||!url.hostname.includes("-pooler.")||url.username!==(process.env.APPLICATION_DATABASE_USER ?? "vandlabs_runtime"))throw new Error("Use the pooled Neon restricted runtime role URL.");
   for(const key of ["TENANT_CONFIG_JSON","SESSION_SECRET","OIDC_ISSUER","OIDC_AUDIENCE","OIDC_JWKS_URL","OIDC_CLIENT_ID","OIDC_AUTHORIZE_URL","OIDC_TOKEN_URL","OIDC_REVOKE_URL"])if(!process.env[key])throw new Error(`Configure ${key} before selecting shared mode.`);
   const config=JSON.parse(process.env.TENANT_CONFIG_JSON);
   if(config.seo.canonicalBase.replace(/\/$/,"")!==origin)throw new Error("Tenant canonicalBase must match CF_PUBLIC_ORIGIN.");
@@ -21,6 +21,12 @@ for(const name of ["web","command-center","platform"]) {
 }
 const path="infra/cloudflare/wrangler.jsonc",config=JSON.parse(await readFile(path,"utf8"));
 config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
-config.vars.PUBLIC_ORIGIN=origin;config.routes=[{pattern:new URL(origin).hostname,custom_domain:true}];
+const hostname=new URL(origin).hostname;
+const workersDev=hostname.endsWith(".workers.dev");
+if(workersDev && !hostname.startsWith(config.name+"."))throw new Error("workers.dev origin must match the gateway Worker name.");
+config.vars.PUBLIC_ORIGIN=origin;
+config.workers_dev=workersDev;
+config.preview_urls=false;
+config.routes=workersDev?[]:[{pattern:hostname,custom_domain:true}];
 await writeFile(path,JSON.stringify(config,null,2)+"\n");
 console.log("Cloudflare configs generated. No credentials were written into them.");

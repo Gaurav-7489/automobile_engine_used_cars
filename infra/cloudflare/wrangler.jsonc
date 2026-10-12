@@ -3,10 +3,10 @@
   "name": "vandlabs-gateway",
   "main": "src/gateway.ts",
   "compatibility_date": "2026-10-01",
-  "workers_dev": false,
+  "workers_dev": true,
   "preview_urls": false,
   "vars": {
-    "PUBLIC_ORIGIN": "https://replace-with-your-domain.example"
+    "PUBLIC_ORIGIN": "https://vandlabs-gateway.vandlabs-automobile.workers.dev"
   },
   "services": [
     {
@@ -43,5 +43,7 @@
   },
   "limits": {
     "cpu_ms": 1000
-  }
+  },
+  "account_id": "98f548fdf2e2be84591c6669493f330b",
+  "routes": []
 }
