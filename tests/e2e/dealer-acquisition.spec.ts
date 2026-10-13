@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 const command = "http://127.0.0.1:3001/command";
-test("dealer can acquire by budget and manage server-enforced subscription tiers", async ({ page }) => {
+test("dealer can acquire by budget and manage server-enforced subscription tiers", async ({ page }, info) => {
   await page.goto(`${command}/subscriptions`);
   await page.getByRole("button", { name: "Use growth in local demo" }).click();
   await expect(page.getByText("Demo subscription updated")).toBeVisible();
@@ -10,6 +10,7 @@ test("dealer can acquire by budget and manage server-enforced subscription tiers
   await page.getByRole("button", { name: "Find budget-fit acquisitions" }).click();
   await expect(page.locator(".acquisition-option").first()).toContainText("2021 Maruti Swift + 2020 Hyundai i20");
   await expect(page.locator(".acquisition-option").first()).toContainText("₹9,11,000");
+  await page.screenshot({path:info.outputPath("dealer-acquisition.png"),fullPage:true});
   await page.getByLabel("Available capital (INR)").fill("50000");
   await page.getByRole("button", { name: "Find budget-fit acquisitions" }).click();
   await expect(page.getByText("No acquisitions fit these constraints", { exact: false })).toBeVisible();
@@ -23,7 +24,7 @@ test("dealer can acquire by budget and manage server-enforced subscription tiers
   expect(denied.status()).toBe(403);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
-test("dealer issues a scoped key, calls the business API and revokes access", async ({ page }) => {
+test("dealer issues a scoped key, calls the business API and revokes access", async ({ page }, info) => {
   await page.goto(`${command}/subscriptions`);
   await page.getByRole("button", { name: "Use growth in local demo" }).click();
   await expect(page.getByText("Demo subscription updated")).toBeVisible();
@@ -39,4 +40,7 @@ test("dealer issues a scoped key, calls the business API and revokes access", as
   await expect(page.getByText("Key revoked", { exact: true })).toBeVisible();
   const revoked = await page.request.get(`${command}/api/v1/vehicles`, { headers: { authorization: `Bearer ${token}` } });
   expect(revoked.status()).toBe(401);
+  await page.getByRole("button", {name:"Hide key",exact:true}).click();
+  await expect(field).toBeHidden();
+  await page.screenshot({path:info.outputPath("dealer-business-api.png"),fullPage:true});
 });
