@@ -18,7 +18,7 @@ test("dealer can acquire by budget and manage server-enforced subscription tiers
   await page.getByRole("button", { name: "Use starter in local demo" }).click();
   await expect(page.getByText("Demo subscription updated")).toBeVisible();
   await page.goto(`${command}/acquisition`);
-  await expect(page.getByRole("option", { name: "Two cars · Growth / Scale" })).toBeDisabled();
+  await expect(page.getByRole("option", { name: "Two cars · Growth / Scale" })).toHaveAttribute("disabled", "");
   const denied = await page.request.post(`${command}/api/dealer/recommendations`, { data: { budget:1000000,reserve:50000,city:"Kochi",latitude:9.9312,longitude:76.2673,radiusKm:600,count:2,goal:"margin",transportPerKm:20,dailyHoldingCost:100,holdingDays:30,fuel:"any",annualKm:12000,plan:"scale" } });
   expect(denied.status()).toBe(403);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

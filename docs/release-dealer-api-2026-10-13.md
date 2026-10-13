@@ -12,7 +12,7 @@ Dealer-facing product entry; server-backed acquisition planner; three server-own
 - Local HTTP acceptance: all four dealer pages return 200; scoped key creates; licensed vehicle query succeeds; ₹10 lakh two-car acquisition includes ₹9,11,000 landed/holding estimate; forged tier input is denied; key revocation returns subsequent 401.
 - PostgreSQL commerce migration tested in PGlite and applied to the isolated Neon branch `dealer-data-api-20261013` (`br-nameless-grass-b3g5s4pm`) in the existing VandLabs project. Forced tenant RLS policy inspected.
 - Protected Cloudflare Worker `vandlabs-dealer-ai` deployed; Workers AI model inference returns 200 through the Cloudflare API. Authenticated Worker HTTP test returns 403 in this environment, so Worker/app commentary acceptance remains incomplete. Preview-only private AI settings are configured for the review branch; production settings are untouched.
-- Desktop/mobile Playwright flows are added for plan enforcement and key lifecycle, but browser binaries cannot be downloaded here (truncated ZIP responses). Full browser acceptance is not claimed.
+- Local browser downloads fail (truncated ZIP responses), so GitHub Actions runs Chromium/WebKit coverage. Its first run caught tier-refresh timing and option-matcher issues, corrected in the follow-up change; final remote acceptance is tracked on the PR.
 
 ## Paid launch remains blocked
 

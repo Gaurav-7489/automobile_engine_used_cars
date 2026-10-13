@@ -4,7 +4,7 @@ import type { AcquisitionReport, CommercePlan } from "@vandlabs/contracts";
 import { dealerAction } from "./dealer-fetch";
 const money = (value: number | null) => value === null ? "Unknown" : "₹" + value.toLocaleString("en-IN");
 const locations = { Kochi: { latitude: 9.9312, longitude: 76.2673 }, Bengaluru: { latitude: 12.9716, longitude: 77.5946 }, Delhi: { latitude: 28.6139, longitude: 77.209 }, Mumbai: { latitude: 19.076, longitude: 72.8777 } };
-export function AcquisitionPlanner({ plan, demo }: { plan: CommercePlan | null; demo: boolean }) {
+export function AcquisitionPlanner({ plan, demo, readOnly = false }: { plan: CommercePlan | null; demo: boolean; readOnly?: boolean }) {
   const [city, setCity] = useState("Kochi"), [report, setReport] = useState<(AcquisitionReport & { usage: { monthlyUsed: number; monthlyLimit: number } }) | null>(null);
   const [latitude, setLatitude] = useState("9.9312"), [longitude, setLongitude] = useState("76.2673");
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
@@ -15,7 +15,7 @@ export function AcquisitionPlanner({ plan, demo }: { plan: CommercePlan | null; 
         e.preventDefault(); const f = new FormData(e.currentTarget); setBusy(true); setError(""); setReport(null);
         const numeric = (name: string) => Number(f.get(name));
         void dealerAction("recommendations", { city, latitude: Number(latitude), longitude: Number(longitude), budget: numeric("budget"), reserve: numeric("reserve"), radiusKm: numeric("radiusKm"), count: numeric("count"), goal: f.get("goal"), fuel: f.get("fuel"), transportPerKm: numeric("transportPerKm"), dailyHoldingCost: numeric("dailyHoldingCost"), holdingDays: numeric("holdingDays"), annualKm: numeric("annualKm") }).then(setReport).catch(err => setError(err instanceof Error ? err.message : "Could not calculate recommendations.")).finally(() => setBusy(false));
-      }}><fieldset disabled={busy || !plan}><legend>Acquisition constraints</legend><div className="operations-grid">
+      }}><fieldset disabled={busy || !plan || readOnly}><legend>Acquisition constraints</legend><div className="operations-grid">
         <label><span>Available capital (INR)</span><input name="budget" type="number" required min="1" max="100000000" step="1" defaultValue="1000000" /></label>
         <label><span>Cash reserve (INR)</span><input name="reserve" type="number" required min="0" step="1" defaultValue="50000" /></label>
         <label><span>Dealership location</span><input list="dealer-cities" value={city} required onChange={e => { const city = e.target.value; setCity(city); const coordinates = locations[city as keyof typeof locations]; if (coordinates) { setLatitude(String(coordinates.latitude)); setLongitude(String(coordinates.longitude)); } }} /><datalist id="dealer-cities">{Object.keys(locations).map(c => <option key={c} value={c} />)}</datalist></label>
@@ -30,7 +30,7 @@ export function AcquisitionPlanner({ plan, demo }: { plan: CommercePlan | null; 
         <label><span>Expected holding days</span><input name="holdingDays" type="number" min="0" max="365" required defaultValue="30" /></label>
         <label><span>Customer annual driving (km)</span><input name="annualKm" type="number" min="0" max="200000" required defaultValue="12000" /></label>
       </div><button type="submit">{busy ? "Calculating…" : "Find budget-fit acquisitions"}</button></fieldset></form>
-      {!plan ? <p className="notice">An active dealership subscription is required. Open Subscriptions to check your access.</p> : <p className="muted">Active plan: {plan}. Entitlements and usage limits are enforced on the server.</p>}
+      {readOnly ? <p className="notice">This hosted preview is read-only. Run the local demo or activate PostgreSQL and staff authentication to calculate and save acquisitions.</p> : !plan ? <p className="notice">An active dealership subscription is required. Open Subscriptions to check your access.</p> : <p className="muted">Active plan: {plan}. Entitlements and usage limits are enforced on the server.</p>}
       {error ? <p role="alert">{error}</p> : null}
     </section>
     {report ? <section className="panel" aria-live="polite"><h2>Budget-fit acquisition options</h2><p>{report.candidates} eligible sourcing vehicles · {report.usage.monthlyUsed} / {report.usage.monthlyLimit} monthly requests</p>
