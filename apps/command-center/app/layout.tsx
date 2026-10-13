@@ -6,6 +6,8 @@ const nav = [
   ["Overview", "/"],
   ["Acquisition", "/acquisition"],
   ["Subscriptions", "/subscriptions"],
+  ["Data sources", "/data-sources"],
+  ["Business API", "/developer"],
   ["Leads", "/leads"],
   ["Pipeline", "/pipeline"],
   ["Tasks", "/tasks"],

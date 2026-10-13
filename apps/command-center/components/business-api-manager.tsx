@@ -1,0 +1,15 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import type { BusinessKey } from "@vandlabs/contracts";
+import { dealerAction } from "./dealer-fetch";
+export function BusinessApiManager({ keys, canManage }: { keys: Omit<BusinessKey, "digest">[]; canManage: boolean }) {
+  const router = useRouter(), [token, setToken] = useState(""), [message, setMessage] = useState(""), [busy, setBusy] = useState(false);
+  return <>
+    {canManage ? <section className="panel"><h2>Create an API key</h2><p>Keys are shown once, stored as hashes, scoped to your dealership and subject to the shared subscription quota.</p><form className="operations-form" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); setBusy(true); setMessage(""); setToken(""); void dealerAction("keys", { name: f.get("name"), expiresAt: new Date(`${f.get("expiresAt")}T23:59:59Z`).toISOString(), scopes: f.getAll("scopes") }).then(result => { setToken(result.token); router.refresh(); }).catch(err => setMessage(err.message)).finally(() => setBusy(false)); }}><fieldset disabled={busy}><legend>Key access</legend><label><span>Business / integration name</span><input name="name" maxLength={80} required /></label><label><span>Expiry date</span><input name="expiresAt" type="date" required /></label>{["vehicles:read", "recommendations:read", "fuel:read"].map(scope => <label key={scope}><span><input type="checkbox" name="scopes" value={scope} defaultChecked /> {scope}</span></label>)}<button>Create API key</button></fieldset></form>
+      {token ? <div className="notice"><p>Save this key now. It will not be shown again.</p><textarea readOnly aria-label="New API key" value={token} /><button onClick={() => { void navigator.clipboard.writeText(token).then(() => setMessage("Key copied")).catch(() => setMessage("Select and copy the key manually.")); }}>Copy key</button><button onClick={() => setToken("")}>Hide key</button></div> : null}
+    </section> : <p className="notice">Your role cannot manage business API keys.</p>}
+    <section className="panel"><h2>Existing keys</h2>{!keys.length ? <p>No keys created.</p> : <div className="stack-list">{keys.map(key => <article className="acquisition-option" key={key.id}><h3>{key.name}</h3><p>{key.prefix} · {key.scopes.join(", ")} · expires {key.expiresAt.slice(0, 10)}</p><p>{key.revokedAt ? "Revoked" : "Active until expiry"} · last used {key.lastUsedAt ?? "never"}</p>{!key.revokedAt && canManage ? <button disabled={busy} onClick={() => { setBusy(true); void dealerAction("revoke-key", { id: key.id }).then(() => { setMessage("Key revoked"); router.refresh(); }).catch(err => setMessage(err.message)).finally(() => setBusy(false)); }}>Revoke {key.name}</button> : null}</article>)}</div>}</section>
+    <p role="status">{message}</p>
+  </>;
+}

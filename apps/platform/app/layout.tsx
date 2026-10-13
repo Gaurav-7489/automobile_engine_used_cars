@@ -11,6 +11,7 @@ const nav = [
   ["Features", "/features"],
   ["Audit", "/audit"],
   ["Staff", "/staff"],
+  ["Commerce", "/commerce"],
 ] as const;
 
 export const metadata = {

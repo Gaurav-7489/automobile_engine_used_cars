@@ -7,7 +7,9 @@
     "./postgres": "./src/postgres.ts",
     "./http": "./src/http.ts",
     "./inventory-spreadsheet": "./src/inventory-spreadsheet.ts",
-    "./inventory-template": "./src/inventory-template.ts"
+    "./inventory-template": "./src/inventory-template.ts",
+    "./commerce": "./src/commerce.ts",
+    "./commerce-rules": "./src/commerce-rules.ts"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.900.0",

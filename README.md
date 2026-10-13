@@ -1,6 +1,6 @@
 # VandLabs Automobile Engine
 
-VandLabs Automobile Engine is a dealer-focused subscription product for acquisition, inventory and growth intelligence. The paying user is a dealership professional acquiring vehicles for resale. Three proposed tiers — Starter, Growth and Scale — are described in `docs/dealer-subscription-product.md`; pricing and live billing remain pending. The V1 Proof-of-Engine connects the dealership experience, canonical vehicle inventory, conversion intent, first-party journey context, automotive lead operations, reporting, platform controls and future AWS integration boundaries.
+VandLabs Automobile Engine is a dealer-focused subscription product for acquisition, inventory and growth intelligence. The paying user is a dealership professional acquiring vehicles for resale. Three tiers — Starter, Growth and Scale — are described in `docs/dealer-subscription-product.md`; pricing and live billing remain pending. The V1 Proof-of-Engine connects the dealership experience, canonical vehicle inventory, conversion intent, first-party journey context, automotive lead operations, reporting, platform controls and future AWS integration boundaries.
 
 ## Current V1 reference applications
 
@@ -126,4 +126,4 @@ The public website combines Apple-inspired minimalism with connected discovery: 
 
 ## Dealer acquisition demo
 
-In explicit demo mode, open `/command/acquisition` to compare fictional one-car or two-car purchases within a ₹10 lakh budget, including reserve and landed costs. `/command/subscriptions` presents the three proposed tiers. Live sourcing, AI and paid entitlements are not connected.
+In explicit local demo mode, open `/command/acquisition` for backend-calculated, location-aware acquisitions. `/command/subscriptions` enforces three server-owned tiers; `/command/developer` creates and revokes scoped API keys; `/command/data-sources` imports approved sourcing records; `/platform/commerce` provisions contracted access and source rights. See `docs/dealer-data-api.md` and `docs/business-api.yaml`. Real provider credentials, automated billing and production staff/deployment acceptance are separate live-launch dependencies.
