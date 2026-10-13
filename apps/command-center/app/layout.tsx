@@ -4,6 +4,8 @@ import { tenantConfig } from "@vandlabs/data";
 
 const nav = [
   ["Overview", "/"],
+  ["Acquisition", "/acquisition"],
+  ["Subscriptions", "/subscriptions"],
   ["Leads", "/leads"],
   ["Pipeline", "/pipeline"],
   ["Tasks", "/tasks"],

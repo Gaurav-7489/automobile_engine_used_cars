@@ -1,0 +1,20 @@
+import { test, expect } from "@playwright/test";
+const command = "http://127.0.0.1:3001/command";
+test("dealer can compare a two-car portfolio and preview three subscription tiers", async ({ page }) => {
+  await page.goto(`${command}/acquisition`);
+  await expect(page.getByRole("heading", { name: "Put your capital into the right cars." })).toBeVisible();
+  await expect(page.getByLabel("Available capital (INR)")).toHaveValue("1000000");
+  await expect(page.locator(".acquisition-option").first()).toContainText("2021 Maruti Swift + 2020 Hyundai i20");
+  await page.getByLabel("Preview subscription").selectOption("starter");
+  await expect(page.getByLabel("Buying strategy")).toHaveValue("1");
+  await expect(page.getByRole("option", { name: "Two cars · Growth / Scale" })).toBeDisabled();
+  await expect(page.locator(".acquisition-option")).toHaveCount(3);
+  await page.getByLabel("Available capital (INR)").fill("50000");
+  await expect(page.getByText("No options fit this budget", { exact: false })).toBeVisible();
+  await page.getByRole("link", { name: "Explore the three dealer plans →" }).click();
+  await expect(page.locator(".dealer-plan-grid > section")).toHaveCount(3);
+  await expect(page.getByRole("heading", { name: "Starter", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Growth", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Scale", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
