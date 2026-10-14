@@ -19,7 +19,7 @@ export async function GET(request: Request, context: { params: Promise<{ resourc
 export async function POST(request: Request, context: { params: Promise<{ resource: string }> }) {
   return api(async () => {
     const credential = token(request), { resource } = await context.params;
-    if (resource !== "recommendations") throw new CommerceError(404, "Unknown API resource.");
-    return NextResponse.json(await (await dealerCommerce()).business(credential, "recommendations:read", await objectBody(request)));
+    if (!["recommendations", "ingest"].includes(resource)) throw new CommerceError(404, "Unknown API resource.");
+    return NextResponse.json(await (await dealerCommerce()).business(credential, resource === "ingest" ? "sourcing:write" : "recommendations:read", await objectBody(request)));
   });
 }

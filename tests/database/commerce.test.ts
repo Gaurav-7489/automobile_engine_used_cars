@@ -115,3 +115,38 @@ test("real PostgreSQL commerce migration enforces RLS, rollback and durable key 
     await assert.rejects(commerceService(postgresCommerceRepository(pool), () => now).business(key.token, "vehicles:read", {}), /expired/);
   } finally { await db.close(); }
 });
+
+test("supplier keys are source-bound, atomic, metered and cannot grant redistribution rights", async () => {
+  const { repository, states } = memoryRepository(), service = await configured(repository);
+  await assert.rejects(service.createKey(owner, { name: "Supplier", scopes: ["sourcing:write"], expiresAt: expiry }), /text/);
+  const { token } = await service.createKey(owner, { name: "Supplier", scopes: ["sourcing:write"], sourceId: source.id, expiresAt: expiry });
+  const batch = { sourceId: source.id, vehicles: [{ ...vehicle, sourceRecordId: "pushed" }] };
+  await assert.rejects(service.business(token, "sourcing:write", { ...batch, sourceId: "other" }), /restricted/);
+  await assert.rejects(service.business(token, "vehicles:read", {}), /scope/);
+  await service.business(token, "sourcing:write", batch);
+  await service.business(token, "sourcing:write", batch);
+  assert.equal((await service.summary(owner)).vehicleCount, 3);
+  assert.equal(states.get(tenant)!.usage["month:2026-10"], 2);
+  states.get(tenant)!.usage["month:2026-10"] = 2000;
+  await assert.rejects(service.business(token, "sourcing:write", { ...batch, vehicles: [{ ...vehicle, sourceRecordId: "quota-rejected" }] }), /quota/);
+  assert.equal((await service.summary(owner)).vehicleCount, 3);
+  states.get(tenant)!.usage = {};
+  await service.approveSource(admin, tenant, { ...source, redistribute: false });
+  await service.business(token, "sourcing:write", { ...batch, redistribute: true });
+  assert.equal((await service.summary(owner)).apiVehicleCount, 0);
+  await service.approveSource(admin, tenant, { ...source, enabled: false });
+  await assert.rejects(service.business(token, "sourcing:write", batch), /agreement/);
+});
+test("vehicle API filters location and price without exposing restricted records", async () => {
+  const { repository } = memoryRepository(), service = await configured(repository);
+  await service.ingest(owner, source.id, { vehicles: [{ ...vehicle, sourceRecordId: "far", city: "Delhi", latitude: 28.6139, longitude: 77.209 }] });
+  const { token } = await service.createKey(owner, { name: "Search", scopes: ["vehicles:read"], expiresAt: expiry });
+  const result = await service.business(token, "vehicles:read", { latitude: "9.9312", longitude: "76.2673", radiusKm: "10", maxPrice: "420000", make: "maruti", fuel: "petrol" });
+  const data = result.data as { total: number; items: { distanceKm: number; evidence?: string }[] };
+  assert.equal(data.total, 1); assert.equal(data.items[0].distanceKm, 0); assert.equal(data.items[0].evidence, undefined);
+  await assert.rejects(service.business(token, "vehicles:read", { latitude: "9" }), /together/);
+  await assert.rejects(service.business(token, "vehicles:read", { minPrice: "500000", maxPrice: "1" }), /Minimum/);
+  await assert.rejects(service.business(token, "vehicles:read", { radiusKm: "", latitude: "9", longitude: "76" }), /Invalid/);
+  await service.approveSource(admin, tenant, { ...source, redistribute: false });
+  assert.equal(((await service.business(token, "vehicles:read", {})).data as { total: number }).total, 0);
+});

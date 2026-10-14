@@ -97,3 +97,39 @@ export function recommend(state: CommerceState, input: AcquisitionRequest, subsc
   const demo = options.some(o => o.cars.some(v => state.sources.find(s => s.id === v.sourceId)?.kind === "demo"));
   return { version: "dealer-acquisition-v2", generatedAt: now.toISOString(), candidates: candidates.length, options, demo, notices: ["Transport uses straight-line distance and your per-km assumption, not a road quote. Confirm road distance, tax and transfer costs before acquisition.", "Resale ranges and demand scores are supplier/operator evidence, not guaranteed outcomes or independently trained predictions.", "Contribution excludes financing, unrecorded taxes, overhead and sale expenses. Fuel running costs are customer ownership estimates, not dealer profit.", "Unavailable, expired, unlicensed and non-redistributable sources are excluded as applicable. Missing resale, demand or fuel information remains unknown."] };
 }
+
+// Shared by staff imports and source-bound supplier API keys; the repository
+// transaction rolls the complete batch back if validation or quota checks fail.
+export function ingestBatch(state: CommerceState, sourceId: string, b: Record<string, unknown>, now: Date) {
+  if (!Array.isArray(b.vehicles) || b.vehicles.length > 500 || (b.fuel !== undefined && (!Array.isArray(b.fuel) || b.fuel.length > 100))) throw new CommerceError(400, "Import at most 500 vehicles and 100 fuel observations.");
+  const source = state.sources.find(s => s.id === sourceId);
+  if (!allowedSource(source, false, now)) throw new CommerceError(403, "Source must have an active dealer-use agreement.");
+  const vehicles = b.vehicles.map(v => vehicleInput(v, source!, now)), fuel = ((b.fuel ?? []) as unknown[]).map(v => fuelInput(v, source!, now));
+  if (new Set(vehicles.map(v => v.id)).size !== vehicles.length || new Set(fuel.map(v => v.id)).size !== fuel.length) throw new CommerceError(400, "Duplicate source record IDs in batch.");
+  const ids = new Set(vehicles.map(v => v.id)), fuelIds = new Set(fuel.map(f => f.id));
+  const next = [...state.vehicles.filter(v => !ids.has(v.id)), ...vehicles];
+  if (next.length > 2000) throw new CommerceError(409, "Tenant sourcing capacity reached. Contact support for expanded capacity.");
+  state.vehicles = next; state.fuel = [...state.fuel.filter(f => !fuelIds.has(f.id)), ...fuel].slice(-1000);
+  return { received: vehicles.length, fuelReceived: fuel.length, total: next.length };
+}
+export function queryVehicles(state: CommerceState, input: Record<string, unknown>, now: Date) {
+  const numeric = (key: string, min: number, max: number, fallback?: number, integer = false) => {
+    if (input[key] === undefined) return fallback;
+    if (typeof input[key] !== "number" && typeof input[key] !== "string" || String(input[key]).trim() === "") throw new CommerceError(400, `Invalid ${key}.`);
+    return number(Number(input[key]), min, max, integer);
+  };
+  const city = input.city === undefined ? "" : text(input.city), make = input.make === undefined ? "" : text(input.make);
+  const fuel = input.fuel === undefined ? "any" : text(input.fuel);
+  if (!["any", "petrol", "diesel", "electric", "hybrid"].includes(fuel)) throw new CommerceError(400, "Unknown fuel filter.");
+  const limit = numeric("limit", 1, 100, 25, true)!, offset = numeric("offset", 0, 2000, 0, true)!;
+  const minPrice = numeric("minPrice", 0, 100000000, 0)!, maxPrice = numeric("maxPrice", 0, 100000000, 100000000)!;
+  if (minPrice > maxPrice) throw new CommerceError(400, "Minimum price exceeds maximum price.");
+  const latitude = numeric("latitude", -90, 90), longitude = numeric("longitude", -180, 180), radiusKm = numeric("radiusKm", 0, 3000);
+  const location = [latitude, longitude, radiusKm].filter(v => v !== undefined).length;
+  if (location && location !== 3) throw new CommerceError(400, "Provide latitude, longitude and radiusKm together.");
+  const vehicles = eligibleVehicles(state, true, now).filter(v => (!city || v.city.toLowerCase() === city.toLowerCase()) && (!make || v.make.toLowerCase() === make.toLowerCase()) && (fuel === "any" || v.fuel === fuel) && v.purchasePrice >= minPrice && v.purchasePrice <= maxPrice)
+    .map(v => ({ ...v, evidence: undefined, ...(location ? { distanceKm: distanceKm({ latitude: latitude!, longitude: longitude! }, v) } : {}) }))
+    .filter(v => !location || v.distanceKm! <= radiusKm!)
+    .sort((a, b) => location ? a.distanceKm! - b.distanceKm! || a.id.localeCompare(b.id) : a.id.localeCompare(b.id));
+  return { items: vehicles.slice(offset, offset + limit), total: vehicles.length, offset, limit };
+}

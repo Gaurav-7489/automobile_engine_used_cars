@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: VandLabs Dealer Intelligence API
-  version: 1.0.0
+  version: 1.1.0
   description: Tenant-scoped access to authorized sourcing and acquisition data. A key does not grant redistribution rights to restricted sources. Commercial prices are configured separately from access tiers.
 servers:
   - url: /command/api/v1
@@ -13,10 +13,18 @@ paths:
       summary: List available, unexpired vehicles with API redistribution rights
       parameters:
         - { name: city, in: query, schema: { type: string } }
+        - { name: make, in: query, schema: { type: string } }
+        - { name: fuel, in: query, schema: { type: string, enum: [any, petrol, diesel, hybrid, electric] } }
+        - { name: minPrice, in: query, schema: { type: number, minimum: 0, maximum: 100000000 }, description: Minimum purchase price in INR }
+        - { name: maxPrice, in: query, schema: { type: number, minimum: 0, maximum: 100000000 }, description: Maximum purchase price in INR }
+        - { name: latitude, in: query, schema: { type: number, minimum: -90, maximum: 90 }, description: Supply together with longitude and radiusKm }
+        - { name: longitude, in: query, schema: { type: number, minimum: -180, maximum: 180 } }
+        - { name: radiusKm, in: query, schema: { type: number, minimum: 0, maximum: 3000 }, description: Straight-line search radius; results sorted nearest first }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
         - { name: offset, in: query, schema: { type: integer, minimum: 0, maximum: 2000, default: 0 } }
       responses:
         '200': { description: Vehicle records with source attribution and observation times; internal evidence notes and seller contacts excluded }
+        '400': { description: Invalid filters or incomplete location coordinates }
         '401': { description: Invalid, revoked or expired key }
         '402': { description: Inactive or expired dealership subscription }
         '403': { description: vehicles:read scope required }
@@ -47,6 +55,35 @@ paths:
         '402': { description: Inactive subscription }
         '403': { description: recommendations:read scope or subscription entitlement required }
         '429': { description: Tenant quota or rate reached }
+  /ingest:
+    post:
+      summary: Upsert inventory and fuel observations for one approved supplier source
+      description: Requires sourcing:write and a key bound to sourceId. Consumes one shared tenant request per accepted batch. Validation, import and quota changes are atomic. Omitted records are retained; send available=false when sold. Importing does not grant redistribution rights.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceId, vehicles]
+              properties:
+                sourceId: { type: string, maxLength: 64 }
+                vehicles:
+                  type: array
+                  maxItems: 500
+                  items: { $ref: '#/components/schemas/SupplierVehicle' }
+                fuel:
+                  type: array
+                  maxItems: 100
+                  items: { $ref: '#/components/schemas/FuelObservation' }
+      responses:
+        '200': { description: Received vehicle/fuel counts and total stored records, with quota usage }
+        '400': { description: Invalid record or duplicate sourceRecordId in batch; no records imported }
+        '401': { description: Invalid, revoked or expired key }
+        '402': { description: Inactive subscription }
+        '403': { description: Missing write scope, source mismatch or inactive source agreement }
+        '409': { description: Tenant storage capacity reached }
+        '429': { description: Tenant quota or rate reached; no records imported }
 components:
   securitySchemes:
     businessKey:
@@ -54,6 +91,41 @@ components:
       scheme: bearer
       description: One-time displayed VandLabs business API key. Send server-to-server; never include in URLs or browser bundles.
   schemas:
+    SupplierVehicle:
+      type: object
+      required: [sourceRecordId, make, model, year, city, state, latitude, longitude, fuel, transmission, odometerKm, purchasePrice, preparationCost, transferFees, resaleLow, resaleHigh, demandScore, mileageKmpl, evidence, observedAt, expiresAt, available]
+      properties:
+        sourceRecordId: { type: string, maxLength: 100 }
+        make: { type: string, maxLength: 120 }
+        model: { type: string, maxLength: 120 }
+        year: { type: integer, minimum: 1900 }
+        city: { type: string, maxLength: 120 }
+        state: { type: string, maxLength: 120 }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        fuel: { type: string, enum: [petrol, diesel, hybrid, electric] }
+        transmission: { type: string, enum: [manual, automatic] }
+        odometerKm: { type: integer, minimum: 0, maximum: 2000000 }
+        purchasePrice: { type: integer, minimum: 1, maximum: 100000000 }
+        preparationCost: { type: integer, minimum: 0, maximum: 10000000 }
+        transferFees: { type: integer, minimum: 0, maximum: 10000000 }
+        resaleLow: { type: [number, 'null'], minimum: 0, maximum: 100000000 }
+        resaleHigh: { type: [number, 'null'], minimum: 0, maximum: 100000000 }
+        demandScore: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        mileageKmpl: { type: [number, 'null'], minimum: 0.1, maximum: 100 }
+        evidence: { type: string, maxLength: 500 }
+        observedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        available: { type: boolean }
+    FuelObservation:
+      type: object
+      required: [city, fuel, pricePerLitre, observedAt, expiresAt]
+      properties:
+        city: { type: string, maxLength: 120 }
+        fuel: { type: string, enum: [petrol, diesel] }
+        pricePerLitre: { type: number, minimum: 1, maximum: 1000 }
+        observedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
     AcquisitionRequest:
       type: object
       required: [budget, reserve, city, latitude, longitude, radiusKm, count, goal, transportPerKm, dailyHoldingCost, holdingDays, fuel, annualKm]

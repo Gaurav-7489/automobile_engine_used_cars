@@ -1,10 +1,10 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { demoTransaction } from "@vandlabs/demo-data/runtime";
-import { commercePlans, requireCapability, type AuthenticatedPrincipal, type CommerceState, type ApiScope, type BusinessKey, type SourcingVehicle } from "@vandlabs/contracts";
+import { commercePlans, requireCapability, type AuthenticatedPrincipal, type CommerceState, type ApiScope, type BusinessKey } from "@vandlabs/contracts";
 import { explainAcquisition } from "./dealer-ai";
 import { dataMode } from "./config";
 import { databasePool, tenantTransaction, type SqlPool } from "./postgres";
-import { CommerceError, acquisitionInput, recommend, eligibleVehicles, fuelPrices, sourceInput, vehicleInput, fuelInput, future, plan, text, object, allowedSource } from "./commerce-rules";
+import { CommerceError, acquisitionInput, recommend, eligibleVehicles, fuelPrices, sourceInput, future, plan, text, object, allowedSource, ingestBatch, queryVehicles } from "./commerce-rules";
 export { CommerceError } from "./commerce-rules";
 export type CommerceRepository = { transact<T>(tenantId: string, action: (state: CommerceState) => T): Promise<T>; read?<T>(tenantId: string, action: (state: CommerceState) => T): Promise<T> };
 const emptyState = (): CommerceState => ({ subscription: null, sources: [], vehicles: [], fuel: [], keys: [], usage: {}, audit: [] });
@@ -72,7 +72,7 @@ function meter(state: CommerceState, actor: string, now: Date) {
   return { monthlyUsed: state.usage[monthly], monthlyLimit: limits.monthlyRequests };
 }
 function scopes(value: unknown): ApiScope[] {
-  if (!Array.isArray(value) || !value.length || value.length > 3 || !value.every(v => ["vehicles:read", "recommendations:read", "fuel:read"].includes(v))) throw new CommerceError(400, "Select valid API scopes.");
+  if (!Array.isArray(value) || !value.length || value.length > 4 || !value.every(v => ["vehicles:read", "recommendations:read", "fuel:read", "sourcing:write"].includes(v))) throw new CommerceError(400, "Select valid API scopes.");
   return [...new Set(value)] as ApiScope[];
 }
 function keyContext(token: string): { tenantId: string; id: string } {
@@ -98,7 +98,7 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
     async summary(p: AuthenticatedPrincipal) {
       requireCapability(p, "inventory:read");
       const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
-      return read(p.tenantId, state => ({ readOnly: dataMode() === "demo" && process.env.VERCEL === "1", subscription: state.subscription, plans: commercePlans, demo: state.sources.some(s => s.kind === "demo"), sources: state.sources.map(s => ({ ...s, usable: allowedSource(s, false, clock()), apiUsable: allowedSource(s, true, clock()) })), vehicleCount: eligibleVehicles(state, false, clock()).length, apiVehicleCount: eligibleVehicles(state, true, clock()).length, keys: p.capabilities.includes("commerce:manage") ? state.keys.map(key => ({ id:key.id, name:key.name, prefix:key.prefix, scopes:key.scopes, expiresAt:key.expiresAt, revokedAt:key.revokedAt, createdAt:key.createdAt, lastUsedAt:key.lastUsedAt })) : [], usage: state.usage, canManage: p.capabilities.includes("commerce:manage") }));
+      return read(p.tenantId, state => ({ readOnly: dataMode() === "demo" && process.env.VERCEL === "1", subscription: state.subscription, plans: commercePlans, demo: state.sources.some(s => s.kind === "demo"), sources: state.sources.map(s => ({ ...s, usable: allowedSource(s, false, clock()), apiUsable: allowedSource(s, true, clock()) })), vehicleCount: eligibleVehicles(state, false, clock()).length, apiVehicleCount: eligibleVehicles(state, true, clock()).length, keys: p.capabilities.includes("commerce:manage") ? state.keys.map(key => ({ id:key.id, name:key.name, prefix:key.prefix, scopes:key.scopes, sourceId:key.sourceId, expiresAt:key.expiresAt, revokedAt:key.revokedAt, createdAt:key.createdAt, lastUsedAt:key.lastUsedAt })) : [], usage: state.usage, canManage: p.capabilities.includes("commerce:manage") }));
     },
     async provision(p: AuthenticatedPrincipal, tenantId: string, value: unknown) {
       platform(p, tenantId); const b = object(value), now = clock();
@@ -118,10 +118,12 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
       return repository.transact(p.tenantId, state => {
         const limits = active(state, now);
         if (state.keys.filter(k => !k.revokedAt && Date.parse(k.expiresAt) > now.getTime()).length >= limits.maxKeys || state.keys.length >= 200) throw new CommerceError(409, "API key limit reached. Revoke an unused key or contact support.");
+        const sourceId = grantedScopes.includes("sourcing:write") ? text(b.sourceId, 64) : undefined;
+        if (sourceId && !allowedSource(state.sources.find(source => source.id === sourceId), false, now)) throw new CommerceError(403, "Select an approved, active source for supplier ingestion.");
         const id = randomUUID(), token = `vand_${Buffer.from(p.tenantId).toString("base64url")}.${id}.${randomBytes(32).toString("base64url")}`;
-        const key: BusinessKey = { id, name, prefix: `vand_…${id.slice(0, 8)}`, digest: digest(token), scopes: grantedScopes, expiresAt, revokedAt: null, createdAt: now.toISOString(), lastUsedAt: null };
+        const key: BusinessKey = { id, name, prefix: `vand_…${id.slice(0, 8)}`, digest: digest(token), scopes: grantedScopes, sourceId, expiresAt, revokedAt: null, createdAt: now.toISOString(), lastUsedAt: null };
         state.keys.push(key); audit(state, p.userId, "key.create", id, now);
-        return { key: { id, name, prefix: key.prefix, scopes: grantedScopes, expiresAt }, token };
+        return { key: { id, name, prefix: key.prefix, scopes: grantedScopes, sourceId, expiresAt }, token };
       });
     },
     async revokeKey(p: AuthenticatedPrincipal, id: string) {
@@ -140,17 +142,9 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
     },
     async ingest(p: AuthenticatedPrincipal, sourceId: string, value: unknown) {
       manage(p); const b = object(value), now = clock();
-      if (!Array.isArray(b.vehicles) || b.vehicles.length > 500 || (b.fuel !== undefined && (!Array.isArray(b.fuel) || b.fuel.length > 100))) throw new CommerceError(400, "Import at most 500 vehicles and 100 fuel observations.");
       return repository.transact(p.tenantId, state => {
-        const source = state.sources.find(s => s.id === sourceId);
-        if (!allowedSource(source, false, now)) throw new CommerceError(403, "Source must have an active dealer-use agreement.");
-        const vehicles = (b.vehicles as unknown[]).map(v => vehicleInput(v, source!, now)), fuel = ((b.fuel ?? []) as unknown[]).map(v => fuelInput(v, source!, now));
-        if (new Set(vehicles.map(v => v.id)).size !== vehicles.length || new Set(fuel.map(v => v.id)).size !== fuel.length) throw new CommerceError(400, "Duplicate source record IDs in batch.");
-        const ids = new Set(vehicles.map(v => v.id)), fuelIds = new Set(fuel.map(f => f.id));
-        const next = [...state.vehicles.filter(v => !ids.has(v.id)), ...vehicles];
-        if (next.length > 2000) throw new CommerceError(409, "Tenant sourcing capacity reached. Contact support for expanded capacity.");
-        state.vehicles = next; state.fuel = [...state.fuel.filter(f => !fuelIds.has(f.id)), ...fuel].slice(-1000);
-        audit(state, p.userId, "source.ingest", sourceId, now); return { received: vehicles.length, fuelReceived: fuel.length, total: next.length };
+        const result = ingestBatch(state, sourceId, b, now);
+        audit(state, p.userId, "source.ingest", sourceId, now); return result;
       });
     },
     async dealerRecommendations(p: AuthenticatedPrincipal, value: unknown) {
@@ -165,14 +159,15 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
       return repository.transact(context.tenantId, state => {
         const key = verifyKey(state, token, context.id, scope, now); active(state, now);
         let result: unknown;
-        if (scope === "recommendations:read") result = recommend(state, acquisitionInput(input), state.subscription!.plan, true, now);
+        if (scope === "sourcing:write") {
+          if (!key.sourceId || input.sourceId !== key.sourceId) throw new CommerceError(403, "This supplier key is restricted to its approved source.");
+          result = ingestBatch(state, key.sourceId, input, now);
+          audit(state, key.id, "source.ingest", key.sourceId, now);
+        }
+        else if (scope === "recommendations:read") result = recommend(state, acquisitionInput(input), state.subscription!.plan, true, now);
         else if (scope === "fuel:read") { const city = input.city === undefined ? "" : text(input.city); result = fuelPrices(state, true, now).filter(f => !city || f.city.toLowerCase() === city.toLowerCase()); }
         else {
-          const city = input.city === undefined ? "" : text(input.city), limit = input.limit === undefined ? 25 : Number(input.limit), offset = input.offset === undefined ? 0 : Number(input.offset);
-          if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isInteger(offset) || offset < 0 || offset > 2000) throw new CommerceError(400, "Invalid pagination.");
-          const vehicles = eligibleVehicles(state, true, now).filter(v => !city || v.city.toLowerCase() === city.toLowerCase());
-          const expose = (v: SourcingVehicle) => ({ ...v, evidence: undefined }); // no seller contact, PII or provider credentials
-          result = { items: vehicles.slice(offset, offset + limit).map(expose), total: vehicles.length, offset, limit };
+          result = queryVehicles(state, input, now);
         }
         const usage = meter(state, key.id, now); return { data: result, usage, version: "v1", generatedAt: now.toISOString(), demo: state.sources.some(s => s.kind === "demo") };
       });
