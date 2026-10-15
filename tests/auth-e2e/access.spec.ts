@@ -23,6 +23,7 @@ for (const path of ["/platform", "/platform/", "/platform?__rsc=probe", "/platfo
 }
 test("all staff mutations reject forged identity before touching records", async ({ request }) => {
   const responses = [
+    await request.post("http://127.0.0.1:3002/platform/api/commerce", {headers:spoofed,data:{action:"source",aiProcessing:true}}),
     await request.post("http://127.0.0.1:3002/platform/api/staff",{headers:spoofed,data:{}}),
     await request.put("http://127.0.0.1:3001/command/api/vehicles/veh-1/costs", {headers:spoofed,data:{}}),
     await request.put("http://127.0.0.1:3001/command/api/vehicles/veh-1", {headers:spoofed,data:{}}),

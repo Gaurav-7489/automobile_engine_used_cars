@@ -157,8 +157,9 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
     },
     async dealerRecommendations(p: AuthenticatedPrincipal, value: unknown) {
       requireCapability(p, "inventory:read"); requireCapability(p, "capital:read"); const input = acquisitionInput(value);
-      const result = await repository.transact(p.tenantId, state => { active(state, clock()); const report = recommend(state, input, state.subscription!.plan, false, clock()); const usage = meter(state, p.userId, clock()); return { ...report, usage }; });
-      return { ...await explainAcquisition(result), usage: result.usage };
+      const result = await repository.transact(p.tenantId, state => { active(state, clock()); const report = recommend(state, input, state.subscription!.plan, false, clock()); const usage = meter(state, p.userId, clock()); const processingAllowed = report.options.slice(0, 3).every(option => option.cars.every(car => state.sources.find(source => source.id === car.sourceId)?.aiProcessing === true));
+        return { report, usage, processingAllowed }; });
+      return { ...await explainAcquisition(result.report, result.processingAllowed), usage: result.usage };
     },
     async business(token: string, scope: ApiScope, value: unknown) {
       const context = keyContext(token), now = clock();

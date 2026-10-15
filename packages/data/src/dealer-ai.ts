@@ -1,7 +1,8 @@
 import type { AcquisitionReport } from "@vandlabs/contracts";
-export async function explainAcquisition(report: AcquisitionReport): Promise<AcquisitionReport> {
+export async function explainAcquisition(report: AcquisitionReport, processingAllowed = false): Promise<AcquisitionReport> {
   const endpoint = process.env.DEALER_AI_URL, token = process.env.DEALER_AI_SERVICE_TOKEN;
   if (!endpoint || !token) return { ...report, ai: { status: "not_configured" } };
+  if (!processingAllowed) return { ...report, ai: { status: "restricted" } };
   if (!report.options.length) return { ...report, ai: { status: "unavailable" } };
   try {
     const url = new URL(endpoint);

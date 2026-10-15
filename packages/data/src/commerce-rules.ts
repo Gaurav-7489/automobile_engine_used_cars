@@ -27,7 +27,7 @@ function bool(value: unknown) { if (typeof value !== "boolean") throw new Commer
 export function sourceInput(value: unknown, now: Date): DataSource {
   const b = object(value), kind = b.kind;
   if (!["dealer", "licensed_api", "demo"].includes(String(kind))) throw new CommerceError(400, "Unknown source type.");
-  return { id: text(b.id, 64), name: text(b.name), kind: kind as DataSource["kind"], agreement: text(b.agreement, 250), dealerUse: bool(b.dealerUse), redistribute: bool(b.redistribute), enabled: bool(b.enabled), expiresAt: future(b.expiresAt, now) };
+  return { id: text(b.id, 64), name: text(b.name), kind: kind as DataSource["kind"], agreement: text(b.agreement, 250), dealerUse: bool(b.dealerUse), aiProcessing: b.aiProcessing === undefined ? false : bool(b.aiProcessing), redistribute: bool(b.redistribute), enabled: bool(b.enabled), expiresAt: future(b.expiresAt, now) };
 }
 function observed(value: unknown, now: Date) {
   const time = Date.parse(text(value, 40));

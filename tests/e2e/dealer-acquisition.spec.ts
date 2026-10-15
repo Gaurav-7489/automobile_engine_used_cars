@@ -100,3 +100,25 @@ test("market intelligence keeps supplier quotes separate and filters explicit as
   expect(api.status()).toBe(200); expect((await api.json()).data.distribution.median).toBe(550000);
   expect((await request.get(`${command}/api/dealer/market?maxAgeDays=0`)).status()).toBe(400);
 });
+
+
+test("platform source approval records AI rights independently from API redistribution", async ({ page, request }, info) => {
+  const sourceId = `fixture-rights-${info.project.name}`;
+  await page.goto("http://127.0.0.1:3002/platform/commerce");
+  await page.getByLabel("Source ID", { exact: true }).fill(sourceId);
+  await page.getByLabel("Source name", { exact: true }).fill("Isolated rights fixture");
+  await page.getByLabel("Agreement reference", { exact: true }).fill("Browser fixture; no production agreement");
+  await page.getByLabel("Rights expire", { exact: true }).fill(new Date(Date.now() + 86400000).toISOString().slice(0, 10));
+  await page.getByLabel("Agreement permits dealer acquisition use", { exact: true }).check();
+  await page.getByLabel("Agreement explicitly permits AI processing", { exact: true }).check();
+  await page.getByLabel("I verified these permissions against the actual agreement", { exact: true }).check();
+  await page.getByRole("button", { name: "Save approved rights", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("saved and audited");
+  const summary = await (await request.get(`${command}/api/dealer/summary`)).json();
+  const source = summary.data.sources.find((s: { id: string }) => s.id === sourceId);
+  expect(source.aiProcessing).toBe(true); expect(source.redistribute).toBe(false);
+  await page.goto(`${command}/data-sources`);
+  const card = page.locator("article").filter({ has: page.getByRole("heading", { name: "Isolated rights fixture", exact: true }) }).last();
+  await expect(card).toContainText("AI processing permitted");
+  await expect(card).toContainText("External API restricted");
+});

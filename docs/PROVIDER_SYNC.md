@@ -99,3 +99,18 @@ quotas, scheduled jobs, incremental cursors, full retention/AI-processing rights
 provider-specific schemas, VIN reconciliation and notification/alert delivery.
 Stored retry times do not schedule an automatic background retry. These remain
 release-tracker tasks; adapter code is not a licensed live feed.
+
+
+## AI processing rights
+
+Source approval now records `aiProcessing` separately from `dealerUse` and
+`redistribute`. Missing legacy values default to denied. Only platform-scoped
+administrators can approve these rights against an actual agreement; supplier
+imports cannot grant them. Acquisition calculations remain available without AI
+permission. AI commentary sends a minimized structured summary only when every
+source represented in the transmitted top three options explicitly allows AI
+processing. Otherwise its status is `restricted` and no AI request is made.
+Disabling rights applies on the next recommendation request; already-transmitted
+requests cannot be recalled. This does not implement provider-specific retention,
+data deletion, geography or model-training restrictions, which must also be
+reviewed before enabling any production AI endpoint.

@@ -6,7 +6,7 @@ export const commercePlans = {
 export type CommercePlan = keyof typeof commercePlans;
 export type ApiScope = "vehicles:read" | "recommendations:read" | "fuel:read" | "sourcing:write";
 export interface DealerSubscription { plan: CommercePlan; status: "active" | "suspended" | "cancelled"; expiresAt: string; reference: string; updatedAt: string }
-export interface DataSource { id: string; name: string; kind: "dealer" | "licensed_api" | "demo"; agreement: string; dealerUse: boolean; redistribute: boolean; expiresAt: string; enabled: boolean }
+export interface DataSource { id: string; name: string; kind: "dealer" | "licensed_api" | "demo"; agreement: string; dealerUse: boolean; aiProcessing?: boolean; redistribute: boolean; expiresAt: string; enabled: boolean }
 export interface SourcingVehicle {
   id: string; sourceId: string; sourceRecordId: string; make: string; model: string; year: number; city: string; state: string;
   latitude: number; longitude: number; fuel: "petrol" | "diesel" | "electric" | "hybrid"; transmission: "manual" | "automatic";
@@ -35,4 +35,4 @@ export interface AcquisitionRequest {
   fuel: "any" | SourcingVehicle["fuel"]; annualKm: number;
 }
 export interface AcquisitionChoice { cars: (SourcingVehicle & { distanceKm: number; transportEstimate: number; landedCost: number; annualFuelEstimate: number | null })[]; landedCost: number; remaining: number; marginLow: number | null; marginHigh: number | null; demandScore: number | null; explanation: string }
-export interface AcquisitionReport { version: string; generatedAt: string; candidates: number; options: AcquisitionChoice[]; notices: string[]; demo: boolean; ai?: { status: "available" | "unavailable" | "not_configured"; text?: string; model?: string } }
+export interface AcquisitionReport { version: string; generatedAt: string; candidates: number; options: AcquisitionChoice[]; notices: string[]; demo: boolean; ai?: { status: "available" | "unavailable" | "not_configured" | "restricted"; text?: string; model?: string } }
