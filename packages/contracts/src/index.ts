@@ -357,3 +357,5 @@ export interface StockCost {
 export interface StockCostChange {
   id: ID; tenantId: ID; vehicleId: ID; before: StockCost | null; after: StockCost;
 }
+
+export * from "./commerce";

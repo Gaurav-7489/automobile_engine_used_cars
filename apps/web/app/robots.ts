@@ -1,1 +1,6 @@
-import type{MetadataRoute}from"next";export default function robots():MetadataRoute.Robots{if(process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true")return{rules:{userAgent:"*",disallow:"/"}};return{rules:{userAgent:"*",allow:"/",disallow:["/command/","/platform/"]},sitemap:"https://example.com/sitemap.xml"}}
+import type { MetadataRoute } from "next";
+import { tenantConfig } from "../lib/config";
+export default function robots(): MetadataRoute.Robots {
+  const base=tenantConfig.seo.canonicalBase.replace(/\/$/, "");
+  return {rules:{userAgent:"*",allow:"/",disallow:["/api/","/command","/platform"]},sitemap:base+"/sitemap.xml",host:base};
+}

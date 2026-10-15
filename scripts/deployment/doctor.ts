@@ -9,9 +9,9 @@ if(process.argv.includes("--probe")&&readiness.ready){
     const {publicScope}=await import("../../packages/data/src/config");
     await tenantTransaction(await databasePool(),publicScope().tenantId,async c=>{
       if(!(await c.query("SELECT id FROM organizations WHERE tenant_id=$1",[publicScope().tenantId])).rows.length)throw new Error("Tenant not provisioned.");
-      for(const table of ["vehicles","leads","tasks","sales","staff_members","platform_audit"])await c.query(`SELECT 1 FROM ${table} LIMIT 1`);
+      for(const table of ["vehicles","leads","tasks","sales","staff_members","platform_audit","notification_outbox","dealer_commerce"])await c.query(`SELECT 1 FROM ${table} LIMIT 1`);
     });
     console.log("Database probe passed: verified TLS connection, non-bypass role and required tables.");process.exit(0);
-  }catch{console.error("Database probe failed. Check private connectivity, migration 0005, application-role grants and tenant provisioning.");process.exit(1);}
+  }catch{console.error("Database probe failed. Check private connectivity, migrations through 0008, application-role grants and tenant provisioning.");process.exit(1);}
 }
 process.exit(readiness.ready?0:1);

@@ -8,7 +8,7 @@ use tauri::State;
 use url::Url;
 #[derive(Clone,Deserialize,Serialize)]
 #[serde(rename_all="camelCase")]
-struct Config { api_origin:String, cognito_domain:String, client_id:String }
+struct Config { api_origin:String, cognito_domain:String, client_id:String, #[serde(default)] authorize_url:Option<String>, #[serde(default)] token_url:Option<String>, #[serde(default)] revoke_url:Option<String>, #[serde(default)] audience:Option<String>, #[serde(default)] resource:Option<String> }
 #[derive(Clone)]
 struct Session { key:String, access:String, expires:u64 }
 #[derive(Default)]
@@ -40,13 +40,20 @@ fn validated(c:&Config)->Result<(Url,Url,String),String>{
  let domain=Url::parse(&c.cognito_domain).map_err(|_|"Invalid sign-in domain.")?;
  for u in [&api,&domain]{if u.scheme()!="https"||u.host_str().is_none()||!u.username().is_empty()||u.password().is_some()||u.query().is_some()||u.fragment().is_some()||u.path()!="/"{return Err("Use an HTTPS origin without a path, query or credentials.".into());}}
  if c.client_id.is_empty(){return Err("Desktop client ID is required.".into());}
- let key=URL_SAFE_NO_PAD.encode(Sha256::digest(format!("{}|{}|{}",api,domain,c.client_id)));
+ for value in [&c.authorize_url,&c.token_url,&c.revoke_url].into_iter().flatten() {
+  let endpoint=Url::parse(value).map_err(|_|"Invalid authentication endpoint.")?;
+  if endpoint.scheme()!="https" || endpoint.origin()!=domain.origin() || !endpoint.username().is_empty() || endpoint.password().is_some() || endpoint.query().is_some() || endpoint.fragment().is_some(){return Err("Authentication endpoints must use the configured HTTPS sign-in origin.".into());}
+ }
+ let key=URL_SAFE_NO_PAD.encode(Sha256::digest(format!("{}|{}|{}|{:?}|{:?}|{:?}",api,domain,c.client_id,c.authorize_url,c.token_url,c.revoke_url)));
  Ok((api,domain,key))
+}
+fn endpoint(domain:&Url,value:&Option<String>,fallback:&str)->Result<Url,String>{
+ match value {Some(v)=>Url::parse(v).map_err(|_|"Invalid authentication endpoint.".into()),None=>domain.join(fallback).map_err(|_|"Invalid authentication endpoint.".into())}
 }
 fn credential(key:&str)->Result<keyring::Entry,String>{keyring::Entry::new("VandLabs Automobile Engine",key).map_err(|_|"Secure credential store unavailable.".into())}
 async fn exchange(c:&Config,params:Vec<(&str,String)>)->Result<Tokens,String>{
  let (_,domain,_)=validated(c)?;let mut form=vec![("client_id",c.client_id.clone())];form.extend(params);
- let response=client()?.post(domain.join("oauth2/token").map_err(|_|"Invalid domain.")?).form(&form).send().await.map_err(|_|"Could not reach sign-in service.")?;
+ let response=client()?.post(endpoint(&domain,&c.token_url,"oauth2/token")?).form(&form).send().await.map_err(|_|"Could not reach sign-in service.")?;
  if !response.status().is_success(){return Err("Sign-in expired or was rejected. Sign in again.".into());}
  let tokens:Tokens=response.json().await.map_err(|_|"Invalid sign-in response.")?;
  if tokens.access_token.is_empty()||tokens.expires_in==0||tokens.expires_in>86400{return Err("Invalid sign-in response.".into());}Ok(tokens)
@@ -64,8 +71,10 @@ async fn login(config:Config,state:State<'_,AppState>)->Result<(),String>{
  {let mut active=state.login.lock().map_err(|_|"Sign-in unavailable.")?;if *active{return Err("Sign-in is already open.".into());}*active=true;}
  let result=async{
   let(_,domain,_)=validated(&config)?;let verifier=nonce();let expected=nonce();let challenge=URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
-  let mut url=domain.join("oauth2/authorize").map_err(|_|"Invalid domain.")?;
+  let mut url=endpoint(&domain,&config.authorize_url,"oauth2/authorize")?;
   url.query_pairs_mut().extend_pairs([("response_type","code"),("client_id",&config.client_id),("redirect_uri","http://localhost:43821/callback"),("scope","openid email profile"),("state",&expected),("code_challenge_method","S256"),("code_challenge",&challenge)]);
+  if let Some(audience)=&config.audience {url.query_pairs_mut().append_pair("audience",audience);}
+  if let Some(resource)=&config.resource {url.query_pairs_mut().append_pair("resource",resource);}
   let code=tauri::async_runtime::spawn_blocking(move||->Result<String,String>{
    let server=tiny_http::Server::http("127.0.0.1:43821").map_err(|_|"The desktop sign-in port is busy. Close the other sign-in window and retry.")?;
    open::that(url.as_str()).map_err(|_|"Could not open the system browser.")?;
@@ -92,7 +101,7 @@ async fn restore_session(config:Config,state:State<'_,AppState>)->Result<(),Stri
 #[tauri::command]
 async fn logout(config:Config,state:State<'_,AppState>)->Result<(),String>{
  let(_,domain,key)=validated(&config)?;let entry=credential(&key)?;
- if let Ok(refresh)=entry.get_password(){let _=client()?.post(domain.join("oauth2/revoke").map_err(|_|"Invalid domain.")?).form(&[("client_id",config.client_id.clone()),("token",refresh)]).send().await;}
+ if let Ok(refresh)=entry.get_password(){let _=client()?.post(endpoint(&domain,&config.revoke_url,"oauth2/revoke")?).form(&[("client_id",config.client_id.clone()),("token",refresh)]).send().await;}
  let _=entry.delete_credential();*state.session.lock().map_err(|_|"Session unavailable.")?=None;Ok(())
 }
 fn allowed(path:&str,method:&str)->bool{
@@ -114,7 +123,7 @@ async fn api_request(config:Config,path:String,method:String,body:Option<serde_j
  response.json().await.map_err(|_|"Invalid response from dealership API.".into())
 }
 fn main(){tauri::Builder::default().manage(AppState::default()).invoke_handler(tauri::generate_handler![login,restore_session,logout,api_request,discover_connection]).run(tauri::generate_context!()).expect("Desktop startup failed.");}
-#[cfg(test)]mod tests{use super::*;#[test]fn paths_are_scoped(){assert!(allowed("/snapshot","GET"));assert!(allowed("/vehicles/abc-123/costs","PUT"));assert!(!allowed("/vehicles/abc-123/costs","DELETE"));assert!(!allowed("/vehicles/abc-123/costs","POST"));assert!(allowed("/leads/abc-123/tasks","POST"));assert!(allowed("/leads/abc-123/sales","POST"));assert!(allowed("/leads/abc-123/appointments","POST"));assert!(allowed("/appointments/abc-123","PATCH"));assert!(!allowed("/leads/abc-123/sales","DELETE"));assert!(!allowed("/../platform","GET"));assert!(!allowed("/vehicles/abc?token=secret","PATCH"));}#[test]fn credentials_are_bound_to_connection(){let c=Config{api_origin:"https://dealer.example".into(),cognito_domain:"https://auth.example".into(),client_id:"abc".into()};assert!(validated(&c).is_ok());let mut bad=c.clone();bad.api_origin="http://dealer.example".into();assert!(validated(&bad).is_err());}}
+#[cfg(test)]mod tests{use super::*;#[test]fn paths_are_scoped(){assert!(allowed("/snapshot","GET"));assert!(allowed("/vehicles/abc-123/costs","PUT"));assert!(!allowed("/vehicles/abc-123/costs","DELETE"));assert!(!allowed("/vehicles/abc-123/costs","POST"));assert!(allowed("/leads/abc-123/tasks","POST"));assert!(allowed("/leads/abc-123/sales","POST"));assert!(allowed("/leads/abc-123/appointments","POST"));assert!(allowed("/appointments/abc-123","PATCH"));assert!(!allowed("/leads/abc-123/sales","DELETE"));assert!(!allowed("/../platform","GET"));assert!(!allowed("/vehicles/abc?token=secret","PATCH"));}#[test]fn credentials_are_bound_to_connection(){let c=Config{api_origin:"https://dealer.example".into(),cognito_domain:"https://auth.example".into(),client_id:"abc".into(),authorize_url:None,token_url:None,revoke_url:None,audience:None,resource:None};assert!(validated(&c).is_ok());let mut bad=c.clone();bad.api_origin="http://dealer.example".into();assert!(validated(&bad).is_err());}}
 
 #[cfg(test)]mod discovery_tests{use super::*;
  #[test]fn discovery_origin_is_strict(){assert_eq!(workspace_origin("https://dealer.example/command").unwrap().as_str(),"https://dealer.example/");for url in ["http://dealer.example","https://user:pass@dealer.example","https://dealer.example?token=x","https://dealer.example/untrusted"]{assert!(workspace_origin(url).is_err());}}

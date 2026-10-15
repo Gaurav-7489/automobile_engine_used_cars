@@ -14,7 +14,9 @@ import { isReadOnlyPreview } from "../lib/hosting";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  robots: process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true" ? { index: false, follow: false } : undefined,
+  robots: { index: process.env.SEO_INDEXABLE !== "false", follow: true },
+  verification: { google: process.env.GOOGLE_SITE_VERIFICATION },
+  twitter: { card: "summary_large_image" },
   metadataBase: new URL(tenantConfig.seo.canonicalBase),
   title: {
     default: tenantConfig.seo.title + " | Powered by VandLabs",

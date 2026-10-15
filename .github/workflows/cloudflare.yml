@@ -1,0 +1,78 @@
+name: Cloudflare build and deploy
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        type: boolean
+        default: false
+        description: Deploy configured Cloudflare environment
+permissions:
+  contents: read
+concurrency:
+  group: cloudflare-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable && corepack prepare pnpm@10.17.1 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:cloudflare && pnpm typecheck
+      - run: pnpm cf:build
+        env:
+          DATA_MODE: demo
+          AUTH_MODE: demo
+          NEXT_PUBLIC_PREVIEW_READ_ONLY: 'true'
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: cloudflare-production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CF_PUBLIC_ORIGIN: ${{ vars.CF_PUBLIC_ORIGIN }}
+      CF_SHARED_DATA: 'true'
+      HOSTING_PROVIDER: cloudflare
+      DATA_MODE: neon
+      AUTH_MODE: oidc
+      AUTH_REGISTRY_MODE: database
+      APP_ORIGIN: ${{ vars.CF_PUBLIC_ORIGIN }}
+      NEXT_PUBLIC_PREVIEW_READ_ONLY: 'false'
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TENANT_CONFIG_JSON: ${{ secrets.TENANT_CONFIG_JSON }}
+      SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+      AUTH_PRINCIPALS_JSON: ${{ secrets.AUTH_PRINCIPALS_JSON }}
+      OIDC_ISSUER: ${{ secrets.OIDC_ISSUER }}
+      OIDC_AUDIENCE: ${{ secrets.OIDC_AUDIENCE }}
+      OIDC_JWKS_URL: ${{ secrets.OIDC_JWKS_URL }}
+      OIDC_CLIENT_ID: ${{ secrets.OIDC_CLIENT_ID }}
+      OIDC_AUTHORIZE_URL: ${{ secrets.OIDC_AUTHORIZE_URL }}
+      OIDC_TOKEN_URL: ${{ secrets.OIDC_TOKEN_URL }}
+      OIDC_REVOKE_URL: ${{ secrets.OIDC_REVOKE_URL }}
+      OIDC_DESKTOP_CLIENT_ID: ${{ secrets.OIDC_DESKTOP_CLIENT_ID }}
+      DEALER_AI_URL: ${{ vars.DEALER_AI_URL }}
+      DEALER_AI_SERVICE_TOKEN: ${{ secrets.DEALER_AI_SERVICE_TOKEN }}
+      VANDLABS_FEEDS_JSON: ${{ secrets.VANDLABS_FEEDS_JSON }}
+      GOOGLE_SITE_VERIFICATION: ${{ secrets.GOOGLE_SITE_VERIFICATION }}
+      NOTIFICATIONS_ENABLED: ${{ vars.NOTIFICATIONS_ENABLED }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      NOTIFICATION_FROM: ${{ vars.NOTIFICATION_FROM }}
+      NOTIFICATION_TO: ${{ vars.NOTIFICATION_TO }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable && corepack prepare pnpm@10.17.1 --activate
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm cf:configure
+      - run: pnpm cf:build
+      - run: pnpm cf:deploy

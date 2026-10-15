@@ -1,7 +1,7 @@
 import type { AuthenticatedPrincipal, Capability } from "./auth";
 
 export const staffRoles = {
-  owner: ["inventory:read", "inventory:write", "lead:read", "lead:write", "task:write", "analytics:read", "capital:read", "capital:write"],
+  owner: ["inventory:read", "inventory:write", "lead:read", "lead:write", "task:write", "analytics:read", "capital:read", "capital:write", "commerce:manage"],
   manager: ["inventory:read", "inventory:write", "lead:read", "lead:write", "task:write", "analytics:read"],
   sales: ["inventory:read", "lead:read", "lead:write", "task:write", "analytics:read"],
   viewer: ["inventory:read", "lead:read", "analytics:read"],

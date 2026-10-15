@@ -4,7 +4,7 @@ import { runtimeReadiness } from "@vandlabs/data";
 import { StaffManager } from "./staff-manager";
 
 export function PlatformView({tenants,section="overview"}:{tenants:PlatformTenant[];section?:string}) {
-  const readiness=runtimeReadiness("platform"),reference=process.env.DATA_MODE!=="aurora";
+  const readiness=runtimeReadiness("platform"),reference=!["aurora", "neon"].includes(process.env.DATA_MODE ?? "");
   const totals=tenants.reduce((a,t)=>({vehicles:a.vehicles+t.counts.vehicles,leads:a.leads+t.counts.leads,openTasks:a.openTasks+t.counts.openTasks,sales:a.sales+t.counts.sales,published:a.published+t.counts.publishedVehicles}),{vehicles:0,leads:0,openTasks:0,sales:0,published:0});
   const label:Record<string,string>={overview:"The network, clearly.",dealerships:"Dealerships",organizations:"Organizations & scopes",onboarding:"Onboarding",health:"Platform health",staff:"Staff & permissions",audit:"Privileged activity",integrations:"Integration readiness",features:"Rollout & entitlements"};
   return <main><div className="page-head"><p className="eyebrow">{reference?"Local reference ecosystem":"Shared ecosystem"}</p><h1>{label[section]}</h1><p className="lede">{reference?"Reference records and new local operations share one atomic store.":"Organization records and operational counts come from the shared tenant-isolated PostgreSQL database."}</p></div>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { TenantConfig, Vehicle } from "@vandlabs/contracts";
 
 // User-managed stock/branding must never terminate a JSON-LD script element.
@@ -32,6 +33,10 @@ export function vehicleJsonLd(vehicle: Vehicle, tenant: TenantConfig) {
       vehicle.model +
       " " +
       vehicle.variant,
+    url: tenant.seo.canonicalBase.replace(/\/$/, "") + "/vehicles/" + vehicle.slug,
+    image: vehicle.media.map(item=>item.url),
+    brand: {"@type":"Brand", name:vehicle.make},
+    model: vehicle.model,
     vehicleModelDate: String(vehicle.year),
     mileageFromOdometer: {
       "@type": "QuantitativeValue",
@@ -48,8 +53,12 @@ export function vehicleJsonLd(vehicle: Vehicle, tenant: TenantConfig) {
       availability:
         vehicle.availabilityStatus === "available"
           ? "https://schema.org/InStock"
-          : "https://schema.org/LimitedAvailability",
+          : vehicle.availabilityStatus === "sold" ? "https://schema.org/SoldOut" : "https://schema.org/LimitedAvailability",
       url: tenant.seo.canonicalBase + "/vehicles/" + vehicle.slug,
     },
   };
+}
+
+export function pageMetadata(title:string, description:string, path:string):Metadata {
+  return {title,description,alternates:{canonical:path},openGraph:{title,description,url:path,type:"website",images:[{url:"/opengraph-image",width:1200,height:630,alt:title}]},twitter:{card:"summary_large_image",title,description,images:["/opengraph-image"]}};
 }

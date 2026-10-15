@@ -1,8 +1,9 @@
+import { pageMetadata } from "../../lib/seo";
 import { dealershipService } from "../../lib/services";
 import { tenantConfig } from "../../lib/config";
 import { CompareWorkspace } from "../../components/compare-workspace";
 
-export const metadata = { title: "Compare", description: "Build, edit and share a comparison of up to three vehicles, then take your shortlist into a conversation." };
+export const metadata = pageMetadata('Compare Used Cars', 'Compare up to three used cars side by side by price, mileage, fuel and features. Share your shortlist and talk to the dealership.', "/compare");
 export default async function Page() {
   const inventory = await dealershipService.inventory();
   const vehicles = inventory.map(({ id, slug, make, model, variant, year, price, mileage, fuelType, transmission, ownership, condition, locationId, availabilityStatus, bodyType, features, media }) => ({ id, slug, make, model, variant, year, price, mileage, fuelType, transmission, ownership, condition, locationId, availabilityStatus, bodyType, features, media: media.slice(0, 1) }));

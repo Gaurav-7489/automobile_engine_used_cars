@@ -9,6 +9,6 @@ export function GET() {
     version: "ecosystem-runtime",
     operationalWrites: !isReadOnlyPreview(),
     readiness: "liveness-only; database connectivity is checked by the protected staff readiness APIs",
-    persistence: dataMode() === "aurora" ? "postgresql" : "demo-adapter",
+    persistence: dataMode() !== "demo" ? "postgresql" : "demo-adapter",
   });
 }

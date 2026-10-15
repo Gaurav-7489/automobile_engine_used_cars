@@ -64,7 +64,7 @@ export function readPlatformRecords<T>(name: "staff-members.json" | "platform-au
   return readArray<T>(runtimePath(name));
 }
 export function demoTransaction<T>(action: (state: State) => T): T {
-  if (process.env.VERCEL === "1") throw new Error("Shared PostgreSQL is required for hosted operations.");
+  if ((process.env.VERCEL === "1" || process.env.HOSTING_PROVIDER === "cloudflare")) throw new Error("Shared PostgreSQL is required for hosted operations.");
   const file = runtimePath("state.json");
   const lock = file + ".lock";
   mkdirSync(dirname(file), { recursive: true });

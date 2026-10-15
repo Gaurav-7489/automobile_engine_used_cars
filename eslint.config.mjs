@@ -24,6 +24,8 @@ export default [
   {
     ignores: [
       "**/.next/**",
+      "**/.open-next/**",
+      "**/.wrangler/**",
       "**/dist/**",
       "**/target/**",
       "**/cdk.out/**",

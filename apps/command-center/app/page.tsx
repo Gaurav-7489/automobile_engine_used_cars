@@ -20,7 +20,7 @@ export default async function Page() {
     <main className="main">
       <div className="topline">
         <div>
-          <p className="eyebrow">Dealership Growth / Sales OS</p>
+          <p className="eyebrow">Dealer subscription workspace</p>
           <h1>Today, at a glance.</h1>
           <p className="muted">
             Kochi + Bengaluru · operational signals from the V1 reference
@@ -53,6 +53,12 @@ export default async function Page() {
         </article>
       </section>
 
+      <section className="panel">
+        <p className="eyebrow">Acquisition intelligence</p>
+        <h2>₹10 lakh. One car or two?</h2>
+        <p>Compare stock purchases by budget, location and estimated margin in the dealer planner demo.</p>
+        <Link href="/acquisition">Plan your next acquisition →</Link>{" · "}<Link href="/subscriptions">View dealer plans →</Link>
+      </section>
       <div className="dashboard-grid">
         <section className="panel">
           <div className="panel-head">

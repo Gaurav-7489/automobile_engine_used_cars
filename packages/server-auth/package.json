@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@vandlabs/contracts": "workspace:*",
-    "aws-jwt-verify": "^5.1.1"
+    "aws-jwt-verify": "^5.1.1",
+    "jose": "^6.2.12"
   }
 }

@@ -1,9 +1,12 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "infra/cloudflare"
 onlyBuiltDependencies:
   - esbuild
   - unrs-resolver
+  - workerd
 allowBuilds:
   esbuild: true
   unrs-resolver: true
+  workerd: true

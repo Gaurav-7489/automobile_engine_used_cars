@@ -41,6 +41,8 @@ export async function generateMetadata({
       money(vehicle.price),
     alternates: { canonical: "/vehicles/" + vehicle.slug },
     openGraph: {
+      url: "/vehicles/" + vehicle.slug,
+      images: vehicle.media.length ? vehicle.media.map(image=>({url:image.url,alt:image.alt || vehicle.make + " " + vehicle.model})) : [{url:"/opengraph-image"}],
       title: vehicle.make + " " + vehicle.model + " " + vehicle.variant,
       description:
         vehicle.year +
@@ -92,7 +94,7 @@ export default async function Page({ params }: PageProps) {
       <section className="shell section">
         <Link href="/inventory">← Inventory</Link>
         <div className="vehicle-hero">
-          <div><VehicleGallery media={vehicle.media} label={label} availability={vehicle.availabilityStatus} />{process.env.DATA_MODE !== "aurora" && <p className="meta gallery-disclosure">Editorial demonstration photography. Confirm actual vehicle photos with the dealership.</p>}</div>
+          <div><VehicleGallery media={vehicle.media} label={label} availability={vehicle.availabilityStatus} />{!["aurora", "neon"].includes(process.env.DATA_MODE ?? "") && <p className="meta gallery-disclosure">Editorial demonstration photography. Confirm actual vehicle photos with the dealership.</p>}</div>
           <div className="vehicle-summary">
             <p className="eyebrow">
               {vehicle.stockId} · {locationName(vehicle.locationId)}
