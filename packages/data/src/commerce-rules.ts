@@ -71,6 +71,19 @@ export function eligibleVehicles(state: CommerceState, external: boolean, now: D
 export function fuelPrices(state: CommerceState, external: boolean, now: Date) {
   return state.fuel.filter(v => Date.parse(v.expiresAt) > now.getTime() && allowedSource(state.sources.find(s => s.id === v.sourceId), external, now));
 }
+export function sourceCoverage(state: CommerceState, sourceId: string, now: Date) {
+  let records=0, available=0, expired=0;
+  let oldestObservationAt: string | null=null, latestObservationAt: string | null=null;
+  for (const vehicle of state.vehicles) {
+    if (vehicle.sourceId !== sourceId) continue;
+    records++;
+    if (Date.parse(vehicle.expiresAt) <= now.getTime()) expired++;
+    else if (vehicle.available) available++;
+    if (!oldestObservationAt || Date.parse(vehicle.observedAt) < Date.parse(oldestObservationAt)) oldestObservationAt=vehicle.observedAt;
+    if (!latestObservationAt || Date.parse(vehicle.observedAt) > Date.parse(latestObservationAt)) latestObservationAt=vehicle.observedAt;
+  }
+  return {records,available,expired,oldestObservationAt,latestObservationAt};
+}
 export function recommend(state: CommerceState, input: AcquisitionRequest, subscriptionPlan: CommercePlan, external: boolean, now: Date): AcquisitionReport {
   const limits = commercePlans[subscriptionPlan];
   if (input.count > limits.maxCars) throw new CommerceError(403, "This plan supports single-car acquisition. Growth or Scale is required for two cars.");
@@ -106,6 +119,12 @@ export function ingestBatch(state: CommerceState, sourceId: string, b: Record<st
   if (!allowedSource(source, false, now)) throw new CommerceError(403, "Source must have an active dealer-use agreement.");
   const vehicles = b.vehicles.map(v => vehicleInput(v, source!, now)), fuel = ((b.fuel ?? []) as unknown[]).map(v => fuelInput(v, source!, now));
   if (new Set(vehicles.map(v => v.id)).size !== vehicles.length || new Set(fuel.map(v => v.id)).size !== fuel.length) throw new CommerceError(400, "Duplicate source record IDs in batch.");
+  const existingVehicles = new Map(state.vehicles.map(v => [v.id, v]));
+  const existingFuel = new Map(state.fuel.map(f => [f.id, f]));
+  if (vehicles.some(v => Date.parse(existingVehicles.get(v.id)?.observedAt ?? "") > Date.parse(v.observedAt)) ||
+      fuel.some(f => Date.parse(existingFuel.get(f.id)?.observedAt ?? "") > Date.parse(f.observedAt))) {
+    throw new CommerceError(409, "Older observations cannot replace newer source records.");
+  }
   const ids = new Set(vehicles.map(v => v.id)), fuelIds = new Set(fuel.map(f => f.id));
   const next = [...state.vehicles.filter(v => !ids.has(v.id)), ...vehicles];
   if (next.length > 2000) throw new CommerceError(409, "Tenant sourcing capacity reached. Contact support for expanded capacity.");

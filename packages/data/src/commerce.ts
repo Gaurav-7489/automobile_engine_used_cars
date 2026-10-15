@@ -3,8 +3,9 @@ import { demoTransaction } from "@vandlabs/demo-data/runtime";
 import { commercePlans, requireCapability, type AuthenticatedPrincipal, type CommerceState, type ApiScope, type BusinessKey } from "@vandlabs/contracts";
 import { explainAcquisition } from "./dealer-ai";
 import { dataMode } from "./config";
+import { providerSync, sourceSyncSummary } from "./provider-sync";
 import { databasePool, tenantTransaction, type SqlPool } from "./postgres";
-import { CommerceError, acquisitionInput, recommend, eligibleVehicles, fuelPrices, sourceInput, future, plan, text, object, allowedSource, ingestBatch, queryVehicles } from "./commerce-rules";
+import { CommerceError, acquisitionInput, recommend, eligibleVehicles, fuelPrices, sourceInput, future, plan, text, object, allowedSource, ingestBatch, queryVehicles, sourceCoverage } from "./commerce-rules";
 export { CommerceError } from "./commerce-rules";
 export type CommerceRepository = { transact<T>(tenantId: string, action: (state: CommerceState) => T): Promise<T>; read?<T>(tenantId: string, action: (state: CommerceState) => T): Promise<T> };
 const emptyState = (): CommerceState => ({ subscription: null, sources: [], vehicles: [], fuel: [], keys: [], usage: {}, audit: [] });
@@ -98,7 +99,7 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
     async summary(p: AuthenticatedPrincipal) {
       requireCapability(p, "inventory:read");
       const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
-      return read(p.tenantId, state => ({ readOnly: dataMode() === "demo" && (process.env.VERCEL === "1" || process.env.HOSTING_PROVIDER === "cloudflare"), subscription: state.subscription, plans: commercePlans, demo: state.sources.some(s => s.kind === "demo"), sources: state.sources.map(s => ({ ...s, usable: allowedSource(s, false, clock()), apiUsable: allowedSource(s, true, clock()) })), vehicleCount: eligibleVehicles(state, false, clock()).length, apiVehicleCount: eligibleVehicles(state, true, clock()).length, keys: p.capabilities.includes("commerce:manage") ? state.keys.map(key => ({ id:key.id, name:key.name, prefix:key.prefix, scopes:key.scopes, sourceId:key.sourceId, expiresAt:key.expiresAt, revokedAt:key.revokedAt, createdAt:key.createdAt, lastUsedAt:key.lastUsedAt })) : [], usage: state.usage, canManage: p.capabilities.includes("commerce:manage") }));
+      return read(p.tenantId, state => ({ readOnly: dataMode() === "demo" && (process.env.VERCEL === "1" || process.env.HOSTING_PROVIDER === "cloudflare"), subscription: state.subscription, plans: commercePlans, demo: state.sources.some(s => s.kind === "demo"), sources: state.sources.map(s => ({ ...s, usable: allowedSource(s, false, clock()), apiUsable: allowedSource(s, true, clock()), sync: sourceSyncSummary(state, s.id, clock()), coverage: sourceCoverage(state, s.id, clock()) })), vehicleCount: eligibleVehicles(state, false, clock()).length, apiVehicleCount: eligibleVehicles(state, true, clock()).length, keys: p.capabilities.includes("commerce:manage") ? state.keys.map(key => ({ id:key.id, name:key.name, prefix:key.prefix, scopes:key.scopes, sourceId:key.sourceId, expiresAt:key.expiresAt, revokedAt:key.revokedAt, createdAt:key.createdAt, lastUsedAt:key.lastUsedAt })) : [], usage: state.usage, canManage: p.capabilities.includes("commerce:manage") }));
     },
     async provision(p: AuthenticatedPrincipal, tenantId: string, value: unknown) {
       platform(p, tenantId); const b = object(value), now = clock();
@@ -177,18 +178,5 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
 export async function dealerCommerce() { return commerceService(await commerceRepository()); }
 export async function syncLicensedFeed(p: AuthenticatedPrincipal, sourceId: string) {
   requireCapability(p, "commerce:manage");
-  const feeds: unknown = JSON.parse(process.env.VANDLABS_FEEDS_JSON ?? "[]");
-  if (!Array.isArray(feeds)) throw new CommerceError(503, "Provider configuration unavailable.");
-  const config = feeds.find(f => f && f.sourceId === sourceId && f.tenantId === p.tenantId);
-  if (!config) throw new CommerceError(503, "No licensed provider endpoint is configured for this source.");
-  const url = new URL(config.url);
-  if (url.protocol !== "https:" || url.username || url.password || /^(localhost|127\.|10\.|192\.168\.|169\.254\.|\[)/i.test(url.hostname)) throw new CommerceError(503, "Provider endpoint is invalid.");
-  const service = await dealerCommerce(), summary = await service.summary(p);
-  if (!summary.sources.find(s => s.id === sourceId && s.usable && s.kind === "licensed_api")) throw new CommerceError(403, "Provider agreement is not active.");
-  const token = process.env[String(config.tokenEnv)]; if (!token) throw new CommerceError(503, "Provider credentials are not configured.");
-  const response = await fetch(url, { headers: { authorization: `Bearer ${token}`, accept: "application/json" }, redirect: "error", signal: AbortSignal.timeout(10000), cache: "no-store" });
-  if (!response.ok) throw new CommerceError(503, "Provider request failed.");
-  const { objectBody } = await import("./http");
-  const payload = await objectBody(new Request("https://feed.internal", { method: "POST", body: response.body, duplex: "half" } as RequestInit));
-  return service.ingest(p, sourceId, payload);
+  return providerSync(await commerceRepository())(p, sourceId);
 }

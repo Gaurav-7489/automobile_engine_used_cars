@@ -35,7 +35,7 @@ is an optional distribution surface. No commercial production launch is claimed.
 | 4 | Three apps on pooled Neon | In progress | Staging migrated through 0008 and runtime RLS checked; live Worker transactions not accepted |
 | 5 | Staff auth, MFA, RBAC and tenant isolation | Blocked | OIDC/Cognito foundation and denial tests; no accepted production staff identity/MFA setup |
 | 6 | Real dealership onboarding | Not started | Validated CLI provisioning exists; real details and complete registration/invitation workflow required |
-| 7 | Licensed data integrations | In progress | Source-bound ingestion and rights gates exist; no contracted feed; scheduled sync, history and richer rights lifecycle remain |
+| 7 | Licensed data integrations | In progress | Source-bound ingestion and rights gates; tenant/source leases, retry timing/history and freshness coverage added; contracts, scheduled sync and fuller rights lifecycle remain |
 | 8 | Market Intelligence | Not started | Sourcing/API search exists; full comparable analytics, distributions and trends remain |
 | 9 | AI Acquisition Planner | In progress | Budget/location/cost planner and three tier gates exist; licensed feed and live AI service acceptance missing |
 | 10 | Profit and Capital | In progress | Owned-stock cost/sale evidence exists; full requested cost taxonomy and capital views need acceptance |
@@ -206,3 +206,21 @@ expansion before editing. A new mobile scenario delays JavaScript and verifies
 that the server-rendered control cannot accept a premature click, then releases
 scripts and proves the first enabled click reveals the form. No retries or timeout
 increases are used to hide the failure. Browser CI acceptance is pending.
+
+
+## Accepted mobile fix and provider reliability increment
+
+- PR #29 merged as `dc3014bdac5782804bbe43efe3513b4c07ca7c30` after
+  Quality Gate #112 (`38693953687`) and Cloudflare build #12 (`38693953658`)
+  passed on `201cf3402fa72deed296fbd8a9dc02190cbddd81`. The delayed-JavaScript
+  mobile disclosure scenario passed. The earlier main timeout remains documented.
+- Provider sync now claims tenant/source leases, keeps HTTP outside transactions,
+  rejects superseded responses, paces successful calls and records sanitized
+  failures with retry timing. Source observations cannot regress to older values.
+- Added a credential-map secret, strict feed credential names and source-page
+  observation coverage/status. Legacy commerce JSON rows require no migration.
+- Local checks: 31 database/provider tests, 29 security, 18 Cloudflare, TypeScript
+  and lint passed. Twelve new provider tests and an extended real PostgreSQL RLS
+  test cover the new lifecycle; browser/Cloudflare packaging CI remains pending.
+- No live provider, scheduled sync or commercial launch is claimed. See
+  `PROVIDER_SYNC.md` for tested behavior and remaining rights/live acceptance.

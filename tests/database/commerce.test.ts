@@ -5,6 +5,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { commerceService, postgresCommerceRepository, type CommerceRepository } from "../../packages/data/src/commerce";
 import type { CommerceState, AuthenticatedPrincipal } from "../../packages/contracts/src/index";
 import type { SqlPool } from "../../packages/data/src/postgres";
+import { providerSync } from "../../packages/data/src/provider-sync";
 const tenant = "11111111-1111-4111-a111-111111111111", otherTenant = "22222222-2222-4222-a222-222222222222";
 const now = new Date("2026-10-13T12:00:00Z"), expiry = "2026-12-01T00:00:00Z";
 const owner: AuthenticatedPrincipal = { userId: "owner", tenantId: tenant, dealershipIds: [], locationIds: [], capabilities: ["inventory:read", "capital:read", "commerce:manage"] };
@@ -115,6 +116,17 @@ test("real PostgreSQL commerce migration enforces RLS, rollback and durable key 
     await db.exec("RESET ROLE; SET ROLE vandlabs_runtime");
     assert.equal((await service.summary(owner)).vehicleCount, 2);
     assert.equal((await service.summary({ ...owner, tenantId: otherTenant })).vehicleCount, 0);
+    await providerSync(repo, { clock: () => now, env: {
+      VANDLABS_FEEDS_JSON: JSON.stringify([{tenantId: tenant, sourceId: source.id, url: "https://licensed.example.com/feed", tokenEnv: "VANDLABS_FEED_TOKEN_TEST"}]),
+      VANDLABS_FEED_TOKENS_JSON: JSON.stringify({VANDLABS_FEED_TOKEN_TEST: "test-only-token"}),
+    }, request: async () => Response.json({vehicles:[vehicle]}) })(owner, source.id);
+    assert.equal((await commerceService(postgresCommerceRepository(pool), () => now).summary(owner)).sources[0].sync?.status, "succeeded");
+    await repo.transact(otherTenant, state => { assert.equal(state.sourceSync, undefined); });
+    await db.exec("RESET ROLE");
+    const persisted = (await db.query<{payload:CommerceState}>("SELECT payload FROM dealer_commerce WHERE tenant_id=$1", [tenant])).rows[0].payload;
+    assert.equal(persisted.syncHistory?.[0].sourceId, source.id);
+    assert.ok(!JSON.stringify(persisted).includes("test-only-token"));
+    await db.exec("SET ROLE vandlabs_runtime");
     await service.revokeKey(owner, key.key.id);
     await assert.rejects(commerceService(postgresCommerceRepository(pool), () => now).business(key.token, "vehicles:read", {}), /expired/);
   } finally { await db.close(); }
