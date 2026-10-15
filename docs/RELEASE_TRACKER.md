@@ -335,3 +335,14 @@ blocked; a menu change is not proof of production authorization acceptance.
 The staff role extension has passed local lint/typechecks, 32 security,
 33 database/provider tests and three signed-token HTTP cases; full browser,
 packaging and live provider acceptance are tracked separately.
+
+## Profit calculation boundary follow-up
+
+Status: In progress; full CI pending. Reports exclude future sales/acquisitions
+from realized/cost evidence, match vehicle and tenant, prefer confirmed sale
+records over inconsistent stock labels and suppress unrealized asking spread on
+closed stock. Added separately labeled contribution margin, return on recorded
+cost and contribution after estimated holding. These are not net profit. Local
+intelligence regressions (11) cover future dates, mixed tenants, ratio arithmetic,
+missing holding assumptions and conflicting stock status. Full cost taxonomy and
+capital ledger requirements are still incomplete.
