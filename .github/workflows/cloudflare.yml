@@ -3,6 +3,13 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
+      target:
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+        description: Isolated deployment environment
       deploy:
         type: boolean
         default: false
@@ -30,14 +37,16 @@ jobs:
           AUTH_MODE: demo
           NEXT_PUBLIC_PREVIEW_READ_ONLY: 'true'
   deploy:
-    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && (inputs.target == 'staging' || github.ref == 'refs/heads/main')
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: cloudflare-production
+    environment: cloudflare-${{ inputs.target }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CF_ENVIRONMENT: ${{ inputs.target }}
+      SEO_INDEXABLE: 'false'
       CF_PUBLIC_ORIGIN: ${{ vars.CF_PUBLIC_ORIGIN }}
       CF_SHARED_DATA: 'true'
       HOSTING_PROVIDER: cloudflare

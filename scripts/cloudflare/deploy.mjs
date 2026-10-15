@@ -20,7 +20,12 @@ const resourceApi=async(method,path,body)=>{
 };
 const existing=await resourceApi("GET","");
 const names=new Set((existing.buckets ?? []).map(bucket=>bucket.name));
-for(const name of ["vandlabs-vehicle-media","vandlabs-web-cache","vandlabs-command-center-cache","vandlabs-platform-cache"])if(!names.has(name))await resourceApi("POST","",{name});
+const requiredBuckets=new Set((gateway.r2_buckets ?? []).map(binding=>binding.bucket_name));
+for(const name of ["web","command-center","platform"]) {
+ const config=JSON.parse(await readFile(`apps/${name}/wrangler.jsonc`,"utf8"));
+ for(const binding of config.r2_buckets ?? [])requiredBuckets.add(binding.bucket_name);
+}
+for(const name of requiredBuckets)if(!names.has(name))await resourceApi("POST","",{name});
 // Deploy the durable coordinator before Workers that bind to it.
 await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/admission.wrangler.jsonc"]);
 const secretKeys=["DATABASE_URL","TENANT_CONFIG_JSON","SESSION_SECRET","AUTH_PRINCIPALS_JSON","AUTH_REGISTRY_MODE","OIDC_ISSUER","OIDC_AUDIENCE","OIDC_JWKS_URL","OIDC_CLIENT_ID","OIDC_AUTHORIZE_URL","OIDC_TOKEN_URL","OIDC_REVOKE_URL","OIDC_DESKTOP_CLIENT_ID","OIDC_RESOURCE","GOOGLE_SITE_VERIFICATION","DEALER_AI_URL","DEALER_AI_SERVICE_TOKEN","VANDLABS_FEEDS_JSON","RESEND_API_KEY","NOTIFICATION_FROM","NOTIFICATION_TO"];
