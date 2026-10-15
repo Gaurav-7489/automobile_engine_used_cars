@@ -55,3 +55,11 @@ test("invalid account cannot inject a credential-bearing request destination", a
   assert.equal(report.credentialsReady, false);
   assert.equal(report.checks[0].name, "account-id");
 });
+
+
+test("only an explicitly paid Workers subscription verifies the optional billing check", async () => {
+  for (const state of ["Paid", "Cancelled", "AwaitingPayment"]) {
+    const report = await preflight(env, async () => ({ ok: true, json: async () => ({ success: true, result: [{ rate_plan: { id: "workers_paid" }, price: 5, state }] }) }));
+    assert.equal(report.checks[2].status, state === "Paid" ? "passed" : "unverified");
+  }
+});

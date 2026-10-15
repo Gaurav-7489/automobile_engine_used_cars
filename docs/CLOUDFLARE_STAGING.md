@@ -44,7 +44,7 @@ it must not silently point staging at production data or usage budgets.
    `https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev`.
    This is a configured target, not an already deployed URL.
 5. Configure secrets `DATABASE_URL` (pooled staging vandlabs_runtime connection),
-   `TENANT_CONFIG_JSON`, `SESSION_SECRET`, `AUTH_PRINCIPALS_JSON`, and the OIDC
+   `TENANT_CONFIG_JSON`, `SESSION_SECRET`, and the OIDC
    values referenced in `.github/workflows/cloudflare.yml`. Obtain them through
    the services' secure configuration interfaces; do not place them in chat or git.
 6. Configure an MFA-capable staff identity provider. Existing generic OIDC and
@@ -105,3 +105,8 @@ build/deploy steps; presence is not validation. OAuth logout requires
 run the existing doctor/probe and complete live acceptance. Inspect the preflight
 job summary for the exact missing names. Do not expand the deployment token's
 permissions merely to make optional billing introspection pass.
+
+The workflow uses the database staff registry. `AUTH_PRINCIPALS_JSON` is an
+optional approved bootstrap registry, not required when staff are already
+provisioned in the database. Never create fictional production staff to pass
+a readiness check.

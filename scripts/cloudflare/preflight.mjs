@@ -1,7 +1,7 @@
 import { appendFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
-export const runtimeSecrets = ["DATABASE_URL", "TENANT_CONFIG_JSON", "SESSION_SECRET", "AUTH_PRINCIPALS_JSON", "OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL", "OIDC_CLIENT_ID", "OIDC_AUTHORIZE_URL", "OIDC_TOKEN_URL", "OIDC_REVOKE_URL"];
+export const runtimeSecrets = ["DATABASE_URL", "TENANT_CONFIG_JSON", "SESSION_SECRET", "OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL", "OIDC_CLIENT_ID", "OIDC_AUTHORIZE_URL", "OIDC_TOKEN_URL", "OIDC_REVOKE_URL"];
 export const runtimeVariables = ["CLOUDFLARE_ACCOUNT_ID", "CF_PUBLIC_ORIGIN"];
 
 // Only allow fixed Cloudflare endpoints. Never log response bodies, headers or errors

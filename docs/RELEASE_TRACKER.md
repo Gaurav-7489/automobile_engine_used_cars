@@ -143,5 +143,5 @@ analytics and production business acceptance are not completed by reconciliation
 - Added a read-only GitHub-environment preflight to test token listing access and
   report missing runtime configuration without exposing values. Main pushes run
   preflight only; application deployment remains manual and gated.
-- Local Cloudflare tests: 15 passed, lint passed. Live preflight result pending;
+- Local Cloudflare tests: 16 passed, lint passed. Live preflight result pending;
   no app deployment, staff MFA, billing, data-feed or launch acceptance is claimed.
