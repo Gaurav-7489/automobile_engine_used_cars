@@ -12,6 +12,7 @@ export interface SourcingVehicle {
   latitude: number; longitude: number; fuel: "petrol" | "diesel" | "electric" | "hybrid"; transmission: "manual" | "automatic";
   odometerKm: number; purchasePrice: number; preparationCost: number; transferFees: number;
   resaleLow: number | null; resaleHigh: number | null; demandScore: number | null; mileageKmpl: number | null;
+  askingPrice?: { amount: number; currency: "INR"; observedAt: string };
   evidence: string; observedAt: string; expiresAt: string; available: boolean;
 }
 export interface FuelObservation { id: string; sourceId: string; city: string; fuel: "petrol" | "diesel"; pricePerLitre: number; observedAt: string; expiresAt: string }

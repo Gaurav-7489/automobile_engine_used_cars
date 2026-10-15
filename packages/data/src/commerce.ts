@@ -3,6 +3,7 @@ import { demoTransaction } from "@vandlabs/demo-data/runtime";
 import { commercePlans, requireCapability, type AuthenticatedPrincipal, type CommerceState, type ApiScope, type BusinessKey } from "@vandlabs/contracts";
 import { explainAcquisition } from "./dealer-ai";
 import { dataMode } from "./config";
+import { marketReport } from "./market";
 import { providerSync, sourceSyncSummary } from "./provider-sync";
 import { databasePool, tenantTransaction, type SqlPool } from "./postgres";
 import { CommerceError, acquisitionInput, recommend, eligibleVehicles, fuelPrices, sourceInput, future, plan, text, object, allowedSource, ingestBatch, queryVehicles, sourceCoverage } from "./commerce-rules";
@@ -100,6 +101,12 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
       requireCapability(p, "inventory:read");
       const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
       return read(p.tenantId, state => ({ readOnly: dataMode() === "demo" && (process.env.VERCEL === "1" || process.env.HOSTING_PROVIDER === "cloudflare"), subscription: state.subscription, plans: commercePlans, demo: state.sources.some(s => s.kind === "demo"), sources: state.sources.map(s => ({ ...s, usable: allowedSource(s, false, clock()), apiUsable: allowedSource(s, true, clock()), sync: sourceSyncSummary(state, s.id, clock()), coverage: sourceCoverage(state, s.id, clock()) })), vehicleCount: eligibleVehicles(state, false, clock()).length, apiVehicleCount: eligibleVehicles(state, true, clock()).length, keys: p.capabilities.includes("commerce:manage") ? state.keys.map(key => ({ id:key.id, name:key.name, prefix:key.prefix, scopes:key.scopes, sourceId:key.sourceId, expiresAt:key.expiresAt, revokedAt:key.revokedAt, createdAt:key.createdAt, lastUsedAt:key.lastUsedAt })) : [], usage: state.usage, canManage: p.capabilities.includes("commerce:manage") }));
+    },
+    async marketIntelligence(p: AuthenticatedPrincipal, value: unknown) {
+      requireCapability(p, "inventory:read"); requireCapability(p, "analytics:read");
+      const input = object(value), now = clock();
+      const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
+      return read(p.tenantId, state => { active(state, now); return marketReport(state, input, now); });
     },
     async provision(p: AuthenticatedPrincipal, tenantId: string, value: unknown) {
       platform(p, tenantId); const b = object(value), now = clock();

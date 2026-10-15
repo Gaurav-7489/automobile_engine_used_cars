@@ -6,6 +6,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request, context: { params: Promise<{ action: string }> }) {
   return api(async () => {
     const p = await resolvePrincipal(request), { action } = await context.params;
+    if (action === "market") return NextResponse.json({ data: await (await dealerCommerce()).marketIntelligence(p, Object.fromEntries(new URL(request.url).searchParams)) });
     if (action !== "summary") throw new CommerceError(404, "Unknown dealer endpoint.");
     return NextResponse.json({ data: await (await dealerCommerce()).summary(p) });
   });
