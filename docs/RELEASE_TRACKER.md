@@ -15,11 +15,11 @@ is an optional distribution surface. No commercial production launch is claimed.
 - Cloudflare: admission and dealer-AI Workers exist; full app/gateway cutover has
   not occurred. Billing/subscription API access returns authentication error.
 - R2: vehicle-media plus web, command-center and platform cache buckets created
-  successfully in APAC on 15 October. Upload/download acceptance remains pending.
+  successfully in APAC on 15 October. A synthetic storage API upload/read/delete passed. All four buckets have r2.dev disabled and no custom domains; app-authenticated upload/download acceptance remains pending.
 - Neon: production, staging and isolated dealer-data-api branches exist. All
   operational tables inspected use forced RLS. Production/staging lacked the
-  commerce migration at audit. The isolated branch has commerce and the runtime
-  role grant correction. Production is not migrated by this integration work.
+  commerce migration at audit. The isolated branch and staging now have commerce
+  and the runtime role grant correction through migration 0008. Production is not migrated by this integration work.
 - Production runtime role: `vandlabs_runtime`, without superuser/BYPASSRLS.
   Staging also has an older `vandlabs_app` role with BYPASSRLS: never use it as
   an application credential. Runtime transactions explicitly reject such roles.
@@ -29,9 +29,9 @@ is an optional distribution surface. No commercial production launch is claimed.
 | # | Task | Status | Evidence / remaining acceptance |
 |---|---|---|---|
 | 1 | Repository, cloud and deployment audit | Complete | Baseline above; video inspected |
-| 2 | Reconcile PRs #23 and #24 | In progress | Four text conflicts resolved; Neon commerce routing, role grants and hosted demo safeguards fixed; CI pending |
-| 3 | Workers and R2 | In progress | Four buckets created; Workers billing not readable; apps not deployed |
-| 4 | Three apps on pooled Neon | In progress | Shared adapter supports Neon; commerce corrected; live Worker transactions not accepted |
+| 2 | Reconcile PRs #23 and #24 | In progress | PR #25; four text conflicts resolved; runtime corrections tested; final CI pending |
+| 3 | Workers and R2 | In progress | Four private buckets created; storage API probe passed; Workers billing not readable; apps not deployed |
+| 4 | Three apps on pooled Neon | In progress | Staging migrated through 0008 and runtime RLS checked; live Worker transactions not accepted |
 | 5 | Staff auth, MFA, RBAC and tenant isolation | Blocked | OIDC/Cognito foundation and denial tests; no accepted production staff identity/MFA setup |
 | 6 | Real dealership onboarding | Not started | Validated CLI provisioning exists; real details and complete registration/invitation workflow required |
 | 7 | Licensed data integrations | In progress | Source-bound ingestion and rights gates exist; no contracted feed; scheduled sync, history and richer rights lifecycle remain |
@@ -63,11 +63,11 @@ is an optional distribution surface. No commercial production launch is claimed.
 | Security tests | 29 passed |
 | Embedded PostgreSQL/database tests | 19 passed |
 | Intelligence tests | 5 passed |
-| Cloudflare/runtime tests | 8 passed |
+| Cloudflare/runtime tests | 9 passed, including deployment-script execution |
 | Production builds | Five tasks passed: three Next apps, desktop frontend, Cloudflare typecheck |
 | Staff authentication HTTP regressions | 23 passed |
-| Browser scenarios | Not run locally: Chromium download returned truncated archives |
-| Cloudflare OpenNext packages | Running; result recorded in integration report/CI |
+| Browser scenarios | 104 passed in GitHub Quality Gate #100; local Chromium download returned truncated archives |
+| Cloudflare OpenNext packages | All three built locally; remote Cloudflare packaging check recorded in PR #25 |
 | Native installers | Not tested locally |
 
 Tests cover reference/embedded environments unless explicitly marked live. They do
@@ -83,6 +83,18 @@ market comparisons, stock/inventory analysis, advertising intelligence (spend,
 enquiries and cost per enquiry), profit/contribution breakdowns and an adaptable
 multi-dealership platform. Currency examples are illustrative, not pricing rules.
 Add campaign analytics to acceptance; do not present these figures as live data.
+
+## Remote CI evidence
+
+Commit `f1326e5` passed the Quality Gate, including 104 Chromium/mobile WebKit
+scenarios and 23 authentication HTTP scenarios.
+[Quality Gate #100](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38682350963).
+A follow-up fixes deployment script execution and strengthens the database
+preflight; its checks must pass before integration is merged.
+
+Staging live checks confirm migrations through 0008, commerce runtime grants,
+no DELETE/BYPASSRLS privileges, zero rows without tenant context and rejected
+cross-tenant commerce inserts. No production commerce records were created.
 
 ## Owner dependencies
 
