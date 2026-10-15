@@ -1,4 +1,30 @@
-# Active checkpoint — 12 October 2026
+# Active checkpoint — 15 October 2026
+
+Current delivery evidence and remaining work are maintained in
+[RELEASE_TRACKER.md](RELEASE_TRACKER.md). Active infrastructure target:
+Cloudflare Workers + R2 + Neon PostgreSQL + Resend, with optional isolated Cognito
+staff identity. Use [Cloudflare staging](CLOUDFLARE_STAGING.md),
+[staff identity setup](STAFF_IDENTITY_SETUP.md) and
+[provider sync](PROVIDER_SYNC.md) for current configuration.
+
+PRs #23/#24 were reconciled in #25; #26–#28 added staging isolation, secure token
+preflight and identity-only MFA infrastructure. #29 fixed the mobile inventory
+readiness race; #30 added durable provider sync/retry/freshness behavior. Their
+code is merged; exact commits/tests are in the release tracker.
+
+Saved staging token reads for Worker scripts and R2 passed. Full app deployment
+still needs verified Workers billing, staff identity and secure staging runtime
+settings. AWS account/template creation is an owner action; the identity template
+creates only Cognito resources. No full AWS application stack is required by the
+current Cloudflare/Neon plan. Production DNS and the Vercel preview are preserved.
+No licensed live feed, automatic billing or full commercial launch is certified.
+
+## Historical checkpoints
+
+The older delivery notes below preserve evidence from prior architecture and
+release iterations; use the current runbooks above for deployment decisions.
+
+### 12 October 2026
 
 ## Frontend usability review — 12 October 2026
 

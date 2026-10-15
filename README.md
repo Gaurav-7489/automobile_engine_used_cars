@@ -1,6 +1,8 @@
 # VandLabs Automobile Engine
 
-VandLabs Automobile Engine is a dealer-focused subscription product for acquisition, inventory and growth intelligence. The paying user is a dealership professional acquiring vehicles for resale. Three tiers — Starter, Growth and Scale — are described in `docs/dealer-subscription-product.md`; pricing and live billing remain pending. The V1 Proof-of-Engine connects the dealership experience, canonical vehicle inventory, conversion intent, first-party journey context, automotive lead operations, reporting, platform controls and future AWS integration boundaries.
+VandLabs Automobile Engine is a dealer-focused subscription product for acquisition, inventory and growth intelligence. The paying user is a dealership professional acquiring vehicles for resale. Three tiers — Starter, Growth and Scale — are described in `docs/dealer-subscription-product.md`; pricing and live billing remain pending. The V1 Proof-of-Engine connects the dealership experience, canonical vehicle inventory, conversion intent, first-party journey context, automotive lead operations, reporting, platform controls and managed cloud integration boundaries.
+
+Current infrastructure and release evidence: [Cloudflare + Neon staging](docs/CLOUDFLARE_STAGING.md) and [release tracker](docs/RELEASE_TRACKER.md). Staff identity setup: [isolated Cognito MFA](docs/STAFF_IDENTITY_SETUP.md). Live deployment and commercial acceptance remain pending.
 
 ## Current V1 reference applications
 
@@ -82,7 +84,7 @@ See:
 - `docs/launch-qa.md`
 - `docs/production-tenant-isolation.md`
 - `docs/staff-authentication.md` — verified Cognito staff access and bootstrap provisioning
-- `infra/aws/` — deployable CDK production foundation
+- `infra/aws/` — historical full-stack CDK adapter and the isolated Cognito identity deployment
 
 ## Deliberate V1 exclusions
 
@@ -143,3 +145,5 @@ In explicit local demo mode, open `/command/acquisition` for backend-calculated,
 Current integration, actual verification and launch dependencies: [release tracker](docs/RELEASE_TRACKER.md) and [Cloudflare/Neon commerce reconciliation](docs/INTEGRATION_2026_10_15.md). A connected demo is not a commercial production release.
 
 Staging/production Worker names, storage isolation and protected deployment setup: [Cloudflare staging](docs/CLOUDFLARE_STAGING.md).
+
+Provider sync leases, retry timing, safe credentials and source freshness: [provider sync runbook](docs/PROVIDER_SYNC.md).

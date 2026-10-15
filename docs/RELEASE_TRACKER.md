@@ -224,3 +224,32 @@ increases are used to hide the failure. Browser CI acceptance is pending.
   test cover the new lifecycle; browser/Cloudflare packaging CI remains pending.
 - No live provider, scheduled sync or commercial launch is claimed. See
   `PROVIDER_SYNC.md` for tested behavior and remaining rights/live acceptance.
+
+
+## Provider reliability accepted on 15 October 2026
+
+PR #30 merged as `008dbf8f79065cf44a78118cf45f3b89d98eb87d` after checks passed
+on exact candidate `93c24fa6988d423d39bdd80f72cdd742ec3270b1`:
+
+| Check | Verified result |
+|---|---|
+| Quality Gate #114 / `38695348183` | Lint, TypeScript and all builds passed |
+| Security | 29 passed |
+| Database/provider | 31 passed, including 12 provider lifecycle cases and PostgreSQL/RLS persistence |
+| Intelligence | 5 passed |
+| Browser | 107 passed; one desktop registration of a mobile-only case intentionally skipped |
+| Staff HTTP | 23 passed |
+| Cloudflare/runtime | 18 passed |
+| Cloudflare packaging #13 / `38695348023` | Passed |
+| Native packaging #43 / `38695347946` | Windows and macOS tests/builds/installer packaging passed |
+
+The browser evidence ZIP (artifact `11954163414`) was downloaded and checksum
+verified as `986045a240a2d381d36d3ca95626e4d9f713b98c7a8dd42c5ed32f5aaefa088f`.
+Desktop/mobile source-failure screens were visually inspected; the retry state,
+empty observations and data-coverage labels render without horizontal overflow.
+The accepted mobile inventory screenshots from PR #29 were also inspected.
+
+No live feed, native installation/signing, staff MFA login or app deployment was
+accepted in this increment. Owner account/runtime configuration and the broader
+commercial release gates remain open. Source reliability is implemented; scheduled
+sync, full provider rights/retention controls and actual licensed data remain pending.
