@@ -191,3 +191,18 @@ staging variables/secrets, and complete live acceptance. Production DNS and the
 existing Vercel preview have not been switched. Billing collection, licensed
 feeds, remaining product modules and the full launch definition of done remain
 open; this increment is not a commercially accepted release.
+
+
+## Resume after power outage: mobile inventory regression
+
+An earlier main push (`2dbe998`, run `38692239999`) failed one of 104 browser
+cases: mobile inventory editing attempted to fill a hidden price field after a
+one-time disclosure visibility check. The PR suites had passed; this intermittent
+main failure is recorded separately and is not silently treated as green.
+
+The inventory disclosure now remains disabled until its React handler is mounted.
+The persistence scenario explicitly waits for the mobile control and confirms
+expansion before editing. A new mobile scenario delays JavaScript and verifies
+that the server-rendered control cannot accept a premature click, then releases
+scripts and proves the first enabled click reveals the form. No retries or timeout
+increases are used to hide the failure. Browser CI acceptance is pending.

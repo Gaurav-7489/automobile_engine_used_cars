@@ -50,17 +50,45 @@ test("connected browser journey: enquiry, ownership, visit, confirmed sale and d
   await page.screenshot({path:info.outputPath("connected-sale-report.png"),fullPage:true});
 });
 
-test("inventory edit propagates to website with history",async({page,request})=> {
+test("inventory edit propagates to website with history",async({page,request},info)=> {
   const s=await (await request.get(`${command}/api/snapshot`)).json();const vehicle=s.data.vehicles.find((v:{id:string})=>v.id==="veh-13");
   await page.goto(`${command}/inventory`);
   const row=page.locator("tr").filter({has:page.getByLabel(`Price ${vehicle.stockId}`,{exact:true})});
-  const controls=row.getByRole("button",{name:"Manage inventory",exact:true});if(await controls.isVisible())await controls.click();
+  await expect(row).toBeVisible();
+  const controls=row.getByRole("button",{name:"Manage inventory",exact:true});
+  if(info.project.name==="mobile") {
+    await expect(controls).toBeVisible();await expect(controls).toBeEnabled();
+    await controls.click();await expect(controls).toHaveAttribute("aria-expanded","true");
+  }
+  await expect(row.getByLabel(`Price ${vehicle.stockId}`,{exact:true})).toBeVisible();
   await row.getByLabel(`Price ${vehicle.stockId}`,{exact:true}).fill(String(vehicle.price+100));
   await row.getByRole("button",{name:"Save inventory"}).click();await expect(row.getByRole("status")).toHaveText("Saved");
   const response=await request.get("/api/vehicles");const inventory=await response.json();expect(inventory.data.find((v:{id:string})=>v.id==="veh-13").price).toBe(vehicle.price+100);
   const history=(await (await request.get(`${command}/api/snapshot`)).json()).data.inventoryHistory;
   expect(history.some((h:{vehicleId:string;after:{price:number}})=>h.vehicleId==="veh-13"&&h.after.price===vehicle.price+100)).toBeTruthy();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth)).toBeFalsy();
+});
+
+test("mobile inventory disclosure waits for its JavaScript before accepting a click", async ({page}, info) => {
+  test.skip(info.project.name !== "mobile", "The disclosure is a mobile control.");
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const scripts = /\/_next\/static\/.*\.js(?:\?.*)?$/;
+  await page.route(scripts, async route => { await gate; await route.continue(); });
+  try {
+    await page.goto(`${command}/inventory`, {waitUntil:"commit"});
+    const controls = page.getByRole("button", {name:"Manage inventory",exact:true}).first();
+    await expect(controls).toBeVisible();
+    await expect(controls).toBeDisabled();
+    release();
+    await expect(controls).toBeEnabled();
+    await controls.click();
+    await expect(controls).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("button", {name:"Save inventory",exact:true}).first()).toBeVisible();
+  } finally {
+    release();
+    await page.unroute(scripts);
+  }
 });
 
 test("inventory intelligence exposes coverage and exact matching",async({page,request})=> {
