@@ -317,3 +317,7 @@ tr:hover td { background:#f8faf5; }
 .market-metrics strong { font-size: clamp(1.2rem,2vw,1.8rem); }
 .market-workspace p,.market-workspace li { overflow-wrap: anywhere; }
 @media(max-width:600px) { .market-filters { grid-template-columns: 1fr 1fr; } .market-filters button { grid-column: 1 / -1; } }
+
+/* Keep lower navigation and logout reachable on short desktop windows. */
+.sidebar { overflow-y: auto; overscroll-behavior: contain; }
+.sidebar > * { flex-shrink: 0; }

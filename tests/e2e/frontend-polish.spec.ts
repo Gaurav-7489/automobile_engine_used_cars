@@ -168,3 +168,19 @@ test("native mobile menu stays open when delayed JavaScript hydrates", async ({ 
     await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1);
   } finally { release(); }
 });
+
+test("short desktop workspace keeps lower navigation and sign-out reachable", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 600 });
+  await page.goto(command + "/inventory");
+  const sidebar = page.locator(".sidebar");
+  const settings = sidebar.getByRole("link", { name: "Settings", exact: true });
+  await settings.focus();
+  await expect(settings).toBeInViewport();
+  await expect(settings).toBeFocused();
+  expect(await sidebar.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  await page.keyboard.press("Tab");
+  const logout = sidebar.getByRole("button", { name: "Sign out", exact: true });
+  await expect(logout).toBeFocused();
+  await expect(logout).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
