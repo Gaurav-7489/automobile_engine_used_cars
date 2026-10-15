@@ -1,3 +1,7 @@
+## Navigation reliability follow-up — 15 October 2026
+
+Main Quality Gate run 38696547301 failed the mobile responsive-menu case (106 browser tests passed; one intentional desktop skip). The failure was a hidden Platform mobile navigation after opening the native disclosure. The initial pathname effect could close a disclosure opened before hydration. The follow-up preserves the initial native open state and still closes on subsequent route changes, with a delayed-JavaScript browser regression. Local lint and type checks passed; full CI acceptance is pending. Staging remains blocked by runtime/identity configuration, and commercial production readiness is not established.
+
 # Active checkpoint — 15 October 2026
 
 Current delivery evidence and remaining work are maintained in
