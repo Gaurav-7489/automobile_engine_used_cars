@@ -10,7 +10,11 @@ export function NavigationDisclosure({ title, label, className, children }: {
 }) {
   const pathname = usePathname();
   const disclosure = useRef<HTMLDetailsElement>(null);
-  useEffect(() => { if (disclosure.current) disclosure.current.open = false; }, [pathname]);
+  const previousPath = useRef(pathname);
+  useEffect(() => {
+    if (previousPath.current !== pathname && disclosure.current) disclosure.current.open = false;
+    previousPath.current = pathname;
+  }, [pathname]);
   return <details className={className} ref={disclosure} onKeyDown={event => {
     if (event.key === "Escape" && disclosure.current?.open) {
       event.preventDefault(); disclosure.current.open = false;

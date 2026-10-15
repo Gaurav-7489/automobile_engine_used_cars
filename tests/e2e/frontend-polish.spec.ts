@@ -142,3 +142,29 @@ test("all staff sections stay within a narrow screen", async ({ page }, info) =>
     }
   }
 });
+
+
+test("native mobile menu stays open when delayed JavaScript hydrates", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  let release!: () => void;
+  const scripts = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/_next/static/**/*.js", async route => { await scripts; await route.continue(); });
+  try {
+    await page.goto(platform + "/health", { waitUntil: "commit" });
+    const summary = page.getByLabel("Platform menu", { exact: true });
+    await summary.click();
+    await expect(page.locator("details.workspace-menu")).toHaveAttribute("open", "");
+    release();
+    await page.waitForLoadState("load");
+    await expect(page.getByRole("navigation", { name: "Platform mobile", exact: true })).toBeVisible();
+    // Retrying the keyboard action waits for its React handler without a fixed sleep.
+    await expect(async () => {
+      await summary.press("Escape");
+      await expect(page.locator("details.workspace-menu")).not.toHaveAttribute("open", "");
+    }).toPass();
+    await summary.click();
+    const navigation = page.getByRole("navigation", { name: "Platform mobile", exact: true });
+    await expect(navigation).toBeVisible();
+    await expect(navigation.locator('[aria-current="page"]')).toHaveCount(1);
+  } finally { release(); }
+});
