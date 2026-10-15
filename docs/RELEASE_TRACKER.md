@@ -9,12 +9,13 @@ is an optional distribution surface. No commercial production launch is claimed.
 - Main at audit: `2ef125750cd069f1981418ec9adc2d7bd922a571`.
 - PR #23: open/draft, head `82690e9ae892957b0efef87df233a9ca0bb84747`.
 - PR #24: open, head `27264996977a00acf5080a710e7d9152a744f10a`.
+- Integration merged to main via PR #25 as `5d5da91ea60f22e95f6b67c81a82a9abd53fffcf`.
 - Integration branch: `integration/dealership-cloudflare-neon-20261015`.
 - Existing Vercel main deployment statuses: all three successful; this is build/
   hosting evidence, not authenticated production acceptance.
 - Cloudflare: admission and dealer-AI Workers exist; full app/gateway cutover has
   not occurred. Billing/subscription API access returns authentication error.
-- R2: vehicle-media plus web, command-center and platform cache buckets created
+- R2: eight buckets: four media/cache buckets each for production and staging. Production template buckets created
   successfully in APAC on 15 October. A synthetic storage API upload/read/delete passed. All four buckets have r2.dev disabled and no custom domains; app-authenticated upload/download acceptance remains pending.
 - Neon: production, staging and isolated dealer-data-api branches exist. All
   operational tables inspected use forced RLS. Production/staging lacked the
@@ -29,8 +30,8 @@ is an optional distribution surface. No commercial production launch is claimed.
 | # | Task | Status | Evidence / remaining acceptance |
 |---|---|---|---|
 | 1 | Repository, cloud and deployment audit | Complete | Baseline above; video inspected |
-| 2 | Reconcile PRs #23 and #24 | In progress | PR #25; four text conflicts resolved; runtime corrections tested; final CI pending |
-| 3 | Workers and R2 | In progress | Four private buckets created; storage API probe passed; Workers billing not readable; apps not deployed |
+| 2 | Reconcile PRs #23 and #24 | Complete | PR #25 merged as 5d5da91 after Quality Gate #101 and Cloudflare packaging #4 passed |
+| 3 | Workers and R2 | In progress | Eight private buckets; storage API probe passed; PR #26 isolates staging deployment; billing not readable; apps not deployed |
 | 4 | Three apps on pooled Neon | In progress | Staging migrated through 0008 and runtime RLS checked; live Worker transactions not accepted |
 | 5 | Staff auth, MFA, RBAC and tenant isolation | Blocked | OIDC/Cognito foundation and denial tests; no accepted production staff identity/MFA setup |
 | 6 | Real dealership onboarding | Not started | Validated CLI provisioning exists; real details and complete registration/invitation workflow required |
@@ -88,9 +89,16 @@ Add campaign analytics to acceptance; do not present these figures as live data.
 
 Commit `f1326e5` passed the Quality Gate, including 104 Chromium/mobile WebKit
 scenarios and 23 authentication HTTP scenarios.
-[Quality Gate #100](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38682350963).
-A follow-up fixes deployment script execution and strengthens the database
-preflight; its checks must pass before integration is merged.
+[Quality Gate #100](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38682350963) and
+[Quality Gate #101](https://github.com/Gaurav-7489/automobile_engine_used_cars/actions/runs/38682811225).
+The deployment-script/preflight follow-up at `69b9c7a` also passed Quality Gate
+#101 (104 browser, 23 auth HTTP, 9 Cloudflare regressions) and Cloudflare packaging
+#4. Integration merged to main as `5d5da91`. Native regression tests passed on
+Windows/macOS; installer packaging/installation remain separate acceptance.
+
+PR #26 adds isolated staging/protected deployment configuration. Its 10 local
+Cloudflare/runtime/script tests and lint pass. Four dedicated APAC staging R2
+buckets were created and their public r2.dev access is disabled.
 
 Staging live checks confirm migrations through 0008, commerce runtime grants,
 no DELETE/BYPASSRLS privileges, zero rows without tenant context and rejected
@@ -113,3 +121,10 @@ cross-tenant commerce inserts. No production commerce records were created.
    phases are reached.
 
 No secrets, credentials or customer records belong in this tracker.
+
+## Known diagnostic requiring follow-up
+
+The two accepted browser runs emitted Next server AbortError/unhandledRejection
+messages while all scenarios passed. Root cause is not established; clean live
+logs are still part of staging acceptance. The premium UI redesign, full market
+analytics and production business acceptance are not completed by reconciliation.
