@@ -44,3 +44,31 @@ test("dealer issues a scoped key, calls the business API and revokes access", as
   await expect(field).toBeHidden();
   await page.screenshot({path:info.outputPath("dealer-business-api.png"),fullPage:true});
 });
+
+test("source configuration failure is visible, retained and paced without a provider request", async ({page,request},info) => {
+  const sourceId=`fixture-unconfigured-${info.project.name}`;
+  const name=`Fixture feed ${info.project.name}`;
+  const approved=await request.post("http://127.0.0.1:3002/platform/api/commerce",{data:{
+    action:"source",tenantId:"tenant-apex",source:{id:sourceId,name,kind:"licensed_api",
+      agreement:"Isolated browser-test fixture; no live provider contract",dealerUse:true,redistribute:false,enabled:true,
+      expiresAt:new Date(Date.now()+86400000).toISOString()},
+  }});
+  expect(approved.status()).toBe(200);
+  await page.goto(`${command}/data-sources`);
+  const card=page.locator("article").filter({has:page.getByRole("heading",{name,exact:true})});
+  await expect(card).toContainText("No provider sync attempted yet.");
+  await expect(card).toContainText("No vehicle observations imported");
+  const response=page.waitForResponse(r=>r.url().endsWith("/api/dealer/sync")&&r.request().method()==="POST");
+  await page.getByRole("button",{name:`Sync ${name}`,exact:true}).click();
+  expect((await response).status()).toBe(503);
+  await expect(card).toContainText("Provider configuration needs attention.");
+  await expect(card).toContainText("Last successful provider sync: None yet");
+  await expect(card).toContainText("Next sync available:");
+  await expect(page.getByRole("button",{name:`Sync ${name}`,exact:true})).toBeDisabled();
+  const retry=await request.post(`${command}/api/dealer/sync`,{data:{sourceId}});
+  expect(retry.status()).toBe(429);
+  await page.getByRole("button",{name:"Refresh source status",exact:true}).click();
+  await expect(card).toContainText("Last sync failed");
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:info.outputPath("source-sync-failure.png"),fullPage:true});
+});

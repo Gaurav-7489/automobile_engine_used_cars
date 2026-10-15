@@ -24,7 +24,7 @@ No CarDekho, CarWale, Cars24, OLX or other marketplace feed is connected merely 
 
 A source record contains independent `dealerUse` and `redistribute` flags, enabled state, agreement reference and expiry. Every retrieval rechecks these flags, including fuel observations and recommendation inputs. Removing redistribution permission removes records from the external API immediately. The API never reads CRM leads, customer conversations, staff records or seller-contact fields. Internal evidence notes are omitted from vehicle responses and replaced with generic source attribution in external recommendations.
 
-`VANDLABS_FEEDS_JSON` is server-only configuration: an array of `{tenantId,sourceId,url,tokenEnv}`. Each URL is a contracted HTTPS JSON endpoint, not a user-supplied URL or HTML scraper. Its token is read from the named server secret. Redirects are rejected, timeout is 10 seconds, response limit is 1 MB. The endpoint must emit the canonical format in `docs/examples/sourcing-feed.json`; provider-specific schema adapters must be written against the contracted provider specification. Do not assume undocumented marketplace URLs support this format. Imports allow 500 vehicle records and 100 fuel observations per batch.
+`VANDLABS_FEEDS_JSON` is server-only configuration: an array of `{tenantId,sourceId,url,tokenEnv,minIntervalSeconds?}`. Credential names must use the `VANDLABS_FEED_TOKEN_` prefix; configure their values in the server-only `VANDLABS_FEED_TOKENS_JSON` secret map (or individually in Worker secrets). Existing named credentials must be moved to that prefix before activation. Each URL is a contracted HTTPS JSON endpoint, not a user-supplied URL or HTML scraper. Its token is read from the named entry in that secret map or the matching server secret. Redirects are rejected, timeout is 10 seconds, response limit is 1 MB. The endpoint must emit the canonical format in `docs/examples/sourcing-feed.json`; provider-specific schema adapters must be written against the contracted provider specification. Do not assume undocumented marketplace URLs support this format. Imports allow 500 vehicle records and 100 fuel observations per batch.
 
 ## Calculations and evidence
 
@@ -62,3 +62,16 @@ The key is bound to its source on creation. An ingestion token cannot approve an
 The GitHub implementation has working local dealership flows, a tenant-scoped business API and supplier ingestion. The connected Command Center preview is read-only and has no provider feed credentials, billing secrets or production staff-auth configuration. No CarDekho integration or India-wide live inventory coverage is activated. Generic contracted feeds may be connected through server-side `VANDLABS_FEEDS_JSON`, or suppliers may use the source-bound push API. Neither method manufactures a supplier agreement or real vehicle listings.
 
 Stripe was discovered as an available unconnected payment integration on 14 October. Billing provider onboarding, final INR plan prices/taxes, subscription checkout/webhook acceptance, contracted inventory/fuel feeds and production staff access remain required before a paid launch. Existing contract-reference provisioning enforces subscription access but does not collect money. Keep hosted previews read-only until production acceptance is completed.
+
+
+## Provider sync reliability
+
+See `PROVIDER_SYNC.md` for the claim/commit lifecycle, pacing, failure history,
+configuration examples and remaining live acceptance. A sync now holds a
+60-second tenant/source lease, performs network I/O outside database transactions,
+rechecks the agreement before commit and rejects late responses from superseded
+attempts. Older observations cannot overwrite newer source values. Failure status
+and cooldown persist without provider response bodies, tokens or endpoint URLs.
+The source page shows actual observation coverage independently from sync success.
+Scheduled ingestion, incremental cursors and provider-specific field adapters are
+not implemented by this increment; no licensed marketplace connection is claimed.

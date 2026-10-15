@@ -16,9 +16,17 @@ export interface SourcingVehicle {
 }
 export interface FuelObservation { id: string; sourceId: string; city: string; fuel: "petrol" | "diesel"; pricePerLitre: number; observedAt: string; expiresAt: string }
 export interface BusinessKey { id: string; name: string; prefix: string; digest: string; scopes: ApiScope[]; sourceId?: string; expiresAt: string; revokedAt: string | null; createdAt: string; lastUsedAt: string | null }
+export type FeedFailure = "configuration" | "provider_auth" | "provider_rate_limit" | "provider_unavailable" | "invalid_payload" | "agreement" | "lease_expired";
+export interface FeedSync {
+  runId: string; status: "running" | "succeeded" | "failed"; startedAt: string; completedAt: string | null;
+  leaseExpiresAt: string; lastSucceededAt: string | null; consecutiveFailures: number; nextAttemptAt: string | null;
+  error: FeedFailure | null; received: number | null; fuelReceived: number | null;
+}
 export interface CommerceState {
   subscription: DealerSubscription | null; sources: DataSource[]; vehicles: SourcingVehicle[]; fuel: FuelObservation[];
   keys: BusinessKey[]; usage: Record<string, number>; audit: { actor: string; action: string; at: string; subject: string }[];
+  sourceSync?: (FeedSync & { sourceId: string })[];
+  syncHistory?: (FeedSync & { sourceId: string })[];
 }
 export interface AcquisitionRequest {
   budget: number; reserve: number; city: string; latitude: number; longitude: number; radiusKm: number; count: 1 | 2;
