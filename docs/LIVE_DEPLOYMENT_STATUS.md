@@ -1,5 +1,9 @@
 # Live deployment status — 12 October 2026
 
+> Historical snapshot. R2 activation and staging migration status have changed.
+> Use [the release tracker](RELEASE_TRACKER.md) and
+> [isolated staging runbook](CLOUDFLARE_STAGING.md) for current evidence.
+
 ## Provisioned and verified
 
 - Cloudflare account: `98f548fdf2e2be84591c6669493f330b`.

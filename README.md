@@ -141,3 +141,5 @@ In explicit local demo mode, open `/command/acquisition` for backend-calculated,
 ## Dealership intelligence release
 
 Current integration, actual verification and launch dependencies: [release tracker](docs/RELEASE_TRACKER.md) and [Cloudflare/Neon commerce reconciliation](docs/INTEGRATION_2026_10_15.md). A connected demo is not a commercial production release.
+
+Staging/production Worker names, storage isolation and protected deployment setup: [Cloudflare staging](docs/CLOUDFLARE_STAGING.md).
