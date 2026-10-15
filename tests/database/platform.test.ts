@@ -50,6 +50,15 @@ test("platform shares operational records; staff grants revoke immediately and a
     assert.equal(await store.principal(input.userId,other),null);
     assert.equal((await store.snapshot({...admin,platformTenantIds:[other]}))[0].counts.leads,0);
     assert.equal((await store.snapshot(admin))[0].audit.length,3);
+    for(const role of ["acquisition","marketing"] as const) {
+      const userId="staff-"+role;
+      await store.saveStaff(admin,tenant,{...input,userId,role},0);
+      const resolved=await store.principal(userId,tenant);assert.ok(resolved);
+      assert.ok(!resolved.capabilities.includes("lead:read"));assert.ok(!resolved.capabilities.includes("capital:write"));
+      assert.equal((await business.snapshot(resolved)).leads.length,0);
+      await assert.rejects(business.patchLead(resolved,created.lead.id,{notes:"denied"},2),AuthorizationError);
+      assert.equal(await store.principal(userId,other),null);
+    }
     assert.equal((await db.query("SELECT * FROM staff_members")).rows.length,0);
     await assert.rejects(db.query("DELETE FROM platform_audit"),/permission denied/);
   }finally{await db.close();}

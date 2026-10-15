@@ -14,11 +14,16 @@ organization access. Complete the configured MFA challenge during sign-in. If th
 login says the provider is not connected, follow `STAFF_IDENTITY_SETUP.md`; demo
 identity must never be enabled against the shared PostgreSQL environment.
 
-Current named dealer roles are owner, manager, salesperson (`sales`) and viewer.
+Current named dealer roles are owner, manager, salesperson (`sales`), acquisition
+manager (`acquisition`), marketing and viewer.
 Owners have commercial/financial controls; managers operate inventory and CRM;
 salespeople are restricted to their assigned leads; viewers cannot mutate records.
-The requested acquisition-manager and marketing roles and a complete role-aware
-navigation design remain release work. Platform administration is separately
+Acquisition managers can maintain inventory and plan acquisitions without CRM or
+financial-write access. Marketing users have read-only inventory and market access
+without CRM, acquisition costs or API administration. These conservative defaults
+can be reviewed against real dealership duties. Navigation and page permissions
+share a policy; unsupported links are hidden and direct access is denied. Staff
+without CRM access land on acquisition or market instead of the CRM overview. Platform administration is separately
 server-provisioned and tenant-scoped; it is not a selectable dealer role.
 
 Use Sign out to end the application session. If access is removed by an

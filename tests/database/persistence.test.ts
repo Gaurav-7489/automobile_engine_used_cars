@@ -38,6 +38,13 @@ test("real PostgreSQL engine: isolation, shared records, atomic audit/task write
   await assert.rejects(postgresStore({async connect(){const c=await pool.connect();return {release:()=>c.release(),async query(sql,values){if(sql.startsWith("INSERT INTO lead_activities"))throw new Error("task audit failure");return c.query(sql,values);}};}}).completeTask(p,task.data.id,false,1),/task audit failure/);
   const snapshot=await store.snapshot(p);assert.equal(snapshot.tasks.find(t=>t.id===task.data.id)?.completed,true);assert.equal(snapshot.activities.length,4);
   assert.equal(snapshot.runs.filter(r=>r.outcome==="created").length,1);
+  const marketing={...p,capabilities:["inventory:read","analytics:read"] as AuthenticatedPrincipal["capabilities"]};
+  const restricted=await store.snapshot(marketing);
+  assert.equal(restricted.vehicles.length,1);
+  for(const name of ["leads","tasks","activities","appointments","runs","rules","sales"] as const)assert.equal(restricted[name]?.length,0,name);
+  assert.equal(restricted.costs,undefined);
+  await assert.rejects(store.patchLead(marketing,leadId,{notes:"forged"},1),AuthorizationError);
+  await assert.rejects(store.snapshot({...marketing,capabilities:["inventory:read"]}),AuthorizationError);
   await store.patchLead(p,leadId,{stage:"contacted"},1);await store.patchLead(p,leadId,{stage:"qualified"},2);
   const repeated=await store.snapshot(p);assert.equal(repeated.tasks.filter(t=>t.origin==="automation").length,1);assert.equal(repeated.runs.filter(r=>r.outcome==="skipped_duplicate").length,1);
   const broken:SqlPool={async connect(){const c=await pool.connect();return {release:()=>c.release(),async query(sql,values){if(sql.startsWith("INSERT INTO lead_activities"))throw new Error("audit failure");return c.query(sql,values);}};}};

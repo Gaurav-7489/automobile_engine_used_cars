@@ -1,33 +1,27 @@
 import "./globals.css";
+import { headers } from "next/headers";
+import { commandNavigation } from "@vandlabs/contracts";
+import { accessError } from "@vandlabs/server-auth";
+import { resolvePrincipal } from "../lib/auth";
 import { WorkspaceNav, WorkspaceMenu } from "@vandlabs/design-system/navigation";
 import { tenantConfig } from "@vandlabs/data";
 
-const nav = [
-  ["Overview", "/"],
-  ["Market", "/market"],
-  ["Acquisition", "/acquisition"],
-  ["Subscriptions", "/subscriptions"],
-  ["Data sources", "/data-sources"],
-  ["Business API", "/developer"],
-  ["Leads", "/leads"],
-  ["Pipeline", "/pipeline"],
-  ["Tasks", "/tasks"],
-  ["Appointments", "/appointments"],
-  ["Inventory", "/inventory"],
-  ["Customers", "/customers"],
-  ["Analytics", "/analytics"],
-  ["Intelligence", "/intelligence"],
-  ["Capital", "/capital"],
-  ["Automation", "/automation"],
-  ["Settings", "/settings"],
-] as const;
+
 
 export const metadata = {
   title: "Command Center | VandLabs Automobile Engine",
   robots: { index: false, follow: false },
 };
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  let nav: readonly (readonly [string, string])[] = [];
+  try {
+    nav = commandNavigation(await resolvePrincipal(new Request(process.env.APP_ORIGIN || "http://localhost:3001", { headers: await headers() })));
+  } catch (error) {
+    // Public login pages render without staff navigation. Protected pages and APIs
+    // perform their own authorization; unexpected infrastructure failures surface.
+    if (!accessError(error)) throw error;
+  }
   return (
     <html lang="en">
       <body>
@@ -38,7 +32,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <span className="workspace-monogram" aria-hidden="true">V</span><strong className="wordmark">{tenantConfig.brand.logoText}</strong>
               <p className="muted">Dealership Command Center</p>
             </div>
-            <WorkspaceNav items={nav} basePath="/command" label="Command Center" /><form action="/command/auth/logout" method="post"><button type="submit">Sign out</button></form>
+            <WorkspaceNav items={nav} basePath="/command" label="Command Center" />{nav.length ? <form action="/command/auth/logout" method="post"><button type="submit">Sign out</button></form> : null}
             <div className="sidebar-foot">
               <span className="status-dot" />
               {["aurora", "neon"].includes(process.env.DATA_MODE ?? "") ? "Connected operations" : "Demonstration data"}

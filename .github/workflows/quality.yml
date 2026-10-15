@@ -65,6 +65,9 @@ jobs:
       - name: Staff HTTP access regression tests
         run: pnpm test:auth:e2e
 
+      - name: Signed staff role browser and HTTP regressions
+        run: pnpm test:roles:e2e
+
       - name: Cloudflare admission and runtime regressions
         run: pnpm test:cloudflare
 
@@ -76,4 +79,5 @@ jobs:
           path: |
             test-results/
             auth-test-results/
+            role-test-results/
           if-no-files-found: ignore

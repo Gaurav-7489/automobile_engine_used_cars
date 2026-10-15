@@ -1,3 +1,18 @@
+## Active checkpoint — 15 October 2026 follow-up
+
+Main now includes Market Intelligence (PR #32), independent source AI-processing
+rights (PR #33) and reachable short-window desktop navigation plus the dealer
+manual (PR #34), latest merge `36af2394e94aecb99b3f7df88a463b2ab010958f`.
+Their required candidate checks passed; see RELEASE_TRACKER.md for run IDs,
+counts and accepted browser artifacts. Acquisition/marketing role boundaries and
+signed HTTPS-JWKS role acceptance are the active follow-up branch, not yet accepted.
+Cloudflare still has only the admission and dealer-AI Workers; runtime/staff
+configuration and MFA acceptance are blocked. The complete commercial product is
+unfinished: billing, broader entitlements, full copilot, provider contracts, full
+expense taxonomy, premium design, monitoring/restore/load and live release gates
+remain. Do not deploy the historical full AWS stack. Use STAFF_IDENTITY_SETUP.md
+for the isolated Cognito setup and secure staging environment mappings.
+
 ## Navigation reliability follow-up — 15 October 2026
 
 Main Quality Gate run 38696547301 failed the mobile responsive-menu case (106 browser tests passed; one intentional desktop skip). The failure was a hidden Platform mobile navigation after opening the native disclosure. The initial pathname effect could close a disclosure opened before hydration. The follow-up preserves the initial native open state and still closes on subsequent route changes, with a delayed-JavaScript browser regression. Local lint and type checks passed; full CI acceptance is pending. Staging remains blocked by runtime/identity configuration, and commercial production readiness is not established.

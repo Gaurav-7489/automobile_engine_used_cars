@@ -46,9 +46,9 @@ is an optional distribution surface. No commercial production launch is claimed.
 | 15 | Payments and billing webhooks | Blocked | Processor onboarding, commercial prices and tax decisions required; no automatic collection |
 | 16 | Commercial API | In progress | Scoped hashed keys, expiry/revocation, supplier binding and tenant quotas; deployment and redistribution contracts missing |
 | 17 | Premium UI/UX | Not started | Reference inspected; current interfaces retained; redesign follows foundational gates |
-| 18 | Desktop installers and updates | In progress | Native CI exists; this integration's platform builds, installation, signing and live backend acceptance pending |
+| 18 | Desktop installers and updates | In progress | Windows/macOS native tests and packaging passed in PRs #32/#33; physical installation, signing, updates and live backend acceptance pending |
 | 19 | Storage, Resend, monitoring, backups | In progress | R2 buckets exist; sender/keys, storage workflows, delivery and restore acceptance pending |
-| 20 | Full security/load/browser QA | In progress | Local results below; browser archive download failed; CI must run browsers; live/load acceptance pending |
+| 20 | Full security/load/browser QA | In progress | CI browser/staff HTTP/security/database suites passed for merged increments; evidence downloaded/inspected; live/load acceptance and AbortError investigation remain |
 | 21 | Domains, SEO and compliance | Blocked | Public SEO foundation retained; domain and business approvals pending; private pages remain noindex |
 | 22 | Staging and release candidate | Not started | Requires integrated CI and configured staff/data environment |
 | 23 | Approved production cutover | Blocked | No cutover before live acceptance and owner approval |
@@ -295,3 +295,43 @@ internally and preserves child sizes. A keyboard regression focuses Settings,
 then tabs to Sign out in a 1440×600 window and checks both remain in the viewport.
 The current-implementation dealer manual is `DEALER_PRODUCT_MANUAL.md`; unsupported
 roles, full billing, full copilot and live acceptance are explicitly distinguished.
+
+
+## Dealer role boundaries — 15 October 2026
+
+Status: In progress; full CI pending. Added acquisition-manager and marketing
+roles with no CRM, commercial administration or financial-write permissions.
+Shared navigation/page policy includes encoded and nested routes, role-specific
+landing and server-page checks. PostgreSQL and local snapshots exclude leads,
+activities, tasks, appointments, sales and automation rules without lead-read;
+financial reads remain separately guarded. Live identity/MFA acceptance is still
+blocked; a menu change is not proof of production authorization acceptance.
+
+
+## Accepted delivery evidence — 15 October 2026, follow-up
+
+- PR #32 merged as `daeb3de0c3ff26f800500bfc2f6589819f6bba90` after Quality
+  38704955653 (111 browser, 25 staff HTTP, 29 security, 32 database/provider,
+  10 intelligence and 18 Cloudflare tests), packaging 38704955189 and both
+  native installers 38704955284 passed. One desktop skip is the mobile-only
+  delayed-inventory regression. The accepted market artifact 11958311487 was
+  checksum-verified (`afe2c188dcedfd7ebe0a6c06b06237be80ab493c4a75a3f1fd85be41b2d4bd85`)
+  and desktop/mobile screenshots inspected. Table scrolling is contained.
+- PR #33 merged as `1e92cba1a4260310ba2e713a3e0e6b9d58e8d2dc` after Quality
+  38705021017 (113 browser, 25 staff HTTP, 30 security, 33 database/provider),
+  Cloudflare 38705020829 and native 38705020940 passed. Source AI rights are
+  default-deny; no live AI/provider acceptance is claimed.
+- PR #34 merged as `36af2394e94aecb99b3f7df88a463b2ab010958f` after Quality
+  38705758048 and Cloudflare 38705758034 passed. It contains short-window
+  navigation reachability and the current dealer product manual.
+- Next.js AbortError/unhandledRejection messages still occur during passing
+  navigation suites. They have not been silenced or represented as resolved;
+  production log/impact acceptance remains required.
+- Current Cloudflare read: only admission and dealer-AI Workers are deployed.
+  Workers account settings return usage model standard; subscriptions API access
+  is denied. Standard does not certify a paid Workers subscription. No gateway
+  or three-application deployment/cutover has occurred.
+
+The staff role extension has passed local lint/typechecks, 32 security,
+33 database/provider tests and three signed-token HTTP cases; full browser,
+packaging and live provider acceptance are tracked separately.

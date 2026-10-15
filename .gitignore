@@ -95,3 +95,5 @@ auth-test-results/
 cloudflare-env.d.ts
 
 infra/cloudflare/bootstrap.wrangler.jsonc
+
+role-test-results/

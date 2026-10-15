@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { commandLanding } from "@vandlabs/contracts";
 import { metrics } from "@vandlabs/data";
 import { commandData } from "../lib/data";
 import { shortDateTime } from "../lib/format";
@@ -7,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const data = await commandData();
+  if (!data.capabilities.includes("lead:read")) redirect(commandLanding({ capabilities: data.capabilities }));
   const {leads, appointments, vehicles} = data;
   const analyticsSnapshot = metrics(data);
   const vehicleById = (id?: string) => vehicles.find(v=>v.id===id);
