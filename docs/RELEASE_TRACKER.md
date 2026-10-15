@@ -170,3 +170,24 @@ analytics and production business acceptance are not completed by reconciliation
 - Owner action: review/upload the staging identity template in company AWS Mumbai,
   configure its output IDs/domain securely, and supply the remaining staging app
   configuration. Product launch, billing/data contracts and live QA remain open.
+
+
+## Accepted identity/configuration increment
+
+PR #28 merged as `c99c368f673183c8a0b13a154b358ac34d12b9bb` after all three
+checks passed on `f83d96d513ba0475d14016e4df5af6f2cb4290ed`:
+
+- Quality Gate #109, run `38692731347`: lint, TypeScript, builds, 29 security,
+  19 database, 5 intelligence, 104 browser, 23 staff HTTP and 18 Cloudflare tests
+  passed (zero failures in those recorded suites).
+- Cloudflare build #10, run `38692731545`: packaging passed; no app deployment.
+- Staff identity infrastructure #1, run `38692731281`: AWS TypeScript, 2 template
+  security tests and identity-only synthesis passed; no AWS deployment.
+
+**Release remains blocked.** The live saved-token preflight proved Worker/R2 read
+access, but the required runtime settings are missing and billing remains
+unverified. Owner must authorize the staff identity account/template, configure
+staging variables/secrets, and complete live acceptance. Production DNS and the
+existing Vercel preview have not been switched. Billing collection, licensed
+feeds, remaining product modules and the full launch definition of done remain
+open; this increment is not a commercially accepted release.
