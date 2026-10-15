@@ -269,3 +269,10 @@ acceptance are tracked in the forthcoming PR; no deployment success is claimed.
 
 PR #31 navigation hydration fix passed Quality Gate 38703005257 and Cloudflare
 38703005482 and merged as c8ce9c5e8afac153e5660133a4b39f77218d4c76.
+
+
+Market acceptance follow-up: run 38704209278 passed 110 browser cases and failed
+the new mobile overflow check (one intentional desktop skip). The regional table
+used a nonexistent scroll-wrapper class while shared tables have an 850px minimum
+width. The follow-up uses the existing bounded, keyboard-focusable table scroller;
+no test assertions were relaxed. Cloudflare packaging 38704209026 passed.
