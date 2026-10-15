@@ -1,6 +1,6 @@
 "use client";
 import { VehicleFields, vehicleFormInput } from "./vehicle-fields";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Appointment, Sale, Vehicle } from "@vandlabs/contracts";
 async function mutation(path:string,body:unknown,method="POST") {
@@ -34,7 +34,8 @@ export function SaleForm({leadId,sale}:{leadId:string;sale?:Sale}) {
 export function InventoryOperations({vehicle}:{vehicle:Vehicle}) {
   const {busy,message,run}=useMutation();const [editing,setEditing]=useState(false);
   const [expanded,setExpanded]=useState(false);const controlsId=useId();
-  return <div className="inventory-controls"><button type="button" className="inventory-controls-toggle" aria-expanded={expanded} aria-controls={controlsId} onClick={()=>setExpanded(value=>!value)}>Manage inventory <span aria-hidden="true">{expanded?"−":"+"}</span></button><div id={controlsId} className={`inventory-controls-body ${expanded?"is-expanded":""}`}><form className="operations-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void run(()=>mutation(`/vehicles/${vehicle.id}`,{price:Number(f.get("price")),availabilityStatus:f.get("availability"),publishStatus:f.get("publication"),expectedVersion:vehicle.version??0},"PATCH"));}}>
+  const [ready,setReady]=useState(false);useEffect(()=>setReady(true),[]);
+  return <div className="inventory-controls"><button type="button" className="inventory-controls-toggle" disabled={!ready} aria-expanded={expanded} aria-controls={controlsId} onClick={()=>setExpanded(value=>!value)}>Manage inventory <span aria-hidden="true">{expanded?"−":"+"}</span></button><div id={controlsId} className={`inventory-controls-body ${expanded?"is-expanded":""}`}><form className="operations-form" onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void run(()=>mutation(`/vehicles/${vehicle.id}`,{price:Number(f.get("price")),availabilityStatus:f.get("availability"),publishStatus:f.get("publication"),expectedVersion:vehicle.version??0},"PATCH"));}}>
     <label><span>Asking price</span><input aria-label={`Price ${vehicle.stockId}`} key={vehicle.price} name="price" type="number" min="0" step="0.01" defaultValue={vehicle.price} required/></label>
     <label><span>Availability</span><select name="availability" key={vehicle.availabilityStatus} defaultValue={vehicle.availabilityStatus}>{["available","reserved","sold"].map(s=><option key={s}>{s}</option>)}</select></label>
     <label><span>Publication</span><select name="publication" key={vehicle.publishStatus} defaultValue={vehicle.publishStatus}>{["draft","published","archived"].map(s=><option key={s}>{s}</option>)}</select></label>
