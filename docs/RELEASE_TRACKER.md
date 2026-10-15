@@ -36,7 +36,7 @@ is an optional distribution surface. No commercial production launch is claimed.
 | 5 | Staff auth, MFA, RBAC and tenant isolation | Blocked | OIDC/Cognito foundation and denial tests; no accepted production staff identity/MFA setup |
 | 6 | Real dealership onboarding | Not started | Validated CLI provisioning exists; real details and complete registration/invitation workflow required |
 | 7 | Licensed data integrations | In progress | Source-bound ingestion and rights gates; tenant/source leases, retry timing/history and freshness coverage added; contracts, scheduled sync and fuller rights lifecycle remain |
-| 8 | Market Intelligence | Not started | Sourcing/API search exists; full comparable analytics, distributions and trends remain |
+| 8 | Market Intelligence | In progress | Explicit asking-price workspace and internal endpoint in PR #32; full CI/live feed acceptance pending; historical trends unavailable without licensed history |
 | 9 | AI Acquisition Planner | In progress | Budget/location/cost planner and three tier gates exist; licensed feed and live AI service acceptance missing |
 | 10 | Profit and Capital | In progress | Owned-stock cost/sale evidence exists; full requested cost taxonomy and capital views need acceptance |
 | 11 | Command Center | In progress | Existing operating modules retained; target role-aware information architecture remains |
@@ -270,6 +270,16 @@ acceptance are tracked in the forthcoming PR; no deployment success is claimed.
 PR #31 navigation hydration fix passed Quality Gate 38703005257 and Cloudflare
 38703005482 and merged as c8ce9c5e8afac153e5660133a4b39f77218d4c76.
 
+
+## Independent AI permission — 15 October 2026
+
+Status: In progress; full CI pending. Source approvals separate AI processing
+from dealer use and API redistribution, defaulting legacy records to denied.
+The acquisition commentary helper also defaults to denied. Deterministic reports
+remain usable. Tests verify no provider request without rights, explicit approval,
+revocation and supplier inability to escalate permissions. Local security (30),
+database/provider (33) and intelligence (10) checks passed. Production provider
+agreements, retention constraints and actual AI endpoint acceptance remain blocked.
 
 Market acceptance follow-up: run 38704209278 passed 110 browser cases and failed
 the new mobile overflow check (one intentional desktop skip). The regional table

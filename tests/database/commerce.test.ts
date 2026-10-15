@@ -183,3 +183,34 @@ test("internal market intelligence requires analytics permission, active plan an
   await service.provision(admin, tenant, { ...subscription, status: "suspended" });
   await assert.rejects(service.marketIntelligence(analyst, {}), /active dealership/);
 });
+
+test("AI commentary requires independently approved source rights and revocation takes effect", async () => {
+  const previousURL = process.env.DEALER_AI_URL, previousToken = process.env.DEALER_AI_SERVICE_TOKEN, originalFetch = globalThis.fetch;
+  let requests = 0;
+  try {
+    process.env.DEALER_AI_URL = "https://ai.example.test/explain";
+    process.env.DEALER_AI_SERVICE_TOKEN = "test-only-ai-token";
+    globalThis.fetch = async (_url, init) => {
+      requests++;
+      const payload = JSON.parse(String(init?.body));
+      assert.ok(!JSON.stringify(payload).includes("verified supplier quote"));
+      assert.ok(!JSON.stringify(payload).includes(tenant));
+      return Response.json({ text: "Review the structured cost assumptions.", model: "fixture-model" });
+    };
+    const { repository } = memoryRepository(), service = await configured(repository);
+    const blocked = await service.dealerRecommendations(owner, { ...request, count: 1 });
+    assert.equal(blocked.ai?.status, "restricted"); assert.equal(requests, 0); assert.ok(blocked.options.length);
+    await assert.rejects(service.approveSource(admin, tenant, { ...source, aiProcessing: "yes" }));
+    await service.approveSource(admin, tenant, { ...source, aiProcessing: true, redistribute: false });
+    const allowed = await service.dealerRecommendations(owner, { ...request, count: 1 });
+    assert.equal(allowed.ai?.status, "available"); assert.equal(requests, 1);
+    await service.approveSource(admin, tenant, { ...source, aiProcessing: false, redistribute: true });
+    await service.ingest(owner, source.id, { vehicles: [vehicle], aiProcessing: true });
+    const revoked = await service.dealerRecommendations(owner, { ...request, count: 1 });
+    assert.equal(revoked.ai?.status, "restricted"); assert.equal(requests, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (previousURL === undefined) delete process.env.DEALER_AI_URL; else process.env.DEALER_AI_URL = previousURL;
+    if (previousToken === undefined) delete process.env.DEALER_AI_SERVICE_TOKEN; else process.env.DEALER_AI_SERVICE_TOKEN = previousToken;
+  }
+});
