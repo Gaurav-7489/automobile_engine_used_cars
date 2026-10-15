@@ -309,3 +309,11 @@ tr:hover td { background:#f8faf5; }
 .operations-form legend { padding: 0 8px; font-size: 13px; }
 .operations-form button, .panel > button { min-height: 44px; padding: 10px 16px; cursor: pointer; }
 .notice textarea { width: 100%; min-height: 90px; overflow-wrap: anywhere; }
+
+.market-filters { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,210px),1fr)); gap: 16px; align-items: end; }
+.market-filters label { display: grid; gap: 8px; min-width: 0; }
+.market-filters input,.market-filters select { width: 100%; min-width: 0; }
+.market-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: 20px; }
+.market-metrics strong { font-size: clamp(1.2rem,2vw,1.8rem); }
+.market-workspace p,.market-workspace li { overflow-wrap: anywhere; }
+@media(max-width:600px) { .market-filters { grid-template-columns: 1fr 1fr; } .market-filters button { grid-column: 1 / -1; } }

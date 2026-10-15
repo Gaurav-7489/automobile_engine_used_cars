@@ -253,3 +253,19 @@ No live feed, native installation/signing, staff MFA login or app deployment was
 accepted in this increment. Owner account/runtime configuration and the broader
 commercial release gates remain open. Source reliability is implemented; scheduled
 sync, full provider rights/retention controls and actual licensed data remain pending.
+
+## Market evidence workspace — 15 October 2026
+
+Status: In progress; CI acceptance pending. Internal market page and authenticated
+JSON endpoint support explicit asking-price evidence, freshness, descriptive
+quartiles/medians, region comparison, filters and bounded pagination. Supplier
+purchase quotes are never relabeled asking prices. Source licensing, tenant
+scope, capabilities and active subscriptions are enforced on read. Existing
+pricing/tier definitions are preserved. See `MARKET_INTELLIGENCE.md` for exact
+semantics and remaining coverage/identity limitations. Local intelligence (10)
+and database/provider (32) tests passed before final acceptance updates; lint,
+typecheck, security (29) and Cloudflare (18) tests passed. Builds and browser
+acceptance are tracked in the forthcoming PR; no deployment success is claimed.
+
+PR #31 navigation hydration fix passed Quality Gate 38703005257 and Cloudflare
+38703005482 and merged as c8ce9c5e8afac153e5660133a4b39f77218d4c76.

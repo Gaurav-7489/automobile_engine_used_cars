@@ -42,8 +42,15 @@ export function vehicleInput(value: unknown, source: DataSource, now: Date): Sou
   if ((resaleLow === null) !== (resaleHigh === null) || (resaleLow !== null && resaleHigh! < resaleLow)) throw new CommerceError(400, "Provide a consistent resale range or two nulls.");
   const observedAt = observed(b.observedAt, now), expiresAt = future(b.expiresAt, now);
   if (Date.parse(expiresAt) <= Date.parse(observedAt)) throw new CommerceError(400, "Expiry must follow observation.");
+  let askingPrice: SourcingVehicle["askingPrice"];
+  if (b.askingPrice !== undefined) {
+    const price = object(b.askingPrice);
+    if (price.currency !== "INR") throw new CommerceError(400, "Asking prices must explicitly use INR.");
+    askingPrice = { amount: number(price.amount, 1, 100000000, true), currency: "INR", observedAt: observed(price.observedAt, now) };
+    if (Date.parse(askingPrice.observedAt) > Date.parse(observedAt)) throw new CommerceError(400, "Asking-price observation cannot follow the vehicle observation.");
+  }
   const sourceRecordId = text(b.sourceRecordId, 100);
-  return { id: `${source.id}:${sourceRecordId}`, sourceId: source.id, sourceRecordId, make: text(b.make), model: text(b.model), year: number(b.year, 1900, now.getUTCFullYear() + 1, true), city: text(b.city), state: text(b.state), latitude: number(b.latitude, -90, 90), longitude: number(b.longitude, -180, 180), fuel: b.fuel as SourcingVehicle["fuel"], transmission: b.transmission as SourcingVehicle["transmission"], odometerKm: number(b.odometerKm, 0, 2000000, true), purchasePrice: number(b.purchasePrice, 1, 100000000, true), preparationCost: number(b.preparationCost, 0, 10000000, true), transferFees: number(b.transferFees, 0, 10000000, true), resaleLow, resaleHigh, demandScore: nullable(b.demandScore, 0, 100), mileageKmpl: nullable(b.mileageKmpl, .1, 100), evidence: text(b.evidence, 500), observedAt, expiresAt, available: bool(b.available) };
+  return { id: `${source.id}:${sourceRecordId}`, sourceId: source.id, sourceRecordId, make: text(b.make), model: text(b.model), year: number(b.year, 1900, now.getUTCFullYear() + 1, true), city: text(b.city), state: text(b.state), latitude: number(b.latitude, -90, 90), longitude: number(b.longitude, -180, 180), fuel: b.fuel as SourcingVehicle["fuel"], transmission: b.transmission as SourcingVehicle["transmission"], odometerKm: number(b.odometerKm, 0, 2000000, true), purchasePrice: number(b.purchasePrice, 1, 100000000, true), preparationCost: number(b.preparationCost, 0, 10000000, true), transferFees: number(b.transferFees, 0, 10000000, true), resaleLow, resaleHigh, demandScore: nullable(b.demandScore, 0, 100), mileageKmpl: nullable(b.mileageKmpl, .1, 100), ...(askingPrice ? { askingPrice } : {}), evidence: text(b.evidence, 500), observedAt, expiresAt, available: bool(b.available) };
 }
 export function fuelInput(value: unknown, source: DataSource, now: Date): FuelObservation {
   const b = object(value);
@@ -125,6 +132,10 @@ export function ingestBatch(state: CommerceState, sourceId: string, b: Record<st
       fuel.some(f => Date.parse(existingFuel.get(f.id)?.observedAt ?? "") > Date.parse(f.observedAt))) {
     throw new CommerceError(409, "Older observations cannot replace newer source records.");
   }
+  if (vehicles.some(v => {
+    const previous = existingVehicles.get(v.id)?.askingPrice;
+    return previous && (!v.askingPrice || Date.parse(previous.observedAt) > Date.parse(v.askingPrice.observedAt));
+  })) throw new CommerceError(409, "Asking-price evidence cannot be removed or replaced by an older observation.");
   const ids = new Set(vehicles.map(v => v.id)), fuelIds = new Set(fuel.map(f => f.id));
   const next = [...state.vehicles.filter(v => !ids.has(v.id)), ...vehicles];
   if (next.length > 2000) throw new CommerceError(409, "Tenant sourcing capacity reached. Contact support for expanded capacity.");

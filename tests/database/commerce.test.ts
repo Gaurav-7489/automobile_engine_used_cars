@@ -127,6 +127,11 @@ test("real PostgreSQL commerce migration enforces RLS, rollback and durable key 
     assert.equal(persisted.syncHistory?.[0].sourceId, source.id);
     assert.ok(!JSON.stringify(persisted).includes("test-only-token"));
     await db.exec("SET ROLE vandlabs_runtime");
+    await service.ingest(owner, source.id, { vehicles: [{ ...vehicle, askingPrice: { amount: 500000, currency: "INR", observedAt: now.toISOString() } }] });
+    const analyst = { ...owner, capabilities: [...owner.capabilities, "analytics:read" as const] };
+    const restored = commerceService(postgresCommerceRepository(pool), () => now);
+    assert.equal((await restored.marketIntelligence(analyst, {})).distribution.median, 500000);
+    await assert.rejects(restored.marketIntelligence({ ...analyst, tenantId: otherTenant }, {}), /active dealership/);
     await service.revokeKey(owner, key.key.id);
     await assert.rejects(commerceService(postgresCommerceRepository(pool), () => now).business(key.token, "vehicles:read", {}), /expired/);
   } finally { await db.close(); }
@@ -165,4 +170,16 @@ test("vehicle API filters location and price without exposing restricted records
   await assert.rejects(service.business(token, "vehicles:read", { radiusKm: "", latitude: "9", longitude: "76" }), /Invalid/);
   await service.approveSource(admin, tenant, { ...source, redistribute: false });
   assert.equal(((await service.business(token, "vehicles:read", {})).data as { total: number }).total, 0);
+});
+
+
+test("internal market intelligence requires analytics permission, active plan and tenant scope", async () => {
+  const { repository } = memoryRepository(), service = await configured(repository);
+  const analyst = { ...owner, capabilities: [...owner.capabilities, "analytics:read" as const] };
+  await service.ingest(owner, source.id, { vehicles: [{ ...vehicle, askingPrice: { amount: 500000, currency: "INR", observedAt: now.toISOString() } }] });
+  await assert.rejects(service.marketIntelligence(owner, {}));
+  assert.equal((await service.marketIntelligence(analyst, {})).distribution.median, 500000);
+  await assert.rejects(service.marketIntelligence({ ...analyst, tenantId: otherTenant }, {}), /active dealership/);
+  await service.provision(admin, tenant, { ...subscription, status: "suspended" });
+  await assert.rejects(service.marketIntelligence(analyst, {}), /active dealership/);
 });
