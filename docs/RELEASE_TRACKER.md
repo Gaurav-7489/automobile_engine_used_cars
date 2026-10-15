@@ -128,3 +128,20 @@ The two accepted browser runs emitted Next server AbortError/unhandledRejection
 messages while all scenarios passed. Root cause is not established; clean live
 logs are still part of staging acceptance. The premium UI redesign, full market
 analytics and production business acceptance are not completed by reconciliation.
+
+
+## Deployment preparation follow-up, 15 October 2026
+
+- PR #26 merged as `3dc231c2704a2025eca6d9271dd1716a4618ac4e` after
+  Quality Gate #104 and Cloudflare build #6 succeeded on its exact head.
+- Owner screenshot confirms `CLOUDFLARE_API_TOKEN` is now an environment secret
+  in `cloudflare-staging`; the mistaken environment variable has been removed.
+  The screenshot does not prove token validity or replacement/revocation.
+- Live Cloudflare read: account usage model is `standard`; only admission and
+  dealer-AI scripts exist. Subscription listing still denies the connector.
+  Usage model does not prove a paid Workers subscription.
+- Added a read-only GitHub-environment preflight to test token listing access and
+  report missing runtime configuration without exposing values. Main pushes run
+  preflight only; application deployment remains manual and gated.
+- Local Cloudflare tests: 15 passed, lint passed. Live preflight result pending;
+  no app deployment, staff MFA, billing, data-feed or launch acceptance is claimed.
