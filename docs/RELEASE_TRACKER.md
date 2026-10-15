@@ -286,3 +286,12 @@ the new mobile overflow check (one intentional desktop skip). The regional table
 used a nonexistent scroll-wrapper class while shared tables have an 850px minimum
 width. The follow-up uses the existing bounded, keyboard-focusable table scroller;
 no test assertions were relaxed. Cloudflare packaging 38704209026 passed.
+
+## Short-window navigation and product manual
+
+Status: In progress; CI pending. Visual review identified that the tall desktop
+sidebar could extend below its fixed viewport height. The sidebar now scrolls
+internally and preserves child sizes. A keyboard regression focuses Settings,
+then tabs to Sign out in a 1440×600 window and checks both remain in the viewport.
+The current-implementation dealer manual is `DEALER_PRODUCT_MANUAL.md`; unsupported
+roles, full billing, full copilot and live acceptance are explicitly distinguished.
