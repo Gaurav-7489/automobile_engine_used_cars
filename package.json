@@ -19,7 +19,7 @@
     "test:intelligence": "node --import tsx --test tests/intelligence/*.test.ts",
     "db:provision-tenant": "node --import tsx scripts/database/provision-tenant.ts",
     "deployment:doctor": "node --import tsx scripts/deployment/doctor.ts",
-    "test:cloudflare": "node --import tsx --test tests/cloudflare/*.test.ts",
+    "test:cloudflare": "node --import tsx --test tests/cloudflare/*.test.ts tests/cloudflare/*.test.mjs",
     "cf:build": "pnpm --filter @vandlabs/web cf:build && pnpm --filter @vandlabs/command-center cf:build && pnpm --filter @vandlabs/platform cf:build",
     "cf:configure": "node scripts/cloudflare/configure.mjs",
     "cf:deploy": "node scripts/cloudflare/deploy.mjs"

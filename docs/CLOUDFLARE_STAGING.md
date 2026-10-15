@@ -44,7 +44,7 @@ it must not silently point staging at production data or usage budgets.
    `https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev`.
    This is a configured target, not an already deployed URL.
 5. Configure secrets `DATABASE_URL` (pooled staging vandlabs_runtime connection),
-   `TENANT_CONFIG_JSON`, `SESSION_SECRET`, `AUTH_PRINCIPALS_JSON`, and the OIDC
+   `TENANT_CONFIG_JSON`, `SESSION_SECRET`, and the OIDC
    values referenced in `.github/workflows/cloudflare.yml`. Obtain them through
    the services' secure configuration interfaces; do not place them in chat or git.
 6. Configure an MFA-capable staff identity provider. Existing generic OIDC and
@@ -85,3 +85,28 @@ not live environment acceptance.
 - Test notification delivery/retries with approved staging recipients.
 - Run rate/concurrency tests safely in staging, browser QA and rollback.
 - Keep Vercel and production DNS unchanged until these checks are accepted.
+
+## Read-only deployment preflight
+
+The Cloudflare workflow runs a preflight inside the protected GitHub environment
+on a relevant push to main and on manual workflow dispatch. Pull requests never
+receive these secrets. Main pushes run only the read-only preflight; they do not
+deploy. The job tests the saved token against fixed Worker-script and R2 listing
+endpoints, checks billing only when permitted, and lists missing environment
+configuration by name. It never prints API response bodies or configuration values.
+A fallback account ID permits token testing before the account variable is set;
+the variable is still reported missing and deployment remains blocked.
+
+A successful read proves listing access only, not Worker upload/edit permission.
+Billing denial is reported as unverified rather than treated as proof of a free or
+paid plan. Required runtime configuration blocks deployment before the expensive
+build/deploy steps; presence is not validation. OAuth logout requires
+`OIDC_REVOKE_URL` as well as the authorize/token endpoints. After configuration,
+run the existing doctor/probe and complete live acceptance. Inspect the preflight
+job summary for the exact missing names. Do not expand the deployment token's
+permissions merely to make optional billing introspection pass.
+
+The workflow uses the database staff registry. `AUTH_PRINCIPALS_JSON` is an
+optional approved bootstrap registry, not required when staff are already
+provisioned in the database. Never create fictional production staff to pass
+a readiness check.

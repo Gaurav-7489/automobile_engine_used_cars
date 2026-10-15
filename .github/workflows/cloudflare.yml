@@ -1,5 +1,10 @@
 name: Cloudflare build and deploy
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/cloudflare.yml
+      - scripts/cloudflare/preflight.mjs
   pull_request:
   workflow_dispatch:
     inputs:
@@ -20,7 +25,37 @@ concurrency:
   group: cloudflare-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  preflight:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: cloudflare-${{ inputs.target || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify deployment credentials and required configuration (read-only)
+        run: node scripts/cloudflare/preflight.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PREFLIGHT_ACCOUNT_ID: 98f548fdf2e2be84591c6669493f330b
+          CF_PUBLIC_ORIGIN: ${{ vars.CF_PUBLIC_ORIGIN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TENANT_CONFIG_JSON: ${{ secrets.TENANT_CONFIG_JSON }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          AUTH_PRINCIPALS_JSON: ${{ secrets.AUTH_PRINCIPALS_JSON }}
+          OIDC_ISSUER: ${{ secrets.OIDC_ISSUER }}
+          OIDC_AUDIENCE: ${{ secrets.OIDC_AUDIENCE }}
+          OIDC_JWKS_URL: ${{ secrets.OIDC_JWKS_URL }}
+          OIDC_CLIENT_ID: ${{ secrets.OIDC_CLIENT_ID }}
+          OIDC_AUTHORIZE_URL: ${{ secrets.OIDC_AUTHORIZE_URL }}
+          OIDC_TOKEN_URL: ${{ secrets.OIDC_TOKEN_URL }}
+          OIDC_REVOKE_URL: ${{ secrets.OIDC_REVOKE_URL }}
   build:
+    needs: preflight
+    if: always() && github.event_name != 'push' && (github.event_name == 'pull_request' || needs.preflight.result == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -38,7 +73,7 @@ jobs:
           NEXT_PUBLIC_PREVIEW_READ_ONLY: 'true'
   deploy:
     if: github.event_name == 'workflow_dispatch' && inputs.deploy && (inputs.target == 'staging' || github.ref == 'refs/heads/main')
-    needs: build
+    needs: [build, preflight]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: cloudflare-${{ inputs.target }}
