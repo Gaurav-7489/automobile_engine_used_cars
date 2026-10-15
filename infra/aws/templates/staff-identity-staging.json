@@ -1,0 +1,215 @@
+{
+  "Resources": {
+    "StaffUserPool2EF92F57": {
+      "Type": "AWS::Cognito::UserPool",
+      "Properties": {
+        "AccountRecoverySetting": {
+          "RecoveryMechanisms": [
+            {
+              "Name": "verified_email",
+              "Priority": 1
+            }
+          ]
+        },
+        "AdminCreateUserConfig": {
+          "AllowAdminCreateUserOnly": true
+        },
+        "AutoVerifiedAttributes": [
+          "email"
+        ],
+        "DeletionProtection": "ACTIVE",
+        "EmailVerificationMessage": "The verification code to your new account is {####}",
+        "EmailVerificationSubject": "Verify your new account",
+        "EnabledMfas": [
+          "SOFTWARE_TOKEN_MFA"
+        ],
+        "MfaConfiguration": "ON",
+        "Policies": {
+          "PasswordPolicy": {
+            "MinimumLength": 12,
+            "RequireLowercase": true,
+            "RequireNumbers": true,
+            "RequireSymbols": true,
+            "RequireUppercase": true
+          }
+        },
+        "SmsVerificationMessage": "The verification code to your new account is {####}",
+        "UserPoolTier": "LITE",
+        "UsernameAttributes": [
+          "email"
+        ],
+        "VerificationMessageTemplate": {
+          "DefaultEmailOption": "CONFIRM_WITH_CODE",
+          "EmailMessage": "The verification code to your new account is {####}",
+          "EmailSubject": "Verify your new account",
+          "SmsMessage": "The verification code to your new account is {####}"
+        }
+      },
+      "UpdateReplacePolicy": "Retain",
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "aws:cdk:path": "VandLabsStaffIdentity-staging/StaffUserPool/Resource"
+      }
+    },
+    "StaffUserPoolStaffWebClient6CBCC730": {
+      "Type": "AWS::Cognito::UserPoolClient",
+      "Properties": {
+        "AccessTokenValidity": 15,
+        "AllowedOAuthFlows": [
+          "code"
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "AllowedOAuthScopes": [
+          "openid",
+          "email",
+          "profile"
+        ],
+        "CallbackURLs": [
+          "https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev/command/auth/callback",
+          "https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev/platform/auth/callback"
+        ],
+        "EnableTokenRevocation": true,
+        "ExplicitAuthFlows": [
+          "ALLOW_USER_SRP_AUTH",
+          "ALLOW_REFRESH_TOKEN_AUTH"
+        ],
+        "GenerateSecret": false,
+        "IdTokenValidity": 15,
+        "LogoutURLs": [
+          "https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev/command/login",
+          "https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev/platform/login"
+        ],
+        "PreventUserExistenceErrors": "ENABLED",
+        "RefreshTokenValidity": 10080,
+        "SupportedIdentityProviders": [
+          "COGNITO"
+        ],
+        "TokenValidityUnits": {
+          "AccessToken": "minutes",
+          "IdToken": "minutes",
+          "RefreshToken": "minutes"
+        },
+        "UserPoolId": {
+          "Ref": "StaffUserPool2EF92F57"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "VandLabsStaffIdentity-staging/StaffUserPool/StaffWebClient/Resource"
+      }
+    },
+    "StaffUserPoolStaffDesktopClient5329D6C6": {
+      "Type": "AWS::Cognito::UserPoolClient",
+      "Properties": {
+        "AccessTokenValidity": 15,
+        "AllowedOAuthFlows": [
+          "code"
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "AllowedOAuthScopes": [
+          "openid",
+          "email",
+          "profile"
+        ],
+        "CallbackURLs": [
+          "http://localhost:43821/callback"
+        ],
+        "EnableTokenRevocation": true,
+        "GenerateSecret": false,
+        "IdTokenValidity": 15,
+        "PreventUserExistenceErrors": "ENABLED",
+        "RefreshTokenValidity": 10080,
+        "SupportedIdentityProviders": [
+          "COGNITO"
+        ],
+        "TokenValidityUnits": {
+          "AccessToken": "minutes",
+          "IdToken": "minutes",
+          "RefreshToken": "minutes"
+        },
+        "UserPoolId": {
+          "Ref": "StaffUserPool2EF92F57"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "VandLabsStaffIdentity-staging/StaffUserPool/StaffDesktopClient/Resource"
+      }
+    },
+    "StaffUserPoolStaffSignInDomain53D318DD": {
+      "Type": "AWS::Cognito::UserPoolDomain",
+      "Properties": {
+        "Domain": {
+          "Fn::Join": [
+            "",
+            [
+              "vandlabs-engine-staging-",
+              {
+                "Ref": "AWS::AccountId"
+              }
+            ]
+          ]
+        },
+        "UserPoolId": {
+          "Ref": "StaffUserPool2EF92F57"
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "VandLabsStaffIdentity-staging/StaffUserPool/StaffSignInDomain/Resource"
+      }
+    }
+  },
+  "Outputs": {
+    "StaffWebClientId": {
+      "Value": {
+        "Ref": "StaffUserPoolStaffWebClient6CBCC730"
+      }
+    },
+    "StaffDesktopClientId": {
+      "Value": {
+        "Ref": "StaffUserPoolStaffDesktopClient5329D6C6"
+      }
+    },
+    "StaffSignInUrl": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "StaffUserPoolStaffSignInDomain53D318DD"
+            },
+            ".auth.ap-south-1.amazoncognito.com"
+          ]
+        ]
+      }
+    },
+    "StaffUserPoolId": {
+      "Value": {
+        "Ref": "StaffUserPool2EF92F57"
+      }
+    },
+    "CognitoDomain": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "StaffUserPoolStaffSignInDomain53D318DD"
+            },
+            ".auth.ap-south-1.amazoncognito.com"
+          ]
+        ]
+      }
+    },
+    "CognitoClientId": {
+      "Value": {
+        "Ref": "StaffUserPoolStaffWebClient6CBCC730"
+      }
+    },
+    "CognitoDesktopClientId": {
+      "Value": {
+        "Ref": "StaffUserPoolStaffDesktopClient5329D6C6"
+      }
+    }
+  }
+}

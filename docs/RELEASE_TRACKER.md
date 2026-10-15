@@ -145,3 +145,28 @@ analytics and production business acceptance are not completed by reconciliation
   preflight only; application deployment remains manual and gated.
 - Local Cloudflare tests: 16 passed, lint passed. Live preflight result pending;
   no app deployment, staff MFA, billing, data-feed or launch acceptance is claimed.
+
+
+## Verified staging credential check and identity preparation
+
+- PR #27 merged at `2dbe9984b2894cc7ef36c0d0c3170631bf798b5c` after
+  Quality Gate #107 and Cloudflare build #8 both passed on `54542a3`.
+- Live staging preflight run `38692240172`: Worker-script listing **passed**,
+  R2-bucket listing **passed**, billing **unverified**. Deployment was correctly
+  skipped because runtime configuration is absent. It reports missing database,
+  tenant, session and OIDC secrets plus account/origin variables; see job summary.
+  This proves the saved token is usable for those reads, not deployment/edit access.
+- Owner confirmed there is no staff identity provider account yet. Prepared an
+  identity-only Cognito deployment using shared existing definitions: required
+  TOTP MFA, no public signup, Lite plan, short access tokens, retained pool and
+  code/PKCE public clients. Added Cognito selection/secret forwarding for Cloudflare
+  while retaining the existing OIDC default. No account resources or users created.
+- Local: 18 Cloudflare/runtime tests, 2 identity template tests, AWS TypeScript and
+  application lint passed. Identity synthesis exports four Cognito resources with
+  no bootstrap parameters. The historical full AWS template is byte-structure
+  equivalent before/after extraction in an offline synthesis comparison.
+- Windows and macOS native tests/installer packaging both succeeded in run
+  `38682811192`; signing, actual installation and live backend acceptance remain.
+- Owner action: review/upload the staging identity template in company AWS Mumbai,
+  configure its output IDs/domain securely, and supply the remaining staging app
+  configuration. Product launch, billing/data contracts and live QA remain open.

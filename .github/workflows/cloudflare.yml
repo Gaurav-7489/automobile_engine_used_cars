@@ -46,6 +46,10 @@ jobs:
           TENANT_CONFIG_JSON: ${{ secrets.TENANT_CONFIG_JSON }}
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           AUTH_PRINCIPALS_JSON: ${{ secrets.AUTH_PRINCIPALS_JSON }}
+          AUTH_MODE: ${{ vars.AUTH_MODE || 'oidc' }}
+          COGNITO_DOMAIN: ${{ secrets.COGNITO_DOMAIN }}
+          COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
+          COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
           OIDC_ISSUER: ${{ secrets.OIDC_ISSUER }}
           OIDC_AUDIENCE: ${{ secrets.OIDC_AUDIENCE }}
           OIDC_JWKS_URL: ${{ secrets.OIDC_JWKS_URL }}
@@ -86,7 +90,7 @@ jobs:
       CF_SHARED_DATA: 'true'
       HOSTING_PROVIDER: cloudflare
       DATA_MODE: neon
-      AUTH_MODE: oidc
+      AUTH_MODE: ${{ vars.AUTH_MODE || 'oidc' }}
       AUTH_REGISTRY_MODE: database
       APP_ORIGIN: ${{ vars.CF_PUBLIC_ORIGIN }}
       NEXT_PUBLIC_PREVIEW_READ_ONLY: 'false'
@@ -94,6 +98,11 @@ jobs:
       TENANT_CONFIG_JSON: ${{ secrets.TENANT_CONFIG_JSON }}
       SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
       AUTH_PRINCIPALS_JSON: ${{ secrets.AUTH_PRINCIPALS_JSON }}
+      COGNITO_DOMAIN: ${{ secrets.COGNITO_DOMAIN }}
+      COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
+      COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
+      COGNITO_CLIENT_IDS: ${{ secrets.COGNITO_CLIENT_IDS }}
+      COGNITO_DESKTOP_CLIENT_ID: ${{ secrets.COGNITO_DESKTOP_CLIENT_ID }}
       OIDC_ISSUER: ${{ secrets.OIDC_ISSUER }}
       OIDC_AUDIENCE: ${{ secrets.OIDC_AUDIENCE }}
       OIDC_JWKS_URL: ${{ secrets.OIDC_JWKS_URL }}

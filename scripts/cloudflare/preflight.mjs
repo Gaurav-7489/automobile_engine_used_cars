@@ -1,15 +1,21 @@
 import { appendFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
-export const runtimeSecrets = ["DATABASE_URL", "TENANT_CONFIG_JSON", "SESSION_SECRET", "OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL", "OIDC_CLIENT_ID", "OIDC_AUTHORIZE_URL", "OIDC_TOKEN_URL", "OIDC_REVOKE_URL"];
+const baseSecrets = ["DATABASE_URL", "TENANT_CONFIG_JSON", "SESSION_SECRET"];
+const oidcSecrets = [ "OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL", "OIDC_CLIENT_ID", "OIDC_AUTHORIZE_URL", "OIDC_TOKEN_URL", "OIDC_REVOKE_URL"];
+const cognitoSecrets = ["COGNITO_DOMAIN", "COGNITO_USER_POOL_ID", "COGNITO_CLIENT_ID"];
+export const runtimeSecrets = [...baseSecrets, ...oidcSecrets];
 export const runtimeVariables = ["CLOUDFLARE_ACCOUNT_ID", "CF_PUBLIC_ORIGIN"];
 
 // Only allow fixed Cloudflare endpoints. Never log response bodies, headers or errors
 // that could contain credentials. This performs no deployment or billing mutations.
 export async function preflight(env, request = fetch) {
-  const missing = [...runtimeSecrets, ...runtimeVariables].filter(key => !env[key]?.trim());
+  const mode = env.AUTH_MODE || "oidc";
+  const required = [...baseSecrets, ...(mode === "cognito" ? cognitoSecrets : oidcSecrets), ...runtimeVariables];
+  const missing = required.filter(key => !env[key]?.trim());
   const account = env.CLOUDFLARE_ACCOUNT_ID || env.CF_PREFLIGHT_ACCOUNT_ID;
   const checks = [];
+  if (!["oidc", "cognito"].includes(mode)) checks.push({ name: "staff-auth-mode", status: "failed" });
   if (!env.CLOUDFLARE_API_TOKEN?.trim()) checks.push({ name: "deployment-token", status: "failed" });
   else if (!/^[a-f0-9]{32}$/.test(account || "")) checks.push({ name: "account-id", status: "failed" });
   else {
