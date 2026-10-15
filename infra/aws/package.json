@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "scripts": {
     "build": "tsc --noEmit",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "test:identity": "node --import tsx --test tests/staff-identity.test.ts",
+    "identity:synth": "cdk synth --app \"node --import tsx bin/staff-identity.ts\"",
+    "identity:deploy": "cdk deploy --app \"node --import tsx bin/staff-identity.ts\""
   },
   "dependencies": {
     "aws-cdk-lib": "^2.220.0",

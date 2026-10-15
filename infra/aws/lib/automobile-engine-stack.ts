@@ -4,7 +4,6 @@ import {
   RemovalPolicy,
   Stack,
   StackProps,
-  aws_cognito as cognito,
   aws_ec2 as ec2,
   aws_events as events,
   aws_kms as kms,
@@ -16,6 +15,7 @@ import {
   aws_wafv2 as wafv2,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
+import { createStaffIdentity } from "./staff-identity.js";
 
 interface AutomobileEngineStackProps extends StackProps {
   environmentName: string;
@@ -102,39 +102,7 @@ export class AutomobileEngineStack extends Stack {
       eventBusName: `automobile-engine-${props.environmentName}`,
     });
 
-    const userPool = new cognito.UserPool(this, "StaffUserPool", {
-      selfSignUpEnabled: false,
-      signInAliases: { email: true },
-      mfa: production ? cognito.Mfa.REQUIRED : cognito.Mfa.OPTIONAL,
-      mfaSecondFactor: { sms: false, otp: true },
-      passwordPolicy: {
-        minLength: 12,
-        requireDigits: true,
-        requireLowercase: true,
-        requireSymbols: true,
-        requireUppercase: true,
-      },
-      accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-      removalPolicy: production ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
-    });
-
-    const callbacks: string[] = this.node.tryGetContext("staffCallbackUrls") ?? ["https://operations.example.invalid/command/auth/callback", "https://platform.example.invalid/platform/auth/callback"];
-    const logouts: string[] = this.node.tryGetContext("staffLogoutUrls") ?? ["https://operations.example.invalid/command/login", "https://platform.example.invalid/platform/login"];
-    if (production && [...callbacks, ...logouts].some(url => url.includes("example.invalid"))) throw new Error("Production Cognito requires real callback/logout URLs.");
-    const staffWeb = userPool.addClient("StaffWebClient", {
-      generateSecret: false,
-      authFlows: { userSrp: true },
-      preventUserExistenceErrors: true,
-      oAuth: { flows: { authorizationCodeGrant: true }, scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE], callbackUrls: callbacks, logoutUrls: logouts },
-    });
-    const desktop = userPool.addClient("StaffDesktopClient", {
-      generateSecret: false, preventUserExistenceErrors: true,
-      oAuth: { flows: { authorizationCodeGrant: true }, scopes: [cognito.OAuthScope.OPENID, cognito.OAuthScope.EMAIL, cognito.OAuthScope.PROFILE], callbackUrls: ["http://localhost:43821/callback"] },
-    });
-    const domain = userPool.addDomain("StaffSignInDomain", { cognitoDomain: { domainPrefix: this.node.tryGetContext("cognitoDomainPrefix") ?? `vandlabs-engine-${props.environmentName}-${this.account}` } });
-    new CfnOutput(this, "StaffWebClientId", { value: staffWeb.userPoolClientId });
-    new CfnOutput(this, "StaffDesktopClientId", { value: desktop.userPoolClientId });
-    new CfnOutput(this, "StaffSignInUrl", { value: domain.baseUrl() });
+    const { userPool } = createStaffIdentity(this, props);
 
     new logs.LogGroup(this, "ApplicationLogs", {
       retention: production ? logs.RetentionDays.ONE_YEAR : logs.RetentionDays.ONE_MONTH,

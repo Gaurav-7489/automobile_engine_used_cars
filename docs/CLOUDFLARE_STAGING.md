@@ -110,3 +110,13 @@ The workflow uses the database staff registry. `AUTH_PRINCIPALS_JSON` is an
 optional approved bootstrap registry, not required when staff are already
 provisioned in the database. Never create fictional production staff to pass
 a readiness check.
+
+
+## Identity provider selection
+
+`AUTH_MODE` is an environment variable accepting `oidc` (existing default) or
+`cognito`. Both configuration generation and preflight select the matching
+required credentials; shared demo authentication is rejected. The deployment
+forwards Cognito pool/domain/client configuration through Worker secret storage.
+See `STAFF_IDENTITY_SETUP.md` for the isolated MFA-required Cognito stack and
+reviewable staging CloudFormation template. No AWS resources are provisioned by CI.
