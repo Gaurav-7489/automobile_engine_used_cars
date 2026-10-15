@@ -7,7 +7,8 @@ export type Capability =
   | "analytics:read"
   | "capital:read"
   | "capital:write"
-  | "platform:admin";
+  | "platform:admin"
+  | "commerce:manage";
 
 export interface AuthenticatedPrincipal {
   userId: string;

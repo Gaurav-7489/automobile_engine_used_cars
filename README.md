@@ -1,6 +1,6 @@
 # VandLabs Automobile Engine
 
-VandLabs Automobile Engine is a reusable, multi-tenant Automotive Commerce & Growth Engine for used-car dealerships. The V1 Proof-of-Engine connects the dealership experience, canonical vehicle inventory, conversion intent, first-party journey context, automotive lead operations, reporting, platform controls and future AWS integration boundaries.
+VandLabs Automobile Engine is a dealer-focused subscription product for acquisition, inventory and growth intelligence. The paying user is a dealership professional acquiring vehicles for resale. Three tiers — Starter, Growth and Scale — are described in `docs/dealer-subscription-product.md`; pricing and live billing remain pending. The V1 Proof-of-Engine connects the dealership experience, canonical vehicle inventory, conversion intent, first-party journey context, automotive lead operations, reporting, platform controls and future AWS integration boundaries.
 
 ## Current V1 reference applications
 
@@ -133,3 +133,11 @@ The repository now includes Cloudflare Worker builds for all three apps, a priva
 - `pnpm cf:build` builds the three Worker bundles.
 - `pnpm test:cloudflare` exercises distributed admission and migration safeguards.
 - `pnpm cf:configure` and `pnpm cf:deploy` use secure environment settings; see the runbook first.
+
+## Dealer acquisition demo
+
+In explicit local demo mode, open `/command/acquisition` for backend-calculated, location-aware acquisitions. `/command/subscriptions` enforces three server-owned tiers; `/command/developer` creates and revokes scoped API keys; `/command/data-sources` imports approved sourcing records; `/platform/commerce` provisions contracted access and source rights. See `docs/dealer-data-api.md` and `docs/business-api.yaml`. Real provider credentials, automated billing and production staff/deployment acceptance are separate live-launch dependencies.
+
+## Dealership intelligence release
+
+Current integration, actual verification and launch dependencies: [release tracker](docs/RELEASE_TRACKER.md) and [Cloudflare/Neon commerce reconciliation](docs/INTEGRATION_2026_10_15.md). A connected demo is not a commercial production release.

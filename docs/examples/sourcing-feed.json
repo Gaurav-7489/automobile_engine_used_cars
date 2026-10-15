@@ -1,0 +1,29 @@
+{
+  "vehicles": [
+    {
+      "sourceRecordId": "supplier-record-001",
+      "make": "Maruti",
+      "model": "Swift",
+      "year": 2021,
+      "city": "Kochi",
+      "state": "Kerala",
+      "latitude": 9.9312,
+      "longitude": 76.2673,
+      "fuel": "petrol",
+      "transmission": "manual",
+      "odometerKm": 45000,
+      "purchasePrice": 400000,
+      "preparationCost": 20000,
+      "transferFees": 5000,
+      "resaleLow": null,
+      "resaleHigh": null,
+      "demandScore": null,
+      "mileageKmpl": null,
+      "evidence": "Replace with the actual dealer quote and inspection reference",
+      "observedAt": "2026-10-13T12:00:00Z",
+      "expiresAt": "2026-11-01T00:00:00Z",
+      "available": true
+    }
+  ],
+  "fuel": []
+}

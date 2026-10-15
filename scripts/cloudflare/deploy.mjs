@@ -23,7 +23,7 @@ const names=new Set((existing.buckets ?? []).map(bucket=>bucket.name));
 for(const name of ["vandlabs-vehicle-media","vandlabs-web-cache","vandlabs-command-center-cache","vandlabs-platform-cache"])if(!names.has(name))await resourceApi("POST","",{name});
 // Deploy the durable coordinator before Workers that bind to it.
 await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/admission.wrangler.jsonc"]);
-const secretKeys=["DATABASE_URL","TENANT_CONFIG_JSON","SESSION_SECRET","AUTH_PRINCIPALS_JSON","AUTH_REGISTRY_MODE","OIDC_ISSUER","OIDC_AUDIENCE","OIDC_JWKS_URL","OIDC_CLIENT_ID","OIDC_AUTHORIZE_URL","OIDC_TOKEN_URL","OIDC_REVOKE_URL","OIDC_DESKTOP_CLIENT_ID","OIDC_RESOURCE","GOOGLE_SITE_VERIFICATION","RESEND_API_KEY","NOTIFICATION_FROM","NOTIFICATION_TO"];
+const secretKeys=["DATABASE_URL","TENANT_CONFIG_JSON","SESSION_SECRET","AUTH_PRINCIPALS_JSON","AUTH_REGISTRY_MODE","OIDC_ISSUER","OIDC_AUDIENCE","OIDC_JWKS_URL","OIDC_CLIENT_ID","OIDC_AUTHORIZE_URL","OIDC_TOKEN_URL","OIDC_REVOKE_URL","OIDC_DESKTOP_CLIENT_ID","OIDC_RESOURCE","GOOGLE_SITE_VERIFICATION","DEALER_AI_URL","DEALER_AI_SERVICE_TOKEN","VANDLABS_FEEDS_JSON","RESEND_API_KEY","NOTIFICATION_FROM","NOTIFICATION_TO"];
 const secrets=Object.fromEntries(secretKeys.filter(key=>process.env[key]).map(key=>[key,process.env[key]]));
 for(const name of ["web","command-center","platform"]) {
  const cwd=`apps/${name}`;

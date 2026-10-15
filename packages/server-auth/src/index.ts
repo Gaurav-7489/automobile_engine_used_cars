@@ -13,7 +13,7 @@ import {
 type Environment = Record<string, string | undefined>;
 type TokenVerifier = (token: string) => Promise<{ sub: string }>;
 const capabilities: Capability[] = [
-  "inventory:read", "inventory:write", "lead:read", "lead:write", "task:write", "analytics:read", "capital:read", "capital:write", "platform:admin",
+  "inventory:read", "inventory:write", "lead:read", "lead:write", "task:write", "analytics:read", "capital:read", "capital:write", "commerce:manage", "platform:admin",
 ];
 
 export class AuthenticationError extends Error {

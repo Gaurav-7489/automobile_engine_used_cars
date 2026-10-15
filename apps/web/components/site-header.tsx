@@ -9,7 +9,7 @@ export function SiteHeader() {
         <Link className="brand" href="/">
           <span className="brand-symbol" aria-hidden="true">A</span> {tenantConfig.brand.logoText}
         </Link>
-        <PrimaryNav items={[...tenantConfig.navigation, { href: "/download", label: "Desktop app" }]} />
+        <PrimaryNav items={[...tenantConfig.navigation, { href: "/dealer", label: "For dealers" }, { href: "/download", label: "Desktop app" }]} />
         <a className="nav-call" href={"tel:" + tenantConfig.contact.phone}>
           Call studio
         </a>

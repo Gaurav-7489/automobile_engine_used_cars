@@ -172,3 +172,8 @@ tr:hover td { background:#1f3528; }
 @media(max-width:600px) { input:not([type=checkbox]),select,textarea { font-size:16px; } }
 
 .staff-form select { appearance:none;-webkit-appearance:none;color-scheme:dark;color:var(--ink);background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%23c3d79b' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 14px center;padding-right:38px; }
+
+.commerce-admin-form fieldset { display:grid; gap:16px; min-width:0; border:1px solid #d8ddd8; padding:20px; }
+.commerce-admin-form label { display:grid; gap:6px; }
+.commerce-admin-form input:not([type=checkbox]), .commerce-admin-form select { width:100%; padding:12px; min-height:44px; font:inherit; border:1px solid #d8ddd8; border-radius:8px; }
+.commerce-admin-form button { min-height:44px; padding:12px; }

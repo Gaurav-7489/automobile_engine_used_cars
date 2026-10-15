@@ -20,5 +20,6 @@ try{
  await client.query(`GRANT SELECT,INSERT,UPDATE ON staff_members TO ${role}`);
  await client.query(`GRANT SELECT,INSERT ON platform_audit TO ${role}`);
  await client.query(`GRANT SELECT,INSERT,UPDATE ON notification_outbox TO ${role}`);
+ await client.query(`GRANT SELECT,INSERT,UPDATE ON dealer_commerce TO ${role}`);
  await client.query("COMMIT");console.log("Application role provisioned from its secret.");
 }catch(e){await client.query("ROLLBACK");throw e;}finally{client.release();await pool.end();}
