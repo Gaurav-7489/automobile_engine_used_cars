@@ -1,8 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deadStockReport, validateDeadStockPolicy, defaultDeadStockPolicy, bandLabels } from "../../packages/data/src/dead-stock";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { deadStockReport, deadStockAccess, staffDeadStock, validateDeadStockPolicy, defaultDeadStockPolicy, bandLabels } from "../../packages/data/src/dead-stock";
 import { vehicles, leads } from "../../packages/demo-data/src/index";
-import type { JourneyEvent, Lead, StockCost, Sale, Vehicle, InventoryChange } from "../../packages/contracts/src/index";
+import { AuthorizationError, staffPrincipal, type JourneyEvent, type Lead, type StockCost, type Sale, type Vehicle, type InventoryChange, type StaffRole } from "../../packages/contracts/src/index";
 
 const asOf = new Date("2026-10-16T06:00:00Z");
 const base = vehicles[0];
@@ -73,4 +76,75 @@ test("policy validation rejects malformed bands and windows; labels follow the p
   assert.deepEqual(bandLabels({ ...defaultDeadStockPolicy, bandLimits: [15, 45, 75] }), ["0–15 days", "16–45 days", "46–75 days", "Over 75 days"]);
   const bad = deadStockReport({ ...empty, vehicles: [car("z", "not-a-date")] }, asOf);
   assert.equal(bad.vehicles[0].band, null); assert.equal(bad.unknownAge, 1); assert.deepEqual(bad.vehicles[0].recommendations.map(r => r.action), ["inspect"]);
+});
+
+const costFor = (vehicleId: string, tenantId = base.tenantId, purchasePrice = 500000): StockCost => ({ vehicleId, tenantId, acquiredOn: "2026-07-01", purchasePrice, reconditioningCost: 0, transferCost: 0, otherCost: 0, dailyHoldingCost: null, reference: "INV", version: 1, currency: "INR", recordedBy: "staff", recordedAt: "2026-07-01T00:00:00Z" });
+
+test("capital is matched per vehicle record, not by an id another tenant may reuse", () => {
+  const own = car("dup", "2026-10-15T00:00:00Z"), foreign = car("dup", "2026-10-15T00:00:00Z", { tenantId: "other-tenant" });
+  const r = deadStockReport({ ...empty, vehicles: [own, foreign], costs: [costFor("dup", "other-tenant", 700000)] }, asOf);
+  const rows = r.vehicles.filter(v => v.vehicleId === "dup");
+  assert.deepEqual(rows.map(v => v.capitalLocked).sort(), [700000, null]);
+  assert.equal(r.bands.reduce((n, b) => n + (b.recordedCapital ?? 0), 0), 700000);
+  const leak = deadStockReport({ ...empty, vehicles: [own], costs: [costFor("dup", "other-tenant")] }, asOf);
+  assert.equal(leak.vehicles[0].capitalLocked, null); assert.equal(leak.vehicles[0].ageBasis, "listing");
+});
+
+test("withheld evidence is reported as unavailable, never as zero", () => {
+  const browsed = car("browsed", "2026-08-01T00:00:00Z"), wanted = car("wanted", "2026-08-01T00:00:00Z");
+  const lead: Lead = { ...leads[0], tenantId: base.tenantId, vehicleId: "wanted", vehicleIds: ["wanted"], stage: "contacted", createdAt: "2026-10-12T00:00:00Z" };
+  const snapshot = { ...empty, vehicles: [browsed, wanted], leads: [lead], events: [...views("browsed", 25), ...views("wanted", 25)], costs: [costFor("browsed")] };
+  const actions = (r: ReturnType<typeof deadStockReport>, id: string) => r.vehicles.find(v => v.vehicleId === id)!.recommendations.map(x => x.action);
+
+  const noCrm = deadStockReport({ ...snapshot, leads: [] }, asOf, defaultDeadStockPolicy, { enquiries: "unavailable", capital: true });
+  assert.ok(noCrm.vehicles.every(v => v.enquiries === null && v.openLeads === null));
+  assert.deepEqual(actions(noCrm, "browsed"), [], "zero visible enquiries is not evidence of zero enquiries");
+  assert.ok(noCrm.unavailable.some(u => u.startsWith("Enquiries")));
+
+  const assigned = deadStockReport(snapshot, asOf, defaultDeadStockPolicy, { enquiries: "assigned", capital: true });
+  assert.deepEqual(actions(assigned, "browsed"), [], "partial enquiry evidence does not trigger a price review");
+  assert.deepEqual(actions(assigned, "wanted"), ["follow_up"]);
+  assert.match(assigned.vehicles.find(v => v.vehicleId === "wanted")!.recommendations[0].evidence[0], /assigned/);
+
+  const noCapital = deadStockReport(snapshot, asOf, defaultDeadStockPolicy, { enquiries: "all", capital: false });
+  assert.ok(noCapital.vehicles.every(v => v.capitalLocked === null && v.ageBasis === "listing"), "acquisition dates stay hidden without capital access");
+  assert.ok(noCapital.bands.every(b => b.recordedCapital === null && b.costCoverage === null));
+  assert.ok(noCapital.unavailable.some(u => u.startsWith("Recorded capital")));
+  const undisclosed = deadStockReport({ ...snapshot, costs: undefined }, asOf);
+  assert.ok(undisclosed.bands.every(b => b.recordedCapital === null), "an omitted cost list is not an empty one");
+});
+
+test("staff report follows role access, tenant scope and capability checks", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "vandlabs-dead-stock-")), previous = process.env.VANDLABS_DEMO_RUNTIME_PATH;
+  process.env.VANDLABS_DEMO_RUNTIME_PATH = join(dir, "leads.json");
+  try {
+    const member = (role: StaffRole, tenantId = "tenant-apex") => staffPrincipal({ userId: "staff", tenantId, dealershipIds: ["dealer-select"], locationIds: ["loc-bengaluru"], displayName: "Staff", enabled: true, role, version: 1, updatedAt: "2026-10-15T00:00:00Z", updatedBy: "admin" });
+    const later = new Date("2027-06-01T06:00:00Z");
+    const owner = await staffDeadStock(member("owner"), later);
+    assert.ok(owner.vehicles.length > 0); assert.deepEqual(owner.access, { enquiries: "all", capital: true });
+    assert.ok(owner.vehicles.some(v => (v.enquiries ?? 0) + (v.openLeads ?? 0) > 0), "owner sees CRM evidence");
+    assert.ok(owner.bands.every(b => b.costCoverage !== null));
+
+    const sales = await staffDeadStock(member("sales"), later);
+    assert.deepEqual(sales.access, { enquiries: "assigned", capital: false });
+    assert.ok(sales.bands.every(b => b.recordedCapital === null));
+    assert.ok(!sales.vehicles.some(v => v.recommendations.some(r => r.action === "review_price")));
+
+    for (const role of ["acquisition", "marketing"] as const) {
+      const r = await staffDeadStock(member(role), later);
+      assert.equal(r.vehicles.length, owner.vehicles.length, role);
+      assert.ok(r.vehicles.every(v => v.enquiries === null && v.openLeads === null), role);
+      assert.ok(!r.vehicles.some(v => v.recommendations.some(x => x.action === "review_price" || x.action === "follow_up")), role);
+      assert.equal(r.bands.every(b => b.recordedCapital !== null), role === "acquisition", role);
+    }
+    assert.deepEqual(deadStockAccess(member("marketing")), { enquiries: "unavailable", capital: false });
+
+    const outsider = await staffDeadStock(member("owner", "tenant-other"), later);
+    assert.equal(outsider.vehicles.length, 0, "another tenant sees none of this dealership's stock");
+    await assert.rejects(staffDeadStock({ ...member("owner"), capabilities: ["inventory:read"] }, later), AuthorizationError);
+    await assert.rejects(staffDeadStock({ ...member("owner"), capabilities: ["analytics:read"] }, later), AuthorizationError);
+  } finally {
+    if (previous === undefined) delete process.env.VANDLABS_DEMO_RUNTIME_PATH; else process.env.VANDLABS_DEMO_RUNTIME_PATH = previous;
+    await rm(dir, { recursive: true, force: true });
+  }
 });

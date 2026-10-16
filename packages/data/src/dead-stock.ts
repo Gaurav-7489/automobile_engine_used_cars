@@ -1,7 +1,7 @@
-import type { JourneyEvent, Lead, Vehicle } from "@vandlabs/contracts";
+import { requireCapability, type AuthenticatedPrincipal, type JourneyEvent, type Lead, type Vehicle } from "@vandlabs/contracts";
 import { capitalReport } from "./capital";
 import { InputError } from "./errors";
-import type { Snapshot } from "./index";
+import { staffSnapshot, type Snapshot } from "./index";
 
 // Dead-stock intelligence: deterministic, explainable rules over the dealership's own
 // records. It never computes a new price, invents market demand or acts on its own.
@@ -19,6 +19,17 @@ export interface DeadStockPolicy {
 }
 
 export const defaultDeadStockPolicy: DeadStockPolicy = { bandLimits: [30, 60, 90], lookbackDays: 30, minViews: 10, priceReviewAfterDays: 21 };
+
+/**
+ * What the caller's role may see. Staff snapshots omit leads without lead:read, limit them to
+ * assigned leads for assigned-only sales staff, and omit costs without capital:read. Withheld
+ * evidence is reported as unavailable, never as zero.
+ */
+export interface DeadStockAccess { enquiries: "all" | "assigned" | "unavailable"; capital: boolean }
+export const fullDeadStockAccess: DeadStockAccess = { enquiries: "all", capital: true };
+export function deadStockAccess(p: Pick<AuthenticatedPrincipal, "capabilities" | "assignedLeadOnly">): DeadStockAccess {
+  return { enquiries: !p.capabilities.includes("lead:read") ? "unavailable" : p.assignedLeadOnly ? "assigned" : "all", capital: p.capabilities.includes("capital:read") };
+}
 
 export type DeadStockAction = "inspect" | "publish" | "promote" | "review_price" | "follow_up";
 export type AgeBasis = "acquisition" | "listing" | "unknown";
@@ -42,16 +53,17 @@ export function bandLabels(policy: DeadStockPolicy = defaultDeadStockPolicy) {
 const within = (iso: string, from: number, to: number) => { const t = Date.parse(iso); return Number.isFinite(t) && t >= from && t <= to; };
 const concerns = (lead: Lead, vehicleId: string) => lead.vehicleId === vehicleId || (lead.vehicleIds ?? []).includes(vehicleId);
 
-export function deadStockReport(snapshot: Pick<Snapshot, "vehicles" | "leads" | "events" | "costs" | "sales" | "inventoryHistory">, asOf = new Date(), policy: DeadStockPolicy = defaultDeadStockPolicy) {
+export function deadStockReport(snapshot: Pick<Snapshot, "vehicles" | "leads" | "events" | "costs" | "sales" | "inventoryHistory">, asOf = new Date(), policy: DeadStockPolicy = defaultDeadStockPolicy, access: DeadStockAccess = fullDeadStockAccess) {
   const now = asOf.getTime();
   if (!Number.isFinite(now)) throw new InputError("Invalid report date.");
   validateDeadStockPolicy(policy);
   const labels = bandLabels(policy);
   const windowStart = now - policy.lookbackDays * DAY;
-  const capital = capitalReport(snapshot.vehicles, snapshot.costs ?? [], snapshot.sales ?? [], asOf);
+  const showCapital = access.capital && snapshot.costs !== undefined, showEnquiries = access.enquiries !== "unavailable";
+  const capital = capitalReport(snapshot.vehicles, showCapital ? snapshot.costs! : [], snapshot.sales ?? [], asOf);
 
-  const rows = snapshot.vehicles.flatMap((vehicle: Vehicle) => {
-    const economics = capital.rows.find(r => r.vehicleId === vehicle.id)!;
+  const rows = snapshot.vehicles.flatMap((vehicle: Vehicle, index) => {
+    const economics = capital.rows[index]; // capitalReport keeps vehicle order; ids are not unique across tenants
     if (!economics.active) return []; // sold stock is not dead stock
     const created = Date.parse(vehicle.createdAt);
     const listingAge = Number.isFinite(created) && created <= now ? indiaDay(now) - indiaDay(created) : null;
@@ -60,9 +72,9 @@ export function deadStockReport(snapshot: Pick<Snapshot, "vehicles" | "leads" | 
 
     const sameTenant = <T extends { tenantId: string }>(r: T) => r.tenantId === vehicle.tenantId;
     const views = snapshot.events.filter((e: JourneyEvent) => sameTenant(e) && e.vehicleId === vehicle.id && e.type === "vehicle_view" && within(e.occurredAt, windowStart, now)).length;
-    const vehicleLeads = snapshot.leads.filter(l => sameTenant(l) && concerns(l, vehicle.id));
-    const enquiries = vehicleLeads.filter(l => within(l.createdAt, windowStart, now)).length;
-    const openLeads = vehicleLeads.filter(l => !["won", "lost"].includes(l.stage)).length;
+    const vehicleLeads = showEnquiries ? snapshot.leads.filter(l => sameTenant(l) && concerns(l, vehicle.id)) : null;
+    const enquiries = vehicleLeads && vehicleLeads.filter(l => within(l.createdAt, windowStart, now)).length;
+    const openLeads = vehicleLeads && vehicleLeads.filter(l => !["won", "lost"].includes(l.stage)).length;
     const priceChanges = (snapshot.inventoryHistory ?? []).filter(h => sameTenant(h) && h.vehicleId === vehicle.id && h.before.price !== h.after.price && Date.parse(h.occurredAt) <= now);
     const lastPriceChange = priceChanges.map(h => h.occurredAt).sort().at(-1) ?? null;
     const daysSincePrice = lastPriceChange ? Math.floor((now - Date.parse(lastPriceChange)) / DAY) : null;
@@ -78,24 +90,26 @@ export function deadStockReport(snapshot: Pick<Snapshot, "vehicles" | "leads" | 
     if (issues.length) recommendations.push({ action: "inspect", reason: "Listing record is incomplete", evidence: issues });
     if (aged && vehicle.publishStatus !== "published" && !reserved) recommendations.push({ action: "publish", reason: "Aged stock is not published", evidence: [`${ageDays} days in stock (${ageBasis} date)`, `Publish status: ${vehicle.publishStatus}`] });
     if (aged && !reserved && vehicle.publishStatus === "published" && views < policy.minViews) recommendations.push({ action: "promote", reason: "Low visibility in the activity window", evidence: [`${views} vehicle views in ${policy.lookbackDays} days (threshold ${policy.minViews})`] });
-    if (aged && !reserved && views >= policy.minViews && enquiries === 0 && (daysSincePrice === null || daysSincePrice >= policy.priceReviewAfterDays))
+    // "No enquiries" is only evidence when every enquiry for the dealership is visible.
+    if (aged && !reserved && access.enquiries === "all" && views >= policy.minViews && enquiries === 0 && (daysSincePrice === null || daysSincePrice >= policy.priceReviewAfterDays))
       recommendations.push({ action: "review_price", reason: "Viewed but not enquired about", evidence: [`${views} views and 0 enquiries in ${policy.lookbackDays} days`, lastPriceChange ? `Last price change ${daysSincePrice} days ago` : "No recorded price change", "Compare against permitted market evidence before changing price"] });
-    if (openLeads > 0 && aged) recommendations.push({ action: "follow_up", reason: "Open enquiries on aged stock", evidence: [`${openLeads} open ${openLeads === 1 ? "enquiry" : "enquiries"}`] });
+    if (openLeads && aged) recommendations.push({ action: "follow_up", reason: "Open enquiries on aged stock", evidence: [`${openLeads} open ${access.enquiries === "assigned" ? "assigned " : ""}${openLeads === 1 ? "enquiry" : "enquiries"}`] });
 
     return [{ vehicleId: vehicle.id, stockId: vehicle.stockId, label: `${vehicle.year} ${vehicle.make} ${vehicle.model}`.trim(), locationId: vehicle.locationId,
       status: vehicle.availabilityStatus, ageDays, ageBasis, band: band === null ? null : labels[band], views, enquiries, openLeads, lastPriceChange,
-      capitalLocked: economics.costBasis, recommendations, reviewRequired: true as const }];
+      capitalLocked: showCapital ? economics.costBasis : null, recommendations, reviewRequired: true as const }];
   });
 
   const bands = labels.map(label => {
     const inBand = rows.filter(r => r.band === label), costed = inBand.filter(r => r.capitalLocked !== null);
+    if (!showCapital) return { label, vehicles: inBand.length, recordedCapital: null, costCoverage: null };
     const cents = costed.reduce((sum, r) => sum + Math.round(r.capitalLocked! * 100), 0);
     if (!Number.isSafeInteger(cents)) throw new InputError("Report amounts exceed safe precision.");
     return { label, vehicles: inBand.length, recordedCapital: cents / 100, costCoverage: `${costed.length}/${inBand.length}` };
   });
 
   return {
-    version: "dead-stock-rules-v1", asOf: asOf.toISOString(), policy,
+    version: "dead-stock-rules-v1", asOf: asOf.toISOString(), policy, access,
     bands, unknownAge: rows.filter(r => r.band === null).length,
     vehicles: rows.sort((x, y) => (y.ageDays ?? -1) - (x.ageDays ?? -1)),
     assumptions: [
@@ -107,6 +121,15 @@ export function deadStockReport(snapshot: Pick<Snapshot, "vehicles" | "leads" | 
     unavailable: [
       "Transfer recommendations: no permitted cross-location demand evidence is connected.",
       "Market-relative pricing: requires licensed comparable asking-price evidence.",
+      ...(showCapital ? [] : ["Recorded capital and acquisition dates: requires capital access; ages use the listing date."]),
+      ...(access.enquiries === "unavailable" ? ["Enquiries and follow-ups: requires CRM access; price reviews are not suggested without enquiry evidence."] : []),
+      ...(access.enquiries === "assigned" ? ["Enquiry counts cover only leads assigned to you; price reviews are not suggested from partial enquiry evidence."] : []),
     ],
   };
+}
+
+/** Tenant-scoped report for the signed-in staff member, limited to evidence their role may see. */
+export async function staffDeadStock(p: AuthenticatedPrincipal, asOf = new Date(), policy: DeadStockPolicy = defaultDeadStockPolicy) {
+  for (const capability of ["inventory:read", "analytics:read"] as const) requireCapability(p, capability);
+  return deadStockReport(await staffSnapshot(p), asOf, policy, deadStockAccess(p));
 }

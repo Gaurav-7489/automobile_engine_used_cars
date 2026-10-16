@@ -40,13 +40,29 @@ reprice. Every row has `reviewRequired: true`.
 
 ## Access
 
-`GET /command/api/dead-stock` requires `inventory:read` and `analytics:read`,
-uses the tenant-scoped staff snapshot and responds `private, no-store`.
+`GET /command/api/dead-stock` calls `staffDeadStock(principal)`, which requires
+`inventory:read` and `analytics:read`, uses the tenant-scoped staff snapshot and
+responds `private, no-store`. API routes bypass the page middleware, so this check
+is the route's authorization.
+
+The report only uses evidence the caller's role may see (`access` in the response):
+
+| Role evidence | Effect |
+|---|---|
+| No `capital:read` (sales, marketing, manager) | `capitalLocked`, `recordedCapital` and `costCoverage` are `null`; ages use the listing date so acquisition dates are not disclosed |
+| No `lead:read` (acquisition, marketing) | `enquiries` and `openLeads` are `null`; no `review_price` or `follow_up` prompts |
+| Assigned-only sales staff | Counts cover assigned leads only; `follow_up` allowed, `review_price` suppressed |
+
+Withheld evidence is listed under `unavailable`, never reported as zero. Capital is
+matched to each vehicle record rather than by id, and `capitalReport` ignores cost
+and sale records from another tenant.
 
 ## Evidence
 
 `tests/intelligence/dead-stock.test.ts` covers band boundaries by calendar day,
 acquisition-vs-listing basis, capital exclusion of missing costs, sold/reserved
 handling, each recommendation trigger, recent price changes, the activity window,
-other-tenant isolation and policy validation. The CI Quality Gate is the release
+other-tenant isolation (activity, costs and reused vehicle ids), role-limited
+evidence for owner, sales, acquisition and marketing staff, capability rejection
+and policy validation. The CI Quality Gate is the release
 evidence; UI and live acceptance remain open.
