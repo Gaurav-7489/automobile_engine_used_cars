@@ -1,5 +1,6 @@
 import { appendFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
+import { dealerAIConfiguration } from "./service-config.mjs";
 
 const baseSecrets = ["DATABASE_URL", "TENANT_CONFIG_JSON", "SESSION_SECRET"];
 const oidcSecrets = [ "OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL", "OIDC_CLIENT_ID", "OIDC_AUTHORIZE_URL", "OIDC_TOKEN_URL", "OIDC_REVOKE_URL"];
@@ -44,6 +45,7 @@ export async function preflight(env, request = fetch) {
       }
     }
   }
+  checks.push(dealerAIConfiguration(env));
   const credentialsReady = !checks.some(c => c.status === "failed");
   return { credentialsReady, runtimeConfigured: missing.length === 0, missing, checks,
     deploymentAccepted: false, note: "Read-only checks cannot prove deployment/edit permissions, MFA, database connectivity or production acceptance." };

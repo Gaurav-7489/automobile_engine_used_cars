@@ -1,13 +1,19 @@
+import { timingSafeEqual } from "node:crypto";
+
 export default {
   async fetch(request, env) {
     const headers = { "Cache-Control": "private, no-store", "Content-Type": "application/json" };
     const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers });
     if (request.method !== "POST" || new URL(request.url).pathname !== "/explain") return reply({ error: "Not found" }, 404);
     const supplied = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(request.headers.get("authorization") || "")?.[1];
-    if (!supplied || !env.SERVICE_TOKEN) return reply({ error: "Unauthorized" }, 401);
+    if (!supplied || !/^[A-Za-z0-9_-]{43}$/.test(env.SERVICE_TOKEN || "")) return reply({ error: "Unauthorized" }, 401);
     const encoder = new TextEncoder();
-    const [a, b] = await Promise.all([crypto.subtle.digest("SHA-256", encoder.encode(supplied)), crypto.subtle.digest("SHA-256", encoder.encode(env.SERVICE_TOKEN))]);
-    if (!crypto.subtle.timingSafeEqual(a, b)) return reply({ error: "Unauthorized" }, 401);
+    // Temporary overlap allows callers to roll forward without invalidating the
+    // current credential. Remove SERVICE_TOKEN_NEXT after promotion and drain.
+    const next = /^[A-Za-z0-9_-]{43}$/.test(env.SERVICE_TOKEN_NEXT || "") ? env.SERVICE_TOKEN_NEXT : env.SERVICE_TOKEN;
+    const [a, b, c] = await Promise.all([supplied, env.SERVICE_TOKEN, next].map(value => crypto.subtle.digest("SHA-256", encoder.encode(value))));
+    const currentMatches = timingSafeEqual(a, b), nextMatches = timingSafeEqual(a, c);
+    if (!currentMatches && !nextMatches) return reply({ error: "Unauthorized" }, 401);
     try {
       if (!request.body) return reply({ error: "Invalid request" }, 400);
       const reader = request.body.getReader(), chunks = []; let size = 0;
