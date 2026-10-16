@@ -1,6 +1,6 @@
 # Temporary Vercel preview
 
-Vercel is a temporary hosting target explicitly requested by the user. The approved AWS data/authentication architecture remains authoritative.
+Vercel is the retained reference/demo host. The target application hosting is Cloudflare Workers with Neon PostgreSQL and private R2 storage, as described in [Cloudflare staging](CLOUDFLARE_STAGING.md). Staff identity must use the existing supported OIDC or Cognito adapter; the Cognito identity-only stack is prepared but not provisioned. Historical Aurora instructions below describe the earlier adapter, not the current cutover target. See the [16 October infrastructure audit](INFRASTRUCTURE_AUDIT_2026-10-16.md) for verified provider state and release blockers.
 
 Three independent Next.js projects share this repository:
 

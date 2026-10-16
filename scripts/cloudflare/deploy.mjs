@@ -1,9 +1,11 @@
 import {spawn} from "node:child_process";
 import {readFile} from "node:fs/promises";
+import {serviceSecrets, dealerAIConfiguration} from "./service-config.mjs";
 function run(command,args,cwd=".",input) {
  return new Promise((resolve,reject)=>{const child=spawn(command,args,{cwd,env:process.env,stdio:[input?"pipe":"inherit","inherit","inherit"]});if(input)child.stdin.end(input);child.on("error",reject);child.on("exit",code=>code===0?resolve():reject(new Error(`${command} failed (${code})`)));});
 }
 const gateway=JSON.parse(await readFile("infra/cloudflare/wrangler.jsonc","utf8"));
+if(dealerAIConfiguration(process.env).status === "failed")throw new Error("Configure both Dealer AI variables with an HTTPS /explain endpoint and a 43-character service credential, or omit both.");
 if((!gateway.routes?.length && !gateway.workers_dev) || gateway.vars.PUBLIC_ORIGIN.includes(".example"))throw new Error("Run pnpm cf:configure with the deployment origin first.");
 if(!process.env.CLOUDFLARE_API_TOKEN)throw new Error("Provide a scoped CLOUDFLARE_API_TOKEN through the secret store.");
 const app=JSON.parse(await readFile("apps/web/wrangler.jsonc","utf8"));
@@ -34,7 +36,8 @@ if(process.env.AUTH_MODE === "cognito" && !secrets.COGNITO_CLIENT_IDS && secrets
 for(const name of ["web","command-center","platform"]) {
  const cwd=`apps/${name}`;
  await run("pnpm",["cf:deploy"],cwd);
- if(Object.keys(secrets).length)await run("pnpm",["exec","wrangler","secret","bulk"],cwd,JSON.stringify(secrets));
+ const selected=serviceSecrets(name,secrets);
+ if(Object.keys(selected).length)await run("pnpm",["exec","wrangler","secret","bulk"],cwd,JSON.stringify(selected));
 }
 await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/wrangler.jsonc"]);
 if(process.env.NOTIFICATIONS_ENABLED === "true") {
