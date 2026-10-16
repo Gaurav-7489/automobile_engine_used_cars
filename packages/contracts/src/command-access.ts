@@ -26,7 +26,10 @@ export function commandCapabilities(path: string): readonly Capability[] {
   const local = path === "/command" ? "/" : path.startsWith("/command/") ? path.slice(8) : path;
   const section = commandSections.find(s => s.path === "/" ? local === "/" : local === s.path || local.startsWith(s.path + "/"));
   // The root page performs a role-specific redirect for staff without CRM access.
-  return ["inventory:read", "analytics:read", ...(local === "/" ? [] : section?.capabilities ?? [])];
+  if (local === "/") return ["inventory:read", "analytics:read"];
+  // Unmapped paths keep the pre-role-isolation baseline. A new page must be added to
+  // commandSections before narrower roles can reach it; never default to open.
+  return ["inventory:read", "analytics:read", ...(section?.capabilities ?? ["lead:read"])];
 }
 export function commandNavigation(principal: AuthenticatedPrincipal) {
   if (!(["inventory:read", "analytics:read"] as const).every(cap => principal.capabilities.includes(cap))) return [];
