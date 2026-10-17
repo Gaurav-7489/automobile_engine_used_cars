@@ -28,3 +28,12 @@ test("menu visibility and page policy agree, including nested and encoded paths"
   const sales = principal("sales"); assert.equal(sales.assignedLeadOnly,true);
   assert.ok(!commandNavigation(sales).some(([name]) => name === "Capital" || name === "Business API"));
 });
+
+test("unmapped command paths fail closed for roles without CRM access", () => {
+  for (const role of ["acquisition","marketing"] as const) {
+    const p = principal(role);
+    for (const path of ["/command/unlisted", "/command//leads", "/command/Leads", "/command/leads%2f..%2fmarket"]) assert.throws(() => requireCommandPage(p,path),AuthorizationError,`${role} ${path}`);
+  }
+  requireCommandPage(principal("owner"),"/command/unlisted");
+  assert.deepEqual(commandCapabilities("/command"),["inventory:read","analytics:read"]);
+});
