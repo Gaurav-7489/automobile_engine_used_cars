@@ -42,6 +42,10 @@ test("staging configuration isolates every Worker, service binding, media/cache 
       const command = await json("apps/command-center/wrangler.jsonc");
       assert.deepEqual(command.services.find((b: { binding: string }) => b.binding === "DEALER_AI"), { binding: "DEALER_AI", service: `${prefix}-dealer-ai` });
       for (const app of ["web", "platform"]) assert.ok(!(await json(`apps/${app}/wrangler.jsonc`)).services.some((b: { binding: string }) => b.binding === "DEALER_AI"), app);
+      const web = await json("apps/web/wrangler.jsonc");
+      assert.deepEqual(web.services.find((b: { binding: string }) => b.binding === "DISCOVERY_AI"), { binding: "DISCOVERY_AI", service: `${prefix}-dealer-ai` }, "buyer search reaches its own environment's AI Worker");
+      assert.equal(web.vars.DISCOVERY_AI_ENABLED, "false", "buyer AI summaries stay off unless the owner enables them");
+      for (const app of ["command-center", "platform"]) assert.ok(!(await json(`apps/${app}/wrangler.jsonc`)).services.some((b: { binding: string }) => b.binding === "DISCOVERY_AI"), app);
     }
     const publicAi = spawnSync(process.execPath, [resolve("scripts/cloudflare/configure.mjs")], { cwd: directory, encoding: "utf8", env: { ...process.env, CF_ENVIRONMENT: "staging", CF_SHARED_DATA: "false", CF_PUBLIC_ORIGIN: "https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev", SEO_INDEXABLE: "false", DEALER_AI_PUBLIC: "true" } });
     assert.equal(publicAi.status, 0, publicAi.stderr);
@@ -84,12 +88,17 @@ test("deploy rejects Dealer AI tokens the Worker could never accept, before any 
     for (const file of ["infra/cloudflare/wrangler.jsonc", "apps/web/wrangler.jsonc"]) { await mkdir(dirname(join(directory, file)), { recursive: true }); await copyFile(file, join(directory, file)); }
     const deploy = (env: Record<string, string>) => spawnSync(process.execPath, [resolve("scripts/cloudflare/deploy.mjs")], { cwd: directory, encoding: "utf8", env: { PATH: process.env.PATH ?? "", CLOUDFLARE_API_TOKEN: "test-token-not-used", ...env } });
     const valid = "A".repeat(43);
-    for (const env of [{ DEALER_AI_SERVICE_TOKEN: "test" }, { DEALER_AI_SERVICE_TOKEN: valid, DEALER_AI_SERVICE_TOKEN_ALTERNATE: "A".repeat(44) }, { DEALER_AI_SERVICE_TOKEN: valid.slice(1) + "=" }]) {
+    for (const env of [{ DEALER_AI_SERVICE_TOKEN: "test" }, { DEALER_AI_SERVICE_TOKEN: valid, DEALER_AI_SERVICE_TOKEN_ALTERNATE: "A".repeat(44) }, { DEALER_AI_SERVICE_TOKEN: valid.slice(1) + "=" }, { DISCOVERY_AI_SERVICE_TOKEN: "test" }]) {
       const result = deploy(env);
       assert.equal(result.status, 1); assert.match(result.stderr, /must be 32 random bytes encoded as base64url/);
       assert.ok(!result.stderr.includes(valid), "token values are never echoed");
     }
     const orphan = deploy({ DEALER_AI_SERVICE_TOKEN_ALTERNATE: valid });
     assert.equal(orphan.status, 1); assert.match(orphan.stderr, /ALTERNATE requires DEALER_AI_SERVICE_TOKEN/);
+    const discoveryOrphan = deploy({ DISCOVERY_AI_SERVICE_TOKEN_ALTERNATE: valid });
+    assert.equal(discoveryOrphan.status, 1); assert.match(discoveryOrphan.stderr, /ALTERNATE requires DISCOVERY_AI_SERVICE_TOKEN/);
+    const shared = deploy({ DEALER_AI_SERVICE_TOKEN: valid, DISCOVERY_AI_SERVICE_TOKEN: valid });
+    assert.equal(shared.status, 1); assert.match(shared.stderr, /different token for buyer discovery/);
+    assert.ok(!shared.stderr.includes(valid));
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

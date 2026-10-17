@@ -17,6 +17,10 @@
     {
       "binding": "WORKER_SELF_REFERENCE",
       "service": "vandlabs-web"
+    },
+    {
+      "binding": "DISCOVERY_AI",
+      "service": "vandlabs-dealer-ai"
     }
   ],
   "r2_buckets": [

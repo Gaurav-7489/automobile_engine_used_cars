@@ -8,8 +8,10 @@ if((!gateway.routes?.length && !gateway.workers_dev) || gateway.vars.PUBLIC_ORIG
 if(!process.env.CLOUDFLARE_API_TOKEN)throw new Error("Provide a scoped CLOUDFLARE_API_TOKEN through the secret store.");
 // The Dealer AI Worker accepts only 43-character base64url bearer tokens (32 random bytes).
 const aiToken=/^[A-Za-z0-9_-]{43}$/;
-for(const key of ["DEALER_AI_SERVICE_TOKEN","DEALER_AI_SERVICE_TOKEN_ALTERNATE"])if(process.env[key]&&!aiToken.test(process.env[key]))throw new Error(`${key} must be 32 random bytes encoded as base64url (43 characters).`);
+for(const key of ["DEALER_AI_SERVICE_TOKEN","DEALER_AI_SERVICE_TOKEN_ALTERNATE","DISCOVERY_AI_SERVICE_TOKEN","DISCOVERY_AI_SERVICE_TOKEN_ALTERNATE"])if(process.env[key]&&!aiToken.test(process.env[key]))throw new Error(`${key} must be 32 random bytes encoded as base64url (43 characters).`);
 if(process.env.DEALER_AI_SERVICE_TOKEN_ALTERNATE&&!process.env.DEALER_AI_SERVICE_TOKEN)throw new Error("DEALER_AI_SERVICE_TOKEN_ALTERNATE requires DEALER_AI_SERVICE_TOKEN.");
+if(process.env.DISCOVERY_AI_SERVICE_TOKEN_ALTERNATE&&!process.env.DISCOVERY_AI_SERVICE_TOKEN)throw new Error("DISCOVERY_AI_SERVICE_TOKEN_ALTERNATE requires DISCOVERY_AI_SERVICE_TOKEN.");
+if(process.env.DISCOVERY_AI_SERVICE_TOKEN&&process.env.DISCOVERY_AI_SERVICE_TOKEN===process.env.DEALER_AI_SERVICE_TOKEN)throw new Error("Use a different token for buyer discovery and dealer commentary.");
 const app=JSON.parse(await readFile("apps/web/wrangler.jsonc","utf8"));
 if(app.vars.DATA_MODE === "neon") {
  await run("pnpm",["deployment:doctor","web","--probe"]);
@@ -35,13 +37,15 @@ await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/admiss
 // Deploy Dealer AI before the Command Center binds to it. Its accepted tokens come from the same
 // secrets the callers use; the alternate is accepted only while a rotation is in progress.
 await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/dealer-ai/wrangler.jsonc"]);
-if(process.env.DEALER_AI_SERVICE_TOKEN)await run("pnpm",["exec","wrangler","secret","bulk","--config","infra/cloudflare/dealer-ai/wrangler.jsonc"],".",JSON.stringify({SERVICE_TOKEN:process.env.DEALER_AI_SERVICE_TOKEN,SERVICE_TOKEN_ALTERNATE:process.env.DEALER_AI_SERVICE_TOKEN_ALTERNATE||"retired"}));
-const secretKeys=["COGNITO_DOMAIN","COGNITO_USER_POOL_ID","COGNITO_CLIENT_ID","COGNITO_CLIENT_IDS","COGNITO_DESKTOP_CLIENT_ID","DATABASE_URL","TENANT_CONFIG_JSON","SESSION_SECRET","AUTH_PRINCIPALS_JSON","AUTH_REGISTRY_MODE","OIDC_ISSUER","OIDC_AUDIENCE","OIDC_JWKS_URL","OIDC_CLIENT_ID","OIDC_AUTHORIZE_URL","OIDC_TOKEN_URL","OIDC_REVOKE_URL","OIDC_DESKTOP_CLIENT_ID","OIDC_RESOURCE","GOOGLE_SITE_VERIFICATION","DEALER_AI_URL","DEALER_AI_SERVICE_TOKEN","VANDLABS_FEEDS_JSON","VANDLABS_FEED_TOKENS_JSON","RESEND_API_KEY","NOTIFICATION_FROM","NOTIFICATION_TO"];
+// Route-scoped credentials: the dealer token unlocks /explain only, the discovery token /discover only.
+const aiSecrets={...(process.env.DEALER_AI_SERVICE_TOKEN?{SERVICE_TOKEN:process.env.DEALER_AI_SERVICE_TOKEN,SERVICE_TOKEN_ALTERNATE:process.env.DEALER_AI_SERVICE_TOKEN_ALTERNATE||"retired"}:{}),...(process.env.DISCOVERY_AI_SERVICE_TOKEN?{DISCOVERY_TOKEN:process.env.DISCOVERY_AI_SERVICE_TOKEN,DISCOVERY_TOKEN_ALTERNATE:process.env.DISCOVERY_AI_SERVICE_TOKEN_ALTERNATE||"retired"}:{})};
+if(Object.keys(aiSecrets).length)await run("pnpm",["exec","wrangler","secret","bulk","--config","infra/cloudflare/dealer-ai/wrangler.jsonc"],".",JSON.stringify(aiSecrets));
+const secretKeys=["COGNITO_DOMAIN","COGNITO_USER_POOL_ID","COGNITO_CLIENT_ID","COGNITO_CLIENT_IDS","COGNITO_DESKTOP_CLIENT_ID","DATABASE_URL","TENANT_CONFIG_JSON","SESSION_SECRET","AUTH_PRINCIPALS_JSON","AUTH_REGISTRY_MODE","OIDC_ISSUER","OIDC_AUDIENCE","OIDC_JWKS_URL","OIDC_CLIENT_ID","OIDC_AUTHORIZE_URL","OIDC_TOKEN_URL","OIDC_REVOKE_URL","OIDC_DESKTOP_CLIENT_ID","OIDC_RESOURCE","GOOGLE_SITE_VERIFICATION","DEALER_AI_URL","DEALER_AI_SERVICE_TOKEN","DISCOVERY_AI_SERVICE_TOKEN","VANDLABS_FEEDS_JSON","VANDLABS_FEED_TOKENS_JSON","RESEND_API_KEY","NOTIFICATION_FROM","NOTIFICATION_TO"];
 const secrets=Object.fromEntries(secretKeys.filter(key=>process.env[key]).map(key=>[key,process.env[key]]));
 if(process.env.AUTH_MODE === "cognito" && !secrets.COGNITO_CLIENT_IDS && secrets.COGNITO_CLIENT_ID && secrets.COGNITO_DESKTOP_CLIENT_ID)secrets.COGNITO_CLIENT_IDS=[secrets.COGNITO_CLIENT_ID,secrets.COGNITO_DESKTOP_CLIENT_ID].join(",");
-const commandOnly=new Set(["DEALER_AI_URL","DEALER_AI_SERVICE_TOKEN"]);
+const commandOnly=new Set(["DEALER_AI_URL","DEALER_AI_SERVICE_TOKEN"]),webOnly=new Set(["DISCOVERY_AI_SERVICE_TOKEN"]);
 for(const name of ["web","command-center","platform"]) {
- const cwd=`apps/${name}`,appSecrets=Object.fromEntries(Object.entries(secrets).filter(([key])=>name==="command-center"||!commandOnly.has(key)));
+ const cwd=`apps/${name}`,appSecrets=Object.fromEntries(Object.entries(secrets).filter(([key])=>(name==="command-center"||!commandOnly.has(key))&&(name==="web"||!webOnly.has(key))));
  await run("pnpm",["cf:deploy"],cwd);
  if(Object.keys(appSecrets).length)await run("pnpm",["exec","wrangler","secret","bulk"],cwd,JSON.stringify(appSecrets));
 }

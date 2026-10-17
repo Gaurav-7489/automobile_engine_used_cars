@@ -28,10 +28,10 @@ for(const name of ["web","command-center","platform"]) {
   const path=`apps/${name}/wrangler.jsonc`, config=JSON.parse(await readFile(path,"utf8"));
   config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
   config.name=resource(name);
-  for(const binding of config.services ?? [])if(binding.binding==="WORKER_SELF_REFERENCE")binding.service=config.name;else if(binding.binding==="DEALER_AI")binding.service=resource("dealer-ai");
+  for(const binding of config.services ?? [])if(binding.binding==="WORKER_SELF_REFERENCE")binding.service=config.name;else if(binding.binding==="DEALER_AI"||binding.binding==="DISCOVERY_AI")binding.service=resource("dealer-ai");
   for(const binding of config.durable_objects?.bindings ?? [])if(binding.name==="ADMISSION")binding.script_name=resource("admission");
   for(const binding of config.r2_buckets ?? [])binding.bucket_name=resource(binding.binding==="VEHICLE_MEDIA"?"vehicle-media":`${name}-cache`);
-  config.vars={...config.vars,DEPLOYMENT_ENVIRONMENT:target,APP_ORIGIN:origin,SITE_ORIGIN:origin,DATA_MODE:shared?"neon":"demo",AUTH_MODE:shared?authMode:"demo",NEXT_PUBLIC_PREVIEW_READ_ONLY:shared?"false":"true",SEO_INDEXABLE:target==="staging"?"false":process.env.SEO_INDEXABLE ?? "false",NOTIFICATIONS_ENABLED:process.env.NOTIFICATIONS_ENABLED ?? "false"};
+  config.vars={...config.vars,DEPLOYMENT_ENVIRONMENT:target,APP_ORIGIN:origin,SITE_ORIGIN:origin,DATA_MODE:shared?"neon":"demo",AUTH_MODE:shared?authMode:"demo",NEXT_PUBLIC_PREVIEW_READ_ONLY:shared?"false":"true",SEO_INDEXABLE:target==="staging"?"false":process.env.SEO_INDEXABLE ?? "false",NOTIFICATIONS_ENABLED:process.env.NOTIFICATIONS_ENABLED ?? "false",...(name==="web"?{DISCOVERY_AI_ENABLED:process.env.DISCOVERY_AI_ENABLED==="true"?"true":"false"}:{})};
   await writeFile(path,JSON.stringify(config,null,2)+"\n");
 }
 const path="infra/cloudflare/wrangler.jsonc",config=JSON.parse(await readFile(path,"utf8"));

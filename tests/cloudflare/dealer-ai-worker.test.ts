@@ -26,3 +26,28 @@ test("the worker rejects missing, malformed and placeholder tokens with 401, nev
   }
   assert.equal((await worker.fetch(new Request("https://dealer-ai.internal/other", { method: "POST" }), { AI: ai, SERVICE_TOKEN: current })).status, 404);
 });
+
+const discovery = "d".repeat(43);
+const search = { query: ["SUV under 40 lakh"], understood: ["SUV", "Up to ₹40 lakh"], notes: [], demo: true, cars: [{ ref: "A", name: "2023 Jeep Meridian", matches: ["SUV"], strengths: ["7 seats recorded"], checks: ["Fuel economy isn't recorded — confirm it with the dealer."] }] };
+const ask = (path: string, env: Record<string, unknown>, bearer: string, body: unknown = search) => worker.fetch(new Request(`https://dealer-ai.internal${path}`, { method: "POST", headers: { authorization: `Bearer ${bearer}` }, body: JSON.stringify(body) }), env);
+
+test("buyer discovery and dealer commentary are separate credentials and routes", async () => {
+  const prompts: string[] = [];
+  const recorder = { run: async (_model: string, input: { messages: { role: string; content: string }[] }) => { prompts.push(input.messages[0].content); return { response: "Grounded summary." }; } };
+  const env = { AI: recorder, SERVICE_TOKEN: current, DISCOVERY_TOKEN: discovery };
+  assert.equal((await ask("/discover", env, discovery)).status, 200);
+  assert.match(prompts.at(-1)!, /Do not write any other numbers/);
+  assert.equal((await ask("/discover", env, current)).status, 401, "the dealer token cannot drive buyer search");
+  assert.equal((await ask("/explain", env, discovery, { options: [] })).status, 401, "the public website token cannot request dealer commentary");
+  assert.equal((await ask("/discover", { AI: recorder, SERVICE_TOKEN: current }, discovery)).status, 401, "discovery is off until its own token exists");
+  assert.equal((await ask("/discover", { ...env, DISCOVERY_TOKEN_ALTERNATE: "n".repeat(43) }, "n".repeat(43))).status, 200, "rotation overlap");
+});
+
+test("buyer discovery accepts only bounded, well-formed summaries of shown cars", async () => {
+  const env = { AI: ai, DISCOVERY_TOKEN: discovery };
+  for (const body of [{ ...search, cars: [] }, { ...search, cars: Array(4).fill(search.cars[0]) }, { ...search, demo: "yes" }, { ...search, query: ["x".repeat(301)] }, { ...search, cars: [{ ...search.cars[0], matches: "SUV" }] }])
+    assert.equal((await ask("/discover", env, discovery, body)).status, 400);
+  const large = await ask("/discover", env, discovery, { ...search, notes: ["x".repeat(9000)] });
+  assert.equal(large.status, 413);
+  assert.deepEqual(await (await ask("/discover", env, discovery)).json(), { text: "Commentary.", model: "@cf/meta/llama-3.1-8b-instruct-fast" });
+});
