@@ -51,3 +51,25 @@ Platform runtime screens no longer invent zero AI spend, zero job failures or st
 The PR's exact-commit Quality Gate is the release evidence. Tests cover permission isolation, hidden financial payloads, audit rollback, stale writes, date boundaries, holding estimates and capital/contribution calculations; browser tests cover verified entry/amendment and mobile layout. No reference acquisition prices are seeded.
 
 This is a versioned stock-cost register, not a full general ledger: tax/accounting treatment, expense transactions, financing, reversals, configurable age policies, full staff administration and operational control-plane services remain unfinished. Staging still requires the AWS account/identity, approved expected spend, Aurora/Cognito configuration and recovery/customer acceptance.
+
+## Contribution ratios and calculation-date boundaries
+
+The report matches cost/sale records to both vehicle and tenant. A sale later
+than the calculation timestamp contributes no realized amount. Acquisition dates
+later than the calculation's India business date contribute no cost basis. A
+confirmed sale takes precedence over a conflicting current stock-status label.
+Sold stock has no unrealized asking spread.
+
+Recorded contribution = sale revenue minus recorded cost basis. Contribution
+margin = contribution / sale revenue × 100. Return on recorded cost = contribution
+/ recorded cost basis × 100. Both ratios are rounded to two decimal places and
+remain unknown when their denominators/evidence are unavailable. They do not
+include unrecorded selling expenses, taxes, financing or overhead and are not net
+profit. The separate contribution-after-estimated-holding deducts the operator's
+holding-cost assumption; it remains unknown without that assumption and is not
+an actual booked expense or realized net-profit figure.
+
+This uses current cost and asking-price records. Excluding future transactions
+is a calculation boundary, not certification of a historical ledger snapshot.
+Full expense categories, cash movements and historical reconstruction remain
+release work; do not interpret missing historical costs as zero.
