@@ -8,7 +8,7 @@ test("responsive menus preserve route state, keyboard dismissal and mobile sign-
   for (const width of [375, 820, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const [name, path, next, menu, mobileNav] of [
-      ["public", "/inventory", "/compare", "Website menu", "Primary mobile"],
+      ["public", "/inventory", "/saved", "Website menu", "Primary mobile"],
       ["dealer", command + "/inventory", command + "/leads", "Command Center menu", "Command Center mobile"],
       ["platform", platform + "/health", platform + "/staff", "Platform menu", "Platform mobile"],
     ]) {

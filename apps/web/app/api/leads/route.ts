@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { LeadIntent, AttributionTouch } from "@vandlabs/contracts";
 import { tenantConfig, createLead, publicInventory, InputError } from "@vandlabs/data";
+import { discoveryContext } from "@vandlabs/data/discovery";
 
 import { limitPublicRequest, publicOriginFailure, publicJson } from "../../../lib/public-request";
 import { isReadOnlyPreview } from "../../../lib/hosting";
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
     notes?: string;
     whatsappConsent?: boolean;
     marketingConsent?: boolean;
+    discovery?: { turns?: unknown };
     attribution?: {
       firstTouch?: {
         source?: string;
@@ -53,7 +55,8 @@ export async function POST(request: Request) {
     (body.vehicleId !== undefined && (typeof body.vehicleId !== "string" || body.vehicleId.length > 100)) ||
     (body.vehicleIds !== undefined && (!Array.isArray(body.vehicleIds) || body.vehicleIds.length > 3 || body.vehicleIds.some(id => typeof id !== "string" || id.length > 100))) ||
     (body.whatsappConsent !== undefined && typeof body.whatsappConsent !== "boolean") ||
-    (body.marketingConsent !== undefined && typeof body.marketingConsent !== "boolean")) {
+    (body.marketingConsent !== undefined && typeof body.marketingConsent !== "boolean") ||
+    (body.discovery !== undefined && (!body.discovery || typeof body.discovery !== "object" || !Array.isArray(body.discovery.turns) || body.discovery.turns.length > 10 || body.discovery.turns.some(turn => typeof turn !== "string" || turn.length > 300)))) {
     return NextResponse.json({error:"Invalid enquiry."},{status:400});
   }
   const name = body.name?.trim();
@@ -85,6 +88,8 @@ export async function POST(request: Request) {
   const firstTouch = cleanTouch(body.attribution?.firstTouch);
 
   if (body.vehicleId && (!vehicle || vehicle.availabilityStatus !== "available")) return NextResponse.json({ error: "Vehicle is unavailable." }, {status:400});
+  // Shared only when the buyer kept "share my search" checked; derived from their words and current stock.
+  const discovery = body.discovery ? discoveryContext({ turns: body.discovery.turns, vehicleId: vehicle?.id, vehicles, locations: tenantConfig.organization.dealerships.flatMap(d => d.locations) }) : undefined;
 
   const { lead, automation } = await createLead({
     tenantId: tenantConfig.tenantId,
@@ -127,6 +132,7 @@ export async function POST(request: Request) {
           : undefined,
       vehicleInterestHistory: interestIds,
     },
+    discovery,
   });
 
 

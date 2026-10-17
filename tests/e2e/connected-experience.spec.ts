@@ -23,8 +23,7 @@ test("inventory filters round-trip and shortlist persists with a three-car limit
   await expect(page.locator(".compare-product")).toHaveCount(3);
   await page.locator(".compare-product").first().getByRole("button", { name: /^Remove / }).click();
   await expect(page.locator(".compare-product")).toHaveCount(2);
-  if (info.project.name === "mobile") await page.getByLabel("Website menu", { exact: true }).click();
-  await page.getByRole("link", { name: "Inventory", exact: true }).click();
+  await page.getByRole("contentinfo").getByRole("link", { name: "All cars", exact: true }).click();
   await expect(page.locator(".vehicle-card button[aria-pressed=true]")).toHaveCount(2);
 });
 

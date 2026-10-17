@@ -104,6 +104,17 @@ export default async function LeadPage({
           </p>
         </section>
 
+        {lead.discovery ? <section className="panel">
+          <p className="eyebrow">Buyer discovery · shared by the buyer</p>
+          <h2>What they searched for</h2>
+          <p className="discovery-query">“{lead.discovery.query}”{lead.discovery.refinements.map(turn => <span key={turn}> → “{turn}”</span>)}</p>
+          <dl className="key-values">
+            <div><dt>Understood</dt><dd>{lead.discovery.requirements.length ? lead.discovery.requirements.join(" · ") : "No hard requirements"}</dd></div>
+            <div><dt>This car ranked</dt><dd>{lead.discovery.rank ? `${lead.discovery.rank} of ${lead.discovery.total} matches` : "Outside the buyer's matches"}</dd></div>
+          </dl>
+          {lead.discovery.summary ? <p className="notice">{lead.discovery.summary}</p> : null}
+        </section> : null}
+
         <section className="panel">
           <p className="eyebrow">Journey context</p>
           <h2>Attribution</h2>

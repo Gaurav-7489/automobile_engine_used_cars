@@ -1,98 +1,72 @@
-import { pageMetadata } from "../lib/seo";
 import Link from "next/link";
-import { dealershipService } from "../lib/services";
-import { ShowroomHero } from "../components/showroom-hero";
-import { SpotlightCard } from "../components/spotlight-card";
-import { dealershipJsonLd, serializeJsonLd } from "../lib/seo";
+import type { Vehicle } from "@vandlabs/contracts";
+import { discover } from "@vandlabs/data/discovery";
+import { HomeHero } from "../components/home-hero";
 import { VehicleCard } from "../components/vehicle-card";
-import { RollingLink } from "../components/rolling-link";
+import { dealershipService } from "../lib/services";
+import { tenantConfig } from "../lib/config";
+import { discoverHref, editorialMedia, locations, reelCard } from "../lib/discovery";
+import { dealershipJsonLd, pageMetadata, serializeJsonLd } from "../lib/seo";
 
-export default async function Page() {
-  const { tenant, featured, snapshot } = await dealershipService.home();
-  const dealer = tenant.organization.dealerships.find(
-    (item) => item.id === tenant.activeDealershipId,
-  )!;
-
-  return (
-    <main>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: serializeJsonLd(dealershipJsonLd(tenant)),
-        }}
-      />
-
-      <ShowroomHero vehicles={featured.slice(0, 5).map(({ id, slug, make, model, year, variant, price, media }) => ({ id, slug, make, model, year, variant, price, media: media.slice(0, 2) }))} available={snapshot.available} locations={dealer.locations.length} social={{ facebook: process.env.SOCIAL_FACEBOOK_URL, instagram: process.env.SOCIAL_INSTAGRAM_URL, linkedin: process.env.SOCIAL_LINKEDIN_URL, x: process.env.SOCIAL_X_URL }} />
-
-      <section className="collection-section" data-reveal><div className="shell section">
-        <div className="sectionhead">
-          <div>
-            <p className="eyebrow">Featured inventory</p>
-            <h2>Recently selected.</h2>
-          </div>
-          <RollingLink href="/inventory">View all vehicles</RollingLink>
-        </div>
-        <div className="inventory-grid">
-          {featured.map((vehicle) => (
-            <VehicleCard key={vehicle.id} vehicle={vehicle} locationLabel={tenant.organization.dealerships.flatMap(d=>d.locations).find(l=>l.id===vehicle.locationId)?.name} />
-          ))}
-        </div>
-      </div></section>
-
-      <section className="discovery-section" data-reveal><div className="shell section split-section">
-        <div>
-          <p className="eyebrow">Made for your next chapter</p>
-          <h2>Less guesswork.<br />More <span>good feeling.</span></h2>
-          <p className="discovery-intro">From the first look to the next conversation, make room for the drive that fits your life.</p>
-          <RollingLink href="/compare">Find your favourite</RollingLink>
-        </div>
-        <div className="feature-stack">
-          <article>
-            <span>01</span>
-            <div>
-              <h3>Verified inventory facts</h3>
-              <p>
-                The price, mileage, specifications and availability — the details
-                you need, together in one clear view.
-              </p>
-            </div>
-          </article>
-          <article>
-            <span>02</span>
-            <div>
-              <h3>Compare without losing context</h3>
-              <p>
-                Shortlist up to three cars and review the commercial and technical
-                differences side by side.
-              </p>
-            </div>
-          </article>
-          <article>
-            <span>03</span>
-            <div>
-              <h3>One step to a human</h3>
-              <p>
-                WhatsApp, call, enquiry, finance, exchange and test-drive intent
-                all preserve the vehicle that started the conversation.
-              </p>
-            </div>
-          </article>
-        </div>
-      </div></section>
-
-      <section className="ecosystem-band" data-reveal>
-        <div className="shell">
-          <div className="sectionhead"><div><p className="eyebrow light">VandLabs Automobile Engine</p><h2>Everything you need.<br />Beautifully connected.</h2></div><p className="subtle">From the first vehicle view to the next sale.<br />A connected workspace for your dealership.</p></div>
-          <div className="ecosystem-grid">
-            <SpotlightCard><span className="feature-number">01 / DISCOVERY</span><span className="feature-symbol" aria-hidden="true">↗</span><h3>A showroom that works for you.</h3><p>Inventory, vehicle details, comparison and enquiry. Every conversation starts with context.</p><RollingLink href="/inventory">Explore the collection</RollingLink></SpotlightCard>
-            <SpotlightCard><span className="feature-number">02 / OPERATIONS</span><span className="feature-symbol" aria-hidden="true">⌘</span><h3>Your dealership, within reach.</h3><p>Leads, follow-ups, appointments and stock operations in the Windows and macOS workspace.</p><RollingLink href="/download">Get the desktop app</RollingLink></SpotlightCard>
-            <SpotlightCard><span className="feature-number">03 / CONNECTION</span><span className="feature-symbol" aria-hidden="true">↗</span><h3>Keep the human in the loop.</h3><p>Speak with a specialist about your next car, an exchange or a confirmed showroom visit.</p><RollingLink href="/contact">Start a conversation</RollingLink></SpotlightCard>
-          </div>
-        </div>
-      </section>
-      <section className="conversation-section" data-reveal><div className="shell conversation-grid"><div><p className="eyebrow">The road ahead looks good</p><h2>Let&apos;s find your <span>next.</span></h2></div><div><p>A question, a shortlist, or just a starting point. Tell us what you have in mind.</p><Link href="/contact" className="button primary">Start a conversation <span aria-hidden="true">↗</span></Link></div></div></section>
-    </main>
-  );
+/** Example searches are built from the current stock and kept only when they return cars. */
+function searches(inventory: Vehicle[]) {
+  const available = inventory.filter(vehicle => vehicle.publishStatus === "published" && vehicle.availabilityStatus === "available" && vehicle.price > 0);
+  const count = (turn: string) => discover({ turns: [turn], vehicles: inventory, locations, limit: 1 }).total;
+  const lakh = (values: number[]) => Math.ceil(values.sort((a, b) => a - b)[Math.floor(values.length / 2)] / 1e5);
+  const suvPrices = available.filter(vehicle => /suv/i.test(vehicle.bodyType)).map(vehicle => vehicle.price);
+  const busiest = [...new Set(available.map(vehicle => vehicle.locationId))].map(id => ({ city: locations.find(location => location.id === id)?.city, n: available.filter(vehicle => vehicle.locationId === id).length })).sort((a, b) => b.n - a.n)[0]?.city;
+  const examples = [
+    suvPrices.length ? `Automatic SUV under ₹${lakh(suvPrices)} lakh${busiest ? ` in ${busiest}` : ""}` : "",
+    "Family car with good mileage",
+    "First-owner sedan, newest first",
+    available.length ? `Under ₹${lakh(available.map(vehicle => vehicle.price))} lakh with low kilometres` : "",
+  ].filter(turn => turn && count(turn) > 0);
+  const popular = [
+    ["SUVs", "SUV"], ["Automatic", "automatic"], ["Electric & hybrid", "electric or hybrid"], ["Diesel", "diesel"], ["First owner", "first owner"],
+    ["7-seaters", "7 seater"], ...[...new Set(locations.map(location => location.city))].map(city => [`In ${city}`, `cars in ${city}`]),
+  ].map(([label, turn]) => ({ label, turn, total: count(turn) })).filter(item => item.total > 0);
+  return { examples, popular };
 }
 
-export const metadata = pageMetadata("Used Cars & Personal Dealership Service", "Explore available used cars, compare your favourites and book a test drive. Discover vehicle prices, specifications and dealership contact options.", "/");
+export default async function Page() {
+  const inventory = await dealershipService.inventory();
+  const ranked = discover({ turns: [], vehicles: inventory, locations, limit: 24 });
+  const byId = new Map(inventory.map(vehicle => [vehicle.id, vehicle]));
+  const top = ranked.results.map(match => byId.get(match.vehicleId)).filter((vehicle): vehicle is Vehicle => Boolean(vehicle));
+  const featured = top.filter(vehicle => vehicle.media.length).slice(0, 5);
+  const latest = [...top].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.id.localeCompare(b.id)).slice(0, 3);
+  const { examples, popular } = searches(inventory);
+  const cities = [...new Set(locations.map(location => location.city))];
+  const locationName = (id: string) => locations.find(location => location.id === id)?.name;
+  return <main className="home">
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(dealershipJsonLd(tenantConfig)) }} />
+    <HomeHero cars={featured.map(reelCard)} available={ranked.total} cities={cities} examples={examples} editorial={editorialMedia()} />
+
+    {popular.length > 0 && <section className="shell home-section home-popular" aria-labelledby="popular-title">
+      <div className="home-head"><h2 id="popular-title">Popular right now</h2><Link href="/discover" className="home-link">Open Discover <span aria-hidden="true">→</span></Link></div>
+      <ul>{popular.map(item => <li key={item.turn}><Link href={discoverHref([item.turn])}><span>{item.label}</span><small>{item.total} {item.total === 1 ? "car" : "cars"}</small></Link></li>)}</ul>
+    </section>}
+
+    <section className="shell home-section home-how" aria-labelledby="how-title">
+      <div className="home-head"><h2 id="how-title">Ask. Browse. Talk to the dealer.</h2></div>
+      <ol>
+        <li><span aria-hidden="true">01</span><h3>Ask in your own words</h3><p>Budget, city, body type, fuel, family size. Then refine like a conversation — “only automatic”, “better mileage”.</p></li>
+        <li><span aria-hidden="true">02</span><h3>Browse one car at a time</h3><p>Swipe through matching cars. Each one says why it fits, and what still needs checking with the dealer.</p></li>
+        <li><span aria-hidden="true">03</span><h3>Reach a real person</h3><p>Enquire, book a test drive, WhatsApp or call. Your request reaches the dealership with the car attached.</p></li>
+      </ol>
+    </section>
+
+    {latest.length > 0 && <section className="shell home-section home-latest" aria-labelledby="latest-title">
+      <div className="home-head"><h2 id="latest-title">Ready to view</h2><Link href="/inventory" className="home-link">See every car <span aria-hidden="true">→</span></Link></div>
+      <div className="inventory-grid">{latest.map(vehicle => <VehicleCard key={vehicle.id} vehicle={vehicle} locationLabel={locationName(vehicle.locationId)} />)}</div>
+    </section>}
+
+    <section className="shell home-section home-grounded" aria-labelledby="grounded-title">
+      <span className="grounded-mark" aria-hidden="true">✦</span>
+      <div><h2 id="grounded-title">Grounded by design.</h2><p>Results come only from published dealer inventory that is available today. The AI explains matches; it never invents prices, mileage, condition or service history, and anything that isn&apos;t recorded is clearly marked.</p></div>
+      <Link className="button primary" href="/discover">Start discovering</Link>
+    </section>
+  </main>;
+}
+
+export const metadata = pageMetadata("AI Used Car Discovery", "Describe the car you need in plain words. Browse real, available used cars one at a time, see why each one fits, and contact the dealership.", "/");

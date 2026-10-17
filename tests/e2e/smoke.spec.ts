@@ -2,9 +2,8 @@ import { test, expect } from "@playwright/test";
 
 test("public homepage loads", async ({ page }) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: "Source Quality Stock You Can Trust" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Discover the right car, just by asking." })).toBeVisible();
+  await expect(page.getByRole("search", { name: "Ask for a car" }).getByRole("textbox", { name: "Describe the car you need" })).toBeVisible();
 });
 
 test("inventory discovery loads", async ({ page }) => {

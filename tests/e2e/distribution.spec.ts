@@ -1,17 +1,17 @@
 import { test, expect } from "@playwright/test";
 
-test("featured collection supports keyboard selection and the footer has readable contrast", async ({ page }) => {
+test("featured cars switch by keyboard with recorded facts and the footer has readable contrast", async ({ page }) => {
   await page.goto("/");
-  const choices = page.getByRole("group", { name: "Choose a featured car" }).getByRole("button");
+  const choices = page.getByRole("group", { name: "Featured cars", exact: true }).getByRole("button");
   await expect(choices).toHaveCount(5);
   const second = choices.nth(1);
-  const name = (await second.getAttribute("aria-label"))!.replace(/^Feature /, "");
+  const name = (await second.textContent())!.trim();
   await second.focus();
   await page.keyboard.press("Space");
   await expect(second).toHaveAttribute("aria-pressed", "true");
   await expect(choices.first()).toHaveAttribute("aria-pressed", "false");
-  await expect(page.locator(".hero-vehicle strong")).toHaveText(name);
-  await expect(page.locator(".hero-vehicle")).toHaveAttribute("href", /^\/vehicles\/[a-z0-9-]+$/);
+  await expect(page.locator(".hero-card h2")).toContainText(name);
+  await expect(page.locator(".hero-card a")).toHaveAttribute("href", /^\/discover\?v=[a-z0-9-]+$/);
   await choices.first().focus();
   await page.keyboard.press("Enter");
   await expect(choices.first()).toHaveAttribute("aria-pressed", "true");

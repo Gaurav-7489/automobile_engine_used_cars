@@ -12,6 +12,7 @@ export function LeadForm({
   onIntentChange,
   contextNote,
   vehicleIds,
+  discoveryTurns,
 }: {
   vehicleId?: string;
   vehicleLabel?: string;
@@ -20,6 +21,7 @@ export function LeadForm({
   onIntentChange?: (intent: LeadIntent) => void;
   contextNote?: string;
   vehicleIds?: string[];
+  discoveryTurns?: string[];
 }) {
   const [state, setState] = useState<
     "idle" | "submitting" | "success" | "error"
@@ -32,6 +34,7 @@ export function LeadForm({
   const successHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (state === "success") successHeading.current?.focus(); }, [state]);
   const [intentChoice, setIntentChoice] = useState(defaultIntent);
+  const [shareSearch, setShareSearch] = useState(true);
   const readOnly = process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true";
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -54,6 +57,8 @@ export function LeadForm({
       notes: [contextNote, String(data.get("notes") || "")].filter(Boolean).join("\n"),
       whatsappConsent: data.get("whatsappConsent") === "on",
       marketingConsent: data.get("marketingConsent") === "on",
+      // The server re-derives the context from these words; it never trusts a client summary.
+      discovery: discoveryTurns?.length && shareSearch ? { turns: discoveryTurns } : undefined,
       attribution: readAttribution(),
     };
 
@@ -158,6 +163,10 @@ export function LeadForm({
         <input type="checkbox" name="marketingConsent" />
         <span>I also want future offers and updates. Optional.</span>
       </label>
+      {discoveryTurns?.length ? <label className="check-row">
+        <input type="checkbox" name="shareSearch" checked={shareSearch} onChange={event => setShareSearch(event.target.checked)} />
+        <span>Share my search with the dealer so they know what I&apos;m looking for: “{discoveryTurns.join(" → ")}”</span>
+      </label> : null}
       <button className="button primary" disabled={state === "submitting"}>
         {state === "submitting" ? "Sending..." : "Send request"}
       </button>
