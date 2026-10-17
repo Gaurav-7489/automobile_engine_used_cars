@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, copyFile, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
-const files = ["apps/web/wrangler.jsonc", "apps/command-center/wrangler.jsonc", "apps/platform/wrangler.jsonc", "infra/cloudflare/wrangler.jsonc", "infra/cloudflare/admission.wrangler.jsonc", "infra/cloudflare/notifications.wrangler.jsonc"];
+const files = ["apps/web/wrangler.jsonc", "apps/command-center/wrangler.jsonc", "apps/platform/wrangler.jsonc", "infra/cloudflare/wrangler.jsonc", "infra/cloudflare/admission.wrangler.jsonc", "infra/cloudflare/notifications.wrangler.jsonc", "infra/cloudflare/dealer-ai/wrangler.jsonc"];
 
 test("staging configuration isolates every Worker, service binding, media/cache bucket and search index", async () => {
   const directory = await mkdtemp(join(tmpdir(), "vandlabs-staging-config-"));
@@ -35,7 +35,17 @@ test("staging configuration isolates every Worker, service binding, media/cache 
       assert.equal(gateway.durable_objects.bindings[0].script_name, `${prefix}-admission`);
       assert.equal((await json("infra/cloudflare/admission.wrangler.jsonc")).name, `${prefix}-admission`);
       assert.equal((await json("infra/cloudflare/notifications.wrangler.jsonc")).name, `${prefix}-notifications`);
+      const dealerAi = await json("infra/cloudflare/dealer-ai/wrangler.jsonc");
+      assert.equal(dealerAi.name, `${prefix}-dealer-ai`, "each environment has its own AI Worker and token");
+      assert.equal(dealerAi.workers_dev, false, "apps use the service binding; no public AI URL by default");
+      assert.equal(dealerAi.preview_urls, false);
+      const command = await json("apps/command-center/wrangler.jsonc");
+      assert.deepEqual(command.services.find((b: { binding: string }) => b.binding === "DEALER_AI"), { binding: "DEALER_AI", service: `${prefix}-dealer-ai` });
+      for (const app of ["web", "platform"]) assert.ok(!(await json(`apps/${app}/wrangler.jsonc`)).services.some((b: { binding: string }) => b.binding === "DEALER_AI"), app);
     }
+    const publicAi = spawnSync(process.execPath, [resolve("scripts/cloudflare/configure.mjs")], { cwd: directory, encoding: "utf8", env: { ...process.env, CF_ENVIRONMENT: "staging", CF_SHARED_DATA: "false", CF_PUBLIC_ORIGIN: "https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev", SEO_INDEXABLE: "false", DEALER_AI_PUBLIC: "true" } });
+    assert.equal(publicAi.status, 0, publicAi.stderr);
+    assert.equal((await json("infra/cloudflare/dealer-ai/wrangler.jsonc")).workers_dev, true, "external hosts can opt in to the public URL");
     const rejected = run("staging", "true"); assert.equal(rejected.status, 1); assert.match(rejected.stderr, /Staging must not be indexed/);
     assert.equal(run("typo").status, 1);
     const before = await Promise.all(files.map(file => readFile(join(directory, file), "utf8")));
@@ -65,5 +75,21 @@ test("shared staging configuration supports Cognito without OIDC secrets and rej
     assert.equal(run({ ...env, AUTH_MODE: "demo" }).status, 1);
     assert.equal(run({ ...env, COGNITO_CLIENT_ID: "" }).status, 1);
     assert.deepEqual(await Promise.all(files.map(file => readFile(join(directory, file), "utf8"))), before);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("deploy rejects Dealer AI tokens the Worker could never accept, before any network call", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vandlabs-deploy-tokens-"));
+  try {
+    for (const file of ["infra/cloudflare/wrangler.jsonc", "apps/web/wrangler.jsonc"]) { await mkdir(dirname(join(directory, file)), { recursive: true }); await copyFile(file, join(directory, file)); }
+    const deploy = (env: Record<string, string>) => spawnSync(process.execPath, [resolve("scripts/cloudflare/deploy.mjs")], { cwd: directory, encoding: "utf8", env: { PATH: process.env.PATH ?? "", CLOUDFLARE_API_TOKEN: "test-token-not-used", ...env } });
+    const valid = "A".repeat(43);
+    for (const env of [{ DEALER_AI_SERVICE_TOKEN: "test" }, { DEALER_AI_SERVICE_TOKEN: valid, DEALER_AI_SERVICE_TOKEN_ALTERNATE: "A".repeat(44) }, { DEALER_AI_SERVICE_TOKEN: valid.slice(1) + "=" }]) {
+      const result = deploy(env);
+      assert.equal(result.status, 1); assert.match(result.stderr, /must be 32 random bytes encoded as base64url/);
+      assert.ok(!result.stderr.includes(valid), "token values are never echoed");
+    }
+    const orphan = deploy({ DEALER_AI_SERVICE_TOKEN_ALTERNATE: valid });
+    assert.equal(orphan.status, 1); assert.match(orphan.stderr, /ALTERNATE requires DEALER_AI_SERVICE_TOKEN/);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

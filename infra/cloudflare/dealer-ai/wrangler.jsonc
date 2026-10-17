@@ -1,8 +1,12 @@
 {
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
   "name": "vandlabs-dealer-ai",
   "main": "worker.mjs",
   "compatibility_date": "2026-10-13",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
   "ai": { "binding": "AI" },
-  "observability": { "enabled": true, "head_sampling_rate": 0.1 }
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 },
+  "account_id": "98f548fdf2e2be84591c6669493f330b"
 }

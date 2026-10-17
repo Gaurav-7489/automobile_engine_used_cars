@@ -1,13 +1,14 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { demoTransaction } from "@vandlabs/demo-data/runtime";
 import { commercePlans, requireCapability, type AuthenticatedPrincipal, type CommerceState, type ApiScope, type BusinessKey } from "@vandlabs/contracts";
-import { explainAcquisition } from "./dealer-ai";
+import { explainAcquisition, type DealerAiBinding } from "./dealer-ai";
 import { dataMode } from "./config";
 import { marketReport } from "./market";
 import { providerSync, sourceSyncSummary } from "./provider-sync";
 import { databasePool, tenantTransaction, type SqlPool } from "./postgres";
 import { CommerceError, acquisitionInput, recommend, eligibleVehicles, fuelPrices, sourceInput, future, plan, text, object, allowedSource, ingestBatch, queryVehicles, sourceCoverage } from "./commerce-rules";
 export { CommerceError } from "./commerce-rules";
+export type { DealerAiBinding } from "./dealer-ai";
 export type CommerceRepository = { transact<T>(tenantId: string, action: (state: CommerceState) => T): Promise<T>; read?<T>(tenantId: string, action: (state: CommerceState) => T): Promise<T> };
 const emptyState = (): CommerceState => ({ subscription: null, sources: [], vehicles: [], fuel: [], keys: [], usage: {}, audit: [] });
 export function postgresCommerceRepository(pool: SqlPool): CommerceRepository {
@@ -155,11 +156,11 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
         audit(state, p.userId, "source.ingest", sourceId, now); return result;
       });
     },
-    async dealerRecommendations(p: AuthenticatedPrincipal, value: unknown) {
+    async dealerRecommendations(p: AuthenticatedPrincipal, value: unknown, aiBinding?: DealerAiBinding) {
       requireCapability(p, "inventory:read"); requireCapability(p, "capital:read"); const input = acquisitionInput(value);
       const result = await repository.transact(p.tenantId, state => { active(state, clock()); const report = recommend(state, input, state.subscription!.plan, false, clock()); const usage = meter(state, p.userId, clock()); const processingAllowed = report.options.slice(0, 3).every(option => option.cars.every(car => state.sources.find(source => source.id === car.sourceId)?.aiProcessing === true));
         return { report, usage, processingAllowed }; });
-      return { ...await explainAcquisition(result.report, result.processingAllowed), usage: result.usage };
+      return { ...await explainAcquisition(result.report, result.processingAllowed, aiBinding), usage: result.usage };
     },
     async business(token: string, scope: ApiScope, value: unknown) {
       const context = keyContext(token), now = clock();

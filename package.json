@@ -11,6 +11,7 @@
     "qa": "pnpm lint && pnpm typecheck && pnpm test:security && pnpm test:database && pnpm test:intelligence && pnpm test:cloudflare && pnpm build && pnpm test:e2e && pnpm test:auth:e2e",
     "test:security": "node --import tsx --test tests/security/*.test.ts",
     "test:auth:e2e": "playwright test --config playwright.auth.config.ts",
+    "test:live": "playwright test --config playwright.live.config.ts",
     "db:migrate": "node --import tsx scripts/database/migrate.ts",
     "db:seed": "node --import tsx scripts/database/seed.ts",
     "test:database": "node --import tsx --test tests/database/*.test.ts",

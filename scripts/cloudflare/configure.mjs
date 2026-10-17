@@ -28,7 +28,7 @@ for(const name of ["web","command-center","platform"]) {
   const path=`apps/${name}/wrangler.jsonc`, config=JSON.parse(await readFile(path,"utf8"));
   config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
   config.name=resource(name);
-  for(const binding of config.services ?? [])if(binding.binding==="WORKER_SELF_REFERENCE")binding.service=config.name;
+  for(const binding of config.services ?? [])if(binding.binding==="WORKER_SELF_REFERENCE")binding.service=config.name;else if(binding.binding==="DEALER_AI")binding.service=resource("dealer-ai");
   for(const binding of config.durable_objects?.bindings ?? [])if(binding.name==="ADMISSION")binding.script_name=resource("admission");
   for(const binding of config.r2_buckets ?? [])binding.bucket_name=resource(binding.binding==="VEHICLE_MEDIA"?"vehicle-media":`${name}-cache`);
   config.vars={...config.vars,DEPLOYMENT_ENVIRONMENT:target,APP_ORIGIN:origin,SITE_ORIGIN:origin,DATA_MODE:shared?"neon":"demo",AUTH_MODE:shared?authMode:"demo",NEXT_PUBLIC_PREVIEW_READ_ONLY:shared?"false":"true",SEO_INDEXABLE:target==="staging"?"false":process.env.SEO_INDEXABLE ?? "false",NOTIFICATIONS_ENABLED:process.env.NOTIFICATIONS_ENABLED ?? "false"};
@@ -49,6 +49,16 @@ for(const name of ["admission","notifications"]) {
   const path=`infra/cloudflare/${name}.wrangler.jsonc`,config=JSON.parse(await readFile(path,"utf8"));
   config.name=resource(name);
   config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
+  await writeFile(path,JSON.stringify(config,null,2)+"\n");
+}
+{
+  // Apps reach Dealer AI through a service binding. Its workers.dev URL stays off unless an
+  // external host (for example the Vercel preview) still needs DEALER_AI_URL.
+  const path="infra/cloudflare/dealer-ai/wrangler.jsonc",config=JSON.parse(await readFile(path,"utf8"));
+  config.name=resource("dealer-ai");
+  config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
+  config.workers_dev=process.env.DEALER_AI_PUBLIC==="true";
+  config.preview_urls=false;
   await writeFile(path,JSON.stringify(config,null,2)+"\n");
 }
 console.log(`Cloudflare ${target} configs generated. No credentials were written into them.`);

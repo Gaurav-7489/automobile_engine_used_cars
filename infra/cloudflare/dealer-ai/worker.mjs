@@ -4,10 +4,14 @@ export default {
     const reply = (body, status = 200) => new Response(JSON.stringify(body), { status, headers });
     if (request.method !== "POST" || new URL(request.url).pathname !== "/explain") return reply({ error: "Not found" }, 404);
     const supplied = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(request.headers.get("authorization") || "")?.[1];
-    if (!supplied || !env.SERVICE_TOKEN) return reply({ error: "Unauthorized" }, 401);
-    const encoder = new TextEncoder();
-    const [a, b] = await Promise.all([crypto.subtle.digest("SHA-256", encoder.encode(supplied)), crypto.subtle.digest("SHA-256", encoder.encode(env.SERVICE_TOKEN))]);
-    if (!crypto.subtle.timingSafeEqual(a, b)) return reply({ error: "Unauthorized" }, 401);
+    // SERVICE_TOKEN_ALTERNATE is accepted only during a rotation; any value that is not a
+    // 43-character token (the deploy placeholder) can never match a supplied bearer.
+    const accepted = [env.SERVICE_TOKEN, env.SERVICE_TOKEN_ALTERNATE].filter(t => typeof t === "string" && /^[A-Za-z0-9_-]{43}$/.test(t));
+    if (!supplied || !accepted.length) return reply({ error: "Unauthorized" }, 401);
+    const encoder = new TextEncoder(), digest = value => crypto.subtle.digest("SHA-256", encoder.encode(value));
+    const [given, ...candidates] = await Promise.all([supplied, ...accepted].map(digest));
+    let match = false; for (const candidate of candidates) match = crypto.subtle.timingSafeEqual(given, candidate) || match;
+    if (!match) return reply({ error: "Unauthorized" }, 401);
     try {
       if (!request.body) return reply({ error: "Invalid request" }, 400);
       const reader = request.body.getReader(), chunks = []; let size = 0;

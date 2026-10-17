@@ -12,6 +12,6 @@ if(process.argv.includes("--probe")&&readiness.ready){
       for(const table of ["vehicles","leads","tasks","sales","staff_members","platform_audit","notification_outbox","dealer_commerce"])await c.query(`SELECT 1 FROM ${table} LIMIT 1`);
     });
     console.log("Database probe passed: verified TLS connection, non-bypass role and required tables.");process.exit(0);
-  }catch{console.error("Database probe failed. Check private connectivity, migrations through 0008, application-role grants and tenant provisioning.");process.exit(1);}
+  }catch{console.error("Database probe failed. Check private connectivity, migrations through 0009, application-role grants and tenant provisioning.");process.exit(1);}
 }
 process.exit(readiness.ready?0:1);
