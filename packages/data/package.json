@@ -10,7 +10,8 @@
     "./inventory-template": "./src/inventory-template.ts",
     "./notifications": "./src/notifications.ts",
     "./commerce": "./src/commerce.ts",
-    "./commerce-rules": "./src/commerce-rules.ts"
+    "./commerce-rules": "./src/commerce-rules.ts",
+    "./discovery": "./src/discovery.ts"
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.900.0",

@@ -71,7 +71,10 @@ export interface TenantConfig {
 export interface VehicleMedia {
   url: string;
   alt: string;
-  kind?: "exterior" | "interior" | "detail";
+  /** "video" must be authentic footage of this vehicle from an authorized source, never generated. */
+  kind?: "exterior" | "interior" | "detail" | "video";
+  /** Still frame shown before a video plays. */
+  poster?: string;
 }
 
 export interface Vehicle {
@@ -142,8 +145,20 @@ export interface Lead {
     lastTouch?: AttributionTouch;
     vehicleInterestHistory: ID[];
   };
+  /** The buyer's own search, re-derived on the server when they chose to share it with the enquiry. */
+  discovery?: LeadDiscoveryContext;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LeadDiscoveryContext {
+  engine: string;
+  query: string;
+  refinements: string[];
+  requirements: string[];
+  rank?: number;
+  total: number;
+  summary?: string;
 }
 
 export interface LeadActivity {
