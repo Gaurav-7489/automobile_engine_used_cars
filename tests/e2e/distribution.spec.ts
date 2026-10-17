@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("featured collection supports keyboard selection and the footer has readable contrast", async ({ page }) => {
   await page.goto("/");
   const choices = page.getByRole("group", { name: "Choose a featured car" }).getByRole("button");
-  await expect(choices).toHaveCount(3);
+  await expect(choices).toHaveCount(5);
   const second = choices.nth(1);
   const name = (await second.getAttribute("aria-label"))!.replace(/^Feature /, "");
   await second.focus();

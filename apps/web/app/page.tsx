@@ -22,7 +22,7 @@ export default async function Page() {
         }}
       />
 
-      <ShowroomHero vehicles={featured.slice(0, 3).map(({ id, slug, make, model, year, variant, price, media }) => ({ id, slug, make, model, year, variant, price, media: media.slice(0, 1) }))} dealer={dealer.name} cities={dealer.locations.map(item => item.city).join(" / ")} available={snapshot.available} locations={dealer.locations.length} />
+      <ShowroomHero vehicles={featured.slice(0, 5).map(({ id, slug, make, model, year, variant, price, media }) => ({ id, slug, make, model, year, variant, price, media: media.slice(0, 2) }))} available={snapshot.available} locations={dealer.locations.length} social={{ facebook: process.env.SOCIAL_FACEBOOK_URL, instagram: process.env.SOCIAL_INSTAGRAM_URL, linkedin: process.env.SOCIAL_LINKEDIN_URL, x: process.env.SOCIAL_X_URL }} />
 
       <section className="collection-section" data-reveal><div className="shell section">
         <div className="sectionhead">
