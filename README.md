@@ -147,3 +147,11 @@ Current integration, actual verification and launch dependencies: [release track
 Staging/production Worker names, storage isolation and protected deployment setup: [Cloudflare staging](docs/CLOUDFLARE_STAGING.md).
 
 Provider sync leases, retry timing, safe credentials and source freshness: [provider sync runbook](docs/PROVIDER_SYNC.md).
+
+## AI discovery and reels
+
+The public site is now **VandLabs Auto**: ask for a car in plain words on the home page, then browse
+matching cars one at a time at `/discover`. A deterministic engine (`packages/data/src/discovery.ts`)
+parses the request, applies hard filters, ranks and explains each match, and never widens a budget or
+place on its own. Optional AI commentary is off by default. Behaviour, verification and remaining owner
+actions: [AI discovery delivery record](docs/AI_DISCOVERY_DELIVERY_2026-10-17.md).

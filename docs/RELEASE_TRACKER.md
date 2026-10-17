@@ -45,7 +45,7 @@ is an optional distribution surface. No commercial production launch is claimed.
 | 14 | Three subscriptions | In progress | Starter/Growth/Scale acquisition/API caps; seat/location/inventory/AI/report/automation limits incomplete |
 | 15 | Payments and billing webhooks | Blocked | Processor onboarding, commercial prices and tax decisions required; no automatic collection |
 | 16 | Commercial API | In progress | Scoped hashed keys, expiry/revocation, supplier binding and tenant quotas; deployment and redistribution contracts missing |
-| 17 | Premium UI/UX | Not started | Reference inspected; current interfaces retained; redesign follows foundational gates |
+| 17 | Premium UI/UX | In progress | Public AI discovery, reels and VandLabs Auto identity implemented on `feat/ai-discovery-reels` with local browser acceptance ([record](AI_DISCOVERY_DELIVERY_2026-10-17.md)); not deployed; staff app redesign not started |
 | 18 | Desktop installers and updates | In progress | Native CI exists; this integration's platform builds, installation, signing and live backend acceptance pending |
 | 19 | Storage, Resend, monitoring, backups | In progress | R2 buckets exist; sender/keys, storage workflows, delivery and restore acceptance pending |
 | 20 | Full security/load/browser QA | In progress | Local results below; browser archive download failed; CI must run browsers; live/load acceptance pending |
