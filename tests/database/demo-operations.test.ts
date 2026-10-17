@@ -19,6 +19,8 @@ test("demo CRM commits lead/audit/automation together and rejects stale task/lea
   await assert.rejects(patchLead(p,id,{notes:"Old draft"},0),ConflictError);assert.equal(await readFile(join(dir,"state.json"),"utf8"),before);
   const task=await createTask(p,id,{title:"Call",owner:"Staff",dueAt:"2030-01-01T10:00:00Z",priority:"normal"});await completeTask(p,task.data.id,true,0);
   await assert.rejects(completeTask(p,task.data.id,false,0),ConflictError);assert.equal((await staffSnapshot(p)).tasks.find(t=>t.id===task.data.id)?.completed,true);
+  const restricted=await staffSnapshot({...p,capabilities:["inventory:read","analytics:read"]});
+  for(const key of ["leads","tasks","activities","appointments","runs","rules","sales"] as const)assert.equal(restricted[key]?.length,0,key);
   const rule:AutomationRule={id:"rule-invalid-contacted",tenantId:p.tenantId,name:"Invalid configured rule",enabled:true,trigger:"stage_changed",stages:["contacted"],delayMinutes:1e20,taskTitle:"Invalid",ownerFallback:"Staff",priority:"normal",channel:"internal_task",requiresWhatsappConsent:false};
   assert.ok(persistRuntimeAutomationRule(rule));const rollbackBefore=await readFile(join(dir,"state.json"),"utf8");
   await assert.rejects(patchLead(p,id,{stage:"contacted",notes:"Must roll back"},1),/Invalid time value/);

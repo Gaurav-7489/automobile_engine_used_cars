@@ -85,19 +85,20 @@ export function postgresStore(pool: SqlPool) {
   return {
     inventory(tenantId:string, dealershipId:string) { return tx(tenantId,async c=> (await c.query("SELECT * FROM vehicles WHERE tenant_id=$1 AND dealership_id=$2 AND publish_status='published' ORDER BY created_at DESC",[tenantId,dealershipId])).rows.map(decodeVehicle)); },
     snapshot(p:AuthenticatedPrincipal) { return tx(p.tenantId,async c=> {
-      for (const cap of ["lead:read","inventory:read","analytics:read"] as const) requireCapability(p,cap);
+      for (const cap of ["inventory:read","analytics:read"] as const) requireCapability(p,cap);
       const args=[p.tenantId,p.dealershipIds,p.locationIds];
       const leadArgs=[...args,p.assignedLeadOnly?p.userId:null];
       const predicate="l.tenant_id=$1 AND l.dealership_id=ANY($2::uuid[]) AND (l.location_id IS NULL OR l.location_id=ANY($3::uuid[])) AND ($4::text IS NULL OR l.payload->>'assignedTo'=$4)";
-      const leads=(await c.query(`SELECT l.* FROM leads l WHERE ${predicate} ORDER BY created_at DESC`,leadArgs)).rows.map(decodeLead);
+      const canReadLeads = p.capabilities.includes("lead:read");
+      const leads=canReadLeads?(await c.query(`SELECT l.* FROM leads l WHERE ${predicate} ORDER BY created_at DESC`,leadArgs)).rows.map(decodeLead):[];
       const vehicles=(await c.query("SELECT * FROM vehicles WHERE tenant_id=$1 AND dealership_id=ANY($2::uuid[]) AND location_id=ANY($3::uuid[]) ORDER BY created_at DESC",args)).rows.map(decodeVehicle);
-      const related=async <T>(table:string)=>payloads<T>((await c.query(`SELECT r.payload FROM ${table} r JOIN leads l ON l.id=r.lead_id AND l.tenant_id=r.tenant_id WHERE ${predicate}`,leadArgs)).rows);
+      const related=async <T>(table:string)=>!canReadLeads?[]:payloads<T>((await c.query(`SELECT r.payload FROM ${table} r JOIN leads l ON l.id=r.lead_id AND l.tenant_id=r.tenant_id WHERE ${predicate}`,leadArgs)).rows);
       const financialRelated=async <T>(table:string)=>p.capabilities.includes("capital:read")?payloads<T>((await c.query(`SELECT r.payload FROM ${table} r JOIN vehicles v ON v.id=r.vehicle_id AND v.tenant_id=r.tenant_id WHERE r.tenant_id=$1 AND v.dealership_id=ANY($2::uuid[]) AND v.location_id=ANY($3::uuid[])`,args)).rows):undefined;
       return {costs:await financialRelated<StockCost>("stock_costs"),costHistory:await financialRelated<StockCostChange>("stock_cost_history"), leads,vehicles,tasks:await related<Task>("tasks"),activities:await related<LeadActivity>("lead_activities"),appointments:await related<Appointment>("appointments"),
         runs:await related<AutomationRun>("automation_runs"),events:payloads<JourneyEvent>((await c.query("SELECT to_jsonb(e) || jsonb_build_object('tenantId',e.tenant_id,'sessionId',e.session_id,'vehicleId',e.vehicle_id,'type',e.event_type,'occurredAt',e.occurred_at) AS payload FROM journey_events e JOIN vehicles v ON v.id=e.vehicle_id AND v.tenant_id=e.tenant_id WHERE e.tenant_id=$1 AND v.dealership_id=ANY($2::uuid[]) AND v.location_id=ANY($3::uuid[])",args)).rows),
         sales:await related<Sale>("sales"),
         inventoryHistory:payloads<InventoryChange>((await c.query("SELECT h.payload FROM inventory_history h JOIN vehicles v ON v.id=h.vehicle_id AND v.tenant_id=h.tenant_id WHERE h.tenant_id=$1 AND v.dealership_id=ANY($2::uuid[]) AND v.location_id=ANY($3::uuid[])",args)).rows),
-        rules:payloads<AutomationRule>((await c.query("SELECT payload FROM automation_rules WHERE tenant_id=$1",[p.tenantId])).rows) };
+        rules:canReadLeads?payloads<AutomationRule>((await c.query("SELECT payload FROM automation_rules WHERE tenant_id=$1",[p.tenantId])).rows):[] };
     }); },
     createLead(input:Omit<Lead,"id"|"stage"|"createdAt"|"updatedAt">) { return tx(input.tenantId,async c=> {
       if (input.vehicleId) {
@@ -228,8 +229,9 @@ export async function publicInventory() {
 }
 export async function staffSnapshot(p:AuthenticatedPrincipal):Promise<Snapshot> {
   if (dataMode()!=="demo") return (await productionStore()).snapshot(p);
-  for(const cap of ["lead:read","inventory:read","analytics:read"] as const) requireCapability(p,cap);
-  const s=demoSnapshot();s.leads=s.leads.filter(l=>visible(p,l)&&(!p.assignedLeadOnly||l.assignedTo===p.userId));s.vehicles=s.vehicles.filter(v=>visible(p,v));
+  for(const cap of ["inventory:read","analytics:read"] as const) requireCapability(p,cap);
+  const s=demoSnapshot();s.leads=s.leads.filter(l=>p.capabilities.includes("lead:read")&&visible(p,l)&&(!p.assignedLeadOnly||l.assignedTo===p.userId));s.vehicles=s.vehicles.filter(v=>visible(p,v));
+  if(!p.capabilities.includes("lead:read"))s.rules=[];
   const ids=new Set(s.leads.map(l=>l.id));s.tasks=s.tasks.filter(t=>ids.has(t.leadId));s.activities=s.activities.filter(a=>ids.has(a.leadId));s.appointments=s.appointments.filter(a=>ids.has(a.leadId));s.runs=s.runs.filter(r=>ids.has(r.leadId));const vehicleIds=new Set(s.vehicles.map(v=>v.id));s.sales=s.sales?.filter(r=>ids.has(r.leadId));s.inventoryHistory=s.inventoryHistory?.filter(r=>s.vehicles.some(v=>v.id===r.vehicleId));s.events=s.events.filter(e=>!!e.vehicleId&&vehicleIds.has(e.vehicleId));s.costs=p.capabilities.includes("capital:read")?s.costs?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;s.costHistory=p.capabilities.includes("capital:read")?s.costHistory?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;return s;
 }
 export async function createLead(input:Omit<Lead,"id"|"stage"|"createdAt"|"updatedAt">) {

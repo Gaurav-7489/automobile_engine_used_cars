@@ -1,4 +1,4 @@
-import { requireCapability, requireTenant, requireDealership } from "@vandlabs/contracts";
+import { requireCapability, requireTenant, requireDealership, commandCapabilities } from "@vandlabs/contracts";
 import { createPrincipalResolver } from "@vandlabs/server-auth";
 import { tenantConfig, resolveDatabaseStaff } from "@vandlabs/data";
 
@@ -22,5 +22,5 @@ export async function resolvePrincipal(request: Request) {
 
 export async function authorizeCommandPage(request: Request) {
   const principal = await resolvePrincipal(request);
-  for (const capability of ["lead:read", "inventory:read", "analytics:read"] as const) requireCapability(principal, capability);
+  for (const capability of commandCapabilities(new URL(request.url).pathname)) requireCapability(principal, capability);
 }

@@ -29,9 +29,12 @@ export function validateAcquisitionSale(input:StockCostInput,sale?:Pick<Sale,"so
 export function capitalReport(vehicles:Vehicle[],costs:StockCost[],sales:Sale[],asOf=new Date()) {
   if(!Number.isFinite(asOf.getTime()))throw new InputError();
   const rows=vehicles.map(vehicle=> {
-    const cost=costs.find(c=>c.vehicleId===vehicle.id),sale=sales.find(s=>s.vehicleId===vehicle.id);
-    const active=vehicle.availabilityStatus!=="sold";
-    if(!cost)return {vehicleId:vehicle.id,active,coverage:"missing" as const,ageDays:null,costBasis:null,holdingEstimate:null,askingSpread:null,recordedContribution:null,priority:"unknown" as const};
+    const recordedCost=costs.find(c=>c.vehicleId===vehicle.id&&c.tenantId===vehicle.tenantId);
+    const recordedSale=sales.find(s=>s.vehicleId===vehicle.id&&s.tenantId===vehicle.tenantId);
+    const sale=recordedSale&&Date.parse(recordedSale.soldAt)<=asOf.getTime()?recordedSale:undefined;
+    const cost=recordedCost&&recordedCost.acquiredOn<=businessDate(asOf)?recordedCost:undefined;
+    const active=sale?false:recordedSale?true:vehicle.availabilityStatus!=="sold";
+    if(!cost)return {vehicleId:vehicle.id,active,coverage:"missing" as const,ageDays:null,costBasis:null,holdingEstimate:null,askingSpread:null,recordedContribution:null,recordedMarginPercent:null,recordedReturnPercent:null,contributionAfterEstimatedHolding:null,priority:"unknown" as const};
     const end=sale?Math.min(Date.parse(sale.soldAt),asOf.getTime()):asOf.getTime();
     const endDay=Date.parse(businessDate(new Date(end))+"T00:00:00Z"),acquired=Date.parse(cost.acquiredOn+"T00:00:00Z");
     const ageDays=endDay<acquired?null:Math.floor((endDay-acquired)/86400000);
@@ -39,7 +42,13 @@ export function capitalReport(vehicles:Vehicle[],costs:StockCost[],sales:Sale[],
     const holdingCents=cost.dailyHoldingCost===null||ageDays===null?null:Math.round(cost.dailyHoldingCost*100)*ageDays;
     const holdingEstimate=holdingCents===null||!Number.isSafeInteger(holdingCents)?null:holdingCents/100;
     const priority=!active?"closed":ageDays===null?"unknown":ageDays>=90?"priority":ageDays>=60?"review":ageDays>=30?"watch":"current";
-    return {vehicleId:vehicle.id,active,coverage:"recorded" as const,ageDays,costBasis,holdingEstimate,askingSpread:Math.round((vehicle.price-costBasis)*100)/100,recordedContribution:sale?Math.round((sale.amount-costBasis)*100)/100:null,priority};
+    const recordedContribution=sale?Math.round((sale.amount-costBasis)*100)/100:null;
+    const percent=(numerator:number,denominator:number)=>denominator>0?Math.round(numerator/denominator*10000)/100:null;
+    return {vehicleId:vehicle.id,active,coverage:"recorded" as const,ageDays,costBasis,holdingEstimate,
+      askingSpread:active?Math.round((vehicle.price-costBasis)*100)/100:null,recordedContribution,
+      recordedMarginPercent:recordedContribution!==null?percent(recordedContribution,sale!.amount):null,
+      recordedReturnPercent:recordedContribution!==null?percent(recordedContribution,costBasis):null,
+      contributionAfterEstimatedHolding:recordedContribution!==null&&holdingEstimate!==null?Math.round((recordedContribution-holdingEstimate)*100)/100:null,priority};
   });
   const active=rows.filter(r=>r.active),covered=active.filter(r=>r.costBasis!==null);
   const total=(values:number[])=>{const cents=values.reduce((n,v)=>n+Math.round(v*100),0);if(!Number.isSafeInteger(cents))throw new InputError("Report amounts exceed safe precision.");return cents/100;};
@@ -49,6 +58,6 @@ export function capitalReport(vehicles:Vehicle[],costs:StockCost[],sales:Sale[],
     agedCapital:total(covered.filter(r=>r.ageDays!==null&&r.ageDays>=90).map(r=>r.costBasis!)),
     realizedContribution:total(rows.map(r=>r.recordedContribution??0)),
     saleCostCoverage:rows.filter(r=>r.recordedContribution!==null).length,
-    assumptions:["Age bands: watch 30, review 60, priority 90 days in the Asia/Kolkata business calendar; operational defaults, not market predictions.","Capital is recorded purchase plus reconditioning, transfer and other costs for unsold stock; missing records are excluded, not zero.","Asking spread and recorded contribution exclude unrecorded taxes, financing, overhead and sale expenses. They are not net profit.","Holding estimates use the operator-entered daily assumption and stop at sale. Unknown daily costs remain unknown."],
+    assumptions:["Age bands: watch 30, review 60, priority 90 days in the Asia/Kolkata business calendar; operational defaults, not market predictions.","Capital is recorded purchase plus reconditioning, transfer and other costs for unsold stock; missing records are excluded, not zero.","Asking spread and recorded contribution exclude unrecorded taxes, financing, overhead and sale expenses. They are not net profit.","Holding estimates use the operator-entered daily assumption and stop at sale. Unknown daily costs remain unknown.","Recorded contribution margin divides sale contribution by sale revenue; recorded return divides it by cost basis. Neither includes unrecorded expenses or equals net profit.","Sales after the calculation time and acquisitions after its business date are excluded. Current cost records and asking prices are used; this is not a historical ledger reconstruction."],
   };
 }

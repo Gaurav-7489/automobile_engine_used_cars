@@ -3,6 +3,7 @@ import { InventoryIntake } from "../../components/inventory-intake";
 import { IntelligenceView } from "../../components/intelligence-view";
 import { InventoryOperations, AppointmentStatus } from "../../components/business-operations";
 import Link from "next/link";
+import { requireCommandPage } from "@vandlabs/contracts";
 import { notFound } from "next/navigation";
 import { campaignTemplates, leads as seededLeads } from "@vandlabs/demo-data";
 import { metrics, tenantConfig, dataMode, type Snapshot } from "@vandlabs/data";
@@ -677,6 +678,7 @@ export default async function Page({
   const { section } = await params;
   if (!valid.has(section)) notFound();
   const data = await commandData();
+  requireCommandPage(data, "/" + section);
 
   return (
     <main className="main">

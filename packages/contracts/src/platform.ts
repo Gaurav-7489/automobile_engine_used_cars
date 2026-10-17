@@ -4,6 +4,8 @@ export const staffRoles = {
   owner: ["inventory:read", "inventory:write", "lead:read", "lead:write", "task:write", "analytics:read", "capital:read", "capital:write", "commerce:manage"],
   manager: ["inventory:read", "inventory:write", "lead:read", "lead:write", "task:write", "analytics:read"],
   sales: ["inventory:read", "lead:read", "lead:write", "task:write", "analytics:read"],
+  acquisition: ["inventory:read", "inventory:write", "analytics:read", "capital:read"],
+  marketing: ["inventory:read", "analytics:read"],
   viewer: ["inventory:read", "lead:read", "analytics:read"],
 } as const satisfies Record<string, readonly Capability[]>;
 export type StaffRole = keyof typeof staffRoles;

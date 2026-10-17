@@ -8,7 +8,7 @@
     "typecheck": "turbo typecheck",
     "lint": "eslint apps packages tests playwright*.config.ts",
     "test:e2e": "playwright test",
-    "qa": "pnpm lint && pnpm typecheck && pnpm test:security && pnpm test:database && pnpm test:intelligence && pnpm test:cloudflare && pnpm build && pnpm test:e2e && pnpm test:auth:e2e",
+    "qa": "pnpm lint && pnpm typecheck && pnpm test:security && pnpm test:database && pnpm test:intelligence && pnpm test:cloudflare && pnpm build && pnpm test:e2e && pnpm test:auth:e2e && pnpm test:roles:e2e",
     "test:security": "node --import tsx --test tests/security/*.test.ts",
     "test:auth:e2e": "playwright test --config playwright.auth.config.ts",
     "test:live": "playwright test --config playwright.live.config.ts",
@@ -23,7 +23,8 @@
     "test:cloudflare": "node --import tsx --test tests/cloudflare/*.test.ts tests/cloudflare/*.test.mjs",
     "cf:build": "pnpm --filter @vandlabs/web cf:build && pnpm --filter @vandlabs/command-center cf:build && pnpm --filter @vandlabs/platform cf:build",
     "cf:configure": "node scripts/cloudflare/configure.mjs",
-    "cf:deploy": "node scripts/cloudflare/deploy.mjs"
+    "cf:deploy": "node scripts/cloudflare/deploy.mjs",
+    "test:roles:e2e": "playwright test --config playwright.roles.config.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261011.1",

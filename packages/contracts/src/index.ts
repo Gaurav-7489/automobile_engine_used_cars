@@ -374,3 +374,5 @@ export interface StockCostChange {
 }
 
 export * from "./commerce";
+
+export * from "./command-access";
