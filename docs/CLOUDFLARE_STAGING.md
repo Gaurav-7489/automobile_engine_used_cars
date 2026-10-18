@@ -5,6 +5,9 @@ staging app, staff login or production acceptance. Four dedicated staging R2
 buckets were created in APAC and their r2.dev public access is disabled.
 
 `CF_ENVIRONMENT` accepts `staging` or `production` and defaults to staging.
+`CF_PLAN` accepts `paid` (default) or `free`. The Workers Free plan rejects any
+configured CPU limit (error 100328), so `free` drops `limits` from every generated
+config; each app bundle is about 2 MB gzipped, within the free 3 MB limit.
 `pnpm cf:configure` rewrites names, self-references, service bindings, admission
 bindings and media/cache bucket names consistently. Re-running it switches from
 one target to the other without accumulating prefixes. `pnpm cf:deploy` provisions

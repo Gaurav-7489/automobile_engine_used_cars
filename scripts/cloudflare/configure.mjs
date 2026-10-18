@@ -14,6 +14,10 @@ const hostname=new URL(origin).hostname;
 const workersDev=hostname.endsWith(".workers.dev");
 if(workersDev && !hostname.startsWith(resource("gateway")+"."))throw new Error("workers.dev origin must match the gateway Worker name.");
 const shared=process.env.CF_SHARED_DATA === "true";
+const plan=process.env.CF_PLAN ?? "paid";
+if(!["free","paid"].includes(plan))throw new Error("CF_PLAN must be free or paid.");
+// The Workers Free plan rejects any configured CPU limit (error 100328).
+const fitPlan=config=>{if(plan==="free")delete config.limits;return config;};
 const authMode=process.env.AUTH_MODE ?? "oidc";
 if(shared && !["oidc","cognito"].includes(authMode))throw new Error("Shared mode requires oidc or cognito staff authentication.");
 if(shared) {
@@ -32,7 +36,7 @@ for(const name of ["web","command-center","platform"]) {
   for(const binding of config.durable_objects?.bindings ?? [])if(binding.name==="ADMISSION")binding.script_name=resource("admission");
   for(const binding of config.r2_buckets ?? [])binding.bucket_name=resource(binding.binding==="VEHICLE_MEDIA"?"vehicle-media":`${name}-cache`);
   config.vars={...config.vars,DEPLOYMENT_ENVIRONMENT:target,APP_ORIGIN:origin,SITE_ORIGIN:origin,DATA_MODE:shared?"neon":"demo",AUTH_MODE:shared?authMode:"demo",NEXT_PUBLIC_PREVIEW_READ_ONLY:shared?"false":"true",SEO_INDEXABLE:target==="staging"?"false":process.env.SEO_INDEXABLE ?? "false",NOTIFICATIONS_ENABLED:process.env.NOTIFICATIONS_ENABLED ?? "false",...(name==="web"?{DISCOVERY_AI_ENABLED:process.env.DISCOVERY_AI_ENABLED==="true"?"true":"false"}:{})};
-  await writeFile(path,JSON.stringify(config,null,2)+"\n");
+  await writeFile(path,JSON.stringify(fitPlan(config),null,2)+"\n");
 }
 const path="infra/cloudflare/wrangler.jsonc",config=JSON.parse(await readFile(path,"utf8"));
 config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
@@ -44,12 +48,12 @@ config.vars.PUBLIC_ORIGIN=origin;
 config.workers_dev=workersDev;
 config.preview_urls=false;
 config.routes=workersDev?[]:[{pattern:hostname,custom_domain:true}];
-await writeFile(path,JSON.stringify(config,null,2)+"\n");
+await writeFile(path,JSON.stringify(fitPlan(config),null,2)+"\n");
 for(const name of ["admission","notifications"]) {
   const path=`infra/cloudflare/${name}.wrangler.jsonc`,config=JSON.parse(await readFile(path,"utf8"));
   config.name=resource(name);
   config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
-  await writeFile(path,JSON.stringify(config,null,2)+"\n");
+  await writeFile(path,JSON.stringify(fitPlan(config),null,2)+"\n");
 }
 {
   // Apps reach Dealer AI through a service binding. Its workers.dev URL stays off unless an
@@ -59,6 +63,6 @@ for(const name of ["admission","notifications"]) {
   config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
   config.workers_dev=process.env.DEALER_AI_PUBLIC==="true";
   config.preview_urls=false;
-  await writeFile(path,JSON.stringify(config,null,2)+"\n");
+  await writeFile(path,JSON.stringify(fitPlan(config),null,2)+"\n");
 }
 console.log(`Cloudflare ${target} configs generated. No credentials were written into them.`);

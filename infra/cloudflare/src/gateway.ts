@@ -87,8 +87,10 @@ export default {
       const heldLease=lease;
       if(response.body && heldLease) {
         const reader=response.body.getReader(); lease=undefined;
-        const release=()=>call(global,{op:"release",lease:heldLease}).catch(()=>undefined);
-        const body=new ReadableStream({async pull(c) {try {const item=await reader.read(); if(item.done){c.close();await release();}else c.enqueue(item.value);} catch(e){c.error(e);await release();}},async cancel(reason){await reader.cancel(reason);await release();}});
+        // The response may be complete before this promise settles; waitUntil keeps the
+        // release alive so the lease is not stranded until its 60s expiry.
+        const release=()=>ctx.waitUntil(call(global,{op:"release",lease:heldLease}).catch(()=>undefined));
+        const body=new ReadableStream({async pull(c) {try {const item=await reader.read(); if(item.done){release();c.close();}else c.enqueue(item.value);} catch(e){release();c.error(e);}},async cancel(reason){release();await reader.cancel(reason);}});
         return new Response(body,{status:response.status,headers:outgoing});
       }
       return new Response(response.body,{status:response.status,headers:outgoing});

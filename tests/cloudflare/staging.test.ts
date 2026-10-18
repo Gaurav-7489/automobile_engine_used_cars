@@ -59,6 +59,20 @@ test("staging configuration isolates every Worker, service binding, media/cache 
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
+test("free-plan configuration drops CPU limits the Workers Free plan rejects; paid keeps them", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vandlabs-plan-config-"));
+  try {
+    for (const file of files) { await mkdir(dirname(join(directory, file)), { recursive: true }); await copyFile(file, join(directory, file)); }
+    const run = (plan: string) => spawnSync(process.execPath, [resolve("scripts/cloudflare/configure.mjs")], { cwd: directory, encoding: "utf8", env: { ...process.env, CF_ENVIRONMENT: "staging", CF_SHARED_DATA: "false", CF_PUBLIC_ORIGIN: "https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev", SEO_INDEXABLE: "false", CF_PLAN: plan } });
+    const limited = ["apps/web/wrangler.jsonc", "infra/cloudflare/wrangler.jsonc", "infra/cloudflare/admission.wrangler.jsonc", "infra/cloudflare/notifications.wrangler.jsonc"];
+    let result = run("free"); assert.equal(result.status, 0, result.stderr);
+    for (const file of files) assert.equal(JSON.parse(await readFile(join(directory, file), "utf8")).limits, undefined, file);
+    for (const file of files) await copyFile(file, join(directory, file));
+    result = run("paid"); assert.equal(result.status, 0, result.stderr);
+    for (const file of limited) assert.ok(JSON.parse(await readFile(join(directory, file), "utf8")).limits?.cpu_ms, file);
+    assert.equal(run("enterprise").status, 1);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
 
 test("shared staging configuration supports Cognito without OIDC secrets and rejects demo or incomplete identity before mutation", async () => {
   const directory = await mkdtemp(join(tmpdir(), "vandlabs-cognito-config-"));
