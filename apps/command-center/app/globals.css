@@ -480,3 +480,17 @@ tr:hover td { background:#f8faf5; }
 .ck-method summary { cursor: pointer; font-size: 15px; font-weight: 600; padding-block: 4px; }
 .ck-method ul { margin: 12px 0 2px; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .ck-agenda li > time { font-size: 12px; font-weight: 600; color: var(--muted); }
+
+/* ---- Market radar ---- */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.mk-filters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px 12px; align-items: end; }
+.mk-filters label { display: grid; gap: 5px; font-size: 12px; color: var(--muted); min-width: 0; }
+.mk-filters input, .mk-filters select { width: 100%; min-height: 40px; }
+.mk-more { grid-column: 1 / -1; } .mk-more summary { cursor: pointer; font-size: 13px; color: var(--muted); width: fit-content; padding-block: 6px; }
+.mk-more-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 12px; margin-top: 8px; }
+.mk-actions { grid-column: 1 / -1; display: flex; gap: 14px; align-items: center; }
+.mk-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 0; }
+.mk-chips li { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; background: #fff; }
+.mk-chips a { display: inline-grid; place-items: center; min-width: 28px; min-height: 28px; border-radius: 50%; font-size: 16px; }
+.ck-evidence { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+@media (max-width: 900px) { .mk-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -40,6 +40,14 @@ function demoState(): CommerceState {
     ["creta", "Hyundai", "Creta", 2020, "Kochi", "Kerala", 9.9312, 76.2673, 850000, 35000, 5000, 960000, 995000, 88],
   ];
   state.vehicles = examples.map(([id, make, model, year, city, region, latitude, longitude, purchase, preparation, fees, low, high, demand]) => ({ id: `demo:${id}`, sourceId: "demo", sourceRecordId: String(id), make: String(make), model: String(model), year: Number(year), city: String(city), state: String(region), latitude: Number(latitude), longitude: Number(longitude), purchasePrice: Number(purchase), preparationCost: Number(preparation), transferFees: Number(fees), resaleLow: Number(low), resaleHigh: Number(high), demandScore: Number(demand), odometerKm: 45000, fuel: "petrol", transmission: "manual", mileageKmpl: 18, evidence: "Fictional values for functional testing", observedAt: now.toISOString(), expiresAt, available: true }));
+  // Fictional asking-price observations (clearly labelled by the source) so the radar can be exercised end to end.
+  const asks: [string, string, string, number, string, string, number, number, number, number][] = [
+    ["a1", "Maruti", "Swift", 2021, "Kochi", "Kerala", 9.9312, 76.2673, 492000, 1], ["a2", "Maruti", "Swift", 2021, "Kochi", "Kerala", 9.9312, 76.2673, 508000, 2],
+    ["a3", "Maruti", "Swift", 2021, "Kochi", "Kerala", 9.9312, 76.2673, 481000, 3], ["a4", "Maruti", "Swift", 2021, "Bengaluru", "Karnataka", 12.9716, 77.5946, 529000, 1],
+    ["a5", "Maruti", "Swift", 2021, "Bengaluru", "Karnataka", 12.9716, 77.5946, 541000, 2], ["a6", "Maruti", "Swift", 2021, "Chennai", "Tamil Nadu", 13.0827, 80.2707, 498000, 4],
+    ["a7", "Maruti", "Swift", 2021, "Chennai", "Tamil Nadu", 13.0827, 80.2707, 512000, 5], ["a8", "Maruti", "Swift", 2021, "Bengaluru", "Karnataka", 12.9716, 77.5946, 523000, 6],
+  ].map(([id, make, model, year, city, region, lat, lng, amount, age]) => [id, make, model, year, city, region, lat, lng, amount, age] as [string, string, string, number, string, string, number, number, number, number]);
+  state.vehicles.push(...asks.map(([id, make, model, year, city, region, latitude, longitude, amount, age]) => ({ id: `demo:ask-${id}`, sourceId: "demo", sourceRecordId: `ask-${id}`, make, model, year, city, state: region, latitude, longitude, purchasePrice: amount, preparationCost: 0, transferFees: 0, resaleLow: null, resaleHigh: null, demandScore: null, odometerKm: 38000 + age * 1500, fuel: "petrol" as const, transmission: "manual" as const, mileageKmpl: null, evidence: "Fictional asking-price observation for demonstration", observedAt: new Date(now.getTime() - age * 86400000).toISOString(), expiresAt, available: true, askingPrice: { amount, currency: "INR" as const, observedAt: new Date(now.getTime() - age * 86400000).toISOString() } })));
   state.fuel = [{ id: "demo:kochi:petrol", sourceId: "demo", city: "Kochi", fuel: "petrol", pricePerLitre: 105, observedAt: now.toISOString(), expiresAt }];
   return state;
 }
