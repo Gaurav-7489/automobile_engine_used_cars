@@ -13,7 +13,13 @@ export type { DealerAiBinding } from "./dealer-ai";
 export type CommerceRepository = { transact<T>(tenantId: string, action: (state: CommerceState) => T): Promise<T>; read?<T>(tenantId: string, action: (state: CommerceState) => T): Promise<T> };
 const emptyState = (): CommerceState => ({ subscription: null, sources: [], vehicles: [], fuel: [], keys: [], usage: {}, audit: [] });
 export function postgresCommerceRepository(pool: SqlPool): CommerceRepository {
-  return { transact: (tenantId, action) => tenantTransaction(pool, tenantId, async client => {
+  return {
+    // Pure reads never create the row or bump its version.
+    read: (tenantId, action) => tenantTransaction(pool, tenantId, async client => {
+      const row = (await client.query("SELECT payload FROM dealer_commerce WHERE tenant_id=$1", [tenantId])).rows[0];
+      return action(structuredClone((row?.payload as CommerceState | undefined) ?? emptyState()));
+    }),
+    transact: (tenantId, action) => tenantTransaction(pool, tenantId, async client => {
     await client.query("INSERT INTO dealer_commerce(tenant_id,payload) VALUES($1,$2) ON CONFLICT(tenant_id) DO NOTHING", [tenantId, emptyState()]);
     const row = (await client.query("SELECT payload FROM dealer_commerce WHERE tenant_id=$1 FOR UPDATE", [tenantId])).rows[0];
     if (!row) throw new CommerceError(403, "Tenant unavailable.");
@@ -110,6 +116,15 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
       const input = object(value), now = clock();
       const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
       return read(p.tenantId, state => { active(state, now); assertFeature(state.subscription, "market_intelligence", now); return marketReport(state, input, now); });
+    },
+    /** Subscription, usage and sync state for every tenant in the administrator's explicit scope. */
+    async platformSlices(p: AuthenticatedPrincipal) {
+      requireCapability(p, "platform:admin");
+      const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
+      // Sequential on purpose: serverless pools are capped at a couple of connections, and each read is a short tenant transaction.
+      const slices = new Map<string, Pick<CommerceState, "subscription" | "usage" | "sources" | "sourceSync">>();
+      for (const id of p.platformTenantIds ?? []) slices.set(id, await read(id, state => ({ subscription: state.subscription, usage: state.usage, sources: state.sources, sourceSync: state.sourceSync })));
+      return slices;
     },
     async provision(p: AuthenticatedPrincipal, tenantId: string, value: unknown) {
       platform(p, tenantId); const b = object(value), now = clock();

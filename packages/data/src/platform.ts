@@ -62,11 +62,12 @@ export function postgresPlatformStore(pool:SqlPool) {
         const h=await hierarchy(c,tenantId);
         const stats=(await c.query(`SELECT
           (SELECT count(*) FROM vehicles WHERE tenant_id=$1) AS vehicles,
+          (SELECT count(*) FROM vehicles WHERE tenant_id=$1 AND availability_status<>'sold') AS unsold,
           (SELECT count(*) FROM vehicles WHERE tenant_id=$1 AND publish_status='published') AS published,
           (SELECT count(*) FROM leads WHERE tenant_id=$1) AS leads,
           (SELECT count(*) FROM tasks WHERE tenant_id=$1 AND NOT completed) AS tasks,
           (SELECT count(*) FROM sales WHERE tenant_id=$1) AS sales`,[tenantId])).rows[0];
-        return {tenantId,...h,counts:{vehicles:Number(stats.vehicles),publishedVehicles:Number(stats.published),leads:Number(stats.leads),openTasks:Number(stats.tasks),sales:Number(stats.sales)},
+        return {tenantId,...h,counts:{vehicles:Number(stats.vehicles),unsoldVehicles:Number(stats.unsold),publishedVehicles:Number(stats.published),leads:Number(stats.leads),openTasks:Number(stats.tasks),sales:Number(stats.sales)},
           staff:(await c.query("SELECT payload FROM staff_members WHERE tenant_id=$1 ORDER BY user_id",[tenantId])).rows.map(r=>r.payload as StaffMember),
           audit:(await c.query("SELECT payload FROM platform_audit WHERE tenant_id=$1 ORDER BY occurred_at DESC LIMIT 100",[tenantId])).rows.map(r=>r.payload as PlatformAudit)};
       }));
@@ -108,7 +109,7 @@ export async function platformSnapshot(p:AuthenticatedPrincipal):Promise<Platfor
   const l=runtime.mergeRuntimeLeads(leads).filter(x=>x.tenantId===tenantConfig.tenantId);
   return [{tenantId:tenantConfig.tenantId,organizationId:tenantConfig.organization.id,organization:tenantConfig.organization.name,
     dealerships:tenantConfig.organization.dealerships.map(d=>({id:d.id,name:d.name,locations:d.locations.map(x=>({id:x.id,name:x.name,city:x.city}))})),
-    counts:{vehicles:v.length,publishedVehicles:v.filter(x=>x.publishStatus==="published").length,leads:l.length,openTasks:runtime.mergeRuntimeTasks(tasks).filter(t=>t.tenantId===tenantConfig.tenantId&&!t.completed).length,sales:runtime.readRuntimeSales().filter(s=>s.tenantId===tenantConfig.tenantId).length},
+    counts:{vehicles:v.length,unsoldVehicles:v.filter(x=>x.availabilityStatus!=="sold").length,publishedVehicles:v.filter(x=>x.publishStatus==="published").length,leads:l.length,openTasks:runtime.mergeRuntimeTasks(tasks).filter(t=>t.tenantId===tenantConfig.tenantId&&!t.completed).length,sales:runtime.readRuntimeSales().filter(s=>s.tenantId===tenantConfig.tenantId).length},
     staff:runtime.readPlatformRecords<StaffMember>("staff-members.json").filter(x=>x.tenantId===tenantConfig.tenantId),
     audit:runtime.readPlatformRecords<PlatformAudit>("platform-audit.json").filter(x=>x.tenantId===tenantConfig.tenantId).slice(0,100)}];
 }
