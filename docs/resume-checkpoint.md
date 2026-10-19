@@ -10,7 +10,7 @@ Cloudflare still has only the admission and dealer-AI Workers; runtime/staff
 configuration and MFA acceptance are blocked. The complete commercial product is
 unfinished: billing, broader entitlements, full copilot, provider contracts, full
 expense taxonomy, premium design, monitoring/restore/load and live release gates
-remain. Do not deploy the historical full AWS stack. Use STAFF_IDENTITY_SETUP.md
+remain. Do not deploy the historical full AWS stack. Use GOOGLE_SIGN_IN_SETUP.md
 for the isolated Cognito setup and secure staging environment mappings.
 
 ## Navigation reliability follow-up — 15 October 2026
@@ -23,7 +23,7 @@ Current delivery evidence and remaining work are maintained in
 [RELEASE_TRACKER.md](RELEASE_TRACKER.md). Active infrastructure target:
 Cloudflare Workers + R2 + Neon PostgreSQL + Resend, with optional isolated Cognito
 staff identity. Use [Cloudflare staging](CLOUDFLARE_STAGING.md),
-[staff identity setup](STAFF_IDENTITY_SETUP.md) and
+[Google sign-in setup](GOOGLE_SIGN_IN_SETUP.md) and
 [provider sync](PROVIDER_SYNC.md) for current configuration.
 
 PRs #23/#24 were reconciled in #25; #26–#28 added staging isolation, secure token

@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 export function GET() {
   const headers = { "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff" };
   const {APP_ORIGIN}=process.env, oidc=process.env.AUTH_MODE === "oidc";
-  const COGNITO_DOMAIN=oidc && process.env.OIDC_ISSUER ? new URL(process.env.OIDC_ISSUER).origin : process.env.COGNITO_DOMAIN;
-  const COGNITO_DESKTOP_CLIENT_ID=oidc?process.env.OIDC_DESKTOP_CLIENT_ID:process.env.COGNITO_DESKTOP_CLIENT_ID;
+  const COGNITO_DOMAIN=oidc && process.env.OIDC_ISSUER ? new URL(process.env.OIDC_ISSUER).origin : undefined;
+  const COGNITO_DESKTOP_CLIENT_ID=oidc?process.env.OIDC_DESKTOP_CLIENT_ID:undefined;
   try {
-    if (!["oidc","cognito"].includes(process.env.AUTH_MODE ?? "") || !["aurora", "neon"].includes(process.env.DATA_MODE ?? "") || !APP_ORIGIN || !COGNITO_DOMAIN || !COGNITO_DESKTOP_CLIENT_ID) throw new Error();
+    if (!["oidc"].includes(process.env.AUTH_MODE ?? "") || !["aurora", "neon"].includes(process.env.DATA_MODE ?? "") || !APP_ORIGIN || !COGNITO_DOMAIN || !COGNITO_DESKTOP_CLIENT_ID) throw new Error();
     for (const value of [APP_ORIGIN, COGNITO_DOMAIN]) {
       const url = new URL(value);
       if (url.protocol !== "https:" || url.origin !== value.replace(/\/$/, "")) throw new Error();

@@ -1,5 +1,4 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
-import { CognitoJwtVerifier } from "aws-jwt-verify";
 import {
   AuthorizationError,
   requireCapability,
@@ -23,21 +22,10 @@ export class AuthenticationError extends Error {
   }
 }
 
-export function authMode(env: Environment = process.env): "demo" | "cognito" | "oidc" {
-  if (env.AUTH_MODE === "oidc" || env.AUTH_MODE === "cognito" || env.AUTH_MODE === "demo") return env.AUTH_MODE;
+export function authMode(env: Environment = process.env): "demo" | "google" | "oidc" {
+  if (env.AUTH_MODE === "oidc" || env.AUTH_MODE === "google" || env.AUTH_MODE === "demo") return env.AUTH_MODE;
   if (!env.AUTH_MODE && env.NODE_ENV !== "production" && !["aurora", "neon"].includes(env.DATA_MODE ?? "")) return "demo";
   throw new AuthenticationError(503, "Staff authentication is not configured.");
-}
-
-export function createCognitoVerifier(env: Environment = process.env) {
-  if (!env.COGNITO_USER_POOL_ID || !env.COGNITO_CLIENT_ID) {
-    throw new AuthenticationError(503, "Staff authentication is not configured.");
-  }
-  return CognitoJwtVerifier.create({
-    userPoolId: env.COGNITO_USER_POOL_ID,
-    clientId: env.COGNITO_CLIENT_IDS?.split(",").map(v=>v.trim()).filter(Boolean) ?? env.COGNITO_CLIENT_ID,
-    tokenUse: "access",
-  });
 }
 
 function stringList(value: unknown): value is string[] {
@@ -112,12 +100,7 @@ export function createPrincipalResolver(options: {
       }
     }
     if (!verifyToken) {
-      if (authMode(env) === "oidc") {
-        verifyToken = createOidcVerifier(env);
-      } else {
-        const verifier = createCognitoVerifier(env);
-        verifyToken = (token) => verifier.verify(token);
-      }
+      verifyToken = authMode(env) === "google" ? createGoogleVerifier(env) : createOidcVerifier(env);
     }
     let sub: string;
     try { sub = (await verifyToken(credential.token)).sub; } catch {
@@ -171,5 +154,25 @@ export function createOidcVerifier(env:Environment=process.env, suppliedKeys?:JW
     const {payload}=await jwtVerify(token,keys,{issuer:env.OIDC_ISSUER,audience:env.OIDC_AUDIENCE,algorithms:["RS256","ES256"],requiredClaims:["sub","exp","iat"],maxTokenAge:"1h",clockTolerance:3});
     if(typeof payload.sub!=="string" || (payload.token_use && payload.token_use!=="access"))throw new AuthenticationError(401,"Invalid identity.");
     return {sub:payload.sub};
+  };
+}
+
+const googleIssuers=["https://accounts.google.com","accounts.google.com"];
+/**
+ * Verifies a Google ID token. Google access tokens are opaque, so the signed ID token is the
+ * credential. The staff identity is the verified, lower-cased email address, which administrators
+ * can grant without looking up an opaque subject.
+ */
+export function createGoogleVerifier(env:Environment=process.env, suppliedKeys?:JWTVerifyGetKey):TokenVerifier {
+  const audiences=(env.GOOGLE_CLIENT_IDS||env.GOOGLE_CLIENT_ID||"").split(",").map(v=>v.trim()).filter(Boolean);
+  if(audiences.length===0)throw new AuthenticationError(503,"Staff authentication is not configured.");
+  const keys=suppliedKeys ?? createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"),{timeoutDuration:5000,cooldownDuration:30000});
+  const domain=env.GOOGLE_ALLOWED_DOMAIN?.trim().toLowerCase();
+  return async token=>{
+    const {payload}=await jwtVerify(token,keys,{issuer:googleIssuers,audience:audiences,algorithms:["RS256"],requiredClaims:["sub","exp","iat","email"],maxTokenAge:"1h",clockTolerance:3});
+    if(typeof payload.email!=="string" || payload.email_verified!==true)throw new AuthenticationError(401,"Invalid identity.");
+    const email=payload.email.trim().toLowerCase();
+    if(!/^[^\s@]+@[^\s@]+$/.test(email) || (domain && (typeof payload.hd!=="string" || payload.hd.toLowerCase()!==domain)))throw new AuthenticationError(401,"Invalid identity.");
+    return {sub:email};
   };
 }

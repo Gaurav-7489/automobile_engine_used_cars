@@ -20,11 +20,11 @@ function staffInput(tenantId: string, input: unknown): Pick<StaffMember,"tenantI
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new InputError();
   const b = input as Record<string,unknown>;
   const list = (v: unknown): v is string[] => Array.isArray(v) && v.length > 0 && v.length <= 100 && v.every(x=>typeof x==="string"&&x.length>0&&x.length<150) && new Set(v).size===v.length;
-  if (typeof b.userId!=="string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(b.userId) ||
+  if (typeof b.userId!=="string" || !/^[a-zA-Z0-9_.+@-]{1,128}$/.test(b.userId) ||
       typeof b.displayName!=="string" || !b.displayName.trim() || b.displayName.length>120 ||
       typeof b.role!=="string" || !Object.hasOwn(staffRoles,b.role) ||
       !list(b.dealershipIds) || !list(b.locationIds) || typeof b.enabled!=="boolean") throw new InputError();
-  return { tenantId, userId:b.userId, displayName:b.displayName.trim(), role:b.role as StaffRole,
+  return { tenantId, userId:b.userId.includes("@")?b.userId.toLowerCase():b.userId, displayName:b.displayName.trim(), role:b.role as StaffRole,
     dealershipIds:b.dealershipIds,locationIds:b.locationIds,enabled:b.enabled };
 }
 function checkVersion(value: unknown, current: number) {
@@ -117,7 +117,7 @@ export async function saveStaffMember(p:AuthenticatedPrincipal,tenantId:string,i
     state["platform-audit.json"]=[audit(p,member),...state["platform-audit.json"]];return member;
   });
 }
-/** Called only after Cognito verifies subject, issuer, client and expiry. */
+/** Called only after the identity provider verifies the subject, issuer, client and expiry. */
 export async function resolveDatabaseStaff(sub:string,tenantId:string) {
   if(dataMode()==="demo")throw new Error("Database staff registry requires shared PostgreSQL.");
   return postgresPlatformStore(await databasePool()).principal(sub,tenantId);

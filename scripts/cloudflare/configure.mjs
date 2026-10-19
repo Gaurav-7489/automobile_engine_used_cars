@@ -18,12 +18,12 @@ const plan=process.env.CF_PLAN ?? "paid";
 if(!["free","paid"].includes(plan))throw new Error("CF_PLAN must be free or paid.");
 // The Workers Free plan rejects any configured CPU limit (error 100328).
 const fitPlan=config=>{if(plan==="free")delete config.limits;return config;};
-const authMode=process.env.AUTH_MODE ?? "oidc";
-if(shared && !["oidc","cognito"].includes(authMode))throw new Error("Shared mode requires oidc or cognito staff authentication.");
+const authMode=process.env.AUTH_MODE ?? "google";
+if(shared && !["oidc","google"].includes(authMode))throw new Error("Shared mode requires google or oidc staff authentication.");
 if(shared) {
   const url=new URL(process.env.DATABASE_URL ?? "");
   if(!url.hostname.endsWith(".neon.tech")||!url.hostname.includes("-pooler.")||url.username!==(process.env.APPLICATION_DATABASE_USER ?? "vandlabs_runtime"))throw new Error("Use the pooled Neon restricted runtime role URL.");
-  const identityKeys=authMode==="cognito"?["COGNITO_DOMAIN","COGNITO_USER_POOL_ID","COGNITO_CLIENT_ID"]:["OIDC_ISSUER","OIDC_AUDIENCE","OIDC_JWKS_URL","OIDC_CLIENT_ID","OIDC_AUTHORIZE_URL","OIDC_TOKEN_URL","OIDC_REVOKE_URL"];
+  const identityKeys=authMode==="google"?["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET"]:["OIDC_ISSUER","OIDC_AUDIENCE","OIDC_JWKS_URL","OIDC_CLIENT_ID","OIDC_AUTHORIZE_URL","OIDC_TOKEN_URL","OIDC_REVOKE_URL"];
   for(const key of ["TENANT_CONFIG_JSON","SESSION_SECRET",...identityKeys])if(!process.env[key])throw new Error(`Configure ${key} before selecting shared mode.`);
   const config=JSON.parse(process.env.TENANT_CONFIG_JSON);
   if(config.seo.canonicalBase.replace(/\/$/,"")!==origin)throw new Error("Tenant canonicalBase must match CF_PUBLIC_ORIGIN.");

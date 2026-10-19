@@ -44,7 +44,7 @@ Validation: lint, typecheck and all three production builds pass; 13 security un
 tests, 13 staff HTTP denial tests and 12 reference API regression cases pass.
 Full browser smoke verification remains pending CI because this environment's
 Chromium archive download failed. Login/refresh UX, live Cognito acceptance and
-Aurora repositories/deployment remain pending. See `staff-authentication.md`.
+Aurora repositories/deployment remain pending. See `GOOGLE_SIGN_IN_SETUP.md`.
 
 ## Shared runtime and native client
 
