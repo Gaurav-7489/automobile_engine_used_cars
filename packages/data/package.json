@@ -13,7 +13,8 @@
     "./commerce-rules": "./src/commerce-rules.ts",
     "./discovery": "./src/discovery.ts",
     "./dead-stock": "./src/dead-stock.ts",
-    "./platform-overview": "./src/platform-overview.ts"
+    "./platform-overview": "./src/platform-overview.ts",
+    "./cockpit": "./src/cockpit.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

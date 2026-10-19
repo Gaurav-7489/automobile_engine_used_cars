@@ -117,6 +117,12 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
       const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
       return read(p.tenantId, state => { active(state, now); assertFeature(state.subscription, "market_intelligence", now); return marketReport(state, input, now); });
     },
+    /** The caller's own subscription and metered usage, for plan meters. Read-only. */
+    async planStatus(p: AuthenticatedPrincipal) {
+      requireCapability(p, "inventory:read");
+      const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
+      return read(p.tenantId, state => ({ subscription: state.subscription, usage: { ...state.usage } }));
+    },
     /** Subscription, usage and sync state for every tenant in the administrator's explicit scope. */
     async platformSlices(p: AuthenticatedPrincipal) {
       requireCapability(p, "platform:admin");
