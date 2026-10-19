@@ -494,3 +494,13 @@ tr:hover td { background:#f8faf5; }
 .mk-chips a { display: inline-grid; place-items: center; min-width: 28px; min-height: 28px; border-radius: 50%; font-size: 16px; }
 .ck-evidence { margin: 0 0 12px; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
 @media (max-width: 900px) { .mk-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---- Acquisition planner ---- */
+.ck-risk { display: inline-block; width: fit-content; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: #fff; }
+.ck-risk[data-level="low"] { color: #1f6b46; border-color: #9cc9b0; } .ck-risk[data-level="medium"] { color: #8a5a00; border-color: #e0c27a; background: #fbf4e2; } .ck-risk[data-level="high"] { color: #a02c2c; border-color: #e0a3a3; background: #fbeaea; }
+.ck-range { position: relative; height: 22px; margin: 14px 0 38px; background: #e6e9e4; border-radius: 4px; }
+.ck-range-band { position: absolute; top: 0; bottom: 0; background: var(--series-3, #2f805d); border-radius: 4px; opacity: .85; }
+.ck-range-cost { position: absolute; top: -5px; bottom: -5px; width: 3px; margin-left: -1px; background: var(--graphite); border-radius: 2px; }
+.ck-range-key { position: absolute; left: 0; right: 0; top: 28px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.ck-range-key u { text-decoration: none; color: var(--ink, #14231c); font-weight: 600; } .ck-range-key em { font-style: normal; }
+.acquisition-facts dd small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
