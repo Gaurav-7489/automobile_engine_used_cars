@@ -16,3 +16,8 @@ DO $$ BEGIN
  GRANT SELECT,INSERT,UPDATE ON dealer_commerce TO vandlabs_app;
  END IF;
 END $$;
+DO $$ BEGIN
+ IF to_regclass('public.price_change_requests') IS NOT NULL THEN
+ GRANT SELECT,INSERT,UPDATE ON price_change_requests TO vandlabs_app;
+ END IF;
+END $$;

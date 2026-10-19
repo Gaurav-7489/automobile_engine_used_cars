@@ -2,7 +2,7 @@ import { assertInventoryRoom, demoSubscription, readSubscription } from "./entit
 import { randomUUID } from "node:crypto";
 export { platformSnapshot, saveStaffMember, resolveDatabaseStaff, staffDirectory } from "./platform";
 export { runtimeReadiness } from "./readiness";
-import type { AuthenticatedPrincipal, Lead, LeadActivity, LeadStage, Task, Vehicle, Appointment, JourneyEvent, AutomationRule, AutomationRun, AnalyticsSnapshot, Sale, InventoryChange, StockCost, StockCostChange } from "@vandlabs/contracts";
+import type { AuthenticatedPrincipal, Lead, LeadActivity, LeadStage, Task, Vehicle, Appointment, JourneyEvent, AutomationRule, AutomationRun, AnalyticsSnapshot, Sale, InventoryChange, StockCost, StockCostChange, PriceChangeRequest } from "@vandlabs/contracts";
 import { requireCapability, requireTenant, requireDealership, requireLocation, AuthorizationError } from "@vandlabs/contracts";
 import * as demo from "@vandlabs/demo-data";
 import * as runtime from "@vandlabs/demo-data/runtime";
@@ -12,13 +12,14 @@ import { databasePool, tenantTransaction, type SqlClient, type SqlPool } from ".
 import { costInput, validateCostVersion, validateAcquisitionSale, type StockCostInput } from "./capital";
 export { capitalReport } from "./capital";
 export { dataMode, tenantConfig, publicScope } from "./config";
+import { decisionInput, makePriceRequest, priceChangeReasons, priceRequestInput, redactPriceRequest } from "./price-approval";
 import { InputError, RecordNotFound, ConflictError, InventoryValidationError } from "./errors";
 export { InputError, RecordNotFound, ConflictError, InventoryValidationError } from "./errors";
 import { normalizeInventoryRows, type InventoryDraft } from "./inventory-input";
 export { parseInventoryCsv, inventoryColumns } from "./inventory-input";
 export interface Snapshot {
   leads: Lead[]; tasks: Task[]; vehicles: Vehicle[]; appointments: Appointment[];
-  costs?: StockCost[]; costHistory?: StockCostChange[];
+  costs?: StockCost[]; costHistory?: StockCostChange[]; priceRequests?: PriceChangeRequest[];
   inventoryDestinations?: {dealershipId:string;locationId:string;label:string}[];
   capabilities?: AuthenticatedPrincipal["capabilities"]; sales?: Sale[]; inventoryHistory?: InventoryChange[];
   activities: LeadActivity[]; events: JourneyEvent[]; rules: AutomationRule[]; runs: AutomationRun[];
@@ -45,7 +46,7 @@ function scope(principal: AuthenticatedPrincipal, lead: Lead, capability: "lead:
 }
 function demoSnapshot(): Snapshot {
   return { leads: runtime.mergeRuntimeLeads(demo.leads), tasks: runtime.mergeRuntimeTasks(demo.tasks), vehicles: runtime.mergeRuntimeVehicles(demo.vehicles),
-    costs:runtime.readRuntimeStockCosts(),costHistory:runtime.readRuntimeStockCostHistory(),appointments: runtime.mergeRuntimeAppointments(demo.appointments), sales: runtime.readRuntimeSales(), inventoryHistory: runtime.readRuntimeInventoryHistory(), activities: runtime.readRuntimeLeadActivities(), events: runtime.readRuntimeJourneyEvents(),
+    costs:runtime.readRuntimeStockCosts(),costHistory:runtime.readRuntimeStockCostHistory(),priceRequests:runtime.readRuntimePriceRequests(),appointments: runtime.mergeRuntimeAppointments(demo.appointments), sales: runtime.readRuntimeSales(), inventoryHistory: runtime.readRuntimeInventoryHistory(), activities: runtime.readRuntimeLeadActivities(), events: runtime.readRuntimeJourneyEvents(),
     rules: getAutomationRules(tenantConfig.tenantId), runs: runtime.readRuntimeAutomationRuns() };
 }
 function visible(p: AuthenticatedPrincipal, r: {tenantId:string;dealershipId:string;locationId?:string}) {
@@ -95,7 +96,8 @@ export function postgresStore(pool: SqlPool) {
       const vehicles=(await c.query("SELECT * FROM vehicles WHERE tenant_id=$1 AND dealership_id=ANY($2::uuid[]) AND location_id=ANY($3::uuid[]) ORDER BY created_at DESC",args)).rows.map(decodeVehicle);
       const related=async <T>(table:string)=>!canReadLeads?[]:payloads<T>((await c.query(`SELECT r.payload FROM ${table} r JOIN leads l ON l.id=r.lead_id AND l.tenant_id=r.tenant_id WHERE ${predicate}`,leadArgs)).rows);
       const financialRelated=async <T>(table:string)=>p.capabilities.includes("capital:read")?payloads<T>((await c.query(`SELECT r.payload FROM ${table} r JOIN vehicles v ON v.id=r.vehicle_id AND v.tenant_id=r.tenant_id WHERE r.tenant_id=$1 AND v.dealership_id=ANY($2::uuid[]) AND v.location_id=ANY($3::uuid[])`,args)).rows):undefined;
-      return {costs:await financialRelated<StockCost>("stock_costs"),costHistory:await financialRelated<StockCostChange>("stock_cost_history"), leads,vehicles,tasks:await related<Task>("tasks"),activities:await related<LeadActivity>("lead_activities"),appointments:await related<Appointment>("appointments"),
+      const priceRequests=!(await c.query("SELECT to_regclass('public.price_change_requests') AS t")).rows[0]?.t?[]:(await c.query("SELECT r.payload FROM price_change_requests r JOIN vehicles v ON v.id=r.vehicle_id AND v.tenant_id=r.tenant_id WHERE r.tenant_id=$1 AND v.dealership_id=ANY($2::uuid[]) AND v.location_id=ANY($3::uuid[]) ORDER BY r.created_at DESC",args)).rows.map(r=>redactPriceRequest(r.payload as PriceChangeRequest,p.capabilities.includes("capital:read")));
+      return {priceRequests,costs:await financialRelated<StockCost>("stock_costs"),costHistory:await financialRelated<StockCostChange>("stock_cost_history"), leads,vehicles,tasks:await related<Task>("tasks"),activities:await related<LeadActivity>("lead_activities"),appointments:await related<Appointment>("appointments"),
         runs:await related<AutomationRun>("automation_runs"),events:payloads<JourneyEvent>((await c.query("SELECT to_jsonb(e) || jsonb_build_object('tenantId',e.tenant_id,'sessionId',e.session_id,'vehicleId',e.vehicle_id,'type',e.event_type,'occurredAt',e.occurred_at) AS payload FROM journey_events e JOIN vehicles v ON v.id=e.vehicle_id AND v.tenant_id=e.tenant_id WHERE e.tenant_id=$1 AND v.dealership_id=ANY($2::uuid[]) AND v.location_id=ANY($3::uuid[])",args)).rows),
         sales:await related<Sale>("sales"),
         inventoryHistory:payloads<InventoryChange>((await c.query("SELECT h.payload FROM inventory_history h JOIN vehicles v ON v.id=h.vehicle_id AND v.tenant_id=h.tenant_id WHERE h.tenant_id=$1 AND v.dealership_id=ANY($2::uuid[]) AND v.location_id=ANY($3::uuid[])",args)).rows),
@@ -214,11 +216,40 @@ export function postgresStore(pool: SqlPool) {
         return {batchId,preview:!!options.preview,vehicles};
       });}catch(e){if((e as {code?:string}).code==="23505")throw new ConflictError("Stock identity was added concurrently. Refresh the preview.");throw e;}
     },
+    requestPriceChange(p:AuthenticatedPrincipal,id:string,input:unknown,expectedVersion:unknown) {return tx(p.tenantId,async c=> {
+      const values=priceRequestInput(input);requireCapability(p,"inventory:write");await priceTableReady(c);
+      const row=(await c.query("SELECT * FROM vehicles WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[id,p.tenantId])).rows[0];if(!row)throw new RecordNotFound();
+      const vehicle=decodeVehicle(row);inventoryScope(p,vehicle);checkStockVersion(vehicle,expectedVersion);
+      const reasons=priceChangeReasons(vehicle.price,values.proposedPrice,(await c.query("SELECT payload FROM stock_costs WHERE tenant_id=$1 AND vehicle_id=$2",[p.tenantId,id])).rows[0]?.payload as StockCost|undefined);
+      if(!reasons.length)throw new InputError("This change does not need approval. Update the price directly.");
+      if((await c.query("SELECT 1 FROM price_change_requests WHERE tenant_id=$1 AND vehicle_id=$2 AND status='pending'",[p.tenantId,id])).rows.length)throw new ConflictError("A price request for this vehicle is already waiting for a decision.");
+      const request=makePriceRequest(randomUUID(),p.tenantId,vehicle,values,reasons,p.userId,new Date());
+      await c.query("INSERT INTO price_change_requests(id,tenant_id,vehicle_id,status,payload) VALUES($1,$2,$3,'pending',$4)",[request.id,p.tenantId,id,request]);
+      return redactPriceRequest(request,p.capabilities.includes("capital:read"));
+    });},
+    decidePriceChange(p:AuthenticatedPrincipal,requestId:string,input:unknown) {return tx(p.tenantId,async c=> {
+      requireCapability(p,"capital:write");const decision=decisionInput(input);await priceTableReady(c);
+      const row=(await c.query("SELECT payload FROM price_change_requests WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[requestId,p.tenantId])).rows[0];if(!row)throw new RecordNotFound();
+      const request=row.payload as PriceChangeRequest;if(request.status!=="pending")throw new ConflictError("This request was already decided.");
+      if(request.requestedBy===p.userId)throw new AuthorizationError();
+      const vehicleRow=(await c.query("SELECT * FROM vehicles WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[request.vehicleId,p.tenantId])).rows[0];if(!vehicleRow)throw new RecordNotFound();
+      const vehicle=decodeVehicle(vehicleRow);inventoryScope(p,vehicle);
+      const now=new Date().toISOString(),stale=decision.decision==="approved"&&(vehicle.version??0)!==request.vehicleVersion;
+      const decided:PriceChangeRequest={...request,version:request.version+1,status:stale?"stale":decision.decision,decidedBy:p.userId,decidedAt:now,decisionNote:stale?"The vehicle changed after this request was raised.":decision.note};
+      if(decision.decision==="approved"&&!stale){
+        const updated={...vehicle,version:(vehicle.version??0)+1,price:request.proposedPrice,updatedAt:now};
+        await c.query("UPDATE vehicles SET payload=$1,updated_at=$2 WHERE id=$3 AND tenant_id=$4",[updated,now,vehicle.id,p.tenantId]);
+        const change=inventoryChange(p,vehicle,updated);await c.query("INSERT INTO inventory_history(id,tenant_id,vehicle_id,payload,occurred_at) VALUES($1,$2,$3,$4,$5)",[change.id,change.tenantId,vehicle.id,change,change.occurredAt]);
+      }
+      await c.query("UPDATE price_change_requests SET status=$3,payload=$4,updated_at=now() WHERE id=$1 AND tenant_id=$2",[requestId,p.tenantId,decided.status,decided]);
+      return decided;
+    });},
     updateVehicle(p:AuthenticatedPrincipal,id:string,patch:Pick<Vehicle,"price"|"availabilityStatus"|"publishStatus">,expectedVersion:unknown) { return tx(p.tenantId,async c=> {
       validateVehiclePatch(patch);requireCapability(p,"inventory:write");const row=(await c.query("SELECT * FROM vehicles WHERE id=$1 AND tenant_id=$2 FOR UPDATE",[id,p.tenantId])).rows[0];
       if (!row) throw new RecordNotFound();const vehicle=decodeVehicle(row);requireDealership(p,vehicle.dealershipId);requireLocation(p,vehicle.locationId);checkStockVersion(vehicle,expectedVersion);
       if(vehicle.availabilityStatus==="sold" && patch.availabilityStatus!=="sold" && (await c.query("SELECT id FROM sales WHERE tenant_id=$1 AND vehicle_id=$2",[p.tenantId,id])).rows.length)throw new ConflictError("Confirmed sale requires an approved reversal.");
       if(patch.publishStatus==="published"&&(!vehicle.media.length||patch.price<=0))throw new InputError("Publication requires imagery and a positive asking price.");
+      if(patch.price!==vehicle.price&&!p.capabilities.includes("capital:write")&&priceChangeReasons(vehicle.price,patch.price,(await c.query("SELECT payload FROM stock_costs WHERE tenant_id=$1 AND vehicle_id=$2",[p.tenantId,id])).rows[0]?.payload as StockCost|undefined).length)throw new ConflictError("This price change needs owner approval. Submit a price request.");
       const updated={...vehicle,version:(vehicle.version??0)+1,price:patch.price,availabilityStatus:patch.availabilityStatus,publishStatus:patch.publishStatus,updatedAt:new Date().toISOString()};
       await c.query("UPDATE vehicles SET payload=$1,availability_status=$2,publish_status=$3,updated_at=$4 WHERE id=$5 AND tenant_id=$6",[updated,updated.availabilityStatus,updated.publishStatus,updated.updatedAt,id,p.tenantId]);
       const change=inventoryChange(p,vehicle,updated);
@@ -235,7 +266,7 @@ export async function staffSnapshot(p:AuthenticatedPrincipal):Promise<Snapshot> 
   for(const cap of ["inventory:read","analytics:read"] as const) requireCapability(p,cap);
   const s=demoSnapshot();s.leads=s.leads.filter(l=>p.capabilities.includes("lead:read")&&visible(p,l)&&(!p.assignedLeadOnly||l.assignedTo===p.userId));s.vehicles=s.vehicles.filter(v=>visible(p,v));
   if(!p.capabilities.includes("lead:read"))s.rules=[];
-  const ids=new Set(s.leads.map(l=>l.id));s.tasks=s.tasks.filter(t=>ids.has(t.leadId));s.activities=s.activities.filter(a=>ids.has(a.leadId));s.appointments=s.appointments.filter(a=>ids.has(a.leadId));s.runs=s.runs.filter(r=>ids.has(r.leadId));const vehicleIds=new Set(s.vehicles.map(v=>v.id));s.sales=s.sales?.filter(r=>ids.has(r.leadId));s.inventoryHistory=s.inventoryHistory?.filter(r=>s.vehicles.some(v=>v.id===r.vehicleId));s.events=s.events.filter(e=>!!e.vehicleId&&vehicleIds.has(e.vehicleId));s.costs=p.capabilities.includes("capital:read")?s.costs?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;s.costHistory=p.capabilities.includes("capital:read")?s.costHistory?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;return s;
+  const ids=new Set(s.leads.map(l=>l.id));s.tasks=s.tasks.filter(t=>ids.has(t.leadId));s.activities=s.activities.filter(a=>ids.has(a.leadId));s.appointments=s.appointments.filter(a=>ids.has(a.leadId));s.runs=s.runs.filter(r=>ids.has(r.leadId));const vehicleIds=new Set(s.vehicles.map(v=>v.id));s.sales=s.sales?.filter(r=>ids.has(r.leadId));s.inventoryHistory=s.inventoryHistory?.filter(r=>s.vehicles.some(v=>v.id===r.vehicleId));s.events=s.events.filter(e=>!!e.vehicleId&&vehicleIds.has(e.vehicleId));s.costs=p.capabilities.includes("capital:read")?s.costs?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;s.costHistory=p.capabilities.includes("capital:read")?s.costHistory?.filter(c=>vehicleIds.has(c.vehicleId)):undefined;s.priceRequests=s.priceRequests?.filter(r=>vehicleIds.has(r.vehicleId)).map(r=>redactPriceRequest(r,p.capabilities.includes("capital:read")));return s;
 }
 export async function createLead(input:Omit<Lead,"id"|"stage"|"createdAt"|"updatedAt">) {
   const s=publicScope();if(input.tenantId!==s.tenantId||input.dealershipId!==s.dealershipId) throw new InputError("Invalid dealership.");
@@ -284,6 +315,40 @@ export async function saveEvent(event:JourneyEvent) {
   const s=publicScope();if(dataMode()!=="demo")return(await productionStore()).saveEvent(event,s.dealershipId);
   if(!runtime.persistRuntimeJourneyEvent(event))throw new Error("Event persistence failed.");
 }
+export async function requestPriceChange(p:AuthenticatedPrincipal,id:string,input:unknown,expectedVersion:unknown) {
+  if(dataMode()!=="demo")return(await productionStore()).requestPriceChange(p,id,input,expectedVersion);
+  const values=priceRequestInput(input);
+  return runtime.demoTransaction(state=> {
+    const current=state["vehicles.json"] as Vehicle[];const vehicle=current.find(v=>v.id===id)??demo.vehicles.find(v=>v.id===id);
+    if(!vehicle)throw new RecordNotFound();inventoryScope(p,vehicle);checkStockVersion(vehicle,expectedVersion);
+    const reasons=priceChangeReasons(vehicle.price,values.proposedPrice,(state["stock-costs.json"] as StockCost[]).find(c=>c.vehicleId===id));
+    if(!reasons.length)throw new InputError("This change does not need approval. Update the price directly.");
+    const requests=state["price-requests.json"] as PriceChangeRequest[];
+    if(requests.some(r=>r.vehicleId===id&&r.status==="pending"))throw new ConflictError("A price request for this vehicle is already waiting for a decision.");
+    const request=makePriceRequest(randomUUID(),p.tenantId,vehicle,values,reasons,p.userId,new Date());
+    state["price-requests.json"]=[request,...requests];
+    return redactPriceRequest(request,p.capabilities.includes("capital:read"));
+  });
+}
+export async function decidePriceChange(p:AuthenticatedPrincipal,requestId:string,input:unknown) {
+  if(dataMode()!=="demo")return(await productionStore()).decidePriceChange(p,requestId,input);
+  requireCapability(p,"capital:write");const decision=decisionInput(input);
+  return runtime.demoTransaction(state=> {
+    const requests=state["price-requests.json"] as PriceChangeRequest[];const request=requests.find(r=>r.id===requestId);if(!request)throw new RecordNotFound();
+    if(request.status!=="pending")throw new ConflictError("This request was already decided.");
+    if(request.requestedBy===p.userId)throw new AuthorizationError();
+    const current=state["vehicles.json"] as Vehicle[];const vehicle=current.find(v=>v.id===request.vehicleId)??demo.vehicles.find(v=>v.id===request.vehicleId);if(!vehicle)throw new RecordNotFound();inventoryScope(p,vehicle);
+    const now=new Date().toISOString(),stale=decision.decision==="approved"&&(vehicle.version??0)!==request.vehicleVersion;
+    const decided:PriceChangeRequest={...request,version:request.version+1,status:stale?"stale":decision.decision,decidedBy:p.userId,decidedAt:now,decisionNote:stale?"The vehicle changed after this request was raised.":decision.note};
+    if(decision.decision==="approved"&&!stale){
+      const updated={...vehicle,price:request.proposedPrice,version:(vehicle.version??0)+1,updatedAt:now};
+      state["vehicles.json"]=[updated,...current.filter(v=>v.id!==vehicle.id)];
+      state["inventory-history.json"]=[inventoryChange(p,vehicle,updated),...state["inventory-history.json"]];
+    }
+    state["price-requests.json"]=requests.map(r=>r.id===requestId?decided:r);
+    return decided;
+  });
+}
 export async function updateVehicle(p:AuthenticatedPrincipal,id:string,patch:Pick<Vehicle,"price"|"availabilityStatus"|"publishStatus">,expectedVersion:unknown) {
   validateVehiclePatch(patch);
   if(dataMode()!=="demo")return(await productionStore()).updateVehicle(p,id,patch,expectedVersion);
@@ -293,6 +358,7 @@ export async function updateVehicle(p:AuthenticatedPrincipal,id:string,patch:Pic
     if(!vehicle)throw new RecordNotFound(); inventoryScope(p,vehicle);checkStockVersion(vehicle,expectedVersion);
     if(vehicle.availabilityStatus==="sold" && patch.availabilityStatus!=="sold" && (state["sales.json"] as Sale[]).some(s=>s.vehicleId===id))throw new ConflictError("Confirmed sale requires an approved reversal.");
     if(patch.publishStatus==="published"&&(!vehicle.media.length||patch.price<=0))throw new InputError("Publication requires imagery and a positive asking price.");
+    if(patch.price!==vehicle.price&&!p.capabilities.includes("capital:write")&&priceChangeReasons(vehicle.price,patch.price,(state["stock-costs.json"] as StockCost[]).find(c=>c.vehicleId===id)).length)throw new ConflictError("This price change needs owner approval. Submit a price request.");
     const updated={...vehicle,...patch,version:(vehicle.version??0)+1,updatedAt:new Date().toISOString()};
     state["vehicles.json"]=[updated,...current.filter(v=>v.id!==id)];
     state["inventory-history.json"]=[inventoryChange(p,vehicle,updated),...state["inventory-history.json"]];
@@ -318,6 +384,9 @@ function validateSale(input:SaleInput) {
 }
 function validateVehiclePatch(patch:Pick<Vehicle,"price"|"availabilityStatus"|"publishStatus">) {
   if(!Number.isFinite(patch.price)||patch.price<0||patch.price>999999999999||!["available","reserved","sold"].includes(patch.availabilityStatus)||!["draft","published","archived"].includes(patch.publishStatus))throw new InputError();
+}
+async function priceTableReady(c:SqlClient) {
+  if(!(await c.query("SELECT to_regclass('public.price_change_requests') AS t")).rows[0]?.t)throw new ConflictError("Price approvals need the latest database migration (0010), which has not been applied here.");
 }
 function inventoryScope(p:AuthenticatedPrincipal,v:Vehicle) {
   requireCapability(p,"inventory:write");requireTenant(p,v.tenantId);requireDealership(p,v.dealershipId);requireLocation(p,v.locationId);
