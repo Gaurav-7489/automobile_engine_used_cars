@@ -1,3 +1,4 @@
+import { assertSeatAvailable, demoSubscription, readSubscription } from "./entitlements";
 import { randomUUID } from "node:crypto";
 import { requireCapability, AuthorizationError, staffRoles, staffPrincipal,
   type AuthenticatedPrincipal, type PlatformTenant, type PlatformAudit, type StaffMember, type StaffRole } from "@vandlabs/contracts";
@@ -79,6 +80,12 @@ export function postgresPlatformStore(pool:SqlPool) {
         const h=await hierarchy(c,tenantId);validateDestinations(b,h.dealerships);
         const old=(await c.query("SELECT payload FROM staff_members WHERE tenant_id=$1 AND user_id=$2 FOR UPDATE",[tenantId,b.userId])).rows[0]?.payload as StaffMember|undefined;
         const member=record(p,b,old,expectedVersion),event=audit(p,member);
+        if(member.enabled&&!old?.enabled) {
+          // Seat checks are tenant-wide, so two different users enabled at once cannot both take the last seat.
+          await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1,1))",[tenantId+":seats"]);
+          const others=Number((await c.query("SELECT count(*) AS n FROM staff_members WHERE tenant_id=$1 AND user_id<>$2 AND payload->>'enabled'='true'",[tenantId,member.userId])).rows[0].n);
+          assertSeatAvailable(await readSubscription(c,tenantId),others,new Date());
+        }
         await c.query("INSERT INTO staff_members(tenant_id,user_id,payload) VALUES($1,$2,$3) ON CONFLICT(tenant_id,user_id) DO UPDATE SET payload=EXCLUDED.payload",[tenantId,member.userId,member]);
         await c.query("INSERT INTO platform_audit(id,tenant_id,actor,action,subject,payload,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7)",[event.id,tenantId,event.actor,event.action,event.subject,event,event.occurredAt]);
         return member;
@@ -110,9 +117,12 @@ export async function saveStaffMember(p:AuthenticatedPrincipal,tenantId:string,i
   platformScope(p,tenantId);
   if(tenantId!==tenantConfig.tenantId)throw new RecordNotFound();
   const b=staffInput(tenantId,input);validateDestinations(b,tenantConfig.organization.dealerships);
+  const subscription=await demoSubscription(tenantId);
   return runtime.demoTransaction(state=>{
     const rows=state["staff-members.json"] as StaffMember[];
-    const member=record(p,b,rows.find(s=>s.tenantId===tenantId&&s.userId===b.userId),expectedVersion);
+    const previous=rows.find(s=>s.tenantId===tenantId&&s.userId===b.userId);
+    const member=record(p,b,previous,expectedVersion);
+    if(member.enabled&&!previous?.enabled)assertSeatAvailable(subscription,rows.filter(s=>s.tenantId===tenantId&&s.userId!==member.userId&&s.enabled).length,new Date());
     state["staff-members.json"]=[member,...rows.filter(s=>!(s.tenantId===tenantId&&s.userId===b.userId))];
     state["platform-audit.json"]=[audit(p,member),...state["platform-audit.json"]];return member;
   });

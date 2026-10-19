@@ -14,7 +14,7 @@ const env = {VANDLABS_FEEDS_JSON:JSON.stringify(["tenant-a","tenant-b"].map(tena
 const body = (vehicles: unknown[] = [vehicle]) => Response.json({vehicles});
 function memory() {
   const states = new Map<string,CommerceState>();
-  for(const id of ["tenant-a","tenant-b"])states.set(id,{subscription:null,sources:[{...source}],vehicles:[],fuel:[],keys:[],usage:{},audit:[]});
+  for(const id of ["tenant-a","tenant-b"])states.set(id,{subscription:{plan:"growth",status:"active",expiresAt:expiry,reference:"Contract",updatedAt:start.toISOString()},sources:[{...source}],vehicles:[],fuel:[],keys:[],usage:{},audit:[]});
   const repository: CommerceRepository = {async transact(id,action) {const state=structuredClone(states.get(id)!);const result=action(state);states.set(id,state);return result;}};
   return {repository,states};
 }

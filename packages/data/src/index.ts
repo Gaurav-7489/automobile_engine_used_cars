@@ -1,3 +1,4 @@
+import { assertInventoryRoom, demoSubscription, readSubscription } from "./entitlements";
 import { randomUUID } from "node:crypto";
 export { platformSnapshot, saveStaffMember, resolveDatabaseStaff, staffDirectory } from "./platform";
 export { runtimeReadiness } from "./readiness";
@@ -202,6 +203,8 @@ export function postgresStore(pool: SqlPool) {
         if(!(await c.query("SELECT id FROM locations WHERE tenant_id=$1 AND dealership_id=$2 AND id=$3",[p.tenantId,dealershipId,locationId])).rows.length)throw new InputError("Unknown destination.");
         const existing=(await c.query("SELECT stock_id FROM vehicles WHERE tenant_id=$1",[p.tenantId])).rows;
         rejectExistingStock(drafts,existing.map(v=>String(v.stock_id)),options.csv);
+        const unsold=Number((await c.query("SELECT count(*) AS n FROM vehicles WHERE tenant_id=$1 AND availability_status<>'sold'",[p.tenantId])).rows[0].n);
+        assertInventoryRoom(await readSubscription(c,p.tenantId),unsold,drafts.length,new Date());
         const batchId=randomUUID();const vehicles=drafts.map(d=>draftVehicle(p,dealershipId,locationId,d));
         if(!options.preview)for(const vehicle of vehicles) {
           await c.query("INSERT INTO vehicles(id,tenant_id,dealership_id,location_id,slug,stock_id,payload,publish_status,availability_status,created_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,'draft','available',$8,$8)",[vehicle.id,p.tenantId,dealershipId,locationId,vehicle.slug,vehicle.stockId,vehicle,vehicle.createdAt]);
@@ -405,8 +408,10 @@ export async function createInventoryBatch(p:AuthenticatedPrincipal,dealershipId
   inventoryDestination(p,dealershipId,locationId);
   if(p.tenantId!==tenantConfig.tenantId||!tenantConfig.organization.dealerships.some(d=>d.id===dealershipId&&d.locations.some(l=>l.id===locationId)))throw new InputError("Unknown destination.");
   const drafts=normalizeInventoryRows(input,options.csv,options.source);
+  const subscription=await demoSubscription(p.tenantId);
   const prepare=(existing:Vehicle[])=> {
     rejectExistingStock(drafts,existing.filter(v=>v.tenantId===p.tenantId).map(v=>v.stockId),options.csv);
+    assertInventoryRoom(subscription,existing.filter(v=>v.tenantId===p.tenantId&&v.availabilityStatus!=="sold").length,drafts.length,new Date());
     return {batchId:randomUUID(),preview:!!options.preview,vehicles:drafts.map(d=>draftVehicle(p,dealershipId,locationId,d))};
   };
   if(options.preview)return prepare(runtime.mergeRuntimeVehicles(demo.vehicles));

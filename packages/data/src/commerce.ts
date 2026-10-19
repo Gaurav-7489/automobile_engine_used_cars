@@ -1,11 +1,12 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { demoTransaction } from "@vandlabs/demo-data/runtime";
-import { commercePlans, requireCapability, type AuthenticatedPrincipal, type CommerceState, type ApiScope, type BusinessKey } from "@vandlabs/contracts";
+import { commercePlans, planEntitlements, requireCapability, type AuthenticatedPrincipal, type CommerceState, type ApiScope, type BusinessKey } from "@vandlabs/contracts";
 import { explainAcquisition, type DealerAiBinding } from "./dealer-ai";
 import { dataMode } from "./config";
 import { marketReport } from "./market";
 import { providerSync, sourceSyncSummary } from "./provider-sync";
 import { databasePool, tenantTransaction, type SqlPool } from "./postgres";
+import { assertFeature, assertPlanFits, countUsage, takeAiRequest, type TenantUsage } from "./entitlements";
 import { CommerceError, acquisitionInput, recommend, eligibleVehicles, fuelPrices, sourceInput, future, plan, text, object, allowedSource, ingestBatch, queryVehicles, sourceCoverage } from "./commerce-rules";
 export { CommerceError } from "./commerce-rules";
 export type { DealerAiBinding } from "./dealer-ai";
@@ -66,7 +67,8 @@ function meter(state: CommerceState, actor: string, now: Date) {
   const limits = active(state, now), month = now.toISOString().slice(0, 7), minute = now.toISOString().slice(0, 16);
   // Keys share the tenant allowance: creating more keys does not multiply quota.
   const monthly = `month:${month}`, minuteKey = `minute:${minute}`;
-  state.usage = Object.fromEntries(Object.entries(state.usage).filter(([key]) => key === monthly || key === minuteKey));
+  const aiMonthly = `ai:${month}`;
+  state.usage = Object.fromEntries(Object.entries(state.usage).filter(([key]) => key === monthly || key === minuteKey || key === aiMonthly));
   if ((state.usage[monthly] ?? 0) >= limits.monthlyRequests) throw new CommerceError(429, "Monthly request quota exhausted.");
   if ((state.usage[minuteKey] ?? 0) >= limits.perMinute) throw new CommerceError(429, "Tenant request rate exceeded.", 60 - now.getUTCSeconds());
   state.usage[monthly] = (state.usage[monthly] ?? 0) + 1;
@@ -91,7 +93,7 @@ function verifyKey(state: CommerceState, token: string, id: string, scope: ApiSc
   if (!key.scopes.includes(scope)) throw new CommerceError(403, "API key does not include this scope.");
   key.lastUsedAt = now.toISOString(); return key;
 }
-export function commerceService(repository: CommerceRepository, clock: () => Date = () => new Date()) {
+export function commerceService(repository: CommerceRepository, clock: () => Date = () => new Date(), tenantUsage?: (tenantId: string) => Promise<TenantUsage>) {
   function manage(p: AuthenticatedPrincipal) { requireCapability(p, "commerce:manage"); }
   function platform(p: AuthenticatedPrincipal, tenantId: string) {
     requireCapability(p, "platform:admin");
@@ -101,18 +103,20 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
     async summary(p: AuthenticatedPrincipal) {
       requireCapability(p, "inventory:read");
       const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
-      return read(p.tenantId, state => ({ readOnly: dataMode() === "demo" && (process.env.VERCEL === "1" || process.env.HOSTING_PROVIDER === "cloudflare"), subscription: state.subscription, plans: commercePlans, demo: state.sources.some(s => s.kind === "demo"), sources: state.sources.map(s => ({ ...s, usable: allowedSource(s, false, clock()), apiUsable: allowedSource(s, true, clock()), sync: sourceSyncSummary(state, s.id, clock()), coverage: sourceCoverage(state, s.id, clock()) })), vehicleCount: eligibleVehicles(state, false, clock()).length, apiVehicleCount: eligibleVehicles(state, true, clock()).length, keys: p.capabilities.includes("commerce:manage") ? state.keys.map(key => ({ id:key.id, name:key.name, prefix:key.prefix, scopes:key.scopes, sourceId:key.sourceId, expiresAt:key.expiresAt, revokedAt:key.revokedAt, createdAt:key.createdAt, lastUsedAt:key.lastUsedAt })) : [], usage: state.usage, canManage: p.capabilities.includes("commerce:manage") }));
+      return read(p.tenantId, state => ({ readOnly: dataMode() === "demo" && (process.env.VERCEL === "1" || process.env.HOSTING_PROVIDER === "cloudflare"), subscription: state.subscription, plans: commercePlans, entitlements: planEntitlements, demo: state.sources.some(s => s.kind === "demo"), sources: state.sources.map(s => ({ ...s, usable: allowedSource(s, false, clock()), apiUsable: allowedSource(s, true, clock()), sync: sourceSyncSummary(state, s.id, clock()), coverage: sourceCoverage(state, s.id, clock()) })), vehicleCount: eligibleVehicles(state, false, clock()).length, apiVehicleCount: eligibleVehicles(state, true, clock()).length, keys: p.capabilities.includes("commerce:manage") ? state.keys.map(key => ({ id:key.id, name:key.name, prefix:key.prefix, scopes:key.scopes, sourceId:key.sourceId, expiresAt:key.expiresAt, revokedAt:key.revokedAt, createdAt:key.createdAt, lastUsedAt:key.lastUsedAt })) : [], usage: state.usage, canManage: p.capabilities.includes("commerce:manage") }));
     },
     async marketIntelligence(p: AuthenticatedPrincipal, value: unknown) {
       requireCapability(p, "inventory:read"); requireCapability(p, "analytics:read");
       const input = object(value), now = clock();
       const read = repository.read?.bind(repository) ?? repository.transact.bind(repository);
-      return read(p.tenantId, state => { active(state, now); return marketReport(state, input, now); });
+      return read(p.tenantId, state => { active(state, now); assertFeature(state.subscription, "market_intelligence", now); return marketReport(state, input, now); });
     },
     async provision(p: AuthenticatedPrincipal, tenantId: string, value: unknown) {
       platform(p, tenantId); const b = object(value), now = clock();
       const subscription = { plan: plan(b.plan), status: b.status, expiresAt: future(b.expiresAt, now), reference: text(b.reference, 250), updatedAt: now.toISOString() };
       if (!["active", "suspended", "cancelled"].includes(String(subscription.status))) throw new CommerceError(400, "Invalid status.");
+      // Moving a live tenant to a smaller plan must not strand staff, locations or stock above the new limits.
+      if (subscription.status === "active" && tenantUsage) assertPlanFits(subscription.plan, await tenantUsage(tenantId));
       return repository.transact(tenantId, state => { state.subscription = { ...subscription, status: subscription.status as "active" | "suspended" | "cancelled" }; audit(state, p.userId, "subscription.provision", subscription.reference, now); return state.subscription; });
     },
     async previewPlan(p: AuthenticatedPrincipal, value: unknown) {
@@ -159,7 +163,13 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
     async dealerRecommendations(p: AuthenticatedPrincipal, value: unknown, aiBinding?: DealerAiBinding) {
       requireCapability(p, "inventory:read"); requireCapability(p, "capital:read"); const input = acquisitionInput(value);
       const result = await repository.transact(p.tenantId, state => { active(state, clock()); const report = recommend(state, input, state.subscription!.plan, false, clock()); const usage = meter(state, p.userId, clock()); const processingAllowed = report.options.slice(0, 3).every(option => option.cars.every(car => state.sources.find(source => source.id === car.sourceId)?.aiProcessing === true));
-        return { report, usage, processingAllowed }; });
+        // The AI commentary is optional; the deterministic report is always returned. One request is charged
+        // only when commentary will actually be attempted, and an exhausted allowance skips the call.
+        const aiConfigured = Boolean((aiBinding || process.env.DEALER_AI_URL) && process.env.DEALER_AI_SERVICE_TOKEN);
+        const wantsAi = aiConfigured && processingAllowed && report.options.length > 0;
+        const aiQuotaExceeded = wantsAi && !takeAiRequest(state.usage, state.subscription, clock());
+        return { report, usage, processingAllowed, aiQuotaExceeded }; });
+      if (result.aiQuotaExceeded) return { ...result.report, ai: { status: "quota_exceeded" as const }, usage: result.usage };
       return { ...await explainAcquisition(result.report, result.processingAllowed, aiBinding), usage: result.usage };
     },
     async business(token: string, scope: ApiScope, value: unknown) {
@@ -184,7 +194,11 @@ export function commerceService(repository: CommerceRepository, clock: () => Dat
     },
   };
 }
-export async function dealerCommerce() { return commerceService(await commerceRepository()); }
+export async function dealerCommerce() {
+  const repository = await commerceRepository();
+  const usage = dataMode() === "demo" ? undefined : async (tenantId: string) => { const pool = await databasePool(); return tenantTransaction(pool, tenantId, client => countUsage(client, tenantId)); };
+  return commerceService(repository, () => new Date(), usage);
+}
 export async function syncLicensedFeed(p: AuthenticatedPrincipal, sourceId: string) {
   requireCapability(p, "commerce:manage");
   return providerSync(await commerceRepository())(p, sourceId);
