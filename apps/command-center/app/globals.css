@@ -530,3 +530,5 @@ tr:hover td { background:#f8faf5; }
 @media (max-width: 700px) { .pl-board { grid-auto-columns: 82%; } }
 
 .ck-chart, .ck-range { max-width: 100%; overflow-x: clip; }
+
+.operations-grid label { min-width: 0; } .operations-grid select, .operations-grid input { max-width: 100%; min-width: 0; }

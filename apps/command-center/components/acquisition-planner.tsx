@@ -4,7 +4,8 @@ import type { AcquisitionChoice, AcquisitionReport, CommercePlan } from "@vandla
 import { dealerAction } from "./dealer-fetch";
 import { StackedBar } from "./cockpit/charts";
 const money = (value: number | null) => value === null ? "Unknown" : "₹" + value.toLocaleString("en-IN");
-const riskCopy = { cautious: "Cautious — only options that cover their landed cost at the low resale end", balanced: "Balanced — show every option that fits, with its risks", opportunistic: "Opportunistic — rank by the high resale end" } as const;
+const riskCopy = { cautious: "Cautious shows only options whose low-end resale covers the landed cost", balanced: "Balanced shows every option that fits, with its risks", opportunistic: "Opportunistic ranks by the high end of the resale range" } as const;
+const riskLabelShort = { cautious: "Cautious", balanced: "Balanced", opportunistic: "Opportunistic" } as const;
 const riskLabel = { low: "Lower risk", medium: "Watch", high: "High risk" } as const;
 /** Landed cost against the recorded resale range, on one shared scale. Unknown resale draws no range. */
 function RangeBar({ landed, low, high }: { landed: number; low: number | null; high: number | null }) {
@@ -53,7 +54,7 @@ export function AcquisitionPlanner({ plan, demo, readOnly = false }: { plan: Com
         <label><span>Dealership longitude</span><input type="number" step="any" min="-180" max="180" value={longitude} required onChange={e => setLongitude(e.target.value)} /></label>
         <label><span>Search radius (km)</span><input name="radiusKm" type="number" min="0" max="3000" required defaultValue="600" /></label>
         <label><span>Buying strategy</span><select name="count" defaultValue="1"><option value="1">One car</option><option value="2" disabled={plan === "starter"}>Two cars · Growth / Scale</option></select></label>
-        <label><span>Risk tolerance</span><select name="risk" defaultValue="balanced">{(Object.keys(riskCopy) as (keyof typeof riskCopy)[]).map(k => <option key={k} value={k}>{riskCopy[k]}</option>)}</select></label>
+        <label><span>Risk tolerance</span><select name="risk" defaultValue="balanced" aria-describedby="risk-help">{(Object.keys(riskCopy) as (keyof typeof riskCopy)[]).map(k => <option key={k} value={k}>{riskLabelShort[k]}</option>)}</select><small id="risk-help">{riskCopy.cautious}. {riskCopy.balanced}. {riskCopy.opportunistic}.</small></label>
         <label><span>Rank by</span><select name="goal"><option value="margin">Estimated gross contribution</option><option value="demand">Source demand score</option></select></label>
         <label><span>Fuel preference</span><select name="fuel">{["any", "petrol", "diesel", "hybrid", "electric"].map(fuel => <option key={fuel}>{fuel}</option>)}</select></label>
         <label><span>Transport assumption (INR / km)</span><input name="transportPerKm" type="number" min="0" max="1000" required defaultValue="20" /></label>
