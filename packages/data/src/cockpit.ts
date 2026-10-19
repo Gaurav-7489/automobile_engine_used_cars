@@ -95,7 +95,7 @@ export function buildCockpit(snapshot: CockpitSnapshot, access: CockpitAccess, n
   if (access.leads) {
     const leads = snapshot.leads;
     const count = (s: LeadStage) => leads.filter(l => l.stage === s).length;
-    const open = leads.filter(l => !["won", "lost"].includes(l.stage));
+    const open = leads.filter(l => (openStages as readonly string[]).includes(l.stage));
     const won = count("won"), lost = count("lost");
     const enquired = new Map<string, number>();
     for (const l of open) if (l.vehicleId && byId.has(l.vehicleId)) enquired.set(l.vehicleId, byId.get(l.vehicleId)!.price);

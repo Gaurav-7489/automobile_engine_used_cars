@@ -35,7 +35,7 @@ test("cautious risk tolerance drops options that cannot cover their cost at the 
   await growth(page);
   await page.getByLabel("Buying strategy").selectOption("1");
   await page.getByRole("button", { name: "Find budget-fit acquisitions" }).click();
-  await expect(page.locator(".acquisition-option .ck-risk[data-level='high']").first()).toBeVisible();
+  await expect(page.locator(".acquisition-option .ck-risk[data-level='high']").first()).toBeAttached();   // later options sit in a closed disclosure
   const balanced = await page.locator(".acquisition-option").count();
   await page.getByLabel("Risk tolerance").selectOption("cautious");
   await page.getByRole("button", { name: "Find budget-fit acquisitions" }).click();

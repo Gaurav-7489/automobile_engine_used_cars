@@ -10,7 +10,7 @@ test("dealer can acquire by budget and manage server-enforced subscription tiers
   await page.getByRole("button", { name: "Find budget-fit acquisitions" }).click();
   await expect(page.locator(".acquisition-option").first()).toContainText("2021 Maruti Swift + 2020 Hyundai i20");
   await expect(page.locator(".acquisition-option").first()).toContainText("₹9,11,000");
-  await page.screenshot({path:info.outputPath("dealer-acquisition.png"),fullPage:true});
+  await page.screenshot({path:info.outputPath("dealer-acquisition.png"),fullPage:info.project.name!=="mobile"});
   await page.getByLabel("Available capital (INR)").fill("50000");
   await page.getByRole("button", { name: "Find budget-fit acquisitions" }).click();
   await expect(page.getByText("No acquisitions fit these constraints", { exact: false })).toBeVisible();
@@ -42,7 +42,7 @@ test("dealer issues a scoped key, calls the business API and revokes access", as
   expect(revoked.status()).toBe(401);
   await page.getByRole("button", {name:"Hide key",exact:true}).click();
   await expect(field).toBeHidden();
-  await page.screenshot({path:info.outputPath("dealer-business-api.png"),fullPage:true});
+  await page.screenshot({path:info.outputPath("dealer-business-api.png"),fullPage:info.project.name!=="mobile"});
 });
 
 test("source configuration failure is visible, retained and paced without a provider request", async ({page,request},info) => {
@@ -70,7 +70,7 @@ test("source configuration failure is visible, retained and paced without a prov
   await page.getByRole("button",{name:"Refresh source status",exact:true}).click();
   await expect(card).toContainText("Last sync failed");
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
-  await page.screenshot({path:info.outputPath("source-sync-failure.png"),fullPage:true});
+  await page.screenshot({path:info.outputPath("source-sync-failure.png"),fullPage:info.project.name!=="mobile"});
 });
 
 
@@ -97,7 +97,7 @@ test("market intelligence keeps supplier quotes separate and filters explicit as
   await expect(page.getByRole("region", { name: "Market headline figures" })).toContainText("₹5,00,000");
   await expect(page.getByRole("list", { name: "Active filters" })).toContainText("Max price: 550000");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: info.outputPath("market-evidence.png"), fullPage: true });
+  await page.screenshot({ path: info.outputPath("market-evidence.png"), fullPage: info.project.name !== "mobile" });
   const api = await request.get(`${command}/api/dealer/market?sourceId=${sourceId}`);
   expect(api.status()).toBe(200); expect((await api.json()).data.distribution.median).toBe(550000);
   expect((await request.get(`${command}/api/dealer/market?maxAgeDays=0`)).status()).toBe(400);

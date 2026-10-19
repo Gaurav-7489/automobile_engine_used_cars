@@ -19,7 +19,7 @@ test("verified acquisition costs persist with version conflicts and explainable 
   expect((await request.put(`${api}/vehicles/${id}/costs`,{data:{record:{...record,tenantId:"forged"},expectedVersion:1}})).status()).toBe(400);
   expect((await request.put(`${api}/vehicles/${id}/costs`,{data:{record:{...record,otherCost:1000},expectedVersion:1}})).status()).toBe(200);
   const history=(await (await request.get(`${api}/snapshot`)).json()).data.costHistory.filter((c:{vehicleId:string})=>c.vehicleId===id);expect(history).toHaveLength(2);expect(history[0].after.version).toBe(2);
-  await page.screenshot({path:`test-results/capital-${info.project.name}.png`,fullPage:true});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+  await page.screenshot({path:`test-results/capital-${info.project.name}.png`,fullPage:info.project.name!=="mobile"});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
 });
 test("platform shows explicit configuration and unknown telemetry rather than fabricated health",async({page})=> {
   await page.goto("http://127.0.0.1:3002/platform/health");await expect(page.getByText("No metrics collector connected to this screen",{exact:true})).toBeVisible();await expect(page.getByText("No permissioned market data source connected",{exact:true})).toBeVisible();

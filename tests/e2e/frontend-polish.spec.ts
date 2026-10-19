@@ -139,7 +139,7 @@ test("all staff sections stay within a narrow screen", async ({ page }, info) =>
         await expect(role).toHaveCSS("appearance", "none");
         await expect(role).toHaveCSS("color", "rgb(239, 243, 230)");
       }
-      if (["inventory", "staff"].includes(section)) await page.screenshot({ path: info.outputPath(`${base.includes("command") ? "dealer" : "platform"}-${section}-narrow.png`), fullPage: true });
+      if (["inventory", "staff"].includes(section)) await page.screenshot({ path: info.outputPath(`${base.includes("command") ? "dealer" : "platform"}-${section}-narrow.png`), fullPage: info.project.name !== "mobile" });
     }
   }
 });

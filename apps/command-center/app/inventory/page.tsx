@@ -20,7 +20,7 @@ const actionLabel = { inspect: "Inspect", publish: "Publish", promote: "Promote"
 const reasonText = { below_cost: "Below recorded cost", large_drop: "Drop over 10%" } as const;
 const statusText = { pending: "Waiting for decision", approved: "Approved and applied", rejected: "Rejected", stale: "Vehicle changed — not applied" } as const;
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string; all?: string }> }) {
   const request = new Request(process.env.APP_ORIGIN || "http://localhost:3001", { headers: await headers() });
   const [data, principal, query] = await Promise.all([commandData(), resolvePrincipal(request), searchParams]);
   requireCommandPage(principal, "/command/inventory");
@@ -33,7 +33,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   const label = (id: string) => { const v = vehicleOf(id); return v ? `${v.stockId} · ${v.year} ${v.make} ${v.model}` : id; };
   const lastBand = report.bands.at(-1)?.label;
 
-  const rows = report.vehicles.filter(r => view === "all" ? true : view === "review" ? r.recommendations.length > 0 : view === "aged" ? r.band === lastBand : vehicleOf(r.vehicleId)?.publishStatus !== "published");
+  const matching = report.vehicles.filter(r => view === "all" ? true : view === "review" ? r.recommendations.length > 0 : view === "aged" ? r.band === lastBand : vehicleOf(r.vehicleId)?.publishStatus !== "published");
+  const showAll = query.all === "1", rows = showAll ? matching : matching.slice(0, 5);
   const reviewCount = report.vehicles.filter(r => r.recommendations.length > 0).length, aged = report.vehicles.filter(r => r.band === lastBand).length;
   const kpis: Kpi[] = [
     { label: "Unsold stock", value: String(report.vehicles.length), detail: `${report.vehicles.filter(r => vehicleOf(r.vehicleId)?.publishStatus !== "published").length} not published` },
@@ -42,7 +43,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     { label: "Price approvals", value: String(pendingBy.size), detail: pendingBy.size ? "Waiting for an owner decision" : "Nothing waiting", href: pendingBy.size ? "#approvals" : undefined, linkLabel: "Review" },
   ];
   const dealership = tenantConfig.organization.dealerships.find(d => d.id === tenantConfig.activeDealershipId)!;
-  const href = (key: string) => `/inventory?view=${key}#intelligence`;
+  const href = (key: string) => `/inventory?view=${key}${showAll ? "&all=1" : ""}#intelligence`;
   const decided = requests.filter(r => r.status !== "pending").slice(0, 5);
 
   return <main className="main">
@@ -64,7 +65,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
     </section>
 
     <section className="panel ck-econ" id="intelligence" aria-labelledby="inv-int-title" style={{ marginTop: 12 }}>
-      <div className="panel-head"><div><h2 id="inv-int-title">Aging and pricing</h2><p>{rows.length} {rows.length === 1 ? "vehicle" : "vehicles"} shown · oldest first</p></div></div>
+      <div className="panel-head"><div><h2 id="inv-int-title">Aging and pricing</h2><p>{rows.length} of {matching.length} {matching.length === 1 ? "vehicle" : "vehicles"} shown · oldest first</p></div></div>
       <nav className="ck-filters" aria-label="Show inventory">{views.map(v => <Link key={v.key} href={href(v.key)} aria-current={view === v.key ? "page" : undefined}>{v.label}</Link>)}</nav>
       {rows.length ? <table aria-label="Inventory intelligence">
         <thead><tr><th scope="col">Vehicle</th><th scope="col">Age</th><th className="num" scope="col">Asking</th><th className="num" scope="col">{capital ? "Margin over cost" : "Margin"}</th><th scope="col">Interest (30 days)</th><th scope="col">Review</th><th scope="col">Price</th></tr></thead>
@@ -78,6 +79,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
             <td data-label="Review">{r.recommendations.length ? <details><summary>{r.recommendations.map(x => actionLabel[x.action]).join(" · ")}</summary><ul>{r.recommendations.map(x => <li key={x.action}><strong>{x.reason}</strong>{x.evidence.map(e => <p key={e}>{e}</p>)}</li>)}</ul></details> : "No rule triggered"}</td>
             <td data-label="Price">{canWrite ? <PriceRequestForm vehicle={v} pending={pendingBy.get(r.vehicleId)} /> : "Read only"}</td>
           </tr>; })}</tbody></table> : <p className="ck-empty">{view === "all" ? "No unsold stock." : "No vehicle matches this view."}</p>}
+      {matching.length > 5 ? <p className="ck-note">{showAll ? <Link href={`/inventory?view=${view}#intelligence`}>Show the 5 oldest only</Link> : <Link href={`/inventory?view=${view}&all=1#intelligence`}>Show all {matching.length} vehicles</Link>}</p> : null}
       <details className="ck-method"><summary>Evidence &amp; assumptions</summary><ul>{report.assumptions.map(a => <li key={a}>{a}</li>)}{report.unavailable.map(a => <li key={a}>Not available: {a}</li>)}</ul></details>
     </section>
 

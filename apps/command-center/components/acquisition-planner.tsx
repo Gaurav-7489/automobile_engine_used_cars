@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import type { AcquisitionReport, CommercePlan } from "@vandlabs/contracts";
+import type { AcquisitionChoice, AcquisitionReport, CommercePlan } from "@vandlabs/contracts";
 import { dealerAction } from "./dealer-fetch";
 import { StackedBar } from "./cockpit/charts";
 const money = (value: number | null) => value === null ? "Unknown" : "₹" + value.toLocaleString("en-IN");
@@ -15,6 +15,23 @@ function RangeBar({ landed, low, high }: { landed: number; low: number | null; h
     <b className="ck-range-cost" style={{ left: at(landed) }} />
     <span className="ck-range-key"><u>Landed cost {money(landed)}</u>{low !== null && high !== null ? <em>Resale {money(low)} – {money(high)}</em> : <em>Resale unknown</em>}</span>
   </div>;
+}
+function Option({ option, i, demo }: { option: AcquisitionChoice; i: number; demo: boolean }) {
+  return <article className="acquisition-option">
+        <p className="eyebrow">{i === 0 ? "Top fit for your objective" : `Alternative ${i}`}{demo ? " · fictional example" : ""}</p>
+        <h3>{option.cars.map(c => `${c.year} ${c.make} ${c.model}`).join(" + ")}</h3>
+        {option.cars.map(car => <p key={car.id}>{car.city}, {car.state} · {car.distanceKm.toFixed(0)} km straight-line · {car.fuel} · {car.odometerKm.toLocaleString("en-IN")} km<br/>Purchase {money(car.purchasePrice)} · preparation {money(car.preparationCost)} · transfer {money(car.transferFees)} · estimated transport {money(car.transportEstimate)}<br/>Customer annual fuel estimate: {money(car.annualFuelEstimate)} · source {car.sourceId} · observed {car.observedAt.slice(0, 10)}</p>)}
+        <span className="ck-risk" data-level={option.risk?.level}>{option.risk ? riskLabel[option.risk.level] : ""}</span>
+        <RangeBar landed={option.landedCost} low={option.resaleLow ?? null} high={option.resaleHigh ?? null} />
+        <dl className="acquisition-facts"><div><dt>Total landed + holding estimate</dt><dd>{money(option.landedCost)}</dd></div><div><dt>Estimated gross contribution range</dt><dd>{money(option.marginLow)} – {money(option.marginHigh)}{option.marginLowPercent != null ? <small> · {option.marginLowPercent}% at the low end</small> : null}</dd></div><div><dt>Holding cost inside landed</dt><dd>{money(option.holdingCost ?? null)}</dd></div><div><dt>Capital committed</dt><dd>{option.capitalShare != null ? `${option.capitalShare}% of available` : "Unknown"}</dd></div><div><dt>Unallocated after reserve</dt><dd>{money(option.remaining)}</dd></div><div><dt>Source demand score</dt><dd>{option.demandScore === null ? "Unknown" : `${option.demandScore} / 100`}</dd></div></dl>
+        <StackedBar caption="Where the landed cost goes" total={money(option.landedCost)} valueHeading="Amount" parts={[
+          { key: "purchase", label: "Purchase price", value: option.cars.reduce((n, c) => n + c.purchasePrice, 0), display: money(option.cars.reduce((n, c) => n + c.purchasePrice, 0)) },
+          { key: "prep", label: "Preparation + transfer", value: option.cars.reduce((n, c) => n + c.preparationCost + c.transferFees, 0), display: money(option.cars.reduce((n, c) => n + c.preparationCost + c.transferFees, 0)) },
+          { key: "transport", label: "Transport (estimate)", value: option.cars.reduce((n, c) => n + c.transportEstimate, 0), display: money(option.cars.reduce((n, c) => n + c.transportEstimate, 0)) },
+          { key: "holding", label: "Holding (your assumption)", value: option.holdingCost ?? 0, display: money(option.holdingCost ?? 0) }]} />
+        {option.risk?.reasons.length ? <ul className="ck-evidence" aria-label="Risk reasons">{option.risk.reasons.map(r => <li key={r}>{r}</li>)}</ul> : <p className="muted">No risk flags from the recorded evidence.</p>}
+        <p className="muted">{option.explanation}</p>
+      </article>;
 }
 const locations = { Kochi: { latitude: 9.9312, longitude: 76.2673 }, Bengaluru: { latitude: 12.9716, longitude: 77.5946 }, Delhi: { latitude: 28.6139, longitude: 77.209 }, Mumbai: { latitude: 19.076, longitude: 72.8777 } };
 export function AcquisitionPlanner({ plan, demo, readOnly = false }: { plan: CommercePlan | null; demo: boolean; readOnly?: boolean }) {
@@ -48,21 +65,8 @@ export function AcquisitionPlanner({ plan, demo, readOnly = false }: { plan: Com
       {error ? <p role="alert">{error}</p> : null}
     </section>
     {report ? <section className="panel" aria-live="polite"><h2>Budget-fit acquisition options</h2><p>{report.candidates} eligible sourcing vehicles · {report.usage.monthlyUsed} / {report.usage.monthlyLimit} monthly requests</p>
-      {!report.options.length ? <p>No acquisitions fit these constraints. Change the budget, reserve, radius or strategy, or connect a feed with suitable stock.</p> : <div className="stack-list">{report.options.map((option, i) => <article className="acquisition-option" key={option.cars.map(c => c.id).join("+")}>
-        <p className="eyebrow">{i === 0 ? "Top fit for your objective" : `Alternative ${i}`}{report.demo ? " · fictional example" : ""}</p>
-        <h3>{option.cars.map(c => `${c.year} ${c.make} ${c.model}`).join(" + ")}</h3>
-        {option.cars.map(car => <p key={car.id}>{car.city}, {car.state} · {car.distanceKm.toFixed(0)} km straight-line · {car.fuel} · {car.odometerKm.toLocaleString("en-IN")} km<br/>Purchase {money(car.purchasePrice)} · preparation {money(car.preparationCost)} · transfer {money(car.transferFees)} · estimated transport {money(car.transportEstimate)}<br/>Customer annual fuel estimate: {money(car.annualFuelEstimate)} · source {car.sourceId} · observed {car.observedAt.slice(0, 10)}</p>)}
-        <span className="ck-risk" data-level={option.risk?.level}>{option.risk ? riskLabel[option.risk.level] : ""}</span>
-        <RangeBar landed={option.landedCost} low={option.resaleLow ?? null} high={option.resaleHigh ?? null} />
-        <dl className="acquisition-facts"><div><dt>Total landed + holding estimate</dt><dd>{money(option.landedCost)}</dd></div><div><dt>Estimated gross contribution range</dt><dd>{money(option.marginLow)} – {money(option.marginHigh)}{option.marginLowPercent != null ? <small> · {option.marginLowPercent}% at the low end</small> : null}</dd></div><div><dt>Holding cost inside landed</dt><dd>{money(option.holdingCost ?? null)}</dd></div><div><dt>Capital committed</dt><dd>{option.capitalShare != null ? `${option.capitalShare}% of available` : "Unknown"}</dd></div><div><dt>Unallocated after reserve</dt><dd>{money(option.remaining)}</dd></div><div><dt>Source demand score</dt><dd>{option.demandScore === null ? "Unknown" : `${option.demandScore} / 100`}</dd></div></dl>
-        <StackedBar caption="Where the landed cost goes" total={money(option.landedCost)} valueHeading="Amount" parts={[
-          { key: "purchase", label: "Purchase price", value: option.cars.reduce((n, c) => n + c.purchasePrice, 0), display: money(option.cars.reduce((n, c) => n + c.purchasePrice, 0)) },
-          { key: "prep", label: "Preparation + transfer", value: option.cars.reduce((n, c) => n + c.preparationCost + c.transferFees, 0), display: money(option.cars.reduce((n, c) => n + c.preparationCost + c.transferFees, 0)) },
-          { key: "transport", label: "Transport (estimate)", value: option.cars.reduce((n, c) => n + c.transportEstimate, 0), display: money(option.cars.reduce((n, c) => n + c.transportEstimate, 0)) },
-          { key: "holding", label: "Holding (your assumption)", value: option.holdingCost ?? 0, display: money(option.holdingCost ?? 0) }]} />
-        {option.risk?.reasons.length ? <ul className="ck-evidence" aria-label="Risk reasons">{option.risk.reasons.map(r => <li key={r}>{r}</li>)}</ul> : <p className="muted">No risk flags from the recorded evidence.</p>}
-        <p className="muted">{option.explanation}</p>
-      </article>)}</div>}
+      {!report.options.length ? <p>No acquisitions fit these constraints. Change the budget, reserve, radius or strategy, or connect a feed with suitable stock.</p> : <div className="stack-list">{report.options.slice(0, 3).map((option, i) => <Option key={option.cars.map(c => c.id).join("+")} option={option} i={i} demo={report.demo} />)}</div>}
+      {report.options.length > 3 ? <details className="ck-method"><summary>{report.options.length - 3} more {report.options.length - 3 === 1 ? "option" : "options"}</summary><div className="stack-list">{report.options.slice(3).map((option, i) => <Option key={option.cars.map(c => c.id).join("+")} option={option} i={i + 3} demo={report.demo} />)}</div></details> : null}
       {report.ai?.status === "available" ? <aside className="notice"><h3>AI commentary</h3><p>{report.ai.text}</p><small>{report.ai.model} · verify commentary against the structured report above.</small></aside> : <p className="muted">AI commentary {report.ai?.status === "restricted" ? "is disabled because source agreements do not permit AI processing" : report.ai?.status === "quota_exceeded" ? "is paused because this month's AI allowance for your plan is used; the figures above are unaffected" : report.ai?.status === "unavailable" ? "is temporarily unavailable" : "is not configured"}. The acquisition calculations and evidence are shown above.</p>}
       {report.notices.map(notice => <p className="notice" key={notice}>{notice}</p>)}
     </section> : null}

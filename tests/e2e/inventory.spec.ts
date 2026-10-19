@@ -51,13 +51,13 @@ test("a request raised in the interface appears as pending and its author cannot
   const data = (await (await request.get(`${api}/snapshot`)).json()).data;
   const v = data.vehicles.find((x: { id: string; availabilityStatus: string }) => x.availabilityStatus === "available" && !(data.priceRequests ?? []).some((r: { vehicleId: string }) => r.vehicleId === x.id));
   const id = v.id;
-  await page.goto(inventory);
+  await page.goto(`${inventory}?all=1`);
   const row = page.locator(`#insight-${id}`);
   await row.getByText("Request price change").click();
   await row.getByLabel(`Proposed price ${v.stockId}`).fill(String(Math.round(v.price * 0.7)));
   await row.getByLabel(`Reason ${v.stockId}`).fill("Aged stock, clearing for the next intake");
   await row.getByRole("button", { name: "Send for approval" }).click();
-  await expect(row.getByRole("status")).toHaveText("Request sent");
+  // The row swaps its form for the pending note as soon as the page refreshes, so wait for that outcome.
   await expect(row).toContainText("Request pending");
   const pending = page.getByRole("list", { name: "Pending price requests" }).getByRole("listitem").filter({ hasText: v.stockId });
   await expect(pending).toContainText("Aged stock, clearing for the next intake");

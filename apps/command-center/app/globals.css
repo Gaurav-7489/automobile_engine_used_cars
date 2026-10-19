@@ -53,7 +53,7 @@ p { line-height: 1.5; }
 .wide-panel { grid-column: 1 / -1; }
 .panel-head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; margin-bottom: 18px; }
 .panel-head a { font-size: 13px; color: var(--muted); }
-.stack-list { display: grid; }
+.stack-list { display: grid; grid-template-columns: minmax(0, 1fr); }
 .list-row { display: flex; justify-content: space-between; gap: 18px; padding: 14px 0; border-top: 1px solid var(--line); }
 .list-row > div:first-child { display: grid; gap: 5px; }
 .list-row span, .list-row small { color: var(--muted); font-size: 12px; }
@@ -298,7 +298,7 @@ tr:hover td { background:#f8faf5; }
 }
 
 .dealer-plan-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-.acquisition-option { padding: 20px 0; border-bottom: 1px solid #d9dde2; }
+.acquisition-option { padding: 20px 0; border-bottom: 1px solid #d9dde2; min-width: 0; max-width: 100%; overflow-x: clip; overflow-wrap: anywhere; }
 .acquisition-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .acquisition-facts dd { margin: 4px 0 0; font-weight: 650; }
 .acquisition-facts dt { font-size: .85rem; }
@@ -528,3 +528,5 @@ tr:hover td { background:#f8faf5; }
 .pl-flags { display: flex !important; flex-wrap: wrap; gap: 4px !important; } .pl-flags li { padding: 2px 8px; border-radius: 999px; background: #f6efe0; border: 1px solid #e2cf9f; color: #6f4a00; font-size: 11px; }
 .pl-move { display: grid; gap: 3px; } .pl-move select { min-height: 36px; width: 100%; font-size: 13px; }
 @media (max-width: 700px) { .pl-board { grid-auto-columns: 82%; } }
+
+.ck-chart, .ck-range { max-width: 100%; overflow-x: clip; }
