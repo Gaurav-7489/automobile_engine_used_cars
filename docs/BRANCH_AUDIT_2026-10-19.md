@@ -5,8 +5,8 @@ Method: `git fetch --prune`, then per branch: commits ahead/behind `origin/main`
 This establishes *what is not already in `main`*. It is not a line-by-line behavioural review of every branch,
 and no branch has been deleted, merged blindly or rewritten.
 
-44 remote branches: `main`, 1 branch for this consolidation, 33 with zero unique commits, 9 historical or
-superseded branches with unique commits, and 1 open hardening branch.
+44 remote branches = `main` (1) + this consolidation branch (1) + 31 already integrated (29 with zero commits ahead,
+plus 2 whose only commit is a merge/duplicate already in `main`) + 10 superseded historical branches + 1 open hardening branch (#37).
 
 ## A. Ready to integrate
 | Branch | PR | Notes |
@@ -49,6 +49,7 @@ superseded branches with unique commits, and 1 open hardening branch.
 - `security/command-center-fail-closed`
 - `security/provider-ai-rights`
 - `fix/command-center-lead-auth` (1 commit, patch-equivalent in `main`)
+- `security/dealer-role-boundaries` (1 commit, the merge of PR #36, which `main` already contains)
 
 ## D. Superseded (unique commits, but no file content absent from `main` other than files `main` deliberately removed)
 These form the original Oct 3–5 lineage that `main` was built from. Each is 119–121 commits behind.
@@ -63,5 +64,5 @@ None identified by this method. Any branch in D would reintroduce AWS/Cognito co
 
 ## Recommendations (all need owner approval; nothing done)
 1. Close PRs #2 and #9 as superseded; keep #37 open until its remaining items are decided.
-2. Delete the 33 fully integrated branches and the D branches if tidiness is wanted (they remain recoverable from `main` history for C; D branches should be tagged first).
+2. Delete the 31 fully integrated branches and the D branches if tidiness is wanted (they remain recoverable from `main` history for C; D branches should be tagged first).
 3. Protect `main`: require pull requests, require `Quality Gate` and `Cloudflare build and deploy`, block force-push and deletion. Repository settings are not changeable with the tools in this session.
