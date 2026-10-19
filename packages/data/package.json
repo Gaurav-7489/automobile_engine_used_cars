@@ -14,7 +14,8 @@
     "./discovery": "./src/discovery.ts",
     "./dead-stock": "./src/dead-stock.ts",
     "./platform-overview": "./src/platform-overview.ts",
-    "./cockpit": "./src/cockpit.ts"
+    "./cockpit": "./src/cockpit.ts",
+    "./capital-insights": "./src/capital-insights.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

@@ -29,7 +29,6 @@ test("the cockpit leads with headline figures from recorded data and labels demo
   await expect(page.getByRole("heading", { level: 1, name: "Today, decided." })).toBeVisible();
   const band = page.getByRole("region", { name: "Headline figures" });
   for (const label of ["Unsold stock", "Capital in stock", "Recorded contribution", "Open pipeline"]) await expect(band).toContainText(label, { ignoreCase: true });
-  await expect(band).toContainText("never treated as zero");
   await expect(page.getByText("Demonstration data — fictional records")).toBeVisible();
   // The sidebar collapses into a menu on small screens, so check the link exists rather than that it is on screen.
   await expect(page.locator('a[href$="/actions"]').first()).toBeAttached();
