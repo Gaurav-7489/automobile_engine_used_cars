@@ -53,6 +53,9 @@ jobs:
       - name: Evidence and matching regressions
         run: pnpm test:intelligence
 
+      - name: Product UI acceptance regressions
+        run: pnpm test:product
+
       - name: Build
         run: pnpm build
 

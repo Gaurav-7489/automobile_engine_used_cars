@@ -27,6 +27,17 @@ The reference path demonstrates:
 8. Organization → dealership → location hierarchy, entitlements, rollout flags, onboarding, integration registry and audit foundations.
 9. Stable HTTP/domain contracts that can be connected to AWS without teaching the UI about infrastructure.
 
+## VandLabs Automotive Intelligence (`apps/intelligence`)
+
+The dealer product built to the UI/UX specification v1.0: public landing page, sign-in, five-step onboarding, Command Centre, Market Radar (listing detail and regional comparison), Inventory, Pricing intelligence and approval, Advertising Studio, Leads and customers, Capital and profit, Alerts and actions, Reports and analytics, and Settings and integrations. It uses graphite surfaces with an azure accent (a deliberate departure from the reference colour), the specified layout grid, responsive shell (rail, icon rail, bottom navigation) and state coverage.
+
+```bash
+pnpm --filter @vandlabs/intelligence dev   # http://127.0.0.1:3003
+pnpm test:product                          # acceptance scenarios T01-T08 and reconciliation checks
+```
+
+Demo sign-in (development only): `owner@`, `manager@`, `inventory@`, `marketing@`, `sales@`, `finance@` (MFA code `424242`) or `viewer@example.com`, password `vandlabs-demo`. All data is illustrative and anchored to the 19 Oct 2026 10:00 IST snapshot. Workspace changes persist in the browser only (a demo adapter); permission, approval, version-conflict and campaign-safety rules live in `apps/intelligence/lib/actions` as pure functions so a server adapter can reuse them. QA states: append `?demo_state=loading|error|partial|empty` to any workspace URL.
+
 ## Local development
 
 ```bash
