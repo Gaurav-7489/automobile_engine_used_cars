@@ -369,10 +369,22 @@ export interface StockCost {
   acquiredOn: string; purchasePrice: number; reconditioningCost: number; transferCost: number; otherCost: number;
   dailyHoldingCost: number | null; reference: string; recordedBy: string; recordedAt: string;
 }
+/** A proposed asking-price change that needs an owner's decision. Reason codes are generic; figures stay with capital-access roles. */
+export type PriceRequestReason = "below_cost" | "large_drop";
+export interface PriceChangeRequest {
+  id: ID; tenantId: ID; vehicleId: ID; version: number;
+  currentPrice: number; proposedPrice: number; vehicleVersion: number;
+  reasons: PriceRequestReason[]; note: string;
+  status: "pending" | "approved" | "rejected" | "stale";
+  requestedBy: string; requestedAt: string;
+  decidedBy?: string; decidedAt?: string; decisionNote?: string;
+}
 export interface StockCostChange {
   id: ID; tenantId: ID; vehicleId: ID; before: StockCost | null; after: StockCost;
 }
 
 export * from "./commerce";
+export * from "./entitlements";
 
 export * from "./command-access";
+

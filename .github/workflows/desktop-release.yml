@@ -85,7 +85,7 @@ jobs:
 
           Quality Gate: $QUALITY_URL
 
-          Windows x64 and universal macOS installers. Unsigned development builds: signing, notarization and installed HTTPS/Cognito acceptance remain pending. An activated dealership backend is required. These are installers, not a provisioned backend or a production-certified release.
+          Windows x64 and universal macOS installers. Unsigned development builds: signing, notarization and installed HTTPS/Google sign-in acceptance remain pending. An activated dealership backend is required. These are installers, not a provisioned backend or a production-certified release.
 
           Verify SHA-256 against the attached SHA256SUMS.txt before installation.
           EOF

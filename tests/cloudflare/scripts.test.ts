@@ -5,7 +5,7 @@ import { spawnSync } from "node:child_process";
 test("deployment doctor executes as ESM and reports missing configuration without a transform failure", () => {
   const result = spawnSync(process.execPath, ["--import", "tsx", "scripts/deployment/doctor.ts", "command"], {
     encoding: "utf8",
-    env: { ...process.env, DATA_MODE: "demo", AUTH_MODE: "demo", DATABASE_URL: "", DATABASE_SECRET_ARN: "", TENANT_CONFIG_JSON: "", APP_ORIGIN: "", SESSION_SECRET: "", COGNITO_DOMAIN: "", COGNITO_USER_POOL_ID: "", COGNITO_CLIENT_ID: "", AUTH_REGISTRY_MODE: "", AUTH_PRINCIPALS_JSON: "" },
+    env: { ...process.env, DATA_MODE: "demo", AUTH_MODE: "demo", DATABASE_URL: "", TENANT_CONFIG_JSON: "", APP_ORIGIN: "", SESSION_SECRET: "", GOOGLE_CLIENT_ID: "", GOOGLE_CLIENT_SECRET: "", AUTH_REGISTRY_MODE: "", AUTH_PRINCIPALS_JSON: "" },
   });
   assert.equal(result.status, 1);
   assert.equal(result.stderr, "");

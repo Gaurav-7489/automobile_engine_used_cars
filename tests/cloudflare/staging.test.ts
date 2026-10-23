@@ -74,24 +74,24 @@ test("free-plan configuration drops CPU limits the Workers Free plan rejects; pa
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
-test("shared staging configuration supports Cognito without OIDC secrets and rejects demo or incomplete identity before mutation", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "vandlabs-cognito-config-"));
+test("shared staging configuration supports Google sign-in without OIDC secrets and rejects demo or incomplete identity before mutation", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vandlabs-google-config-"));
   try {
     for (const file of files) { await mkdir(dirname(join(directory, file)), { recursive: true }); await copyFile(file, join(directory, file)); }
     const origin = "https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev";
-    const env = { ...process.env, CF_ENVIRONMENT: "staging", CF_SHARED_DATA: "true", CF_PUBLIC_ORIGIN: origin, SEO_INDEXABLE: "false", DATABASE_URL: "postgresql://vandlabs_runtime:test@ep-test-pooler.ap-south-1.aws.neon.tech/test?sslmode=require", TENANT_CONFIG_JSON: JSON.stringify({seo:{canonicalBase:origin}}), SESSION_SECRET: "test", AUTH_MODE: "cognito", COGNITO_DOMAIN: "https://staff.auth.ap-south-1.amazoncognito.com", COGNITO_USER_POOL_ID: "ap-south-1_test", COGNITO_CLIENT_ID: "client-test" };
+    const env = { ...process.env, CF_ENVIRONMENT: "staging", CF_SHARED_DATA: "true", CF_PUBLIC_ORIGIN: origin, SEO_INDEXABLE: "false", DATABASE_URL: "postgresql://vandlabs_runtime:test@ep-test-pooler.ap-south-1.aws.neon.tech/test?sslmode=require", TENANT_CONFIG_JSON: JSON.stringify({seo:{canonicalBase:origin}}), SESSION_SECRET: "test", AUTH_MODE: "google", GOOGLE_CLIENT_ID: "client-test", GOOGLE_CLIENT_SECRET: "secret-test" };
     const run = (values: typeof env) => spawnSync(process.execPath, [resolve("scripts/cloudflare/configure.mjs")], { cwd: directory, encoding: "utf8", env: values });
     const result = run(env); assert.equal(result.status, 0, result.stderr);
     for (const app of ["web", "command-center", "platform"]) {
       const config = JSON.parse(await readFile(join(directory, `apps/${app}/wrangler.jsonc`), "utf8"));
-      assert.equal(config.vars.AUTH_MODE, "cognito");
+      assert.equal(config.vars.AUTH_MODE, "google");
       assert.equal(config.vars.DATA_MODE, "neon");
       assert.equal(config.vars.NEXT_PUBLIC_PREVIEW_READ_ONLY, "false");
-      assert.ok(!JSON.stringify(config).includes("client-test"));
+      assert.ok(!JSON.stringify(config).includes("client-test")&&!JSON.stringify(config).includes("secret-test"));
     }
     const before = await Promise.all(files.map(file => readFile(join(directory, file), "utf8")));
     assert.equal(run({ ...env, AUTH_MODE: "demo" }).status, 1);
-    assert.equal(run({ ...env, COGNITO_CLIENT_ID: "" }).status, 1);
+    assert.equal(run({ ...env, GOOGLE_CLIENT_ID: "" }).status, 1);
     assert.deepEqual(await Promise.all(files.map(file => readFile(join(directory, file), "utf8"))), before);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

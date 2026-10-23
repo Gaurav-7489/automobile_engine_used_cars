@@ -26,5 +26,5 @@ try{
  for(const a of remap(appointments) as typeof appointments)await c.query("INSERT INTO appointments(id,tenant_id,lead_id,payload) VALUES($1,$2,$3,$4)",[a.id,config.tenantId,a.leadId,a]);
  for(const r of remap(rules) as typeof rules)await c.query("INSERT INTO automation_rules(id,tenant_id,payload) VALUES($1,$2,$3)",[r.id,config.tenantId,r]);
  await c.query("COMMIT");await mkdir(".runtime",{recursive:true});await writeFile(".runtime/tenant-config.json",JSON.stringify(config,null,2));
- console.log("Staging reference seeded. Set TENANT_CONFIG_JSON from .runtime/tenant-config.json; provision Cognito subjects with these UUID scope identifiers.");
+ console.log("Staging reference seeded. Set TENANT_CONFIG_JSON from .runtime/tenant-config.json; grant staff by Google email using these UUID scope identifiers.");
 }catch(e){await c.query("ROLLBACK");throw e;}finally{c.release();await pool.end();}

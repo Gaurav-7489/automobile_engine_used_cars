@@ -214,3 +214,24 @@ test("AI commentary requires independently approved source rights and revocation
     if (previousToken === undefined) delete process.env.DEALER_AI_SERVICE_TOKEN; else process.env.DEALER_AI_SERVICE_TOKEN = previousToken;
   }
 });
+test("risk tolerance filters and ranks by evidence, and every option explains its risk", async () => {
+  const { repository } = memoryRepository(), service = await configured(repository);
+  const base = { ...request, count: 1 };
+  const balanced = await service.dealerRecommendations(owner, base);
+  assert.ok(balanced.options.every(o => o.risk && ["low", "medium", "high"].includes(o.risk.level)));
+  // Loss-making at the low resale end: sold for less than the landed cost.
+  await service.ingest(owner, source.id, { vehicles: [{ ...vehicle, sourceRecordId: "loss", model: "Loss", purchasePrice: 500000, resaleLow: 480000, resaleHigh: 560000 }, { ...vehicle, sourceRecordId: "nores", model: "Blank", resaleLow: null, resaleHigh: null, demandScore: null }] });
+  const all = await service.dealerRecommendations(owner, base), loss = all.options.find(o => o.cars[0].model === "Loss")!, blank = all.options.find(o => o.cars[0].model === "Blank")!;
+  assert.ok(loss.marginLow! < 0 && loss.marginHigh! > 0); assert.equal(loss.risk!.level, "medium"); assert.match(loss.risk!.reasons[0], /Loses ₹[\d,]+ if it resells at the low end/);
+  assert.equal(blank.risk!.level, "high"); assert.match(blank.risk!.reasons[0], /No recorded resale range/);
+  assert.equal(blank.resaleLow, null, "unknown stays unknown, never zero");
+  const cautious = await service.dealerRecommendations(owner, { ...base, risk: "cautious" });
+  assert.ok(cautious.options.length > 0 && cautious.options.every(o => o.marginLow !== null && o.marginLow >= 0), "cautious drops options that lose at the low end or have no resale range");
+  assert.ok(!cautious.options.some(o => o.cars[0].model === "Loss" || o.cars[0].model === "Blank"));
+  const bold = await service.dealerRecommendations(owner, { ...base, risk: "opportunistic" });
+  const highs = bold.options.filter(o => o.marginHigh !== null).map(o => o.marginHigh!);
+  assert.deepEqual(highs, [...highs].sort((a, b) => b - a), "opportunistic ranks by the high end");
+  const o = balanced.options[0];
+  assert.equal(o.resaleLow! - o.landedCost, o.marginLow); assert.equal(o.holdingCost, 100 * 30);
+  await assert.rejects(() => service.dealerRecommendations(owner, { ...base, risk: "reckless" } as never), /valid risk tolerance/);
+});

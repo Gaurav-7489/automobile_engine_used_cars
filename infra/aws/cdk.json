@@ -1,6 +1,0 @@
-{
-  "app": "node --import tsx bin/automobile-engine.ts",
-  "context": {
-    "@aws-cdk/aws-rds:databaseProxyUniqueResourceName": true
-  }
-}

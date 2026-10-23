@@ -1,3 +1,4 @@
+import { assertSeatAvailable, demoSubscription, readSubscription } from "./entitlements";
 import { randomUUID } from "node:crypto";
 import { requireCapability, AuthorizationError, staffRoles, staffPrincipal,
   type AuthenticatedPrincipal, type PlatformTenant, type PlatformAudit, type StaffMember, type StaffRole } from "@vandlabs/contracts";
@@ -20,11 +21,11 @@ function staffInput(tenantId: string, input: unknown): Pick<StaffMember,"tenantI
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new InputError();
   const b = input as Record<string,unknown>;
   const list = (v: unknown): v is string[] => Array.isArray(v) && v.length > 0 && v.length <= 100 && v.every(x=>typeof x==="string"&&x.length>0&&x.length<150) && new Set(v).size===v.length;
-  if (typeof b.userId!=="string" || !/^[a-zA-Z0-9_-]{1,128}$/.test(b.userId) ||
+  if (typeof b.userId!=="string" || !/^[a-zA-Z0-9_.+@-]{1,128}$/.test(b.userId) ||
       typeof b.displayName!=="string" || !b.displayName.trim() || b.displayName.length>120 ||
       typeof b.role!=="string" || !Object.hasOwn(staffRoles,b.role) ||
       !list(b.dealershipIds) || !list(b.locationIds) || typeof b.enabled!=="boolean") throw new InputError();
-  return { tenantId, userId:b.userId, displayName:b.displayName.trim(), role:b.role as StaffRole,
+  return { tenantId, userId:b.userId.includes("@")?b.userId.toLowerCase():b.userId, displayName:b.displayName.trim(), role:b.role as StaffRole,
     dealershipIds:b.dealershipIds,locationIds:b.locationIds,enabled:b.enabled };
 }
 function checkVersion(value: unknown, current: number) {
@@ -61,11 +62,12 @@ export function postgresPlatformStore(pool:SqlPool) {
         const h=await hierarchy(c,tenantId);
         const stats=(await c.query(`SELECT
           (SELECT count(*) FROM vehicles WHERE tenant_id=$1) AS vehicles,
+          (SELECT count(*) FROM vehicles WHERE tenant_id=$1 AND availability_status<>'sold') AS unsold,
           (SELECT count(*) FROM vehicles WHERE tenant_id=$1 AND publish_status='published') AS published,
           (SELECT count(*) FROM leads WHERE tenant_id=$1) AS leads,
           (SELECT count(*) FROM tasks WHERE tenant_id=$1 AND NOT completed) AS tasks,
           (SELECT count(*) FROM sales WHERE tenant_id=$1) AS sales`,[tenantId])).rows[0];
-        return {tenantId,...h,counts:{vehicles:Number(stats.vehicles),publishedVehicles:Number(stats.published),leads:Number(stats.leads),openTasks:Number(stats.tasks),sales:Number(stats.sales)},
+        return {tenantId,...h,counts:{vehicles:Number(stats.vehicles),unsoldVehicles:Number(stats.unsold),publishedVehicles:Number(stats.published),leads:Number(stats.leads),openTasks:Number(stats.tasks),sales:Number(stats.sales)},
           staff:(await c.query("SELECT payload FROM staff_members WHERE tenant_id=$1 ORDER BY user_id",[tenantId])).rows.map(r=>r.payload as StaffMember),
           audit:(await c.query("SELECT payload FROM platform_audit WHERE tenant_id=$1 ORDER BY occurred_at DESC LIMIT 100",[tenantId])).rows.map(r=>r.payload as PlatformAudit)};
       }));
@@ -79,6 +81,12 @@ export function postgresPlatformStore(pool:SqlPool) {
         const h=await hierarchy(c,tenantId);validateDestinations(b,h.dealerships);
         const old=(await c.query("SELECT payload FROM staff_members WHERE tenant_id=$1 AND user_id=$2 FOR UPDATE",[tenantId,b.userId])).rows[0]?.payload as StaffMember|undefined;
         const member=record(p,b,old,expectedVersion),event=audit(p,member);
+        if(member.enabled&&!old?.enabled) {
+          // Seat checks are tenant-wide, so two different users enabled at once cannot both take the last seat.
+          await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1,1))",[tenantId+":seats"]);
+          const others=Number((await c.query("SELECT count(*) AS n FROM staff_members WHERE tenant_id=$1 AND user_id<>$2 AND payload->>'enabled'='true'",[tenantId,member.userId])).rows[0].n);
+          assertSeatAvailable(await readSubscription(c,tenantId),others,new Date());
+        }
         await c.query("INSERT INTO staff_members(tenant_id,user_id,payload) VALUES($1,$2,$3) ON CONFLICT(tenant_id,user_id) DO UPDATE SET payload=EXCLUDED.payload",[tenantId,member.userId,member]);
         await c.query("INSERT INTO platform_audit(id,tenant_id,actor,action,subject,payload,occurred_at) VALUES($1,$2,$3,$4,$5,$6,$7)",[event.id,tenantId,event.actor,event.action,event.subject,event,event.occurredAt]);
         return member;
@@ -101,7 +109,7 @@ export async function platformSnapshot(p:AuthenticatedPrincipal):Promise<Platfor
   const l=runtime.mergeRuntimeLeads(leads).filter(x=>x.tenantId===tenantConfig.tenantId);
   return [{tenantId:tenantConfig.tenantId,organizationId:tenantConfig.organization.id,organization:tenantConfig.organization.name,
     dealerships:tenantConfig.organization.dealerships.map(d=>({id:d.id,name:d.name,locations:d.locations.map(x=>({id:x.id,name:x.name,city:x.city}))})),
-    counts:{vehicles:v.length,publishedVehicles:v.filter(x=>x.publishStatus==="published").length,leads:l.length,openTasks:runtime.mergeRuntimeTasks(tasks).filter(t=>t.tenantId===tenantConfig.tenantId&&!t.completed).length,sales:runtime.readRuntimeSales().filter(s=>s.tenantId===tenantConfig.tenantId).length},
+    counts:{vehicles:v.length,unsoldVehicles:v.filter(x=>x.availabilityStatus!=="sold").length,publishedVehicles:v.filter(x=>x.publishStatus==="published").length,leads:l.length,openTasks:runtime.mergeRuntimeTasks(tasks).filter(t=>t.tenantId===tenantConfig.tenantId&&!t.completed).length,sales:runtime.readRuntimeSales().filter(s=>s.tenantId===tenantConfig.tenantId).length},
     staff:runtime.readPlatformRecords<StaffMember>("staff-members.json").filter(x=>x.tenantId===tenantConfig.tenantId),
     audit:runtime.readPlatformRecords<PlatformAudit>("platform-audit.json").filter(x=>x.tenantId===tenantConfig.tenantId).slice(0,100)}];
 }
@@ -110,14 +118,17 @@ export async function saveStaffMember(p:AuthenticatedPrincipal,tenantId:string,i
   platformScope(p,tenantId);
   if(tenantId!==tenantConfig.tenantId)throw new RecordNotFound();
   const b=staffInput(tenantId,input);validateDestinations(b,tenantConfig.organization.dealerships);
+  const subscription=await demoSubscription(tenantId);
   return runtime.demoTransaction(state=>{
     const rows=state["staff-members.json"] as StaffMember[];
-    const member=record(p,b,rows.find(s=>s.tenantId===tenantId&&s.userId===b.userId),expectedVersion);
+    const previous=rows.find(s=>s.tenantId===tenantId&&s.userId===b.userId);
+    const member=record(p,b,previous,expectedVersion);
+    if(member.enabled&&!previous?.enabled)assertSeatAvailable(subscription,rows.filter(s=>s.tenantId===tenantId&&s.userId!==member.userId&&s.enabled).length,new Date());
     state["staff-members.json"]=[member,...rows.filter(s=>!(s.tenantId===tenantId&&s.userId===b.userId))];
     state["platform-audit.json"]=[audit(p,member),...state["platform-audit.json"]];return member;
   });
 }
-/** Called only after Cognito verifies subject, issuer, client and expiry. */
+/** Called only after the identity provider verifies the subject, issuer, client and expiry. */
 export async function resolveDatabaseStaff(sub:string,tenantId:string) {
   if(dataMode()==="demo")throw new Error("Database staff registry requires shared PostgreSQL.");
   return postgresPlatformStore(await databasePool()).principal(sub,tenantId);

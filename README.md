@@ -2,7 +2,7 @@
 
 VandLabs Automobile Engine is a dealer-focused subscription product for acquisition, inventory and growth intelligence. The paying user is a dealership professional acquiring vehicles for resale. Three tiers — Starter, Growth and Scale — are described in `docs/dealer-subscription-product.md`; pricing and live billing remain pending. The V1 Proof-of-Engine connects the dealership experience, canonical vehicle inventory, conversion intent, first-party journey context, automotive lead operations, reporting, platform controls and managed cloud integration boundaries.
 
-Current infrastructure and release evidence: [Cloudflare + Neon staging](docs/CLOUDFLARE_STAGING.md) and [release tracker](docs/RELEASE_TRACKER.md). Staff identity setup: [isolated Cognito MFA](docs/STAFF_IDENTITY_SETUP.md). Live deployment and commercial acceptance remain pending.
+Current infrastructure and release evidence: [Cloudflare + Neon staging](docs/CLOUDFLARE_STAGING.md) and [release tracker](docs/RELEASE_TRACKER.md). Staff identity setup: [Google sign-in](docs/GOOGLE_SIGN_IN_SETUP.md). Live deployment and commercial acceptance remain pending.
 
 ## Current V1 reference applications
 
@@ -91,11 +91,9 @@ See:
 - `docs/roadmap.md`
 - `docs/openapi.yaml`
 - `docs/event-spec.md`
-- `docs/aws-integration.md`
 - `docs/launch-qa.md`
 - `docs/production-tenant-isolation.md`
-- `docs/staff-authentication.md` — verified Cognito staff access and bootstrap provisioning
-- `infra/aws/` — historical full-stack CDK adapter and the isolated Cognito identity deployment
+- `docs/GOOGLE_SIGN_IN_SETUP.md` — Google staff sign-in (no AWS)
 
 ## Deliberate V1 exclusions
 
@@ -103,11 +101,11 @@ V1 does **not** include workshop/service operations, spare-parts operations, cus
 
 AI remains assistive rather than authoritative; vehicle facts, attribution evidence and business outcomes are deterministic records.
 
-Built reference apps require explicit `AUTH_MODE=demo` when launched manually. For Cognito access, configure the server variables in `docs/staff-authentication.md`; browser login/refresh and Aurora repositories are implemented; live use requires deployment configuration.
+Built reference apps require explicit `AUTH_MODE=demo` when launched manually. For Google access, configure the variables in `docs/GOOGLE_SIGN_IN_SETUP.md`; browser login/refresh and Neon repositories are implemented; live use requires deployment configuration.
 
 ## Shared production runtime
 
-See `docs/production-runtime.md` for PostgreSQL migrations, application-role provisioning, Cognito login and desktop configuration. `DATA_MODE=aurora` uses shared PostgreSQL records; `demo` is explicit reference mode. Live deployment requires AWS/network/domain configuration. Native installer artifacts are built by `.github/workflows/desktop-build.yml`.
+See `docs/production-runtime.md` for PostgreSQL migrations, application-role provisioning, Google login and desktop configuration. `DATA_MODE=aurora` uses shared PostgreSQL records; `demo` is explicit reference mode. Live deployment requires AWS/network/domain configuration. Native installer artifacts are built by `.github/workflows/desktop-build.yml`.
 
 See `docs/release-2026-10-08.md` for the connected-demo release, pull instructions, exact test evidence and separate desktop/staging/production completion states.
 
@@ -127,7 +125,7 @@ The Platform now reads the same stock/lead/task/sale state as the other apps and
 - [Connect all three hosted apps](docs/shared-staging-setup.md)
 - [Platform and persistent staff access](docs/platform-staff-operations.md)
 
-The Vercel deployments remain protected browse-only previews until shared Aurora connectivity and Cognito settings are supplied and accepted. A successful build is not a live-backend certification.
+The Vercel deployments remain protected browse-only previews until shared Neon connectivity and Google sign-in settings are supplied and accepted. A successful build is not a live-backend certification.
 
 Final merged evidence, installers, all five source documents and refreshed preview targets: [9 October main delivery](docs/main-delivery-2026-10-09.md).
 

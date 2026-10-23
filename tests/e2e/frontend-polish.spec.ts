@@ -37,7 +37,8 @@ test("responsive menus preserve route state, keyboard dismissal and mobile sign-
         await page.screenshot({ path: info.outputPath(`${name}-menu-${width}.png`) });
       } else {
         await expect(summary).not.toBeVisible();
-        await expect(page.getByRole("navigation").locator('[aria-current="page"]')).toHaveCount(1);
+        // Page-level filter links (nav.ck-filters) mark their own current choice; this asserts the app navigation alone.
+        await expect(page.locator('nav:not(.ck-filters) [aria-current="page"]:visible')).toHaveCount(1);
       }
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
@@ -138,7 +139,7 @@ test("all staff sections stay within a narrow screen", async ({ page }, info) =>
         await expect(role).toHaveCSS("appearance", "none");
         await expect(role).toHaveCSS("color", "rgb(239, 243, 230)");
       }
-      if (["inventory", "staff"].includes(section)) await page.screenshot({ path: info.outputPath(`${base.includes("command") ? "dealer" : "platform"}-${section}-narrow.png`), fullPage: true });
+      if (["inventory", "staff"].includes(section)) await page.screenshot({ path: info.outputPath(`${base.includes("command") ? "dealer" : "platform"}-${section}-narrow.png`), fullPage: info.project.name !== "mobile" });
     }
   }
 });

@@ -36,7 +36,7 @@ export interface PlatformTenant {
   organizationId: string;
   organization: string;
   dealerships: { id: string; name: string; locations: { id: string; name: string; city: string }[] }[];
-  counts: { vehicles: number; publishedVehicles: number; leads: number; openTasks: number; sales: number };
+  counts: { vehicles: number; unsoldVehicles: number; publishedVehicles: number; leads: number; openTasks: number; sales: number };
   staff: StaffMember[];
   audit: PlatformAudit[];
 }

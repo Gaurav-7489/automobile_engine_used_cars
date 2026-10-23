@@ -1,3 +1,4 @@
+import { assertFeature } from "./entitlements";
 import { randomUUID } from "node:crypto";
 import { requireCapability, type AuthenticatedPrincipal, type CommerceState, type FeedFailure, type FeedSync } from "@vandlabs/contracts";
 import type { CommerceRepository } from "./commerce";
@@ -61,6 +62,7 @@ export function providerSync(repository: CommerceRepository, options: { env?: En
     const runId = randomUUID(), started = clock();
     await repository.transact(principal.tenantId, state => {
       const source = state.sources.find(s => s.id === sourceId);
+      assertFeature(state.subscription, "provider_sync", started);
       if (!allowedSource(source, false, started) || source?.kind !== "licensed_api") throw new CommerceError(403, "An active licensed provider agreement is required.");
       const previous = state.sourceSync?.find(run => run.sourceId === sourceId);
       if (previous?.status === "running" && Date.parse(previous.leaseExpiresAt) > started.getTime()) throw new CommerceError(409, "This source is already synchronizing.");

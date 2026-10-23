@@ -1,17 +1,12 @@
 import { Pool, type PoolConfig } from "pg";
 import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
 import { readFileSync } from "node:fs";
-import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
 
 export interface SqlClient {
   query(sql: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
   release(): void;
 }
 export interface SqlPool { connect(): Promise<SqlClient> }
-export async function databaseSecret(arn:string):Promise<Record<string,string>> {
-  const result = await new SecretsManagerClient({}).send(new GetSecretValueCommand({SecretId:arn}));
-  if(!result.SecretString)throw new Error("Database credentials unavailable.");return JSON.parse(result.SecretString);
-}
 let poolPromise: Promise<SqlPool> | undefined;
 export function databaseOptions(env:Record<string,string|undefined>=process.env,credentials:Record<string,string>={}):PoolConfig {
   const tls=env.DATABASE_TLS!=="off";
@@ -34,7 +29,6 @@ export function databaseOptions(env:Record<string,string|undefined>=process.env,
 }
 export function databasePool(): Promise<SqlPool> {
   if (process.env.HOSTING_PROVIDER === "cloudflare") {
-    if (process.env.DATABASE_SECRET_ARN) throw new Error("Use a Worker DATABASE_URL secret on Cloudflare.");
     const options = databaseOptions();
     const url = new URL(options.connectionString!);
     if (!url.hostname.endsWith(".neon.tech") || !url.hostname.includes("-pooler.")) throw new Error("Cloudflare requires a pooled Neon application-role URL.");
@@ -52,11 +46,7 @@ export function databasePool(): Promise<SqlPool> {
     }});
   }
   return poolPromise ??= (async () => {
-    let credentials: Record<string, string> = {};
-    if (process.env.DATABASE_SECRET_ARN) {
-      credentials = await databaseSecret(process.env.DATABASE_SECRET_ARN);
-    }
-    const pool=new Pool(databaseOptions(process.env,credentials));
+    const pool=new Pool(databaseOptions(process.env));
     // Handle idle network failures without logging connection strings/credentials.
     pool.on("error",()=>{console.error("Database pool connection unavailable.");});
     return pool;

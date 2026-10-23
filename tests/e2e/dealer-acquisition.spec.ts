@@ -10,7 +10,7 @@ test("dealer can acquire by budget and manage server-enforced subscription tiers
   await page.getByRole("button", { name: "Find budget-fit acquisitions" }).click();
   await expect(page.locator(".acquisition-option").first()).toContainText("2021 Maruti Swift + 2020 Hyundai i20");
   await expect(page.locator(".acquisition-option").first()).toContainText("₹9,11,000");
-  await page.screenshot({path:info.outputPath("dealer-acquisition.png"),fullPage:true});
+  await page.screenshot({path:info.outputPath("dealer-acquisition.png"),fullPage:info.project.name!=="mobile"});
   await page.getByLabel("Available capital (INR)").fill("50000");
   await page.getByRole("button", { name: "Find budget-fit acquisitions" }).click();
   await expect(page.getByText("No acquisitions fit these constraints", { exact: false })).toBeVisible();
@@ -42,7 +42,7 @@ test("dealer issues a scoped key, calls the business API and revokes access", as
   expect(revoked.status()).toBe(401);
   await page.getByRole("button", {name:"Hide key",exact:true}).click();
   await expect(field).toBeHidden();
-  await page.screenshot({path:info.outputPath("dealer-business-api.png"),fullPage:true});
+  await page.screenshot({path:info.outputPath("dealer-business-api.png"),fullPage:info.project.name!=="mobile"});
 });
 
 test("source configuration failure is visible, retained and paced without a provider request", async ({page,request},info) => {
@@ -70,7 +70,7 @@ test("source configuration failure is visible, retained and paced without a prov
   await page.getByRole("button",{name:"Refresh source status",exact:true}).click();
   await expect(card).toContainText("Last sync failed");
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
-  await page.screenshot({path:info.outputPath("source-sync-failure.png"),fullPage:true});
+  await page.screenshot({path:info.outputPath("source-sync-failure.png"),fullPage:info.project.name!=="mobile"});
 });
 
 
@@ -82,20 +82,22 @@ test("market intelligence keeps supplier quotes separate and filters explicit as
   const vehicle = { sourceRecordId: "one", make: "Fixture", model: "Evidence", year: 2021, city: "Kochi", state: "Kerala", latitude: 9, longitude: 76, fuel: "petrol", transmission: "manual", odometerKm: 40000, purchasePrice: 300000, preparationCost: 10000, transferFees: 5000, resaleLow: null, resaleHigh: null, demandScore: null, mileageKmpl: null, evidence: "Fictional asking-price evidence for browser acceptance", observedAt, expiresAt, available: true };
   expect((await request.post(`${command}/api/dealer/import`, { data: { sourceId, vehicles: [vehicle] } })).status()).toBe(200);
   await page.goto(`${command}/market?sourceId=${sourceId}`);
-  await expect(page.getByRole("heading", { name: "0 comparable asking-price records", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Market headline figures" })).toContainText("No evidence");
+  await expect(page.getByRole("region", { name: "Market headline figures" })).toContainText("1 eligible");
   expect((await request.post(`${command}/api/dealer/import`, { data: { sourceId, vehicles: [{ ...vehicle, askingPrice: { amount: 500000, currency: "INR", observedAt } }, { ...vehicle, sourceRecordId: "two", askingPrice: { amount: 600000, currency: "INR", observedAt } }] } })).status()).toBe(200);
   await page.reload();
-  await expect(page.getByRole("heading", { name: "2 comparable asking-price records", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Asking-price summary")).toContainText("₹5,50,000");
-  await expect(page.getByRole("status")).toContainText("fictional examples");
-  await page.getByText("Filter comparable records", { exact: true }).click();
-  await page.getByLabel("Maximum asking price (INR)", { exact: true }).fill("550000");
+  await expect(page.getByRole("heading", { name: "Comparable evidence" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Market headline figures" })).toContainText("₹5,50,000");
+  await expect(page.getByRole("region", { name: "Market headline figures" })).toContainText("Insufficient");
+  await expect(page.getByText("Demonstration data — fictional records")).toBeVisible();
+  await page.getByText("More filters", { exact: true }).click();
+  await page.getByLabel("Max asking price (₹)", { exact: true }).fill("550000");
   await page.getByRole("button", { name: "Compare asking prices", exact: true }).click();
   await expect(page).toHaveURL(/maxPrice=550000/);
-  await expect(page.getByRole("heading", { name: "1 comparable asking-price records", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Asking-price summary")).toContainText("₹5,00,000");
+  await expect(page.getByRole("region", { name: "Market headline figures" })).toContainText("₹5,00,000");
+  await expect(page.getByRole("list", { name: "Active filters" })).toContainText("Max price: 550000");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: info.outputPath("market-evidence.png"), fullPage: true });
+  await page.screenshot({ path: info.outputPath("market-evidence.png"), fullPage: info.project.name !== "mobile" });
   const api = await request.get(`${command}/api/dealer/market?sourceId=${sourceId}`);
   expect(api.status()).toBe(200); expect((await api.json()).data.distribution.median).toBe(550000);
   expect((await request.get(`${command}/api/dealer/market?maxAgeDays=0`)).status()).toBe(400);

@@ -52,3 +52,24 @@ test("market pagination is stable, bounded and filters reject malformed input", 
   assert.equal(new Set([...first.items, ...second.items].map(v => v.id)).size, 30);
   for (const filters of [{ minPrice: 10, maxPrice: 1 }, { minYear: 2025, maxYear: 2020 }, { maxAgeDays: 0 }, { maxKm: [] }, { page: "NaN" }, { fuel: "unknown" }]) assert.throws(() => marketReport(data, filters, now));
 });
+test("confidence rates the evidence from record count, sources and cohort, and never the market", () => {
+  const cohort = { make: "Maruti", model: "Swift", minYear: 2021, maxYear: 2021 };
+  const many = (n: number) => state(Array.from({ length: n }, (_, i) => priced(400000 + i * 1000, i)));
+  assert.equal(marketReport(many(3), cohort, now).confidence.level, "insufficient");
+  assert.equal(marketReport(many(6), cohort, now).confidence.level, "low");
+  assert.equal(marketReport(many(9), cohort, now).confidence.level, "medium");
+  assert.equal(marketReport(many(9), {}, now).confidence.level, "low", "mixed cohort caps confidence");
+  assert.equal(marketReport(many(20), cohort, now).confidence.level, "medium", "one source cannot reach high");
+  const two = many(20); two.sources.push({ ...source, id: "other", name: "Other" }); two.vehicles.slice(0, 10).forEach(v => { v.sourceId = "other"; });
+  assert.equal(marketReport(two, cohort, now).confidence.level, "high");
+  assert.ok(marketReport(many(9), cohort, now).confidence.reasons.some(r => /9 matching records from 1 source/.test(r)));
+});
+test("freshness reports age and excluded stale records; regional deltas need a sample", () => {
+  const rows = [400000, 410000, 420000, 430000, 440000, 450000].map(priced); rows[5].city = "Delhi"; rows[4].askingPrice!.observedAt = "2026-10-12T12:00:00Z";
+  const stale = priced(900000, 9); stale.askingPrice!.observedAt = "2026-08-01T00:00:00Z";
+  const r = marketReport(state([...rows, stale]), {}, now);
+  assert.equal(r.freshness.excludedStale, 1); assert.equal(r.freshness.newestAgeDays, 0); assert.equal(r.freshness.oldestAgeDays, 3);
+  assert.equal(r.cities.find(c => c.city === "Delhi")!.vsOverallPercent, null, "single-record city has no delta");
+  assert.equal(typeof r.cities.find(c => c.city === "Kochi")!.vsOverallPercent, "number");
+  assert.equal(marketReport(state(rows.slice(0, 3)), {}, now).cities[0].vsOverallPercent, null, "under five records, no deltas");
+});

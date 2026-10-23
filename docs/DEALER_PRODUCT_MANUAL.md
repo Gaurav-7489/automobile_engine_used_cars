@@ -11,7 +11,7 @@ administration surface. Staff dashboards remain private and excluded from indexi
 An administrator must provision the dealership hierarchy and exact identity-provider
 subject in the staff registry. Identity-provider registration alone grants no
 organization access. Complete the configured MFA challenge during sign-in. If the
-login says the provider is not connected, follow `STAFF_IDENTITY_SETUP.md`; demo
+login says the provider is not connected, follow `GOOGLE_SIGN_IN_SETUP.md`; demo
 identity must never be enabled against the shared PostgreSQL environment.
 
 Current named dealer roles are owner, manager, salesperson (`sales`), acquisition

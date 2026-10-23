@@ -4,6 +4,8 @@ import { AuthorizationError, type AuthenticatedPrincipal, type Capability } from
 // their own resource-level scope; hiding a menu item is never authorization.
 export const commandSections: readonly { label: string; path: string; capabilities: readonly Capability[] }[] = [
   {label:"Overview",path:"/",capabilities:["lead:read"]},
+  // Role-aware: the page shows only the actions its signed-in role has the evidence to see.
+  {label:"Actions",path:"/actions",capabilities:[]},
   {label:"Market",path:"/market",capabilities:["analytics:read"]},
   {label:"Acquisition",path:"/acquisition",capabilities:["capital:read"]},
   {label:"Subscriptions",path:"/subscriptions",capabilities:["commerce:manage"]},

@@ -65,11 +65,11 @@ test("only an explicitly paid Workers subscription verifies the optional billing
 });
 
 
-test("Cognito mode checks its own credentials and rejects demo staff authentication", async () => {
-  const base = { CLOUDFLARE_API_TOKEN: env.CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID, CF_PUBLIC_ORIGIN: "https://staging.vandlabs.test", DATABASE_URL: "private", TENANT_CONFIG_JSON: "private", SESSION_SECRET: "private", AUTH_MODE: "cognito" };
+test("Google mode checks its own credentials and rejects demo staff authentication", async () => {
+  const base = { CLOUDFLARE_API_TOKEN: env.CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID: env.CLOUDFLARE_ACCOUNT_ID, CF_PUBLIC_ORIGIN: "https://staging.vandlabs.test", DATABASE_URL: "private", TENANT_CONFIG_JSON: "private", SESSION_SECRET: "private", AUTH_MODE: "google" };
   const missing = await preflight(base, success);
-  assert.deepEqual(missing.missing, ["COGNITO_DOMAIN", "COGNITO_USER_POOL_ID", "COGNITO_CLIENT_ID"]);
-  const ready = await preflight({ ...base, COGNITO_DOMAIN: "private", COGNITO_USER_POOL_ID: "private", COGNITO_CLIENT_ID: "private" }, success);
+  assert.deepEqual(missing.missing, ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]);
+  const ready = await preflight({ ...base, GOOGLE_CLIENT_ID: "private", GOOGLE_CLIENT_SECRET: "private" }, success);
   assert.equal(ready.runtimeConfigured, true);
   const demo = await preflight({ ...env, AUTH_MODE: "demo" }, success);
   assert.equal(demo.credentialsReady, false);
