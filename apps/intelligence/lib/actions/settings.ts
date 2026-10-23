@@ -80,6 +80,7 @@ export function changeRole(state: WorkspaceState, actor: Actor, memberId: string
   if (denied) return denied;
   const member = state.team.find((m) => m.id === memberId);
   if (!member) return fail(404, "not_found", "Record not found.");
+  if (member.id === actor.sub) return fail(422, "invalid", "Ask another owner to change your own access.");
   const rank = (r: Role) => ROLES.length - ROLES.indexOf(r);
   const escalation = rank(role) > rank(member.role);
   if (escalation && !reauthenticated) return fail(403, "forbidden", "Re-authenticate to grant a higher role.", { fields: { password: "Confirm your password to continue." } });
@@ -94,6 +95,7 @@ export function removeMember(state: WorkspaceState, actor: Actor, memberId: stri
   if (denied) return denied;
   const member = state.team.find((m) => m.id === memberId);
   if (!member) return fail(404, "not_found", "Record not found.");
+  if (member.id === actor.sub) return fail(422, "invalid", "Ask another owner to remove your access.");
   const owners = state.team.filter((m) => m.role === "owner" && m.status === "Active");
   if (member.role === "owner" && owners.length <= 1) return fail(422, "invalid", "The last owner cannot be removed.");
   return ok(withAudit({ ...state, team: state.team.filter((m) => m.id !== memberId) }, actor, "team.removed", member.email, "Access revoked"));

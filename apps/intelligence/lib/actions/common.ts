@@ -53,7 +53,8 @@ export function nextId(prefix: string, existing: readonly string[], start: numbe
 }
 
 export function withAudit(state: WorkspaceState, actor: Actor, action: string, target: string, detail: string): WorkspaceState {
-  const id = `AU-${9100 + state.audit.length + 1}`;
+  // Live audit ids never repeat even though only recent entries are loaded; sample ids stay sequential.
+  const id = state.live ? `AU-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}` : `AU-${9100 + state.audit.length + 1}`;
   return { ...state, audit: [{ id, at: now(), actor: actor.name, action, target, detail }, ...state.audit] };
 }
 

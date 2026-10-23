@@ -7,6 +7,7 @@ import type { Alert, ApiKey, AuditEvent, Branch, Campaign, Integration, Lead, Le
 import { LEAD_STAGES } from "../domain";
 import { buildProductionState, STATE_VERSION, type WorkspaceState } from "../state";
 import { deriveAlerts } from "../alerts-derive";
+import { reopenExpired } from "../actions/alerts";
 
 type Row = Record<string, unknown>;
 type StaffRow = { userId: string; displayName: string; role: string; intelligenceRole?: string; email?: string; locationIds: string[]; enabled: boolean };
@@ -35,7 +36,8 @@ export async function readState(c: SqlClient, tenantId: string): Promise<Workspa
     q("SELECT id, lead_id, payload, due_at, completed FROM tasks WHERE tenant_id=$1"),
     q("SELECT id, lead_id, vehicle_id, payload, amount, sold_at FROM sales WHERE tenant_id=$1"),
     q("SELECT user_id, payload FROM staff_members WHERE tenant_id=$1"),
-    q("SELECT collection, id, payload, updated_at FROM intelligence_documents WHERE tenant_id=$1"),
+    // Audit history is large and append-only: the workspace carries the most recent 500 entries.
+    q(`SELECT collection, id, payload, updated_at FROM intelligence_documents WHERE tenant_id=$1 AND (collection <> 'audit' OR id IN (SELECT id FROM intelligence_documents WHERE tenant_id=$1 AND collection='audit' ORDER BY updated_at DESC LIMIT 500))`),
     q("SELECT token_hash, email, role, intelligence_role, location_ids, display_name, created_at, expires_at FROM intelligence_tokens WHERE tenant_id=$1 AND kind='invite' AND used_at IS NULL AND expires_at > now()"),
   ]);
 
@@ -167,7 +169,7 @@ export async function readState(c: SqlClient, tenantId: string): Promise<Workspa
     corrections: list<WorkspaceState["corrections"][number]>("corrections"), reportSchedules: list<WorkspaceState["reportSchedules"][number]>("reportSchedules"), savedViews: list<WorkspaceState["savedViews"][number]>("savedViews"),
     policy: { ...base.policy, ...(meta.policy ?? {}) }, notifications: { ...base.notifications, ...(meta.notifications ?? {}) }, sessionsRevoked: meta.sessionsRevoked ?? 0, watchlist: meta.watchlist ?? [], contactIntents: meta.contactIntents ?? [],
   };
-  return { ...state, alerts: deriveAlerts(state, new Date().toISOString()) };
+  return reopenExpired({ ...state, alerts: deriveAlerts(state, new Date().toISOString()) });
 }
 
 /** Inventory events are derived from the records themselves: an acquisition per vehicle and a sale per recorded sale. */
@@ -306,13 +308,19 @@ async function persistLeads(c: SqlClient, p: Principal, before: WorkspaceState, 
 async function persistSales(c: SqlClient, p: Principal, before: WorkspaceState, after: WorkspaceState, stamp: string, upsertDoc: (c: string, id: string, payload: unknown) => Promise<unknown>) {
   const tenantId = p.tenantId;
   const prev = new Map(before.sales.map((s) => [s.id, s]));
+  const changed = new Set<string>();
   for (const s of after.sales) {
-    const old = prev.get(s.id);
-    if (old && same(old, s)) continue;
+    if (same(prev.get(s.id), s)) continue;
+    changed.add(s.id);
     await upsertDoc("sales", s.id, s);
-    // The shared sales ledger is append-only and is keyed to a lead; project there once a lead is linked.
-    const lead = after.leads.find((l) => l.saleId === s.id);
-    if (!lead || s.state !== "Completed") continue;
+  }
+  // The shared sales ledger is append-only and keyed to a lead, so a sale is mirrored there once a lead is linked to it.
+  const priorLead = new Map(before.leads.map((l) => [l.id, l]));
+  for (const lead of after.leads) {
+    if (!lead.saleId) continue;
+    if (!changed.has(lead.saleId) && priorLead.get(lead.id)?.saleId === lead.saleId) continue;
+    const s = after.sales.find((x) => x.id === lead.saleId);
+    if (!s || s.state !== "Completed") continue;
     const leadRow = (await c.query("SELECT id FROM leads WHERE tenant_id=$1 AND payload->>'intelligenceId' = $2", [tenantId, lead.id])).rows[0] as Row | undefined;
     const vehicleRow = (await c.query("SELECT id FROM vehicles WHERE tenant_id=$1 AND stock_id=$2", [tenantId, s.vehicleId])).rows[0] as Row | undefined;
     if (!leadRow || !vehicleRow) continue;
