@@ -7,10 +7,11 @@ import { Brand } from "./brand";
 import { Icon } from "./icons";
 import { Dialog } from "./overlay";
 import { Menu } from "./overlay";
+import { LiveEffects } from "./live-effects";
 import { GlobalSearch, SearchTrigger } from "./search";
 import { ToastProvider } from "./toast";
 import { Button } from "./ui";
-import { useScopedHref, useUrlState, useWorkspace } from "./workspace";
+import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./workspace";
 import { initials } from "@/lib/format";
 import { NAV, ROLE_LABEL } from "@/lib/permissions";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
@@ -26,8 +27,9 @@ function activeKey(pathname: string): string {
 function BranchSelect() {
   const { state, session, scope } = useWorkspace();
   const url = useUrlState();
+  const home = defaultBranchOf(state);
   const permitted = state.branches.filter((b) => session.branchIds.includes(b.id));
-  const choose = (value: string) => url.set({ branch: value === "koc" ? null : value, cursor: null, page: null, selected: null });
+  const choose = (value: string) => url.set({ branch: value === home ? null : value, cursor: null, page: null, selected: null });
   return (
     <div className="branch-select">
       <Menu label={`Branch scope: ${scope.label}`} icon="chevronDown" buttonClass="btn" align="right" text={<><span>{scope.label}</span><Icon name="chevronDown" size={16} /></>}>
@@ -58,7 +60,7 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
       </nav>
       <hr className="divider" />
       <div className="field"><label htmlFor="mobile-branch">Branch scope</label>
-        <select id="mobile-branch" className="select" value={scope.value} onChange={(e) => { url.set({ branch: e.target.value === "koc" ? null : e.target.value, cursor: null }); }}>
+        <select id="mobile-branch" className="select" value={scope.value} onChange={(e) => { url.set({ branch: e.target.value === defaultBranchOf(state) ? null : e.target.value, cursor: null }); }}>
           {permitted.length > 1 ? <option value={ALL_BRANCHES}>All permitted branches</option> : null}
           {permitted.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
@@ -100,6 +102,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <ToastProvider>
+      <LiveEffects />
       <div className="app">
         <aside className="rail" aria-label="Workspace">
           <Link href={href("/app/overview")} className="brand" aria-label="VandLabs Command Centre"><Brand sub /></Link>
@@ -112,7 +115,7 @@ export function Shell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="rail-foot">
-            <div className="who"><strong>{state.tenant.name}</strong><span>{ROLE_LABEL[session.role]} / {demoState === "empty" ? "New workspace" : "illustrative account"}</span></div>
+            <div className="who"><strong>{state.tenant.name}</strong><span>{ROLE_LABEL[session.role]}{demoState === "empty" ? " / Empty-state preview" : ""}</span></div>
             <Button onClick={() => setHelpOpen(true)} className="btn-block"><Icon name="help" size={18} /><span className="label">Help &amp; shortcuts</span></Button>
           </div>
         </aside>
@@ -139,7 +142,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </header>
         <main className="main" id="content" tabIndex={-1}>
           <div className="main-inner">
-            <div className="meta only-mobile" style={{ marginBottom: 8 }}>{scope.label} / Illustrative data</div>
+            <div className="meta only-mobile" style={{ marginBottom: 8 }}>{scope.label}</div>
             {children}
           </div>
         </main>

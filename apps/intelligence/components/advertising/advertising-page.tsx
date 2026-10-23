@@ -277,7 +277,7 @@ function Performance({ campaign, metrics }: { campaign: Campaign; metrics: Retur
       <h2 className="h3" id="plan-title">Performance / {campaign.id}</h2>
       {!metrics ? <Notice tone="warn" role="status">Metrics unavailable. They are reported as unavailable, never as zero, until the platform returns data.</Notice> : (
         <>
-          <p className="meta">{campaign.status === "Completed" ? "Completed historical test. " : ""}Illustrative sample. Attribution: click {campaign.clickWindowDays} d / view {campaign.viewWindowDays} d. Leads are unique after duplicate handling. No sale inference.</p>
+          <p className="meta">{campaign.status === "Completed" ? "Completed historical test. " : ""}Attribution: click {campaign.clickWindowDays} d / view {campaign.viewWindowDays} d. Leads are unique after duplicate handling. No sale inference.</p>
           <div className="kpi-grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
             <Kpi label="Spend" value={formatRupees(metrics.spend)} tone="neutral" />
             <Kpi label="Unique attributed leads" value={metrics.leads} tone="neutral" />

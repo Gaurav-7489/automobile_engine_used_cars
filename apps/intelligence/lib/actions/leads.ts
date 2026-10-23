@@ -2,7 +2,7 @@ import type { Lead, LeadStage } from "../domain";
 import { LEAD_STAGES } from "../domain";
 import { now } from "../clock";
 import type { WorkspaceState } from "../state";
-import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, trim, withAudit } from "./common";
+import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, seq, trim, withAudit } from "./common";
 
 export const LEAD_SOURCES = ["Website", "Search ad", "Meta ad", "Referral", "Walk-in", "Phone"] as const;
 
@@ -23,7 +23,7 @@ export function addLead(state: WorkspaceState, actor: Actor, input: LeadInput): 
   if (!trim(input.consentEvidence)) fields.consentEvidence = "Record how consent was captured, for example Walk-in form.";
   if (Object.keys(fields).length) return fail(422, "invalid", "Fix the highlighted fields to add this lead.", { fields });
   const stamp = now();
-  const id = nextId("L", state.leads.map((l) => l.id), 226);
+  const id = nextId("L", state.leads.map((l) => l.id), seq(state, 226));
   const vehicle = input.vehicleId === "unspecified" ? null : input.vehicleId;
   const duplicate = trim(input.contact) ? state.leads.find((l) => l.contactFull.replace(/\D/g, "") === input.contact.replace(/\D/g, "") && l.stage !== "Lost") : undefined;
   const lead: Lead = {
@@ -87,6 +87,7 @@ export function sendMessage(state: WorkspaceState, actor: Actor, id: string, tex
   if (denied) return denied;
   const lead = state.leads.find((l) => l.id === id);
   if (!lead || !actor.branchIds.includes(lead.branchId)) return fail(404, "not_found", "Record not found.");
+  if (state.live) return fail(422, "invalid", "Messaging is not connected for this workspace. Contact the customer directly, then log the outcome.", { fields: { message: "Messaging provider not connected" } });
   const eligibility = canMessage(lead);
   if (!eligibility.allowed) return fail(422, "invalid", eligibility.reason, { fields: { message: eligibility.reason } });
   if (marketing && !lead.consent.marketing) return fail(422, "invalid", "Missing marketing consent blocks marketing messages. A service response is still permitted.", { fields: { message: "Missing marketing consent" } });
@@ -100,6 +101,7 @@ export function sendMessage(state: WorkspaceState, actor: Actor, id: string, tex
 }
 
 export function retryMessage(state: WorkspaceState, actor: Actor, id: string, interactionId: string): Result<{ lead: Lead }> {
+  if (state.live) return fail(422, "invalid", "Messaging is not connected for this workspace.");
   const lead = state.leads.find((l) => l.id === id);
   if (!lead) return fail(404, "not_found", "Record not found.");
   const updated: Lead = { ...lead, interactions: lead.interactions.map((i) => (i.id === interactionId ? { ...i, delivery: "Queued" as const } : i)) };

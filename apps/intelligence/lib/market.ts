@@ -3,6 +3,7 @@ import { difference } from "./evidence";
 import { evidenceTier, median, percentile } from "./evidence";
 import { LISTINGS, REGION_STATS, searchText } from "./fixtures/market";
 import { lakh } from "./format";
+import { isLive } from "./mode";
 
 export const OPPORTUNITY_RULE_VERSION = "opportunity-v1.0";
 export const PAGE_SIZES = [25, 50, 100] as const;
@@ -45,6 +46,7 @@ export function decorate(listing: Listing, baseRegion: string): ListingRow {
 }
 
 export function queryListings(query: MarketQuery, baseRegion = "Kochi"): { rows: ListingRow[]; total: number; next: number | null } {
+  if (isLive()) return { rows: [], total: 0, next: null };
   const tokens = query.q.toLowerCase().split(/\s+/).filter(Boolean);
   const filtered = LISTINGS.filter((l) => {
     const text = searchText(l);
@@ -89,6 +91,7 @@ const sameCohort = (c: CohortFilter) => JSON.stringify(c) === JSON.stringify(DEF
 
 /** Regional medians and IQR over a like-for-like cohort. Asking prices, not transactions. Unknown match fields are excluded and counted. */
 export function regionStats(cohort: CohortFilter): { stats: RegionStat[]; excluded: number; computed: boolean } {
+  if (isLive()) return { stats: [], excluded: 0, computed: true };
   if (sameCohort(cohort)) return { stats: REGION_STATS, excluded: 3, computed: false };
   const cityRegions = Array.from(new Set(LISTINGS.map((l) => l.region)));
   let excluded = 0;
@@ -118,6 +121,7 @@ import { daysBeforeSnapshot } from "./time";
 
 /** Comparable asks behind a listing's estimate, plus counted exclusions. */
 export function comparablesFor(listing: Listing): { items: Comparable[]; exclusions: { id: string; reason: string }[] } {
+  if (isLive()) return { items: [], exclusions: [] };
   if (listing.make === "BMW" && listing.model === "520d" && listing.variant === "Luxury Line") return { items: BMW_COMPARABLES, exclusions: BMW_EXCLUSIONS };
   if (listing.make === "Mercedes-Benz" && listing.model === "E220d") return { items: MERC_COMPARABLES, exclusions: [{ id: "M-X-9", reason: "Observed more than 14 days ago" }] };
   const peers = LISTINGS.filter((l) => l.id !== listing.id && l.make === listing.make && l.model === listing.model && Math.abs(l.year - listing.year) <= 1).slice(0, 18);

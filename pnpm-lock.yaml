@@ -118,6 +118,12 @@ importers:
 
   apps/intelligence:
     dependencies:
+      '@vandlabs/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@vandlabs/data':
+        specifier: workspace:*
+        version: link:../../packages/data
       next:
         specifier: ^15.5.27
         version: 15.5.27(@playwright/test@1.63.0)(@types/node@24.19.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

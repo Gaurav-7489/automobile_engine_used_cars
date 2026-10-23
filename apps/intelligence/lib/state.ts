@@ -16,6 +16,8 @@ export type Policy = {
 };
 
 export type WorkspaceState = {
+  /** True when the state was read from the tenant database. Nothing in a live state is generated. */
+  live?: boolean;
   version: number;
   tenant: { id: string; name: string; legalName: string; gstin: string; displayName: string; timezone: string };
   branches: Branch[];
@@ -44,6 +46,30 @@ export type WorkspaceState = {
 };
 
 export const STATE_VERSION = 3;
+
+/** Honest starting integrations: nothing external is connected until credentials exist and a real health check passes. */
+function productionIntegrations(): Integration[] {
+  const none = { lastSuccessAt: null, received: 0, rejected: 0, lastJob: "—", logs: [], cadence: "—", freshnessSla: "—", branchScope: "All branches" };
+  return [
+    { id: "feed-a", name: "Licensed market feed", kind: "Licensed feed", state: "Not configured", scopes: "Read licensed listings. No writes to the provider.", detail: "Setup required: no licensed market-data provider is connected, so Market Radar and valuations are unavailable.", ...none },
+    { id: "ads", name: "Advertising account", kind: "Advertising account", state: "Not configured", scopes: "Create and pause campaigns within the approved spend cap.", detail: "Setup required: connect an advertising account to publish campaigns.", ...none },
+    { id: "publishing", name: "Inventory publishing", kind: "Inventory publishing", state: "Connected", scopes: "Publish approved vehicle and price updates to the owned website.", detail: "The owned website reads published stock from the shared database. Marketplace publishing is not configured.", ...none },
+  ];
+}
+
+/** Empty live workspace shell. readState fills it from the database; every collection starts empty and nothing is invented. */
+export function buildProductionState(): WorkspaceState {
+  return {
+    live: true,
+    version: STATE_VERSION,
+    tenant: { id: "", name: "", legalName: "", gstin: "", displayName: "", timezone: "Asia/Kolkata" },
+    branches: [], vehicles: [], sales: [], events: [], leads: [], alerts: [], priceRequests: [], campaigns: [], integrations: productionIntegrations(), team: [], apiKeys: [], audit: [],
+    watchlist: [], savedSearches: [], scenarios: [], reviews: [], contactIntents: [], corrections: [],
+    policy: { distinctApprover: true, reviewThresholdDays: 30, ageingDays: 45, staleFeedHours: 24, leadResponseMinutes: 60, evidenceExpiryDays: 7, priceFloorPercent: 102, rulesVersion: 1 },
+    notifications: { "alerts.critical": true, "alerts.approvals": true, "leads.assigned": true, "reports.ready": false, "security.notices": true },
+    sessionsRevoked: 0, reportSchedules: [], savedViews: [],
+  };
+}
 
 export function buildSeed(): WorkspaceState {
   return {

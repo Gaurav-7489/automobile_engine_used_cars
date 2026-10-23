@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { metricsFor } from "@/lib/actions";
 import { downloadBlob, makePdf, toCsv } from "@/lib/export";
 import { AGE_BUCKETS, realizedProfit, isRealized, stockMetrics } from "@/lib/finance";
-import { MONTHS } from "@/lib/fixtures/inventory";
+
 import { formatDate, formatDateTime, formatMoney, formatRupees, MISSING, monthKey, monthLabel, monthName, lakh } from "@/lib/format";
-import { FUNNEL, REPORT_FORMULA, inScope } from "@/lib/selectors";
-import { REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
+import { REPORT_FORMULA, funnelFor, inScope } from "@/lib/selectors";
+import { getMonths, REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
 import { GroupedBars, HBars, SimpleBars } from "../charts";
 import { Dialog, Drawer, Menu } from "../overlay";
 import { Gate, Panel } from "../panel";
@@ -29,8 +29,8 @@ function Reports() {
   const tabParam = url.get("tab", "overview") as TabKey;
   const tab: TabKey = (["overview", "inventory", "leads", "marketing", "finance"] as const).includes(tabParam) ? tabParam : "overview";
   const financeAllowed = can("reports.finance");
-  const from = url.get("from", MONTHS[0]);
-  const to = url.get("to", MONTHS[MONTHS.length - 1]);
+  const from = url.get("from", getMonths()[0]);
+  const to = url.get("to", getMonths()[getMonths().length - 1]);
   const compare = url.get("compare", "previous");
   const [draft, setDraft] = useState({ from, to, compare });
   useEffect(() => setDraft({ from, to, compare }), [from, to, compare]);
@@ -40,32 +40,31 @@ function Reports() {
   const [viewsOpen, setViewsOpen] = useState(false);
   const [chartIndex, setChartIndex] = useState(0);
 
-  const months = MONTHS.filter((m) => m >= from && m <= to);
-  const events = useMemo(() => inScope(state.events, scope.ids).filter((e) => months.includes(monthKey(e.at) as (typeof MONTHS)[number])), [state.events, scope.ids, months]);
-  const sales = useMemo(() => inScope(state.sales, scope.ids).filter((s) => months.includes(monthKey(s.closedAt) as (typeof MONTHS)[number])), [state.sales, scope.ids, months]);
+  const months = getMonths().filter((m) => m >= from && m <= to);
+  const events = useMemo(() => inScope(state.events, scope.ids).filter((e) => months.includes(monthKey(e.at) as string)), [state.events, scope.ids, months]);
+  const sales = useMemo(() => inScope(state.sales, scope.ids).filter((s) => months.includes(monthKey(s.closedAt) as string)), [state.sales, scope.ids, months]);
   const completed = sales.filter(isRealized);
   const rows = months.map((m) => ({ month: m, acquired: events.filter((e) => e.type === "acquired" && monthKey(e.at) === m).length, sold: completed.filter((s) => monthKey(s.closedAt) === m).length, profit: completed.filter((s) => monthKey(s.closedAt) === m).reduce((a, s) => a + realizedProfit(s), 0) }));
   const totals = { acquired: rows.reduce((a, r) => a + r.acquired, 0), sold: rows.reduce((a, r) => a + r.sold, 0), profit: rows.reduce((a, r) => a + r.profit, 0) };
-  const koc = scope.ids.length === 1 && scope.ids[0] === "koc";
-  const funnelScale = koc ? 1 : scope.ids.length > 1 ? 1.2 : 0.1;
-  const funnel = FUNNEL.map((f) => ({ ...f, count: Math.round(f.count * funnelScale * (months.length / 6)) }));
+  const cohort = inScope(state.leads, scope.ids).filter((l) => months.includes(monthKey(l.createdAt) as string));
+  const funnel = funnelFor(cohort);
   const qualified = funnel[1].count;
   const metrics = stockMetrics(inScope(state.vehicles, scope.ids), SNAPSHOT_AT);
   const incomplete = demoState === "partial";
 
   const prior = useMemo(() => {
     if (compare === "none") return null;
-    const idx = MONTHS.indexOf(from as (typeof MONTHS)[number]);
+    const idx = getMonths().indexOf(from as string);
     const len = months.length;
     if (compare === "yoy") return null;
     if (idx - len < 0) return null;
-    const prev = MONTHS.slice(idx - len, idx);
-    return { acquired: events.length ? inScope(state.events, scope.ids).filter((e) => e.type === "acquired" && prev.includes(monthKey(e.at) as (typeof MONTHS)[number])).length : 0, sold: inScope(state.sales, scope.ids).filter((s) => isRealized(s) && prev.includes(monthKey(s.closedAt) as (typeof MONTHS)[number])).length };
+    const prev = getMonths().slice(idx - len, idx);
+    return { acquired: events.length ? inScope(state.events, scope.ids).filter((e) => e.type === "acquired" && prev.includes(monthKey(e.at) as string)).length : 0, sold: inScope(state.sales, scope.ids).filter((s) => isRealized(s) && prev.includes(monthKey(s.closedAt) as string)).length };
   }, [compare, from, months.length, events, state, scope.ids]);
 
   const apply = () => {
     if (draft.from > draft.to) { toast("The end month cannot be before the start month.", "error"); return; }
-    url.set({ from: draft.from === MONTHS[0] ? null : draft.from, to: draft.to === MONTHS[MONTHS.length - 1] ? null : draft.to, compare: draft.compare === "previous" ? null : draft.compare });
+    url.set({ from: draft.from === getMonths()[0] ? null : draft.from, to: draft.to === getMonths()[getMonths().length - 1] ? null : draft.to, compare: draft.compare === "previous" ? null : draft.compare });
   };
   const periodLabel = `${formatDate(`${from}-01T00:00:00+05:30`)} to ${formatDate(new Date(Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5)), 0, 12)).toISOString())}`;
   const dirtyFilters = draft.from !== from || draft.to !== to || draft.compare !== compare;
@@ -78,14 +77,14 @@ function Reports() {
     if (drill === "acquired") return { title: "Acquired stock / inventory event cohort", rows: events.filter((e) => e.type === "acquired").map((e) => [e.ref, e.label, formatDate(e.at)]), head: ["Record", "Vehicle", "Date"] };
     if (drill === "sold") return { title: "Completed sales / sale-close cohort", rows: completed.map((s) => [s.id, s.label, formatDate(s.closedAt)]), head: ["Record", "Vehicle", "Closed"] };
     if (drill === "profit") return { title: "Realized profit / reconciled sales", rows: completed.map((s) => [s.id, s.label, formatMoney(realizedProfit(s), { dp: 2 })]), head: ["Record", "Vehicle", "Realized profit"] };
-    const qual = inScope(state.leads, scope.ids).filter((l) => !["New", "Contacted", "Nurture"].includes(l.stage));
-    return { title: "Qualified leads / lead-created cohort", rows: qual.map((l) => [l.id, l.name, l.stage]), head: ["Record", "Lead", "Stage"], note: `Snapshot ${REPORT_SNAPSHOT_ID} cohort holds ${qualified}; ${qual.length} current permitted lead records are available in this demonstration (the cohort snapshot is synthetic).` };
+    const qual = cohort.filter((l) => !["New", "Contacted", "Nurture", "Lost"].includes(l.stage));
+    return { title: "Qualified leads / lead-created cohort", rows: qual.map((l) => [l.id, l.name, l.stage]), head: ["Record", "Lead", "Stage"], note: `Leads created in the selected period that currently sit at Qualified or beyond.` };
   };
   const dr = drill ? drillRows() : null;
 
   const mobileCharts = [
-    { title: "Inventory events / vehicle counts", node: <GroupedBars title="Inventory events" unit="vehicles" data={rows.map((r) => ({ label: monthName(r.month), values: [r.acquired, r.sold] }))} series={[{ name: "Acquired", color: "var(--accent)" }, { name: "Sold", color: "var(--info)" }]} scaleMax={12} onSelect={(_, s) => setDrill(s === 0 ? "acquired" : "sold")} /> },
-    { title: "Realized profit / ₹L", node: <SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => String(Math.round(v * 10) / 10)} scaleMax={6} onSelect={() => setDrill("profit")} /> },
+    { title: "Inventory events / vehicle counts", node: <GroupedBars title="Inventory events" unit="vehicles" data={rows.map((r) => ({ label: monthName(r.month), values: [r.acquired, r.sold] }))} series={[{ name: "Acquired", color: "var(--accent)" }, { name: "Sold", color: "var(--info)" }]} onSelect={(_, s) => setDrill(s === 0 ? "acquired" : "sold")} /> },
+    { title: "Realized profit / ₹L", node: <SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => String(Math.round(v * 10) / 10)} onSelect={() => setDrill("profit")} /> },
     { title: "Unique lead cohort funnel", node: <Funnel data={funnel} /> },
   ];
 
@@ -96,8 +95,8 @@ function Reports() {
 
       <form className="report-filters" onSubmit={(e) => { e.preventDefault(); apply(); }} role="group" aria-label="Report filters">
         <div className="period-pair" role="group" aria-label="Period">
-          <SelectField label="Period from" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} options={MONTHS.map((m) => ({ value: m, label: monthLabel(m) }))} />
-          <SelectField label="Period to" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} options={MONTHS.map((m) => ({ value: m, label: monthLabel(m) }))} error={draft.from > draft.to ? "End month is before the start." : undefined} />
+          <SelectField label="Period from" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} options={getMonths().map((m) => ({ value: m, label: monthLabel(m) }))} />
+          <SelectField label="Period to" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} options={getMonths().map((m) => ({ value: m, label: monthLabel(m) }))} error={draft.from > draft.to ? "End month is before the start." : undefined} />
         </div>
         <SelectField label="Comparison" value={draft.compare} onChange={(e) => setDraft({ ...draft, compare: e.target.value })} options={[{ value: "previous", label: "Comparison: previous period" }, { value: "yoy", label: "Comparison: same period last year" }, { value: "none", label: "No comparison" }]} />
         <TextField label="Branch" value={scope.label} readOnly help="Set in the header" />
@@ -130,7 +129,7 @@ function Reports() {
           ) : null}
           {tab === "finance" ? (
             <div className="report-charts only-desktop">
-              <section className="card"><h2 className="h3">Realized profit series / ₹L</h2><div className="mt-4"><SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => String(Math.round(v * 10) / 10)} scaleMax={6} onSelect={() => setDrill("profit")} /></div></section>
+              <section className="card"><h2 className="h3">Realized profit series / ₹L</h2><div className="mt-4"><SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => String(Math.round(v * 10) / 10)} onSelect={() => setDrill("profit")} /></div></section>
               <section className="card"><h2 className="h3">Financial definitions</h2><dl className="kv mt-2"><div><dt>Realized profit</dt><dd style={{ maxWidth: 300 }}>Completed, non-void, reconciled sale proceeds minus landed and posted direct costs. Excludes tax and allocated overhead.</dd></div><div><dt>Unrealized estimates</dt><dd style={{ maxWidth: 300 }}>Never included.</dd></div><div><dt>Stock landed capital</dt><dd>{formatMoney(metrics.landedCapital)}</dd></div></dl></section>
             </div>
           ) : null}
@@ -154,7 +153,7 @@ function Reports() {
       )}
       {incomplete ? <Notice tone="warn" role="status"><Badge tone="warn">Incomplete report</Badge> A panel failed. Exports include a failure notice or are blocked for complete-only mode.</Notice> : null}
       {demoState === "error" ? <ErrorPanel title="Report snapshot failed" message="The previous snapshot stays labelled until a new one is ready. Retry rebuilds it." onRetry={() => url.set({ demo_state: null })} /> : null}
-      <p className="meta">Generated {formatDateTime(SNAPSHOT_AT)} / Snapshot {REPORT_SNAPSHOT_ID} / Formula {REPORT_FORMULA} / Sample data / record cutoff {formatDate(SNAPSHOT_AT)}. Backfilled data may change newer snapshots; previous exports remain reproducible.</p>
+      <p className="meta">Generated {formatDateTime(SNAPSHOT_AT)} / Snapshot {REPORT_SNAPSHOT_ID} / Formula {REPORT_FORMULA} / Record cutoff {formatDate(SNAPSHOT_AT)}. Backfilled data may change newer snapshots; previous exports remain reproducible.</p>
 
       <Drawer open={Boolean(dr)} onClose={() => setDrill(null)} size="w560" title={dr?.title ?? ""} description={`${dr?.rows.length ?? 0} underlying records / identical cohort and filters / ${periodLabel}`} footer={<Button variant="primary" onClick={() => setDrill(null)}>Close</Button>}>
         {dr && "note" in dr && dr.note ? <Notice tone="warn">{dr.note}</Notice> : null}

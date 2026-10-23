@@ -3,28 +3,34 @@
 import { createContext, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Session } from "@/lib/domain";
-import { ALL_BRANCHES, DEFAULT_BRANCH } from "@/lib/fixtures/branches";
+import { ALL_BRANCHES } from "@/lib/fixtures/branches";
+import { setLive } from "@/lib/mode";
 import { can as canDo, type Capability } from "@/lib/permissions";
 import { resolveScope } from "@/lib/selectors";
-import { buildEmptySeed, buildSeed, STATE_VERSION, type WorkspaceState } from "@/lib/state";
-import { acknowledgePlatform, reopenExpired, type Actor, type Fail, type Result } from "@/lib/actions";
+import { setAsOf } from "@/lib/time";
+import type { WorkspaceState } from "@/lib/state";
+import { recordCommands, type Command } from "@/lib/actions";
+import type { Actor, Fail, Result } from "@/lib/actions";
 
-const STORAGE_KEY = `vl.workspace.v${STATE_VERSION}`;
+export type Effects = { inviteLinks: { email: string; token: string; expiresAt: string }[]; sessionsRevoked: boolean };
 
 type Ctx = {
   state: WorkspaceState;
   session: Session;
   actor: Actor;
   can: (capability: Capability) => boolean;
-  /** Run a domain action against the latest state. Successful results replace the state; failures are returned unchanged. */
+  /** Runs a domain action for immediate feedback; the server repeats it authoritatively and its result replaces the local one. */
   run: <R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => R) => R;
-  /** Same as run for actions that hash or fetch before returning (API key creation). */
+  /** Same as run for actions that hash or fetch before returning. These run locally only. */
   runAsync: <R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => Promise<R>) => Promise<R>;
+  /** Kept for sample-mode screens; a live workspace waits for real provider acknowledgement and never fakes one. */
   queueAck: (campaignId: string) => void;
   scope: { ids: string[]; value: string; label: string };
   demoState: "normal" | "loading" | "empty" | "error" | "partial";
   hydrated: boolean;
-  resetDemo: () => void;
+  saving: boolean;
+  /** Reload the authoritative state now. */
+  refresh: () => Promise<void>;
 };
 
 const WorkspaceContext = createContext<Ctx | null>(null);
@@ -35,97 +41,102 @@ export function useWorkspace(): Ctx {
   return ctx;
 }
 
-function Inner({ session, children }: { session: Session; children: ReactNode }) {
+const defaultBranchOf = (state: Pick<WorkspaceState, "branches">): string => (state.branches.find((b) => b.isDefault) ?? state.branches[0])?.id ?? "";
+export { defaultBranchOf };
+
+function emptied(state: WorkspaceState): WorkspaceState {
+  return { ...state, vehicles: [], sales: [], events: [], leads: [], alerts: [], priceRequests: [], campaigns: [], savedSearches: [], watchlist: [] };
+}
+
+function Inner({ session, initialState, asOf, children }: { session: Session; initialState: WorkspaceState; asOf: string; children: ReactNode }) {
+  // Live mode and the "as of" instant must be set before any child renders so server rendering and hydration agree.
+  setLive(true);
+  setAsOf(asOf);
+  const router = useRouter();
   const params = useSearchParams();
   const demoParam = params.get("demo_state");
   const demoState = (["loading", "empty", "error", "partial"] as const).find((v) => v === demoParam) ?? "normal";
-  const [normal, setNormal] = useState<WorkspaceState>(() => buildSeed());
-  const [empty, setEmpty] = useState<WorkspaceState>(() => buildEmptySeed());
-  const [hydrated, setHydrated] = useState(false);
-  const active = demoState === "empty" ? empty : normal;
-  const stateRef = useRef(active);
-  stateRef.current = active;
+  const [state, setState] = useState<WorkspaceState>(initialState);
+  const [saving, setSaving] = useState(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const demoRef = useRef(demoState);
   demoRef.current = demoState;
-  const timers = useRef(new Map<string, number>());
+  const pending = useRef(0);
+  const chain = useRef<Promise<void>>(Promise.resolve());
+  const active = demoState === "empty" ? emptied(state) : state;
 
   const actor = useMemo<Actor>(() => ({ sub: session.sub, name: session.name, role: session.role, branchIds: session.branchIds }), [session]);
 
-  // Persisted demo adapter state. Reads and writes never throw: the page renders correctly without storage.
-  useEffect(() => {
+  const refresh = useCallback(async () => {
+    if (pending.current > 0) return;
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as WorkspaceState;
-        if (parsed.version === STATE_VERSION) setNormal(parsed);
+      const response = await fetch("/api/workspace", { cache: "no-store" });
+      if (response.status === 401) { router.replace("/login?reason=expired"); return; }
+      if (!response.ok) return;
+      const body = (await response.json()) as { state: WorkspaceState; as_of: string };
+      if (pending.current > 0) return;
+      setAsOf(body.as_of);
+      stateRef.current = body.state;
+      setState(body.state);
+    } catch { /* keep the current state; the next refresh retries */ }
+  }, [router]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 60_000);
+    const onFocus = () => void refresh();
+    window.addEventListener("focus", onFocus);
+    return () => { window.clearInterval(interval); window.removeEventListener("focus", onFocus); };
+  }, [refresh]);
+
+  const send = useCallback((commands: Command[]) => {
+    pending.current += 1;
+    setSaving(true);
+    chain.current = chain.current.then(async () => {
+      try {
+        const response = await fetch("/api/workspace/commands", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commands }) });
+        if (response.status === 401) { router.replace("/login?reason=expired"); return; }
+        const body = (await response.json().catch(() => null)) as { ok?: boolean; state?: WorkspaceState; effects?: Effects; error?: { message?: string } } | null;
+        if (body?.state && pending.current <= 1) { stateRef.current = body.state; setState(body.state); }
+        if (body?.ok && body.effects) window.dispatchEvent(new CustomEvent("vl:effects", { detail: body.effects }));
+        if (!body?.ok) window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: body?.error?.message ?? "The change could not be saved. It has been undone." } }));
+      } catch {
+        window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: "We could not reach the server. Your last change was not saved." } }));
+        void refresh();
+      } finally {
+        pending.current -= 1;
+        if (pending.current === 0) setSaving(false);
       }
-    } catch { /* private window or blocked storage */ }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    const handle = window.setTimeout(() => {
-      try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normal)); } catch { /* ignore */ }
-    }, 250);
-    return () => window.clearTimeout(handle);
-  }, [normal, hydrated]);
-
-  // Snoozed alerts reopen at expiry when the condition persists.
-  useEffect(() => {
-    const check = () => setNormal((s) => reopenExpired(s));
-    check();
-    const interval = window.setInterval(check, 60_000);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const map = timers.current;
-    return () => { for (const handle of map.values()) window.clearTimeout(handle); };
-  }, []);
+    });
+  }, [router, refresh]);
 
   const run = useCallback(<R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => R): R => {
-    const result = fn(stateRef.current, actor);
+    const { value: result, commands } = recordCommands(() => fn(stateRef.current, actor));
     if (result.ok) {
       stateRef.current = result.state;
-      if (demoRef.current === "empty") setEmpty(result.state); else setNormal(result.state);
+      setState(result.state);
+      if (commands.length && demoRef.current === "normal") send(commands);
     }
     return result;
-  }, [actor]);
+  }, [actor, send]);
 
   const runAsync = useCallback(async <R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => Promise<R>): Promise<R> => {
     const result = await fn(stateRef.current, actor);
-    if (result.ok) {
-      stateRef.current = result.state;
-      if (demoRef.current === "empty") setEmpty(result.state); else setNormal(result.state);
-    }
+    if (result.ok) { stateRef.current = result.state; setState(result.state); }
     return result;
   }, [actor]);
 
-  const queueAck = useCallback((campaignId: string) => {
-    const existing = timers.current.get(campaignId);
-    if (existing) window.clearTimeout(existing);
-    // The platform acknowledges asynchronously: status stays Publishing/Pausing until then.
-    timers.current.set(campaignId, window.setTimeout(() => {
-      timers.current.delete(campaignId);
-      const result = acknowledgePlatform(stateRef.current, campaignId);
-      if (result.ok) { stateRef.current = result.state; setNormal(result.state); }
-    }, 3500));
-  }, []);
+  const queueAck = useCallback(() => { /* provider acknowledgement is never simulated */ }, []);
 
   const scope = useMemo(() => resolveScope(active, session.branchIds, params.get("branch")), [active, session.branchIds, params]);
   const can = useCallback((capability: Capability) => canDo(session.role, capability), [session.role]);
-  const resetDemo = useCallback(() => {
-    try { window.localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-    setNormal(buildSeed());
-  }, []);
 
-  const value = useMemo<Ctx>(() => ({ state: active, session, actor, can, run, runAsync, queueAck, scope, demoState, hydrated, resetDemo }), [active, session, actor, can, run, runAsync, queueAck, scope, demoState, hydrated, resetDemo]);
+  const value = useMemo<Ctx>(() => ({ state: active, session, actor, can, run, runAsync, queueAck, scope, demoState, hydrated: true, saving, refresh }), [active, session, actor, can, run, runAsync, queueAck, scope, demoState, saving, refresh]);
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
 
-export function WorkspaceProvider({ session, children }: { session: Session; children: ReactNode }) {
-  return <Suspense fallback={null}><Inner session={session}>{children}</Inner></Suspense>;
+export function WorkspaceProvider({ session, initialState, asOf, children }: { session: Session; initialState: WorkspaceState; asOf: string; children: ReactNode }) {
+  return <Suspense fallback={null}><Inner session={session} initialState={initialState} asOf={asOf}>{children}</Inner></Suspense>;
 }
 
 /** Router-backed URL state: branch, filters, sort, tab and page cursor live in the URL so back/forward restore them. */
@@ -150,17 +161,18 @@ export function useUrlState() {
 /** Navigation links keep branch scope and the demo state across routes. */
 export function useScopedHref() {
   const params = useSearchParams();
+  const defaultBranch = defaultBranchOf(useWorkspace().state);
   return useCallback((href: string, extra: Record<string, string> = {}): string => {
     const [path, existing] = href.split("?");
     const next = new URLSearchParams(existing ?? "");
     const branch = params.get("branch");
-    if (branch && branch !== DEFAULT_BRANCH && !next.has("branch")) next.set("branch", branch);
+    if (branch && branch !== defaultBranch && !next.has("branch")) next.set("branch", branch);
     const demo = params.get("demo_state");
     if (demo && !next.has("demo_state")) next.set("demo_state", demo);
     for (const [k, v] of Object.entries(extra)) next.set(k, v);
     const query = next.toString();
     return query ? `${path}?${query}` : path;
-  }, [params]);
+  }, [params, defaultBranch]);
 }
 
 export type { Fail };

@@ -4,7 +4,7 @@ import { daysBetween, lakh } from "../format";
 import { valuationFor } from "../valuation";
 import { now } from "../clock";
 import type { WorkspaceState } from "../state";
-import { type Actor, type Result, fail, guard, nextId, ok, trim, withAudit } from "./common";
+import { type Actor, type Result, fail, guard, nextId, ok, seq, trim, withAudit } from "./common";
 
 export const HOLDING_SELLING_DEFAULT = lakh(0.2);
 
@@ -41,7 +41,7 @@ export function createPriceRequest(state: WorkspaceState, actor: Actor, draft: P
   const stamp = now();
   const recommended = recommendedAsking(vehicle);
   const request: PriceRequest = {
-    id: nextId("PR", state.priceRequests.map((r) => r.id), 7004), vehicleId: vehicle.id, vehicleVersion: vehicle.version, status: draft.submit ? "Pending" : "Draft", currentAsking: vehicle.asking!, proposedAsking: draft.proposedAsking!,
+    id: nextId("PR", state.priceRequests.map((r) => r.id), seq(state, 7004)), vehicleId: vehicle.id, vehicleVersion: vehicle.version, status: draft.submit ? "Pending" : "Draft", currentAsking: vehicle.asking!, proposedAsking: draft.proposedAsking!,
     estimate: valuation.estimate, rangeLow: valuation.low, rangeHigh: valuation.high, landed, holdingSelling: HOLDING_SELLING_DEFAULT, reason: trim(draft.reason), requestedBy: actor.sub, requestedByName: actor.name, requestedAt: stamp,
     evidenceAt: valuation.observedAt, evidenceN: valuation.n, evidenceTier: valuation.tier, methodVersion: valuation.methodVersion, userEdited: recommended !== draft.proposedAsking, belowFloor, floorRationale: trim(draft.floorRationale) || undefined,
     channelScope: ["Owned site"], syncs: [], history: [{ at: stamp, actor: actor.name, action: draft.submit ? "Submitted for approval" : "Draft saved" }],

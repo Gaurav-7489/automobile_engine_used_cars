@@ -196,7 +196,7 @@ export function InventoryPage() {
       <p className="footnote">Price review is a flag. Available / Reserved / In preparation / Sold / Archived are lifecycle states.</p>
 
       <VehicleDrawer key={`${drawer.open}-${drawer.vehicle?.id}-${drawer.vehicle?.version}`} open={drawer.open} onClose={() => setDrawer({ open: false })} vehicle={drawer.vehicle} defaultBranch={scope.ids[0] ?? "koc"} />
-      <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} branchId={scope.ids[0] ?? "koc"} />
+      <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} branchId={scope.ids[0] ?? ""} />
       <MoreFilters open={moreOpen} onClose={() => setMoreOpen(false)} branch={branchFilter} flag={flag} onApply={(b, f) => { url.set({ vbranch: b || null, flag: f || null, page: null }); setMoreOpen(false); }} />
       <TransitionDialog vehicle={transition} onClose={() => setTransition(null)} onDone={(ids) => ids.forEach(queueAck)} />
       <Dialog open={bulk === "archive"} onClose={() => setBulk(null)} title="Archive selected vehicles" description="Archived vehicles leave availability and advertising eligibility. This is reversible only by an owner." footer={<><Button onClick={() => setBulk(null)}>Cancel</Button><Button variant="danger" onClick={() => { const r = run((s, a) => bulkArchive(s, a, selected)); if (r.ok) toast(`${r.archived} vehicle(s) archived.`); else toast(r.message, "error"); setSelected([]); setBulk(null); }}>Archive {selected.length} vehicles</Button></>}>
@@ -242,7 +242,7 @@ function TransitionDialog({ vehicle, onClose, onDone }: { vehicle: Vehicle | nul
   const [note, setNote] = useState("");
   const [price, setPrice] = useState("");
   const [direct, setDirect] = useState("");
-  const [closed, setClosed] = useState("2026-10-19");
+  const [closed, setClosed] = useState(() => new Date(new Date(SNAPSHOT_AT).getTime() + 330 * 60_000).toISOString().slice(0, 10));
   const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => { if (vehicle) { setTo(""); setNote(""); setPrice(""); setDirect(""); setErrors({}); } }, [vehicle]);
   if (!vehicle) return null;

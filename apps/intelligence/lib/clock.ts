@@ -1,3 +1,4 @@
+import { isLive } from "./mode";
 import { SNAPSHOT_AT } from "./time";
 
 /**
@@ -9,6 +10,7 @@ let override: string | null = null;
 
 export function now(): string {
   if (override) return override;
+  if (isLive()) return new Date().toISOString();
   return new Date(new Date(SNAPSHOT_AT).getTime() + (Date.now() - startedAt)).toISOString();
 }
 

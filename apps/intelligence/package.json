@@ -9,6 +9,8 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@vandlabs/contracts": "workspace:*",
+    "@vandlabs/data": "workspace:*",
     "next": "^15.5.27",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

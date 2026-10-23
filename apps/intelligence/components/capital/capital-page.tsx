@@ -5,10 +5,10 @@ import { proposeCorrection, saleStateNote } from "@/lib/actions";
 import type { Sale, Vehicle } from "@/lib/domain";
 import { downloadBlob, downloadCsv, makePdf } from "@/lib/export";
 import { AGE_BUCKETS, isRealized, landedCost, realizedMetrics, realizedProfit, saleGross, stockAgeDays, stockMetrics } from "@/lib/finance";
-import { MONTHS } from "@/lib/fixtures/inventory";
+
 import { formatDate, formatLakh2, formatLakhPlain, formatMoney, MISSING, monthKey, monthLabel, monthName } from "@/lib/format";
 import { daysToSale, inScope, monthlyProfit } from "@/lib/selectors";
-import { REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
+import { getMonths, REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
 import { HBars, SimpleBars } from "../charts";
 import { Dialog, Drawer, Menu } from "../overlay";
 import { Gate, Panel } from "../panel";
@@ -28,8 +28,8 @@ function Capital() {
   const { state, scope, can, run, demoState } = useWorkspace();
   const url = useUrlState();
   const toast = useToast();
-  const from = url.get("from", MONTHS[0]);
-  const to = url.get("to", MONTHS[MONTHS.length - 1]);
+  const from = url.get("from", getMonths()[0]);
+  const to = url.get("to", getMonths()[getMonths().length - 1]);
   const completeness = url.get("cost", "all");
   const [population, setPopulation] = useState<Population>(null);
   const [scopeOpen, setScopeOpen] = useState(false);
@@ -49,11 +49,10 @@ function Capital() {
   const noSales = realized.count === 0;
 
   const ledgerRows = useMemo(() => {
-    const sample = stock.find((v) => v.id === "V-1043");
-    const completed = allSales.filter(isRealized).sort((a, b) => (a.id === "S-301" ? -1 : b.id === "S-301" ? 1 : b.closedAt.localeCompare(a.closedAt)));
+    const completed = allSales.filter(isRealized).sort((a, b) => b.closedAt.localeCompare(a.closedAt));
     const excluded = allSales.filter((s) => !isRealized(s));
-    return { sample, completed, excluded };
-  }, [stock, allSales]);
+    return { completed, excluded };
+  }, [allSales]);
 
   const populationRows = (): { title: string; rows: { id: string; label: string; value: string; sub: string }[] } => {
     if (population === "realized") return { title: "Completed, reconciled sales", rows: allSales.filter(isRealized).map((s) => ({ id: s.id, label: s.label, value: formatLakh2(realizedProfit(s)), sub: `${formatDate(s.closedAt)} / realized profit` })) };
@@ -105,7 +104,7 @@ function Capital() {
         <section className="card" aria-labelledby="cb-profit"><h2 className="h3" id="cb-profit">Realized profit by close month / ₹L</h2><p className="meta">Population: completed, reconciled sales closed in the selected period. Sales revenue is never plotted on this axis.</p>
           <Panel title="Realized profit" rows={4}>
             {noSales ? <EmptyState title="No realized results yet">No posted sales in this period. Stock-only panels still show estimated gross. No average days-to-sale is invented.</EmptyState> : (
-              <SimpleBars title="Realized profit" unit="₹L" data={monthly.filter((m) => m.month >= from && m.month <= to).map((m) => ({ label: monthName(m.month), value: m.profit / lakh(1) }))} format={(v) => String(Math.round(v * 10) / 10)} height={232} scaleMax={6} onSelect={() => setPopulation("realized")} />
+              <SimpleBars title="Realized profit" unit="₹L" data={monthly.filter((m) => m.month >= from && m.month <= to).map((m) => ({ label: monthName(m.month), value: m.profit / lakh(1) }))} format={(v) => String(Math.round(v * 10) / 10)} height={232} onSelect={() => setPopulation("realized")} />
             )}
           </Panel>
         </section>
@@ -117,8 +116,7 @@ function Capital() {
           <div className="table-wrap">
             <table className="data-table" aria-label="Vehicle ledger"><thead><tr><th style={{ width: 220 }}>Sale / vehicle</th><th style={{ width: 130 }}>State</th><th className="num" style={{ width: 160 }}>Sale or ask</th><th className="num" style={{ width: 160 }}>Landed</th><th className="num" style={{ width: 160 }}>Gross</th><th className="num" style={{ width: 160 }}>Direct costs</th><th className="num" style={{ width: 170 }}>Realized profit</th><th style={{ width: 56 }}><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>
-                {ledgerRows.completed.slice(0, showAll ? 60 : 1).map((s) => <LedgerSale key={s.id} sale={s} onScenario={() => setScenarioFor("new")} onCorrect={() => setCorrection(s)} canCorrect={can("capital.correct")} />)}
-                {ledgerRows.sample ? <tr><td style={{ height: 80 }}><span className="row-title">{ledgerRows.sample.id} / {ledgerRows.sample.model}</span><span className="sub">Current stock scenario</span></td><td>{ledgerRows.sample.status === "available" ? "Available" : ledgerRows.sample.status}</td><td className="num">Ask {formatMoney(ledgerRows.sample.asking)}</td><td className="num">{formatMoney(landedCost(ledgerRows.sample.costs))}</td><td className="num">Est. {formatMoney((ledgerRows.sample.asking ?? 0) - landedCost(ledgerRows.sample.costs))}</td><td className="num">Est. {formatMoney(lakh(0.2))}</td><td className="num">Not realized</td><td><Menu label="Actions for V-1043">{(close) => <button role="menuitem" onClick={() => { setScenarioFor("V-1043"); close(); }}>Open scenario</button>}</Menu></td></tr> : null}
+                {ledgerRows.completed.slice(0, showAll ? 200 : 10).map((s) => <LedgerSale key={s.id} sale={s} onScenario={() => setScenarioFor("new")} onCorrect={() => setCorrection(s)} canCorrect={can("capital.correct")} />)}
                 {showAll ? ledgerRows.excluded.map((s) => <LedgerSale key={s.id} sale={s} excluded onScenario={() => undefined} onCorrect={() => setCorrection(s)} canCorrect={can("capital.correct")} />) : null}
               </tbody>
             </table>
@@ -131,9 +129,9 @@ function Capital() {
       <Drawer open={Boolean(pop)} onClose={() => setPopulation(null)} size="w560" title={pop?.title ?? ""} description={`${pop?.rows.length ?? 0} underlying records. The list reconciles with the figure you opened.`} footer={<Button variant="primary" onClick={() => setPopulation(null)}>Close</Button>}>
         <div className="table-wrap fit"><table className="data-table dense"><thead><tr><th>Record</th><th className="num">Amount</th></tr></thead><tbody>{pop?.rows.map((r) => <tr key={r.id}><td><span className="row-title">{r.id} / {r.label}</span><span className="sub">{r.sub}</span></td><td className="num">{r.value}</td></tr>)}</tbody></table></div>
       </Drawer>
-      <ScopeDialog open={scopeOpen} onClose={() => setScopeOpen(false)} from={from} to={to} cost={completeness} onApply={(f, t, c) => { url.set({ from: f === MONTHS[0] ? null : f, to: t === MONTHS[MONTHS.length - 1] ? null : t, cost: c === "all" ? null : c }); setScopeOpen(false); }} />
+      <ScopeDialog open={scopeOpen} onClose={() => setScopeOpen(false)} from={from} to={to} cost={completeness} onApply={(f, t, c) => { url.set({ from: f === getMonths()[0] ? null : f, to: t === getMonths()[getMonths().length - 1] ? null : t, cost: c === "all" ? null : c }); setScopeOpen(false); }} />
       <Definitions open={defsOpen} onClose={() => { setDefsOpen(false); if (url.get("definition")) url.set({ definition: null }); }} />
-      <Scenario open={scenarioFor !== null} onClose={() => setScenarioFor(null)} start={scenarioFor === "V-1043" ? ledgerRows.sample : undefined} stock={stock.filter((v) => v.status === "available")} />
+      <Scenario open={scenarioFor !== null} onClose={() => setScenarioFor(null)} stock={stock.filter((v) => v.status === "available")} />
       <Correction sale={correction} onClose={() => setCorrection(null)} onSave={(reason, evidence) => { const r = run((s, a) => proposeCorrection(s, a, correction!.id, reason, evidence)); if (!r.ok) return r.fields ?? { form: r.message }; toast("Correction proposed as reversal + new entry. The ledger is unchanged until finance posts it."); setCorrection(null); return null; }} />
       <Dialog open={exportOpen} onClose={() => setExportOpen(false)} title="Export ledger" description="Values, units, cost-completeness and filters are included. Definitions list formulas and excluded records." footer={<><Button onClick={() => setExportOpen(false)}>Cancel</Button><Button onClick={() => { exportLedger("csv", partial); setExportOpen(false); }}>CSV records</Button><Button variant="primary" onClick={() => { exportLedger("pdf", partial); setExportOpen(false); }}>PDF summary</Button></>}>
         {partial ? <Notice tone="warn">Ledger reconciliation is incomplete, so certified results are blocked. Exports are labelled PROVISIONAL.</Notice> : <Notice tone="accent">Reconciled. Exports are labelled CERTIFIED with snapshot {REPORT_SNAPSHOT_ID}.</Notice>}
@@ -162,8 +160,8 @@ function ScopeDialog({ open, onClose, from, to, cost, onApply }: { open: boolean
   const invalid = f > t;
   return (
     <Dialog open={open} onClose={onClose} title="Scope" description="Realized panels use the sale-close period. Stock panels use the as-of date. They measure different populations." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={invalid} onClick={() => onApply(f, t, c)}>Apply</Button></>}>
-      <div className="form-grid"><SelectField label="Sale-close from" value={f} onChange={(e) => setF(e.target.value)} options={MONTHS.map((m) => ({ value: m, label: monthLabel(m) }))} /><SelectField label="Sale-close to" value={t} onChange={(e) => setT(e.target.value)} options={MONTHS.map((m) => ({ value: m, label: monthLabel(m) }))} error={invalid ? "The end month cannot be before the start month." : undefined} /></div>
-      <TextField label="Stock as-of date" value={formatDate(SNAPSHOT_AT)} readOnly help="Fixed to the snapshot in this demonstration." />
+      <div className="form-grid"><SelectField label="Sale-close from" value={f} onChange={(e) => setF(e.target.value)} options={getMonths().map((m) => ({ value: m, label: monthLabel(m) }))} /><SelectField label="Sale-close to" value={t} onChange={(e) => setT(e.target.value)} options={getMonths().map((m) => ({ value: m, label: monthLabel(m) }))} error={invalid ? "The end month cannot be before the start month." : undefined} /></div>
+      <TextField label="Stock as-of date" value={formatDate(SNAPSHOT_AT)} readOnly help="Stock is measured as of now." />
       <SelectField label="Cost completeness" value={c} onChange={(e) => setC(e.target.value)} options={[{ value: "all", label: "All records" }, { value: "complete", label: "Cost-complete only" }, { value: "incomplete", label: "Cost-incomplete only" }]} />
     </Dialog>
   );

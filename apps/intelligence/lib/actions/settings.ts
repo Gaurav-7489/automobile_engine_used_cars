@@ -3,7 +3,7 @@ import { ROLES } from "../permissions";
 import { now } from "../clock";
 import { ist } from "../time";
 import type { WorkspaceState } from "../state";
-import { type Actor, type Result, fail, guard, nextId, ok, trim, withAudit } from "./common";
+import { type Actor, type Result, fail, guard, nextId, ok, pseudoUuid, trim, withAudit } from "./common";
 
 const SCOPE_TEXT: Record<string, string> = {
   "feed-a": "Read licensed listings for the selected branch. No writes to the provider.",
@@ -20,6 +20,10 @@ export function testConnection(state: WorkspaceState, actor: Actor, id: string):
   const integration = state.integrations.find((i) => i.id === id);
   if (!integration) return fail(404, "not_found", "Record not found.");
   const stamp = now();
+  if (state.live) {
+    if (id !== "publishing") return ok(state, { healthy: false, message: "Setup required: provider credentials are not configured for this workspace, so there is nothing to test." });
+    return ok(withAudit(state, actor, "integration.tested", id, "Database reachable"), { healthy: true, message: "Healthy. The owned website reads published stock from the shared database." });
+  }
   if (integration.state === "Not configured" || integration.state === "Disconnected" || integration.state === "Expired") {
     return ok(state, { healthy: false, message: integration.state === "Expired" ? "Authorisation expired. Reconnect to continue." : "Not connected. Connect first, then test." });
   }
@@ -35,6 +39,7 @@ export function connectIntegration(state: WorkspaceState, actor: Actor, id: stri
   if (denied) return denied;
   const integration = state.integrations.find((i) => i.id === id);
   if (!integration) return fail(404, "not_found", "Record not found.");
+  if (state.live) return fail(422, "invalid", "Setup required: this integration needs provider credentials that VandLabs has not enabled for your workspace. Contact support to request it.");
   if (!accepted) return fail(422, "invalid", "Review and accept the requested scopes before connecting.", { fields: { scopes: "Accept the scopes to connect." } });
   const stamp = now();
   const updated: Integration = { ...integration, state: "Connected", lastSuccessAt: stamp, detail: "Connected. First health check passed.", received: integration.received, logs: integration.logs };
@@ -47,6 +52,7 @@ export function disconnectIntegration(state: WorkspaceState, actor: Actor, id: s
   if (denied) return denied;
   const integration = state.integrations.find((i) => i.id === id);
   if (!integration) return fail(404, "not_found", "Record not found.");
+  if (state.live) return fail(422, "invalid", "This integration is not connected through a provider and cannot be disconnected here.");
   const affected = id === "ads" ? state.campaigns.filter((c) => c.status === "Active" || c.status === "Publishing" || c.status === "Approved").map((c) => c.id) : [];
   const stamp = now();
   const integrations = state.integrations.map((i) => (i.id === id ? { ...i, state: "Disconnected" as const, detail: "Disconnected. Token revoked.", lastSuccessAt: i.lastSuccessAt } : i));
@@ -114,7 +120,7 @@ export function saveBranch(state: WorkspaceState, actor: Actor, input: { id?: st
   if (!trim(input.state)) fields.state = "Enter the state.";
   if (!/^[A-Za-z_]+\/[A-Za-z_]+$/.test(trim(input.timezone))) fields.timezone = "Choose a valid timezone, for example Asia/Kolkata.";
   if (Object.keys(fields).length) return fail(422, "invalid", "Fix the highlighted fields to save.", { fields });
-  const id = input.id ?? trim(input.city).slice(0, 3).toLowerCase() + (state.branches.length + 1);
+  const id = input.id ?? (state.live ? pseudoUuid(`${state.tenant.id}:branch:${trim(input.name)}:${state.branches.length}`) : trim(input.city).slice(0, 3).toLowerCase() + (state.branches.length + 1));
   const branches = input.id
     ? state.branches.map((b) => (b.id === id ? { ...b, name: trim(input.name), city: trim(input.city), state: trim(input.state), timezone: trim(input.timezone) } : b))
     : [...state.branches, { id, name: trim(input.name), city: trim(input.city), state: trim(input.state), timezone: trim(input.timezone) }];
@@ -141,6 +147,7 @@ async function sha256(text: string): Promise<string> {
 export async function createApiKey(state: WorkspaceState, actor: Actor, input: { name: string; scope: string; branch: string; expiresOn: string }, reauthenticated: boolean): Promise<Result<{ key: ApiKey; secret: string }>> {
   const denied = guard(actor, "settings.keys");
   if (denied) return denied;
+  if (state.live) return fail(422, "invalid", "API access is not enabled for this release. No key was created.");
   const fields: Record<string, string> = {};
   if (!trim(input.name)) fields.name = "Name the key so it can be recognised later.";
   if (!["inventory:read", "market:read", "leads:read", "reports:read"].includes(input.scope)) fields.scope = "Choose a scope.";

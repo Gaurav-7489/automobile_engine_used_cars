@@ -33,7 +33,7 @@ export function VehicleDrawer({ open, onClose, vehicle, defaultBranch }: { open:
   const [tab, setTab] = useState<TabKey>("details");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [conflict, setConflict] = useState<{ version: number; asking: number | null; km: number } | null>(null);
-  const [files, setFiles] = useState<string[]>([]);
+  const [files] = useState<string[]>([]);
   const [docs, setDocs] = useState<Record<string, boolean>>(() => Object.fromEntries((vehicle?.documents ?? [{ name: "Registration certificate", provided: false }, { name: "Inspection report", provided: false }, { name: "Service history", provided: false }]).map((d) => [d.name, d.provided])));
   const expectedVersion = vehicle?.version ?? 0;
   const dirty = JSON.stringify(form) !== JSON.stringify(initial) || files.length > 0;
@@ -46,7 +46,7 @@ export function VehicleDrawer({ open, onClose, vehicle, defaultBranch }: { open:
 
   function save(status: "preparation" | "available") {
     const candidate: VehicleInput = { ...form, status, photos: String(Math.max(Number(form.photos) || 0, files.length)) };
-    const problems = validateVehicle(candidate);
+    const problems = validateVehicle(candidate, state.live);
     if (editing) {
       for (const key of ["make", "model", "asking", "acquiredOn", "fuel", "transmission", "year", "registration"]) delete problems[key];
       if (status === "available") delete problems.asking;
@@ -124,12 +124,11 @@ export function VehicleDrawer({ open, onClose, vehicle, defaultBranch }: { open:
       ) : null}
       {tab === "media" ? (
         <div className="stack" role="tabpanel" aria-labelledby={`veh-${tab}`}>
-          <div className="field"><label htmlFor="veh-photos">Photos</label>
-            <input id="veh-photos" className="input" type="file" accept="image/*" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []).map((f) => f.name))} aria-describedby="veh-photos-help" />
-            <div className="help" id="veh-photos-help">Uploads use signed access with progress and retry in production. This demo records the photo count only.</div>
+          <div className="field"><h3 className="h3">Photos</h3>
+            <p className="help" id="veh-photos-help">Photo upload is not part of this release. Photos are attached in Command Center and appear here as soon as they are on the vehicle record.</p>
             {errors.photos ? <div className="field-error" role="alert">{errors.photos}</div> : null}
           </div>
-          {files.length ? <ul className="stack-sm" style={{ margin: 0, paddingLeft: 18 }}>{files.map((f) => <li key={f}>{f}</li>)}</ul> : <p className="muted">{vehicle?.hasImages ? "Photos on file." : "No photos yet: a draft can be saved without media, but Available needs at least one."}</p>}
+          {files.length ? <ul className="stack-sm" style={{ margin: 0, paddingLeft: 18 }}>{files.map((f) => <li key={f}>{f}</li>)}</ul> : <p className="muted">{vehicle?.hasImages ? "Photos on file." : "No photos on file yet."}</p>}
         </div>
       ) : null}
       {tab === "documents" ? (

@@ -125,7 +125,7 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
           )}
       </Panel>
       <div className="spread" style={{ flexWrap: "wrap" }}>
-        <p className="meta">Demo identities only / contacts masked / message delivery is not a contact outcome</p>
+        <p className="meta">Contacts are masked unless your role may contact leads / message delivery is not a contact outcome</p>
         <div className="seg" role="group" aria-label="View"><Button variant={view !== "pipeline" ? "primary" : "secondary"} aria-pressed={view !== "pipeline"} onClick={() => url.set({ view: null })}>List</Button><Button variant={view === "pipeline" ? "primary" : "secondary"} aria-pressed={view === "pipeline"} onClick={() => url.set({ view: "pipeline" })}>Pipeline</Button></div>
       </div>
 
@@ -208,7 +208,7 @@ function AddLead({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Dialog open={open} onClose={onClose} dirty={Boolean(form.name || form.contact)} title="Add lead" description="Name or contact, source, vehicle (or Unspecified interest), owner and consent provenance are required." size="w640"
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={() => {
-        const r = run((s, a) => addLead(s, a, { ...form, branchId: scope.ids[0] ?? "koc" }));
+        const r = run((s, a) => addLead(s, a, { ...form, branchId: scope.ids[0] ?? "" }));
         if (!r.ok) { setErrors(r.fields ?? { form: r.message }); return; }
         toast(`${r.lead.id} added${r.lead.duplicateOf ? `. Possible duplicate of ${r.lead.duplicateOf}: review before merging.` : "."}`); onClose(); url.set({ lead: r.lead.id });
       }}>Add lead</Button></>}>

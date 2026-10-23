@@ -292,4 +292,5 @@ export type AcquisitionReview = {
 
 export type SavedSearch = { id: string; name: string; query: string; cadence: "Off" | "Daily" | "Weekly"; createdAt: string };
 
-export type Session = { sub: string; name: string; email: string; role: Role; branchIds: string[]; exp: number };
+/** sub is the account id, tid the workspace (tenant). iat is the issue time in seconds; role and branches are re-read from the database on every request. */
+export type Session = { sub: string; name: string; email: string; role: Role; branchIds: string[]; exp: number; tid?: string; iat?: number };

@@ -5,16 +5,15 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { AGE_BUCKETS } from "@/lib/finance";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
-import { MONTHS } from "@/lib/fixtures/inventory";
 import { formatDate, formatDateTime, formatMoney, formatTime, monthLabel, monthName, MISSING } from "@/lib/format";
 import { sortAlerts, alertsFor, eventsForMonth, overviewModel } from "@/lib/selectors";
-import { SNAPSHOT_AT } from "@/lib/time";
+import { getMonths, SNAPSHOT_AT } from "@/lib/time";
 import { HBars, GroupedBars } from "../charts";
 import { Drawer, Menu } from "../overlay";
 import { Panel } from "../panel";
 import { Badge, Button, EmptyState, InfoTip, Kpi, PageHead, Tabs, TextField } from "../ui";
 import { VehicleDrawer } from "../inventory/vehicle-drawer";
-import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
+import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "../workspace";
 import type { Alert } from "@/lib/domain";
 
 type RangeKey = "today" | "30d" | "mtd" | "custom";
@@ -28,7 +27,7 @@ function inRange(alert: Alert, range: RangeKey, from: string, to: string): boole
   const overdue = due < snapshot;
   if (range === "today") return overdue || formatDate(alert.dueAt) === formatDate(SNAPSHOT_AT);
   if (range === "30d") return due >= snapshot - 30 * 86_400_000;
-  if (range === "mtd") return due >= new Date("2026-09-30T18:30:00.000Z").getTime();
+  if (range === "mtd") { const ist = new Date(snapshot + 330 * 60_000); return due >= Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - 330 * 60_000; }
   const start = from ? new Date(`${from}T00:00:00+05:30`).getTime() : 0;
   const end = to ? new Date(`${to}T23:59:59+05:30`).getTime() : Infinity;
   return due >= start && due <= end;
@@ -51,7 +50,7 @@ export function OverviewPage() {
   const alerts = useMemo(() => sortAlerts(alertsFor(state, scope.ids).filter((a) => a.status === "Open" && !a.waiting && a.severity !== "Info")).filter((a) => inRange(a, range, url.get("from"), url.get("to"))), [state, scope.ids, range, url]);
   const filtered = alerts.filter((a) => (tab === "all" ? true : tab === "pricing" ? a.type === "Pricing" : tab === "leads" ? a.type === "Leads" : a.type === "Integration"));
   const rangeLabel = range === "custom" ? `${url.get("from") || "…"} to ${url.get("to") || "…"}` : RANGES.find((r) => r.value === range)!.label;
-  const branchParam: Record<string, string> = scope.value === "koc" ? {} : { branch: scope.value };
+  const branchParam: Record<string, string> = scope.value === defaultBranchOf(state) ? {} : { branch: scope.value };
   const invHref = (extra: Record<string, string>) => href("/app/inventory", { ...extra, ...branchParam });
   const days = AGE_BUCKETS.map((b) => ({ key: b.key, label: b.label, count: m.availableByAge[b.key] }));
   const eventRows = monthDrawer ? eventsForMonth(state, scope.ids, monthDrawer.month, monthDrawer.type) : [];
@@ -115,10 +114,10 @@ export function OverviewPage() {
 
       <div className="split-60 order-charts" style={{ gridTemplateColumns: "minmax(0, 720fr) minmax(0, 416fr)" }}>
         <section className="card order-movement" aria-labelledby="mv-title">
-          <div className="card-head"><h2 className="h3" id="mv-title">Inventory movement</h2><span className="meta">Acquired / Sold · Jan–Jun 2026</span></div>
+          <div className="card-head"><h2 className="h3" id="mv-title">Inventory movement</h2><span className="meta">Acquired / Sold · {monthLabel(getMonths()[0])} to {monthLabel(getMonths()[getMonths().length - 1])}</span></div>
           <Panel title="Inventory movement" rows={5} partialFail>
             <GroupedBars title="Inventory movement" unit="vehicles" data={model.movement.map((d) => ({ label: monthName(d.month), values: [d.acquired, d.sold], ariaLabel: `${monthLabel(d.month)}: acquired ${d.acquired}, sold ${d.sold}. Open matching inventory events.` }))}
-              series={[{ name: "Acquired", color: "var(--accent)" }, { name: "Sold", color: "var(--info)" }]} scaleMax={12} onSelect={(i, s) => setMonthDrawer({ month: MONTHS[i], type: s === 0 ? "acquired" : "sold" })} />
+              series={[{ name: "Acquired", color: "var(--accent)" }, { name: "Sold", color: "var(--info)" }]} onSelect={(i, s) => setMonthDrawer({ month: getMonths()[i], type: s === 0 ? "acquired" : "sold" })} />
           </Panel>
         </section>
         <section className="card order-age" aria-labelledby="age-title">
@@ -163,11 +162,11 @@ export function OverviewPage() {
       </section>
 
       <footer className="meta order-foot">
-        Snapshot {formatDateTime(SNAPSHOT_AT)} / {state.tenant.timezone === "Asia/Kolkata" ? "Asia/Kolkata" : state.tenant.timezone} / All figures illustrative {demoState === "partial" ? <Badge tone="warn">Incomplete: partial data</Badge> : null}
+        Snapshot {formatDateTime(SNAPSHOT_AT)} / {state.tenant.timezone === "Asia/Kolkata" ? "Asia/Kolkata" : state.tenant.timezone} / Calculated from your workspace records {demoState === "partial" ? <Badge tone="warn">Incomplete: partial data</Badge> : null}
         {scope.value === ALL_BRANCHES ? " / Totals span all permitted branches" : ""}
       </footer>
 
-      <VehicleDrawer open={addOpen} onClose={() => setAddOpen(false)} defaultBranch={scope.ids[0] ?? "koc"} key={addOpen ? "open" : "closed"} />
+      <VehicleDrawer open={addOpen} onClose={() => setAddOpen(false)} defaultBranch={scope.ids[0] ?? ""} key={addOpen ? "open" : "closed"} />
       <Drawer open={Boolean(monthDrawer)} onClose={() => setMonthDrawer(null)} size="w480" title={monthDrawer ? `${monthLabel(monthDrawer.month)} inventory events` : ""} description={monthDrawer ? `${eventRows.filter((e) => e.type === "acquired").length} acquired · ${eventRows.filter((e) => e.type === "sold").length} sold${monthDrawer.type ? ` · filtered to ${monthDrawer.type}` : ""}` : undefined}
         footer={<><Button onClick={() => setMonthDrawer(null)}>Close</Button><Link className="btn btn-primary" href={href("/app/reports", { tab: "inventory", ...branchParam })}>Open in Reports</Link></>}>
         <table className="chart-data-table" style={{ width: "100%" }}><caption className="sr-only">Inventory events</caption>

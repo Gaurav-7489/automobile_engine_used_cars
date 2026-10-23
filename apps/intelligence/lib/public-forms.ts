@@ -1,8 +1,7 @@
+import { plain } from "./server/db";
 import { clientKey, hit } from "./rate-limit";
 
-export const CONSENT_VERSION = "demo-consent-2026-10";
-
-const processed = new Map<string, { reference: string; at: number }>();
+export const CONSENT_VERSION = "consent-2026-10";
 
 export type FormResult = { status: number; body: Record<string, unknown> };
 
@@ -26,28 +25,17 @@ export async function handlePublicForm(request: Request, kind: "demo" | "access"
   if (Object.keys(fields).length) return { status: 422, body: { error: { code: "invalid", message: "Fix the highlighted fields to continue.", fields } } };
   const key = request.headers.get("idempotency-key");
   if (!key || key.length < 8 || key.length > 80) return { status: 422, body: { error: { code: "invalid", message: "Missing idempotency key." } } };
-  const cacheKey = `${kind}:${key}`;
-  const existing = processed.get(cacheKey);
-  if (existing) return { status: 200, body: { ok: true, reference: existing.reference, duplicate: true } };
   const reference = `${kind === "demo" ? "DR" : "AR"}-${Date.now().toString(36).toUpperCase().slice(-6)}${Math.floor(Math.random() * 90 + 10)}`;
-  processed.set(cacheKey, { reference, at: Date.now() });
-  if (processed.size > 2000) for (const [k, v] of processed) if (Date.now() - v.at > 3_600_000) processed.delete(k);
-  // Consent is stored separately from marketing permission. Forward to the configured intake webhook when present.
+  // Consent is stored separately from marketing permission. The record is saved in the database; a repeated Idempotency-Key returns the same reference.
   const record = {
-    reference, kind, receivedAt: new Date().toISOString(), consentVersion: CONSENT_VERSION, serviceContactConsent: true, marketingConsent: input.marketing === true,
+    kind, receivedAt: new Date().toISOString(), consentVersion: CONSENT_VERSION, serviceContactConsent: true, marketingConsent: input.marketing === true,
     name: str("name"), email: str("email"), dealership: str("dealership"), city: str("city"), phone: str("phone"), plan: str("plan") || null,
   };
-  const webhook = process.env.DEMO_REQUEST_WEBHOOK_URL;
-  if (webhook) {
-    try {
-      const response = await fetch(webhook, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": key }, body: JSON.stringify(record), signal: AbortSignal.timeout(5000) });
-      if (!response.ok) throw new Error(String(response.status));
-    } catch {
-      processed.delete(cacheKey);
-      return { status: 502, body: { error: { code: "delivery_failed", message: "We could not send your request. Your details are kept. Try again." } } };
-    }
-  } else {
-    console.info(JSON.stringify({ event: "public_request_received", reference, kind, plan: record.plan }));
+  try {
+    const saved = (await plain((c) => c.query("SELECT intelligence_submit_enquiry($1, $2, $3, $4) AS reference", [`${kind}:${key}`, kind, reference, JSON.stringify(record)]))).rows[0]?.reference as string | undefined;
+    if (!saved) throw new Error("not saved");
+    return { status: saved === reference ? 201 : 200, body: { ok: true, reference: saved, ...(saved === reference ? {} : { duplicate: true }) } };
+  } catch {
+    return { status: 502, body: { error: { code: "delivery_failed", message: "We could not record your request. Your details are kept. Try again." } } };
   }
-  return { status: 201, body: { ok: true, reference } };
 }

@@ -79,7 +79,7 @@ export function PricingPage({ requestId }: { requestId?: string }) {
           </>
         )
       )}
-      <p className="footnote">Recommendation is illustrative. No price is applied until approval, version check and publishing acknowledgement.</p>
+      <p className="footnote">No price is applied until approval and a version check. Without market evidence there is no recommendation, only a manual request.</p>
     </div>
   );
 }

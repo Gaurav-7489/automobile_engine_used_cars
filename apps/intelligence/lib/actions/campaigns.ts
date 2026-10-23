@@ -3,7 +3,7 @@ import { rupees } from "../format";
 import { stockAgeDays } from "../finance";
 import { now } from "../clock";
 import type { WorkspaceState } from "../state";
-import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, trim, withAudit } from "./common";
+import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, seq, trim, withAudit } from "./common";
 
 export const CHANNELS: { id: Channel["id"]; name: string; requiresApi: boolean }[] = [
   { id: "search", name: "Search", requiresApi: true },
@@ -15,6 +15,13 @@ export const CHANNELS: { id: Channel["id"]; name: string; requiresApi: boolean }
 /** Channel connection state. Only connected eligible channels are selectable; the explanation names the setup needed. */
 export function channelStatus(state: WorkspaceState, id: Channel["id"]): Channel {
   const def = CHANNELS.find((c) => c.id === id)!;
+  if (state.live) {
+    if (id === "search" || id === "meta") {
+      const account = state.integrations.find((i) => i.id === ADVERTISING_ACCOUNT_ID);
+      return account?.state === "Connected" ? { id, name: def.name, connected: true } : { id, name: def.name, connected: false, reason: "Setup required: connect an advertising account in Settings → Integrations." };
+    }
+    if (id === "owned") return { id, name: def.name, connected: state.integrations.find((i) => i.id === "publishing")?.state === "Connected" };
+  }
   if (id === "search" || id === "meta") return { id, name: def.name, connected: true };
   if (id === "owned") return { id, name: def.name, connected: true };
   return { id, name: def.name, connected: false, reason: "Marketplaces need an authorised publishing API. Request the integration in Settings." };
@@ -71,12 +78,12 @@ export function createCampaign(state: WorkspaceState, actor: Actor, vehicleId: s
   const vehicle = state.vehicles.find((v) => v.id === vehicleId);
   if (!vehicle || !actor.branchIds.includes(vehicle.branchId)) return fail(404, "not_found", "Record not found.");
   if (vehicle.status !== "available") return fail(422, "invalid", "Only available vehicles are selectable.", { fields: { vehicle: "Choose an available vehicle." } });
-  const id = nextId("CMP", state.campaigns.map((c) => c.id), 3004);
+  const id = nextId("CMP", state.campaigns.map((c) => c.id), seq(state, 3004));
   const stamp = now();
   const days = stockAgeDays(vehicle, stamp);
   const campaign: Campaign = {
     id, name: `${vehicle.make} ${vehicle.model} / ${state.branches.find((b) => b.id === vehicle.branchId)?.city ?? ""}`, vehicleId, vehicleVersion: vehicle.version, objective: "Enquiries", status: "Draft", step: 2,
-    region: "Kochi + 40 km", radiusKm: 40, startDate: stamp.slice(0, 10), endDate: new Date(new Date(stamp).getTime() + 29 * 86_400_000).toISOString().slice(0, 10),
+    region: `${state.branches.find((b) => b.id === vehicle.branchId)?.city ?? "Local"} + 40 km`, radiusKm: 40, startDate: stamp.slice(0, 10), endDate: new Date(new Date(stamp).getTime() + 29 * 86_400_000).toISOString().slice(0, 10),
     channels: [{ id: "search", enabled: true, budget: rupees(9000) }, { id: "meta", enabled: true, budget: rupees(6000) }, { id: "owned", enabled: false, budget: 0 }, { id: "marketplace", enabled: false, budget: 0 }],
     totalCap30d: rupees(15000), dailyCap: rupees(500), headline: `${vehicle.model} / ${state.branches.find((b) => b.id === vehicle.branchId)?.city ?? ""}`,
     body: `${vehicle.year} ${vehicle.fuel.toLowerCase()} ${vehicle.transmission.toLowerCase()}. ${vehicle.km.toLocaleString("en-IN")} km. Request vehicle details.`, creativeApproved: false, budgetApproved: false,

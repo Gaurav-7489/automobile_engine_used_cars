@@ -6,10 +6,11 @@ export type OnboardingDraft = {
   data: "import" | "later" | "skip";
 };
 
-export const emptyDraft = (): OnboardingDraft => ({
-  step: 2,
-  business: { legalName: "Sample Motors Private Limited", displayName: "Sample Motors", state: "Kerala", city: "Kochi", timezone: "Asia/Kolkata", gstin: "" },
-  branch: { name: "Kochi main", city: "Kochi", state: "Kerala", timezone: "Asia/Kolkata", address: "", isDefault: true },
+/** The workspace is provisioned before onboarding, so the draft starts from its real record; nothing is invented. */
+export const emptyDraft = (workspace?: { legalName: string; displayName: string; gstin: string; timezone: string; branch?: { name: string; city: string; state: string; timezone: string } }): OnboardingDraft => ({
+  step: 1,
+  business: { legalName: workspace?.legalName ?? "", displayName: workspace?.displayName ?? "", state: workspace?.branch?.state ?? "", city: workspace?.branch?.city ?? "", timezone: workspace?.timezone ?? "Asia/Kolkata", gstin: workspace?.gstin ?? "" },
+  branch: { name: workspace?.branch?.name ?? "", city: workspace?.branch?.city ?? "", state: workspace?.branch?.state ?? "", timezone: workspace?.branch?.timezone ?? "Asia/Kolkata", address: "", isDefault: true },
   invites: [],
   data: "later",
 });

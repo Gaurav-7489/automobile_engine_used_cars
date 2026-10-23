@@ -1,6 +1,8 @@
 import type { Role, Session } from "./domain";
 
-export const SESSION_COOKIE = "vl_session";
+export const SESSION_COOKIE = process.env.NODE_ENV === "production" ? "__Host-vl_session" : "vl_session";
+export const REAUTH_COOKIE = process.env.NODE_ENV === "production" ? "__Host-vl_reauth" : "vl_reauth";
+export const REAUTH_TTL_SECONDS = 10 * 60;
 export const SESSION_TTL_SECONDS = 8 * 60 * 60;
 
 const encoder = new TextEncoder();
@@ -30,12 +32,29 @@ async function hmac(secret: string, data: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(data)));
 }
 
-export async function signSession(session: Session): Promise<string | null> {
+export async function signPayload(payload: object): Promise<string | null> {
   const secret = sessionSecret();
   if (!secret) return null;
-  const body = b64url(encoder.encode(JSON.stringify(session)));
+  const body = b64url(encoder.encode(JSON.stringify(payload)));
   return `${body}.${b64url(await hmac(secret, body))}`;
 }
+
+export async function verifyPayload<T extends { exp: number }>(token: string | undefined | null): Promise<T | null> {
+  if (!token) return null;
+  const secret = sessionSecret();
+  if (!secret) return null;
+  const [body, signature] = token.split(".");
+  if (!body || !signature) return null;
+  try {
+    if (!constantTimeEqual(await hmac(secret, body), fromB64url(signature))) return null;
+    const payload = JSON.parse(new TextDecoder().decode(fromB64url(body))) as T;
+    return payload && typeof payload.exp === "number" && payload.exp * 1000 >= Date.now() ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+export const signSession = (session: Session): Promise<string | null> => signPayload(session);
 
 function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
@@ -56,7 +75,7 @@ export async function verifySession(token: string | undefined | null): Promise<S
     const expected = await hmac(secret, body);
     if (!constantTimeEqual(expected, fromB64url(signature))) return null;
     const session = JSON.parse(new TextDecoder().decode(fromB64url(body))) as Session;
-    if (!session || typeof session.sub !== "string" || !ROLE_SET.has(session.role) || !Array.isArray(session.branchIds) || typeof session.exp !== "number") return null;
+    if (!session || typeof session.sub !== "string" || typeof session.tid !== "string" || typeof session.iat !== "number" || !ROLE_SET.has(session.role) || !Array.isArray(session.branchIds) || typeof session.exp !== "number") return null;
     if (session.exp * 1000 < Date.now()) return null;
     return session;
   } catch {

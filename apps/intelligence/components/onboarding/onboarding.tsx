@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { inviteMember, saveBranch, saveBusiness } from "@/lib/actions";
 import type { Role } from "@/lib/domain";
 import { emptyDraft, STEPS, validateStep, type OnboardingDraft } from "@/lib/onboarding";
@@ -15,24 +15,26 @@ import { useWorkspace } from "../workspace";
 const KEY = "vl.onboarding.draft.v1";
 
 /** Non-sensitive draft only: no passwords are ever stored. */
-function loadDraft(): OnboardingDraft {
+function loadDraft(base: OnboardingDraft): OnboardingDraft {
   try {
     const raw = window.localStorage.getItem(KEY);
-    if (raw) return { ...emptyDraft(), ...(JSON.parse(raw) as OnboardingDraft) };
+    if (raw) return { ...base, ...(JSON.parse(raw) as OnboardingDraft) };
   } catch { /* storage unavailable */ }
-  return emptyDraft();
+  return base;
 }
 
 export function Onboarding() {
   const router = useRouter();
   const toast = useToast();
   const { state, run, can, session } = useWorkspace();
-  const [draft, setDraft] = useState<OnboardingDraft>(emptyDraft);
+  const first = state.branches[0];
+  const base = useMemo(() => emptyDraft({ legalName: state.tenant.legalName, displayName: state.tenant.displayName, gstin: state.tenant.gstin, timezone: state.tenant.timezone, branch: first }), [state.tenant, first]);
+  const [draft, setDraft] = useState<OnboardingDraft>(base);
   const [loaded, setLoaded] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { setDraft(loadDraft()); setLoaded(true); }, []);
+  useEffect(() => { setDraft(loadDraft(base)); setLoaded(true); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!loaded) return; try { window.localStorage.setItem(KEY, JSON.stringify(draft)); } catch { /* ignore */ } }, [draft, loaded]);
   useEffect(() => { headingRef.current?.focus(); }, [draft.step]);
 
@@ -62,14 +64,13 @@ export function Onboarding() {
     if (!can("settings.admin")) { setErrors({ role: "Only a workspace administrator can activate the workspace." }); return; }
     const b = run((s, a) => saveBusiness(s, a, { displayName: draft.business.displayName, legalName: draft.business.legalName, gstin: draft.business.gstin, timezone: draft.business.timezone }));
     if (!b.ok) { setErrors(b.fields ?? { form: b.message }); go(1); return; }
-    const first = state.branches[0];
     const br = run((s, a) => saveBranch(s, a, { id: first?.id, name: draft.branch.name, city: draft.branch.city, state: draft.branch.state, timezone: draft.branch.timezone }));
     if (!br.ok) { setErrors(br.fields ?? { form: br.message }); go(2); return; }
     let sent = 0;
-    for (const invite of draft.invites) { const r = run((s, a) => inviteMember(s, a, { email: invite.email, role: invite.role as Role, branchIds: [first?.id ?? "koc"] })); if (r.ok) sent += 1; }
+    for (const invite of draft.invites) { const r = run((s, a) => inviteMember(s, a, { email: invite.email, role: invite.role as Role, branchIds: first ? [first.id] : [] })); if (r.ok) sent += 1; }
     try { window.localStorage.removeItem(KEY); } catch { /* ignore */ }
-    toast(`Workspace activated.${sent ? ` ${sent} invitation(s) recorded.` : ""}${draft.data === "skip" ? " Opening an empty Command Centre." : ""}`);
-    router.push(draft.data === "skip" ? "/app/overview?demo_state=empty" : "/app/overview");
+    toast(`Workspace activated.${sent ? ` ${sent} invitation link(s) created: copy and share them.` : ""}`);
+    router.push("/app/overview");
   }
 
   return (
@@ -129,7 +130,7 @@ export function Onboarding() {
                     <div className="row-flex" style={{ alignItems: "end" }}><SelectField label="Role" value={invite.role} onChange={(e) => set({ invites: draft.invites.map((x, j) => (j === i ? { ...x, role: e.target.value } : x)) })} options={ROLES.filter((r) => r !== "owner").map((r) => ({ value: r, label: ROLE_LABEL[r] }))} placeholder="Choose role" /><Button variant="ghost" onClick={() => set({ invites: draft.invites.filter((_, j) => j !== i) })} aria-label={`Remove invite ${i + 1}`}>Remove</Button></div>
                   </div>
                 ))}
-                <div><Button onClick={() => set({ invites: [...draft.invites, { email: "", role: "", branchId: "koc" }] })}>Add team member</Button></div>
+                <div><Button onClick={() => set({ invites: [...draft.invites, { email: "", role: "", branchId: first?.id ?? "" }] })}>Add team member</Button></div>
                 {draft.invites.length === 0 ? <p className="meta">Team is optional now: add people later in Settings.</p> : null}
               </div>
             ) : null}
@@ -159,7 +160,7 @@ export function Onboarding() {
             </div>
           </section>
           <p className="footnote">Required fields are marked *. Continue validates this step; activation occurs only after Review.</p>
-          <p className="meta">Conceptual onboarding interface / all values illustrative / no account is created by this document</p>
+          <p className="meta">Changes here are saved to your workspace when you activate.</p>
           <button type="button" className="link-btn only-mobile" onClick={saveAndExit}>Save and exit</button>
         </main>
       </div>

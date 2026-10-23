@@ -3,7 +3,7 @@ import { landedCost } from "../finance";
 import { ist, SNAPSHOT_AT } from "../time";
 import { now } from "../clock";
 import type { WorkspaceState } from "../state";
-import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, trim, withAudit } from "./common";
+import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, seq, trim, withAudit } from "./common";
 
 export type VehicleInput = {
   make: string; model: string; variant: string; year: string; fuel: Vehicle["fuel"] | ""; transmission: Vehicle["transmission"] | ""; km: string; owners: string; registration: string;
@@ -23,7 +23,7 @@ const toPaise = (text: string): number | null => {
 };
 
 /** Save draft allows incomplete media; Available requires the complete required fields. */
-export function validateVehicle(input: VehicleInput): Record<string, string> {
+export function validateVehicle(input: VehicleInput, live = false): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!trim(input.make)) errors.make = "Enter the make, for example BMW.";
   if (!trim(input.model)) errors.model = "Enter the model, for example 520d.";
@@ -47,7 +47,7 @@ export function validateVehicle(input: VehicleInput): Record<string, string> {
   if (input.status === "available") {
     if (asking === null) errors.asking = "Available vehicles need an asking price.";
     if (toPaise(input.costs.acquisition) === null) errors["costs.acquisition"] = "Available vehicles need the acquisition cost.";
-    if (Number(input.photos) < 1) errors.photos = "Available vehicles need at least one photo. Save as In preparation to continue without media.";
+    if (!live && Number(input.photos) < 1) errors.photos = "Available vehicles need at least one photo. Save as In preparation to continue without media.";
   }
   return errors;
 }
@@ -55,19 +55,19 @@ export function validateVehicle(input: VehicleInput): Record<string, string> {
 export function addVehicle(state: WorkspaceState, actor: Actor, input: VehicleInput): Result<{ vehicle: Vehicle }> {
   const denied = guard(actor, "inventory.edit") ?? branchGuard(actor, input.branchId);
   if (denied) return denied;
-  const fields = validateVehicle(input);
+  const fields = validateVehicle(input, state.live);
   if (Object.keys(fields).length) return fail(422, "invalid", "Fix the highlighted fields to save this vehicle.", { fields });
   const costs: CostLedger = {
     acquisition: toPaise(input.costs.acquisition) ?? 0, transport: toPaise(input.costs.transport) ?? 0, inspection: toPaise(input.costs.inspection) ?? 0,
     refurbishment: toPaise(input.costs.refurbishment) ?? 0, fees: toPaise(input.costs.fees) ?? 0,
   };
-  const id = nextId("V", state.vehicles.map((v) => v.id), 1050);
+  const id = nextId("V", state.vehicles.map((v) => v.id), seq(state, 1050));
   const duplicate = state.vehicles.find((v) => v.registration === trim(input.registration) && trim(input.registration) !== "" && v.status !== "archived");
   if (duplicate) return fail(409, "conflict", `A stock record with this registration already exists (${duplicate.id}).`, { latest: { id: duplicate.id } });
   const vehicle: Vehicle = {
     id, branchId: input.branchId, make: trim(input.make), model: trim(input.model), variant: trim(input.variant), year: Number(input.year), fuel: input.fuel as Vehicle["fuel"], transmission: input.transmission as Vehicle["transmission"],
     km: Number(input.km.replace(/,/g, "")), owners: Number(input.owners), registration: trim(input.registration) || "—", status: input.status, acquiredAt: ist(...(input.acquiredOn.split("-").map(Number) as [number, number, number]), 10),
-    asking: toPaise(input.asking), costs, costComplete: costs.acquisition > 0 && costs.refurbishment > 0, hasImages: Number(input.photos) > 0, enquiries14d: 0, cohortMedianEnquiries: 5, version: 1, channels: [],
+    asking: toPaise(input.asking), costs, costComplete: costs.acquisition > 0 && costs.refurbishment > 0, hasImages: state.live ? false : Number(input.photos) > 0, enquiries14d: 0, cohortMedianEnquiries: state.live ? 0 : 5, version: 1, channels: [],
     documents: [{ name: "Registration certificate", provided: false }, { name: "Inspection report", provided: false }],
   };
   let next: WorkspaceState = { ...state, vehicles: [vehicle, ...state.vehicles] };
@@ -107,7 +107,7 @@ export function transitionVehicle(state: WorkspaceState, actor: Actor, id: strin
   const fields: Record<string, string> = {};
   if (transition.to === "available") {
     if (current.asking === null) fields.asking = "Set an asking price through Pricing Intelligence before making this vehicle available.";
-    if (!current.hasImages) fields.photos = "Add at least one photo before making this vehicle available.";
+    if (!current.hasImages && !state.live) fields.photos = "Add at least one photo before making this vehicle available.";
     if (landedCost(current.costs) === 0) fields.costs = "Record the acquisition cost before making this vehicle available.";
   }
   if (transition.to === "reserved" && !trim(transition.note)) fields.note = "Enter who the vehicle is reserved for or the booking reference.";
@@ -120,7 +120,7 @@ export function transitionVehicle(state: WorkspaceState, actor: Actor, id: strin
     if (!/^\d{4}-\d{2}-\d{2}$/.test(transition.sale?.closedOn ?? "")) fields.closedOn = "Choose the sale-close date.";
     if (!Object.keys(fields).length && price !== null && !Number.isNaN(price)) {
       sale = {
-        id: nextId("S", state.sales.map((s) => s.id), 392), vehicleId: id, branchId: current.branchId, label: `${current.make} ${current.model}`, closedAt: ist(...((transition.sale!.closedOn).split("-").map(Number) as [number, number, number]), 12),
+        id: nextId("S", state.sales.map((s) => s.id), seq(state, 392)), vehicleId: id, branchId: current.branchId, label: `${current.make} ${current.model}`, closedAt: ist(...((transition.sale!.closedOn).split("-").map(Number) as [number, number, number]), 12),
         salePrice: price, landed: landedCost(current.costs), directCosts: direct, state: "Completed", note: "Recorded at transition",
       };
     }
@@ -183,7 +183,7 @@ export function importPreview(state: WorkspaceState, csv: string, mapping: Recor
       values[column] = at >= 0 ? trim(cells[at]) : "";
     }
     const input = importToInput(values, branchId);
-    const errors = Object.values(validateVehicle(input));
+    const errors = Object.values(validateVehicle(input, state.live));
     const registration = trim(values.registration);
     let status: ImportRow["status"] = errors.length ? "error" : "valid";
     if (!errors.length && registration && (registrations.has(registration) || seen.has(registration))) { status = "duplicate"; errors.push("Registration already exists in stock or earlier in this file."); }
@@ -247,9 +247,13 @@ export function publishVehicles(state: WorkspaceState, actor: Actor, ids: string
   const results = ids.map((id) => {
     const vehicle = state.vehicles.find((v) => v.id === id);
     if (!vehicle || vehicle.status !== "available") return { id, channels: [{ channel: "Owned site", status: "Failed" as const, detail: "Only available vehicles can be published." }] };
-    const owned: PublishResult = publishing?.state === "Degraded"
-      ? { channel: "Owned site", status: "Failed", detail: "Owned site returned a timeout; retry from Settings → Integrations." }
-      : { channel: "Owned site", status: "Synced", detail: "Listing updated." };
+    // The owned website reads published stock from the shared database, so publication is real only when the listing is complete.
+    const ready = !state.live || (vehicle.hasImages && (vehicle.asking ?? 0) > 0);
+    const owned: PublishResult = !ready
+      ? { channel: "Owned site", status: "Failed", detail: "Publication needs at least one photo and an asking price. Add photos in Command Center, then publish again." }
+      : publishing?.state === "Degraded"
+        ? { channel: "Owned site", status: "Failed", detail: "Owned site returned a timeout; retry from Settings → Integrations." }
+        : { channel: "Owned site", status: "Synced", detail: state.live ? "Published to the owned website." : "Listing updated." };
     return { id, channels: [owned, { channel: "Marketplaces", status: "Not configured" as const, detail: "Requires an authorised publishing API." }] };
   });
   const vehicles = state.vehicles.map((v) => (ids.includes(v.id) && results.find((r) => r.id === v.id)?.channels[0].status === "Synced" ? { ...v, channels: Array.from(new Set([...v.channels, "Owned site"])) } : v));

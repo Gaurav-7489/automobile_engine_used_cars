@@ -3,7 +3,7 @@
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { changeRole, connectIntegration, createApiKey, disconnectIntegration, inviteMember, removeMember, revokeApiKey, revokeSessions, saveBranch, saveBusiness, scopeText, setNotification, setPolicy, testConnection } from "@/lib/actions";
+import { changeRole, connectIntegration, disconnectIntegration, inviteMember, removeMember, revokeSessions, saveBranch, saveBusiness, scopeText, setNotification, setPolicy, testConnection } from "@/lib/actions";
 import type { Integration, IntegrationState, Role } from "@/lib/domain";
 import { formatDateTime, formatShortDateTime } from "@/lib/format";
 import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions";
@@ -84,8 +84,7 @@ function Integrations() {
 
   const test = async (i: Integration) => {
     setTesting(true); setHealth(null);
-    await new Promise((r) => window.setTimeout(r, 700)); // local progress: server-side test in production
-    const r = run((s, a) => testConnection(s, a, i.id));
+        const r = run((s, a) => testConnection(s, a, i.id));
     setTesting(false);
     if (!r.ok) { toast(r.message, "error"); return; }
     setHealth({ ok: r.healthy, message: r.message });
@@ -112,7 +111,7 @@ function Integrations() {
         <section className="card" aria-labelledby="sel-title">
           <h2 className="h3" id="sel-title">Selected integration / {selected.name.replace("Licensed feed", "Feed")}</h2>
           <p className="muted mt-4">Permitted branch: {selected.branchScope} / Cadence: {selected.cadence} / Freshness SLA: {selected.freshnessSla}</p>
-          <p className="mt-4">{selected.received} received / {selected.rejected} rejected / Job {selected.lastJob} / Illustrative connection</p>
+          <p className="mt-4">{selected.received} received / {selected.rejected} rejected / Job {selected.lastJob} / {selected.state === "Not configured" ? "Not connected" : selected.state}</p>
           {health ? <div className="mt-4"><Notice tone={health.ok ? "accent" : "warn"} role="status">{health.message}</Notice></div> : null}
           <p className="meta mt-2">Connected is allowed only after a successful server-side test. Stale health becomes Unknown or Degraded.</p>
           <div className="row-flex mt-4 int-actions">
@@ -126,7 +125,7 @@ function Integrations() {
           <table className="data-table" aria-label="Sync log"><thead><tr><th style={{ width: 200 }}>Time / IST</th><th style={{ width: 150 }}>Job</th><th className="num" style={{ width: 150 }}>Received</th><th className="num" style={{ width: 156 }}>Rejected</th><th>Status</th></tr></thead>
             <tbody>{selected.logs.length ? selected.logs.map((l) => <tr key={l.id} style={{ height: 56 }}><td><span className="row-title">{formatShortDateTime(l.at)}</span></td><td>{l.job}</td><td className="num">{l.received}</td><td className="num">{l.rejected}</td><td><button type="button" className="link-btn" style={{ color: "var(--text)" }} onClick={() => setRows({ ...selected, logs: [l] })}>{l.status === "Partial" ? "Partial / inspect" : l.status === "Failed" ? "Failed / inspect" : "Success"}</button></td></tr>) : <tr><td colSpan={5} className="muted">No sync jobs yet.</td></tr>}</tbody></table>
         </div>
-        <p className="footnote">Credentials are masked. Provider names and connection states are illustrative.</p>
+        <p className="footnote">Credentials are masked. Only providers with real credentials and a passing health check show as Connected.</p>
       </div>
 
       <ConnectDialog integration={connect} onClose={() => setConnect(null)} onConnect={(accepted) => { const r = run((s, a) => connectIntegration(s, a, connect!.id, accepted)); if (!r.ok) return r.fields?.scopes ?? r.message; toast(`${connect!.name} connected after a successful first health check.`); setConnect(null); return null; }} />
@@ -153,7 +152,7 @@ function ConnectDialog({ integration, onClose, onConnect }: { integration: Integ
       <dl className="kv"><div><dt>Requested scopes</dt><dd style={{ maxWidth: 300 }}>{scopeText(integration.id)}</dd></div><div><dt>Branches</dt><dd>{integration.branchScope}</dd></div></dl>
       <Check label="I have reviewed the scopes and want to connect" checked={accepted} onChange={setAccepted} />
       {error ? <div className="field-error" role="alert">{error}</div> : null}
-      <p className="meta">Authorisation uses tenant-bound OAuth state. In this demonstration the handshake is simulated; external integrations never receive arbitrary tenant-selected scopes.</p>
+      <p className="meta">Setup required: provider connections need credentials that VandLabs enables per workspace. Until then connecting is refused, and nothing is simulated.</p>
     </Dialog>
   );
 }
@@ -188,16 +187,8 @@ function Business() {
       <div className="stack-sm"><h3 className="h3">Approval policy</h3>
         <Check label="Require a distinct approver for price changes and campaign budgets" checked={state.policy.distinctApprover} disabled={!admin} onChange={(v) => { const r = run((s, a) => setPolicy(s, a, { distinctApprover: v })); if (r.ok) toast(v ? "Self-approval is prohibited." : "Self-approval is now allowed. This is audited.", "ok"); }} help="Default policy. Turning it off lets a requester approve their own request; the change is audited." />
       </div>
-      {admin ? <div className="stack-sm"><h3 className="h3">Demonstration data</h3><p className="muted">The demo adapter keeps workspace changes in this browser. Reset restores the illustrative dataset.</p><DemoReset /></div> : null}
     </section>
   );
-}
-
-function DemoReset() {
-  const { resetDemo } = useWorkspace();
-  const toast = useToast();
-  const [confirm, setConfirm] = useState(false);
-  return confirm ? <Notice tone="danger" role="alert"><div className="spread" style={{ flexWrap: "wrap" }}><span>Reset all demonstration changes in this browser?</span><span className="row-flex"><Button variant="danger" size="sm" onClick={() => { resetDemo(); setConfirm(false); toast("Demonstration data reset."); }}>Reset demonstration data</Button><Button size="sm" onClick={() => setConfirm(false)}>Keep</Button></span></div></Notice> : <div><Button onClick={() => setConfirm(true)}>Reset demonstration data</Button></div>;
 }
 
 /* Branches ----------------------------------------------------------------------- */
@@ -238,9 +229,9 @@ function Team() {
     <section className="card stack" aria-labelledby="tm-h">
       <div className="spread"><h2 className="h2" id="tm-h">Team &amp; roles</h2>{admin ? <Button variant="primary" onClick={() => setInviteOpen(true)}>Invite member</Button> : null}</div>
       {!admin ? <Notice tone="warn" role="status">Team changes need Owner access. You can see roles and branches.</Notice> : null}
-      <div className="table-wrap fit"><table className="data-table"><thead><tr><th>Person</th><th>Role</th><th>Branches</th><th>MFA</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
-        <tbody>{state.team.map((m) => <tr key={m.id}><td><span className="row-title">{m.name}</span><span className="sub">{m.email}</span></td><td>{ROLE_LABEL[m.role]}</td><td>{m.branchIds.map((b) => state.branches.find((x) => x.id === b)?.city ?? b).join(", ")}</td><td>{m.mfa ? "Enabled" : "Not enabled"}</td><td>{m.status}</td>
-          <td>{admin ? <div className="row-flex"><Button size="sm" variant="ghost" onClick={() => setRoleFor({ id: m.id, name: m.name, role: m.role })}>Change role</Button><Button size="sm" variant="ghost" onClick={() => setRemoveFor(m.id)}>Remove</Button></div> : null}</td></tr>)}</tbody></table></div>
+      <div className="table-wrap fit"><table className="data-table"><thead><tr><th>Person</th><th>Role</th><th>Branches</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
+        <tbody>{state.team.map((m) => <tr key={m.id}><td><span className="row-title">{m.name}</span><span className="sub">{m.email}</span></td><td>{ROLE_LABEL[m.role]}</td><td>{m.branchIds.map((b) => state.branches.find((x) => x.id === b)?.city ?? b).join(", ")}</td><td>{m.status}</td>
+          <td>{admin ? <div className="row-flex">{m.status === "Active" ? <Button size="sm" variant="ghost" onClick={async () => { const r = await fetch("/api/team/reset-link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: m.email }) }); const body = await r.json().catch(() => ({})); if (!r.ok) { toast(body?.error?.message ?? "Could not issue a reset link.", "error"); return; } window.dispatchEvent(new CustomEvent("vl:effects", { detail: { inviteLinks: [{ email: m.email, token: body.token, expiresAt: body.expires_at, kind: "reset" }] } })); }}>Reset link</Button> : null}<Button size="sm" variant="ghost" onClick={() => setRoleFor({ id: m.id, name: m.name, role: m.role })}>Change role</Button><Button size="sm" variant="ghost" onClick={() => setRemoveFor(m.id)}>Remove</Button></div> : null}</td></tr>)}</tbody></table></div>
       <dl className="kv">{ROLES.map((r) => <div key={r}><dt>{ROLE_LABEL[r]}</dt><dd style={{ maxWidth: 420, fontWeight: 400 }}>{ROLE_SUMMARY[r]}</dd></div>)}</dl>
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
       <RoleDialog target={roleFor} onClose={() => setRoleFor(null)} />
@@ -257,7 +248,7 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
   useEffect(() => { if (open) { setForm({ email: "", role: "", branchIds: [] }); setErrors({}); } }, [open]);
   const permitted = state.branches.filter((b) => session.branchIds.includes(b.id));
   return (
-    <Dialog open={open} onClose={onClose} dirty={Boolean(form.email)} title="Invite team member" description="Invitations are scoped to a role and branches. Invites cannot elevate roles or change tenant." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={() => { const r = run((s, a) => inviteMember(s, a, { email: form.email, role: (form.role || "viewer") as Role, branchIds: form.branchIds })); if (!r.ok) { setErrors(r.fields ?? { form: r.message }); return; } toast(`Invitation recorded for ${r.member.email}.`); onClose(); }}>Send invitation</Button></>}>
+    <Dialog open={open} onClose={onClose} dirty={Boolean(form.email)} title="Invite team member" description="Invitations are scoped to a role and branches. Invites cannot elevate roles or change tenant." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={() => { const r = run((s, a) => inviteMember(s, a, { email: form.email, role: (form.role || "viewer") as Role, branchIds: form.branchIds })); if (!r.ok) { setErrors(r.fields ?? { form: r.message }); return; } toast(`Invitation created for ${r.member.email}. Copy the one-time link to share it.`); onClose(); }}>Send invitation</Button></>}>
       <FormSummary errors={errors} />
       <TextField label="Email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} error={errors.email} data-autofocus />
       <SelectField label="Role" required value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })} options={ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} placeholder="Choose a role" error={errors.role} help={form.role ? ROLE_SUMMARY[form.role as Role] : undefined} />
@@ -304,7 +295,7 @@ function Security() {
         <div><dt>Signed in as</dt><dd>{session.name} / {session.email}</dd></div><div><dt>Role</dt><dd>{ROLE_LABEL[session.role]}</dd></div>
         <div><dt>Branches</dt><dd>{session.branchIds.map((b) => state.branches.find((x) => x.id === b)?.city ?? b).join(", ")}</dd></div>
         <div><dt>Session</dt><dd>Secure HttpOnly cookie, 8 hours. No tokens in local storage.</dd></div>
-        <div><dt>MFA policy</dt><dd>Required where configured by your administrator</dd></div>
+        <div><dt>Multi-factor authentication</dt><dd>Not available in this release. Use a strong, unique password.</dd></div>
       </dl>
       <div className="stack-sm"><h3 className="h3">Sessions</h3><p className="muted">{state.sessionsRevoked ? `Other sessions revoked ${state.sessionsRevoked} time(s).` : "Revoke all other sessions if a device is lost."}</p>
         {confirm ? <Notice tone="danger" role="alert"><div className="spread" style={{ flexWrap: "wrap" }}><span>Revoke every other session?</span><span className="row-flex"><Button size="sm" variant="danger" onClick={() => { run((s, a) => revokeSessions(s, a)); setConfirm(false); toast("Other sessions revoked."); }}>Revoke other sessions</Button><Button size="sm" onClick={() => setConfirm(false)}>Keep</Button></span></div></Notice> : <div><Button onClick={() => setConfirm(true)}>Revoke other sessions</Button></div>}
@@ -317,14 +308,10 @@ function Security() {
 /* Billing ------------------------------------------------------------------------ */
 
 function Billing() {
-  const { can } = useWorkspace();
   return (
     <section className="card stack" aria-labelledby="bill-h">
       <h2 className="h2" id="bill-h">Billing</h2>
-      <dl className="kv"><div><dt>Configured commercial plan</dt><dd>Growth (pilot)</dd></div><div><dt>Usage: API requests this month</dt><dd>12,400 / 50,000 <span className="meta">(illustrative)</span></dd></div></dl>
-      <div className="progress" aria-hidden="true"><span style={{ width: "24.8%" }} /></div>
-      <p className="meta">Quota is configuration, not a published plan promise. Pricing is not published, so there is no checkout.</p>
-      <Button disabled reason={can("settings.admin") ? "Plan changes open a quote when a billing provider exists. Pricing remains unpublished." : "Requires Owner access."}>Change plan</Button>
+      <Notice tone="accent" role="status">Billing is handled directly by VandLabs for this workspace. No plan, usage or invoice data is connected here, so nothing is shown rather than estimating it.</Notice>
     </section>
   );
 }
@@ -332,65 +319,11 @@ function Billing() {
 /* API access --------------------------------------------------------------------- */
 
 function ApiAccess() {
-  const { state, can } = useWorkspace();
-  const toast = useToast();
-  const [createOpen, setCreateOpen] = useState(false);
-  const [revoke, setRevoke] = useState<string | null>(null);
-  const [secret, setSecret] = useState<string | null>(null);
-  const allowed = can("settings.keys");
   return (
     <section className="card stack" aria-labelledby="api-h">
-      <div className="spread"><h2 className="h2" id="api-h">API access</h2>{allowed ? <Button variant="primary" onClick={() => setCreateOpen(true)}>Create key</Button> : null}</div>
-      {!allowed ? <Notice tone="warn" role="status">API keys need Owner access.</Notice> : null}
-      <p className="muted">Keys need a scope, branch and expiry. The secret is shown once; only a hash is stored. Creating or revoking a key needs re-authentication.</p>
-      <div className="table-wrap fit"><table className="data-table"><thead><tr><th>Key</th><th>Scope</th><th>Branch</th><th>Expires</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
-        <tbody>{state.apiKeys.map((k) => <tr key={k.id}><td><span className="row-title">{k.name}</span><span className="sub">{k.prefix}…••••</span></td><td>{k.scope}</td><td>{k.branch}</td><td>{formatShortDateTime(k.expiresAt)}</td><td>{k.revoked ? "Revoked" : "Active"}</td><td>{allowed && !k.revoked ? <Button size="sm" variant="ghost" onClick={() => setRevoke(k.id)}>Revoke</Button> : null}</td></tr>)}</tbody></table></div>
-      <KeyDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={(s) => { setSecret(s); setCreateOpen(false); }} />
-      <Dialog open={Boolean(secret)} onClose={() => setSecret(null)} title="Copy your new key now" description="This is the only time the secret is shown." footer={<Button variant="primary" onClick={() => setSecret(null)}>I have stored it</Button>}>
-        <code className="secret" aria-label="New API key secret">{secret}</code>
-        <Button onClick={async () => { try { await navigator.clipboard.writeText(secret ?? ""); toast("Key copied."); } catch { toast("Copy failed: select the key and copy it manually.", "error"); } }}>Copy key</Button>
-      </Dialog>
-      <RevokeDialog id={revoke} onClose={() => setRevoke(null)} />
+      <h2 className="h2" id="api-h">API access</h2>
+      <Notice tone="accent" role="status">API keys are not enabled in this release. No keys can be created, so none are listed.</Notice>
     </section>
-  );
-}
-
-function KeyDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (secret: string) => void }) {
-  const { state, runAsync } = useWorkspace();
-  const [form, setForm] = useState({ name: "", scope: "", branch: "", expiresOn: "", password: "" });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  useEffect(() => { if (open) { setForm({ name: "", scope: "", branch: "", expiresOn: "", password: "" }); setErrors({}); } }, [open]);
-  return (
-    <Dialog open={open} onClose={onClose} dirty={Boolean(form.name)} title="Create API key" description="Scope, branch and expiry are required." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating" onClick={async () => {
-      setBusy(true);
-      const ok = form.password ? (await reauth(form.password)) === null : false;
-      const result = await runAsync((st, a) => createApiKey(st, a, { name: form.name, scope: form.scope, branch: form.branch, expiresOn: form.expiresOn }, ok));
-      setBusy(false);
-      if (!result.ok) { setErrors({ ...(result.fields ?? { form: result.message }), ...(form.password && !ok ? { password: "That password is not correct." } : {}) }); return; }
-      onCreated(result.secret);
-    }}>Create key</Button></>}>
-      <FormSummary errors={errors} />
-      <TextField label="Key name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} error={errors.name} data-autofocus />
-      <SelectField label="Scope" required value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} options={["inventory:read", "market:read", "leads:read", "reports:read"]} placeholder="Choose scope" error={errors.scope} />
-      <SelectField label="Branch" required value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })} options={state.branches.map((b) => b.name)} placeholder="Choose branch" error={errors.branch} />
-      <TextField label="Expiry" type="date" required value={form.expiresOn} onChange={(e) => setForm({ ...form, expiresOn: e.target.value })} error={errors.expiresOn} />
-      <PasswordField label="Confirm your password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} error={errors.password} autoComplete="current-password" />
-    </Dialog>
-  );
-}
-
-function RevokeDialog({ id, onClose }: { id: string | null; onClose: () => void }) {
-  const { run } = useWorkspace();
-  const toast = useToast();
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  useEffect(() => { setPassword(""); setError(""); }, [id]);
-  if (!id) return null;
-  return (
-    <Dialog open onClose={onClose} title="Revoke API key" description="Revocation is immediate and cannot be undone." footer={<><Button onClick={onClose}>Keep key</Button><Button variant="danger" onClick={async () => { const ok = password ? (await reauth(password)) === null : false; const r = run((s, a) => revokeApiKey(s, a, id, ok)); if (!r.ok) { setError(password ? "That password is not correct." : r.fields?.password ?? r.message); return; } toast("Key revoked."); onClose(); }}>Revoke key</Button></>}>
-      <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} autoComplete="current-password" />
-    </Dialog>
   );
 }
 
@@ -406,7 +339,7 @@ function Notifications() {
   return (
     <section className="card stack" aria-labelledby="nt-h">
       <div className="spread"><h2 className="h2" id="nt-h">Notifications</h2>{dirty ? <Button variant="primary" onClick={() => { let failed = ""; for (const [k, v] of Object.entries(draft)) { const r = run((s, a) => setNotification(s, a, k, v)); if (!r.ok) failed = r.message; } if (failed) toast(failed, "error"); else toast("Notification preferences saved."); }}>Save</Button> : null}</div>
-      <p className="muted">Toggles stay in draft until you press Save. Critical security notices cannot be disabled.</p>
+      <p className="muted">Toggles stay in draft until you press Save. Critical security notices cannot be disabled. Email and message delivery channels are not connected yet, so these preferences apply when notifications are enabled.</p>
       <div className="stack-sm">{NOTIFY.map(([key, label, help]) => <Check key={key} label={label} help={help} checked={draft[key] ?? false} disabled={key === "security.notices"} onChange={(v) => setDraft({ ...draft, [key]: v })} />)}</div>
     </section>
   );

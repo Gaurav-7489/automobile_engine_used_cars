@@ -78,7 +78,7 @@ export function StockDetail({ id }: { id: string }) {
         <section className="card" aria-labelledby="req"><h2 className="h3" id="req">Price requests</h2><ul className="stack-sm" style={{ margin: "12px 0 0", paddingLeft: 18 }}>{requests.length ? requests.map((r) => <li key={r.id}><Link className="accent-text" href={href(`/app/pricing/${r.id}`)}>{r.id}</Link> / {r.status}</li>) : <li>None</li>}</ul></section>
         <section className="card" aria-labelledby="lc"><h2 className="h3" id="lc">Advertising and leads</h2><ul className="stack-sm" style={{ margin: "12px 0 0", paddingLeft: 18 }}>{campaigns.map((c) => <li key={c.id}><Link className="accent-text" href={href(`/app/advertising/${c.id}`)}>{c.id}</Link> / {c.status}</li>)}<li>{leads.length} linked lead{leads.length === 1 ? "" : "s"}{leads.length && can("leads.view") ? <> / <Link className="accent-text" href={href("/app/leads", { vehicle: vehicle.id })}>Open leads</Link></> : null}</li></ul></section>
       </div>
-      <VehicleDrawer key={`${edit}`} open={edit} onClose={() => setEdit(false)} vehicle={vehicle} defaultBranch={scope.ids[0] ?? "koc"} />
+      <VehicleDrawer key={`${edit}`} open={edit} onClose={() => setEdit(false)} vehicle={vehicle} defaultBranch={scope.ids[0] ?? ""} />
     </div>
   );
 }

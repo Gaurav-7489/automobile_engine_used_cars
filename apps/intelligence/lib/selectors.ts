@@ -1,16 +1,16 @@
 import type { Alert, Lead, Sale, Vehicle } from "./domain";
-import { ALL_BRANCHES, DEFAULT_BRANCH } from "./fixtures/branches";
-import { MONTHS } from "./fixtures/inventory";
+import { ALL_BRANCHES } from "./fixtures/branches";
+
 import { AGE_BUCKETS, ageBucket, isRealized, realizedMetrics, realizedProfit, stockAgeDays, stockMetrics, type AgeBucketKey } from "./finance";
 import { daysBetween, monthKey } from "./format";
 import type { WorkspaceState } from "./state";
-import { SNAPSHOT_AT } from "./time";
+import { getMonths, SNAPSHOT_AT } from "./time";
 
 /** Branch scope: "All permitted branches" never means every tenant branch. */
 export function resolveScope(state: WorkspaceState, permitted: string[], param: string | null | undefined): { ids: string[]; value: string; label: string } {
   const allowed = state.branches.filter((b) => permitted.includes(b.id));
   if (param === ALL_BRANCHES && allowed.length > 1) return { ids: allowed.map((b) => b.id), value: ALL_BRANCHES, label: "All permitted branches" };
-  const chosen = allowed.find((b) => b.id === param) ?? allowed.find((b) => b.id === DEFAULT_BRANCH) ?? allowed[0];
+  const chosen = allowed.find((b) => b.id === param) ?? allowed.find((b) => b.isDefault) ?? allowed[0];
   return { ids: chosen ? [chosen.id] : [], value: chosen?.id ?? "", label: chosen?.name ?? "No branch" };
 }
 
@@ -32,7 +32,7 @@ export function overviewModel(state: WorkspaceState, ids: string[]) {
   const stock = stockFor(state, ids);
   const metrics = stockMetrics(stock, SNAPSHOT_AT);
   const events = inScope(state.events, ids);
-  const movement = MONTHS.map((month) => ({
+  const movement = getMonths().map((month) => ({
     month,
     acquired: events.filter((e) => e.type === "acquired" && monthKey(e.at) === month).length,
     sold: events.filter((e) => e.type === "sold" && monthKey(e.at) === month).length,
@@ -58,7 +58,7 @@ export function salesFor(state: WorkspaceState, ids: string[]): Sale[] {
 }
 
 export function monthlyProfit(sales: readonly Sale[]): { month: string; profit: number; count: number }[] {
-  return MONTHS.map((month) => {
+  return getMonths().map((month) => {
     const rows = sales.filter((s) => isRealized(s) && monthKey(s.closedAt) === month);
     return { month, count: rows.length, profit: rows.reduce((a, s) => a + realizedProfit(s), 0) };
   });
@@ -108,16 +108,26 @@ export function sortAlerts(alerts: readonly Alert[]): Alert[] {
 
 export const REPORT_FORMULA = "v1.0";
 
-/** Funnel stages use event-entry counts for the selected cohort, not sums of current stage snapshots. */
-export const FUNNEL = [
-  { stage: "Enquiries", count: 100 }, { stage: "Qualified", count: 40 }, { stage: "Appointments", count: 18 }, { stage: "Attended", count: 10 }, { stage: "Sales linked", count: 6 },
-] as const;
+/**
+ * Funnel stages count the scoped leads currently at or beyond each stage, measured from real records. Stage history is
+ * not stored per lead, so a lead that was later marked Lost or Nurture is counted only at the stage it holds now.
+ */
+export function funnelFor(leads: readonly Lead[]): { stage: string; count: number }[] {
+  const beyond = (stages: readonly string[]) => leads.filter((l) => stages.includes(l.stage) || (stages.includes("Won") && Boolean(l.saleId))).length;
+  return [
+    { stage: "Enquiries", count: leads.length },
+    { stage: "Qualified", count: beyond(["Qualified", "Appointment", "Visited", "Test drive", "Negotiation", "Won"]) },
+    { stage: "Appointments", count: leads.filter((l) => ["Appointment", "Visited", "Test drive", "Negotiation", "Won"].includes(l.stage) || l.appointment !== undefined).length },
+    { stage: "Attended", count: beyond(["Visited", "Test drive", "Negotiation", "Won"]) },
+    { stage: "Sales linked", count: beyond(["Won"]) },
+  ];
+}
 
 export function reportsModel(state: WorkspaceState, ids: string[]) {
   const sales = salesFor(state, ids);
   const events = inScope(state.events, ids);
   const profit = monthlyProfit(sales);
-  const rows = MONTHS.map((month, index) => ({
+  const rows = getMonths().map((month, index) => ({
     month,
     acquired: events.filter((e) => e.type === "acquired" && monthKey(e.at) === month).length,
     sold: profit[index].count,
@@ -126,8 +136,6 @@ export function reportsModel(state: WorkspaceState, ids: string[]) {
   const totalAcquired = rows.reduce((a, r) => a + r.acquired, 0);
   const totalSold = rows.reduce((a, r) => a + r.sold, 0);
   const totalProfit = rows.reduce((a, r) => a + r.realized, 0);
-  const full = ids.includes("koc") && ids.length >= 1;
-  const funnelScale = ids.length === 1 && ids[0] === "koc" ? 1 : ids.length > 1 ? 1.25 : 0.1;
-  const funnel = FUNNEL.map((f) => ({ ...f, count: full ? Math.round(f.count * funnelScale) : Math.max(0, Math.round(f.count * funnelScale)) }));
+  const funnel = funnelFor(leadsFor(state, ids));
   return { rows, totalAcquired, totalSold, totalProfit, funnel, qualified: funnel[1].count };
 }

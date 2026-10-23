@@ -103,19 +103,15 @@ export function LandingPage() {
               <Button onClick={() => jump("capabilities-heading")}>Explore product</Button>
             </div>
           </div>
-          <aside className="hero-preview card" aria-label="Illustrative product preview">
+          <aside className="hero-preview card" aria-label="What the workspace shows">
             <div className="spread" style={{ alignItems: "flex-start" }}>
               <h2 className="h3">A clear view of every decision</h2>
-              <span className="badge accent" style={{ background: "var(--accent-subtle)" }}>Illustrative preview</span>
             </div>
             <div className="preview-kpis">
-              <Kpi label="Available stock" value="42" note="Sample dealership" />
-              <Kpi label="Estimated gross at asking" value="₹24.6 L" note="Estimate / not realized" />
+              <Kpi label="Available stock" value="—" note="Counted from your inventory" />
+              <Kpi label="Gross at asking" value="—" note="Estimate once costs are recorded" />
             </div>
-            <div className="table-wrap fit" style={{ background: "var(--surface)" }}>
-              <table className="data-table"><thead><tr><th>Vehicle</th><th className="num">Asking</th><th className="num">Est. market</th></tr></thead>
-                <tbody><tr><td><span className="row-title">BMW 520d</span><span className="sub">2019 / V-1042</span></td><td className="num">₹28.5 L</td><td className="num">₹29.2 L</td></tr></tbody></table>
-            </div>
+            <p className="muted">Every figure is calculated from your own records. Where evidence is missing, the workspace says so instead of estimating.</p>
           </aside>
         </section>
 
@@ -159,7 +155,7 @@ export function LandingPage() {
         {reference ? (
           <div className="stack" role="status">
             <Notice tone="accent">Request received. Your reference is <strong>{reference}</strong>. Quote it if you contact us.</Notice>
-            <p className="muted">A VandLabs specialist will contact you on the details you gave. The product preview on this page remains illustrative.</p>
+            <p className="muted">A VandLabs specialist will contact you on the details you gave.</p>
           </div>
         ) : (
           <form id="demo-form" className="stack" onSubmit={submit} noValidate>

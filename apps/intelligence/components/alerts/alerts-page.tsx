@@ -124,7 +124,7 @@ export function AlertsPage() {
           )}
         </Panel>
       )}
-      <p className="meta">Last rule evaluation {formatTime(SNAPSHOT_AT)} IST / Acknowledge does not resolve / All records illustrative</p>
+      <p className="meta">Last rule evaluation {formatTime(SNAPSHOT_AT)} IST / Acknowledge does not resolve / Alerts are calculated from your records and thresholds</p>
 
       {active ? <AlertDrawer key={active.id} alert={active} onClose={() => url.set({ alert: null })} onDialog={(kind) => setDialog({ kind, ids: [active.id] })} action={action(active)} /> : null}
       <SnoozeDialog open={dialog?.kind === "snooze"} onClose={() => setDialog(null)} ids={dialog?.ids ?? []} />

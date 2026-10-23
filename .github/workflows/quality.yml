@@ -56,6 +56,9 @@ jobs:
       - name: Product UI acceptance regressions
         run: pnpm test:product
 
+      - name: Intelligence production data, identity and tenant isolation
+        run: pnpm test:intelligence-prod
+
       - name: Build
         run: pnpm build
 
