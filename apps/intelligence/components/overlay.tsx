@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "./icons";
 
@@ -131,24 +131,46 @@ export function Drawer({ open, onClose, title, description, children, footer, di
 /** Dropdown menu with roving focus, Escape to close and focus restore. */
 export function Menu({ label, children, align = "right", icon = "more", buttonClass = "icon-btn", text }: { label: string; children: (close: () => void) => ReactNode; align?: "left" | "right"; icon?: string; buttonClass?: string; text?: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left?: number; right?: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const items = () => Array.from(popRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]') ?? []);
+
+  // The list is drawn in a portal with fixed coordinates so scrolling tables and cards can never clip it.
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const below = window.innerHeight - rect.bottom;
+    const flip = below < 280 && rect.top > below;
+    setPos({
+      ...(flip ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+      ...(align === "left" ? { left: Math.max(8, Math.min(rect.left, window.innerWidth - 236)) } : { right: Math.max(8, window.innerWidth - rect.right) }),
+    });
+  }, [open, align]);
+
   useEffect(() => {
     if (!open) return;
-    const away = (event: MouseEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false); };
+    const away = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!ref.current?.contains(target) && !popRef.current?.contains(target)) setOpen(false);
+    };
+    const dismiss = () => setOpen(false);
     document.addEventListener("mousedown", away);
-    const first = ref.current?.querySelector<HTMLElement>('[role="menuitem"], [role="menuitemradio"]');
-    first?.focus();
-    return () => document.removeEventListener("mousedown", away);
+    window.addEventListener("resize", dismiss);
+    window.addEventListener("scroll", dismiss, true);
+    return () => { document.removeEventListener("mousedown", away); window.removeEventListener("resize", dismiss); window.removeEventListener("scroll", dismiss, true); };
   }, [open]);
+  useEffect(() => { if (open && pos) items()[0]?.focus(); }, [open, pos]);
+
   const onKey = (event: React.KeyboardEvent) => {
     if (event.key === "Escape") { setOpen(false); buttonRef.current?.focus(); return; }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      const items = Array.from(ref.current?.querySelectorAll<HTMLElement>('[role="menuitem"], [role="menuitemradio"]') ?? []);
-      const index = items.indexOf(document.activeElement as HTMLElement);
-      const next = event.key === "ArrowDown" ? (index + 1) % items.length : (index - 1 + items.length) % items.length;
-      items[next]?.focus();
+      const list = items();
+      const index = list.indexOf(document.activeElement as HTMLElement);
+      const next = event.key === "ArrowDown" ? (index + 1) % list.length : (index - 1 + list.length) % list.length;
+      list[next]?.focus();
     }
   };
   return (
@@ -156,7 +178,10 @@ export function Menu({ label, children, align = "right", icon = "more", buttonCl
       <button ref={buttonRef} type="button" className={buttonClass} aria-haspopup="menu" aria-expanded={open} aria-label={label} onClick={() => setOpen((v) => !v)}>
         {text ?? <Icon name={icon} />}
       </button>
-      {open ? <div className={`menu ${align === "left" ? "left" : ""}`} role="menu" aria-label={label}>{children(() => { setOpen(false); buttonRef.current?.focus(); })}</div> : null}
+      {open && pos ? createPortal(
+        <div ref={popRef} className="menu" style={{ position: "fixed", top: "auto", bottom: "auto", left: "auto", right: "auto", maxHeight: "calc(100dvh - 24px)", overflowY: "auto", ...pos }} role="menu" aria-label={label} onKeyDown={onKey}>{children(() => { setOpen(false); buttonRef.current?.focus(); })}</div>,
+        document.body,
+      ) : null}
     </div>
   );
 }
