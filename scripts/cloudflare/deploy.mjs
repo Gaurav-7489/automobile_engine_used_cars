@@ -31,6 +31,10 @@ for(const name of ["web","command-center","platform"]) {
  const config=JSON.parse(await readFile(`apps/${name}/wrangler.jsonc`,"utf8"));
  for(const binding of config.r2_buckets ?? [])requiredBuckets.add(binding.bucket_name);
 }
+const intelligence=await readFile("apps/intelligence/wrangler.jsonc","utf8").then(JSON.parse,()=>null);
+// Intelligence deploys only once an origin was configured (pnpm cf:configure with CF_INTELLIGENCE_ORIGIN).
+const deployIntelligence=Boolean(intelligence && (intelligence.routes?.length || intelligence.workers_dev));
+if(deployIntelligence)for(const binding of intelligence.r2_buckets ?? [])requiredBuckets.add(binding.bucket_name);
 for(const name of requiredBuckets)if(!names.has(name))await resourceApi("POST","",{name});
 // Deploy the durable coordinator before Workers that bind to it.
 await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/admission.wrangler.jsonc"]);
@@ -48,6 +52,15 @@ for(const name of ["web","command-center","platform"]) {
  const cwd=`apps/${name}`,appSecrets=Object.fromEntries(Object.entries(secrets).filter(([key])=>(name==="command-center"||!commandOnly.has(key))&&(name==="web"||!webOnly.has(key))));
  await run("pnpm",["cf:deploy"],cwd);
  if(Object.keys(appSecrets).length)await run("pnpm",["exec","wrangler","secret","bulk"],cwd,JSON.stringify(appSecrets));
+}
+if(deployIntelligence) {
+ // Own session secret: Intelligence sessions are never valid for the other apps, and the reverse.
+ const required=["DATABASE_URL","INTELLIGENCE_SESSION_SECRET"];
+ for(const key of required)if(!process.env[key])throw new Error(`Configure ${key} before deploying Automobile Intelligence.`);
+ if(process.env.INTELLIGENCE_SESSION_SECRET.length<32)throw new Error("INTELLIGENCE_SESSION_SECRET must be at least 32 characters.");
+ const intelligenceSecrets=Object.fromEntries([["DATABASE_URL",process.env.DATABASE_URL],["SESSION_SECRET",process.env.INTELLIGENCE_SESSION_SECRET],...["COGNITO_DOMAIN","INTELLIGENCE_COGNITO_CLIENT_ID"].filter(key=>process.env[key]).map(key=>[key,process.env[key]])]);
+ await run("pnpm",["cf:deploy"],"apps/intelligence");
+ await run("pnpm",["exec","wrangler","secret","bulk"],"apps/intelligence",JSON.stringify(intelligenceSecrets));
 }
 await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/wrangler.jsonc"]);
 if(process.env.NOTIFICATIONS_ENABLED === "true") {

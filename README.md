@@ -55,6 +55,7 @@ Open:
 - Public Experience: http://127.0.0.1:3000
 - Command Center: http://127.0.0.1:3001/command
 - Platform Control Center: http://127.0.0.1:3002/platform
+- Automobile Intelligence: http://127.0.0.1:3003 (needs `DATABASE_URL` and `SESSION_SECRET` to sign in)
 
 ## Quality commands
 

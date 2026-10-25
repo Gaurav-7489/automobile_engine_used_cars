@@ -70,3 +70,12 @@ Licensed market data (Market Radar, valuations, regional comparison), advertisin
 - Cost fields are visible to every role that can see inventory; branch scope and contact masking are enforced, per-field cost redaction is not.
 - Rate limiting is per server instance plus the database account lockout.
 - No error-monitoring service is attached; failures are logged as structured JSON to the host's log stream.
+
+## Cloudflare deployment (optional alternative to Vercel)
+
+`apps/intelligence` also builds as a Cloudflare Worker (`pnpm --filter @vandlabs/intelligence cf:build`). It is deliberately **not** behind the shared gateway: its `__Host-` session cookie and root-level routes (`/login`, `/app`, `/api`) need an origin of their own, for example `https://intelligence.<your-domain>`.
+
+1. `CF_INTELLIGENCE_ORIGIN=https://intelligence.<your-domain> pnpm cf:configure` (names the Worker, its cache bucket and the custom-domain route; nothing is routed until the origin is set).
+2. Provide `DATABASE_URL` (pooled restricted runtime role), `INTELLIGENCE_SESSION_SECRET` (32+ random characters, different from the other apps' `SESSION_SECRET`) and, for Google sign-in, `COGNITO_DOMAIN` and `INTELLIGENCE_COGNITO_CLIENT_ID`; then `pnpm cf:deploy` deploys it with the other Workers and sets these as Worker secrets.
+
+Known issue (affects every Worker here, not only this one): the pinned Next.js 15.5.27 is now past the Next.js support window, so `opennextjs-cloudflare build` refuses to run without `--dangerouslyUseUnsupportedNextVersion`. Upgrade Next.js before relying on `pnpm cf:build` in CI.

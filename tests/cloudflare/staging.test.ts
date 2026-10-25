@@ -116,3 +116,34 @@ test("deploy rejects Dealer AI tokens the Worker could never accept, before any 
     assert.ok(!shared.stderr.includes(valid));
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
+
+test("Automobile Intelligence is its own Worker on its own hostname, isolated per environment", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "vandlabs-intelligence-config-"));
+  try {
+    for (const file of [...files, "apps/intelligence/wrangler.jsonc"]) { await mkdir(dirname(join(directory, file)), { recursive: true }); await copyFile(file, join(directory, file)); }
+    const json = async (path: string) => JSON.parse(await readFile(join(directory, path), "utf8"));
+    const run = (target: string, intelligenceOrigin?: string) => spawnSync(process.execPath, [resolve("scripts/cloudflare/configure.mjs")], {
+      cwd: directory, encoding: "utf8",
+      env: { ...process.env, CF_ENVIRONMENT: target, CF_SHARED_DATA: "false", CF_PUBLIC_ORIGIN: `https://${target === "staging" ? "vandlabs-staging" : "vandlabs"}-gateway.vandlabs-automobile.workers.dev`, SEO_INDEXABLE: "false", ...(intelligenceOrigin ? { CF_INTELLIGENCE_ORIGIN: intelligenceOrigin } : { CF_INTELLIGENCE_ORIGIN: "" }) },
+    });
+    // Without an origin it is renamed and isolated but has no route, so deploy leaves it out.
+    let result = run("staging"); assert.equal(result.status, 0, result.stderr);
+    let config = await json("apps/intelligence/wrangler.jsonc");
+    assert.equal(config.name, "vandlabs-staging-intelligence");
+    assert.equal(config.services[0].service, config.name);
+    assert.deepEqual(config.r2_buckets.map((b: { bucket_name: string }) => b.bucket_name), ["vandlabs-staging-intelligence-cache"]);
+    assert.deepEqual(config.routes, []);
+    assert.equal(config.workers_dev, false);
+    // It is never behind the shared gateway.
+    assert.ok(!(await json("infra/cloudflare/wrangler.jsonc")).services.some((b: { service: string }) => b.service.includes("intelligence")));
+    // With a custom hostname it gets a custom-domain route and its own APP_ORIGIN.
+    result = run("production", "https://intelligence.dealer.test"); assert.equal(result.status, 0, result.stderr);
+    config = await json("apps/intelligence/wrangler.jsonc");
+    assert.equal(config.name, "vandlabs-intelligence");
+    assert.deepEqual(config.routes, [{ pattern: "intelligence.dealer.test", custom_domain: true }]);
+    assert.equal(config.vars.APP_ORIGIN, "https://intelligence.dealer.test");
+    // Unsafe origins and mismatched workers.dev names are rejected.
+    assert.equal(run("production", "http://intelligence.dealer.test").status, 1);
+    assert.equal(run("production", "https://other.workers.dev").status, 1);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});

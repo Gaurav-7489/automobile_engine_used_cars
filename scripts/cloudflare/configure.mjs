@@ -38,6 +38,25 @@ for(const name of ["web","command-center","platform"]) {
   config.vars={...config.vars,DEPLOYMENT_ENVIRONMENT:target,APP_ORIGIN:origin,SITE_ORIGIN:origin,DATA_MODE:shared?"neon":"demo",AUTH_MODE:shared?authMode:"demo",NEXT_PUBLIC_PREVIEW_READ_ONLY:shared?"false":"true",SEO_INDEXABLE:target==="staging"?"false":process.env.SEO_INDEXABLE ?? "false",NOTIFICATIONS_ENABLED:process.env.NOTIFICATIONS_ENABLED ?? "false",...(name==="web"?{DISCOVERY_AI_ENABLED:process.env.DISCOVERY_AI_ENABLED==="true"?"true":"false"}:{})};
   await writeFile(path,JSON.stringify(fitPlan(config),null,2)+"\n");
 }
+{
+  // Automobile Intelligence is its own Worker on its own hostname (its sign-in cookies and root-level routes
+  // must not share an origin with the public site). It is configured only when its config exists.
+  const path="apps/intelligence/wrangler.jsonc",config=await readFile(path,"utf8").then(JSON.parse,()=>null);
+  if(config) {
+    config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
+    config.name=resource("intelligence");
+    for(const binding of config.services ?? [])if(binding.binding==="WORKER_SELF_REFERENCE")binding.service=config.name;
+    for(const binding of config.r2_buckets ?? [])binding.bucket_name=resource("intelligence-cache");
+    config.workers_dev=false;config.preview_urls=false;config.routes=[];
+    if(process.env.CF_INTELLIGENCE_ORIGIN) {
+      const appOrigin=deploymentOrigin(process.env.CF_INTELLIGENCE_ORIGIN),appHost=new URL(appOrigin).hostname;
+      if(appHost.endsWith(".workers.dev")){if(!appHost.startsWith(config.name+"."))throw new Error("workers.dev origin must match the Intelligence Worker name.");config.workers_dev=true;}
+      else config.routes=[{pattern:appHost,custom_domain:true}];
+      config.vars={...config.vars,DEPLOYMENT_ENVIRONMENT:target,APP_ORIGIN:appOrigin};
+    }
+    await writeFile(path,JSON.stringify(fitPlan(config),null,2)+"\n");
+  }
+}
 const path="infra/cloudflare/wrangler.jsonc",config=JSON.parse(await readFile(path,"utf8"));
 config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
 config.name=resource("gateway");

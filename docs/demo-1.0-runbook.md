@@ -12,7 +12,7 @@ A successful GitHub Action is a test signal, **not** proof the application has b
 
 ## Gate 2 — start the local reference demo
 
-Prerequisites: Node 22, Corepack, pnpm 10.17.1; free ports 3000, 3001, 3002. From repository root:
+Prerequisites: Node 22, Corepack, pnpm 10.17.1; free ports 3000, 3001, 3002, 3003. From repository root:
 
 ```bash
 corepack enable

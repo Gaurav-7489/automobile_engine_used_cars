@@ -11,7 +11,10 @@ export function GET() {
       const url = new URL(value);
       if (url.protocol !== "https:" || url.origin !== value.replace(/\/$/, "")) throw new Error();
     }
-    return NextResponse.json({ apiOrigin: APP_ORIGIN.replace(/\/$/, ""), cognitoDomain: COGNITO_DOMAIN.replace(/\/$/, ""), clientId: COGNITO_DESKTOP_CLIENT_ID, ...(oidc ? {authorizeUrl:process.env.OIDC_AUTHORIZE_URL,tokenUrl:process.env.OIDC_TOKEN_URL,revokeUrl:process.env.OIDC_REVOKE_URL,audience:process.env.OIDC_AUDIENCE,resource:process.env.OIDC_RESOURCE} : {}) }, { headers });
+    // Optional: lets the desktop app open Automobile Intelligence. Anything but a plain HTTPS origin is ignored.
+    let intelligenceUrl: string | undefined;
+    try { const value = new URL(process.env.INTELLIGENCE_URL ?? ""); if (value.protocol === "https:" && !value.username && !value.password && value.pathname === "/" && !value.search && !value.hash) intelligenceUrl = value.origin; } catch { /* not configured */ }
+    return NextResponse.json({ ...(intelligenceUrl ? { intelligenceUrl } : {}), apiOrigin: APP_ORIGIN.replace(/\/$/, ""), cognitoDomain: COGNITO_DOMAIN.replace(/\/$/, ""), clientId: COGNITO_DESKTOP_CLIENT_ID, ...(oidc ? {authorizeUrl:process.env.OIDC_AUTHORIZE_URL,tokenUrl:process.env.OIDC_TOKEN_URL,revokeUrl:process.env.OIDC_REVOKE_URL,audience:process.env.OIDC_AUDIENCE,resource:process.env.OIDC_RESOURCE} : {}) }, { headers });
   } catch {
     return NextResponse.json({ error: "Desktop access is not activated for this workspace. Contact your administrator." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
