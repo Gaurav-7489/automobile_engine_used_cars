@@ -36,3 +36,28 @@ test("identity stack rejects unknown environments and unsafe redirect origins", 
   }
   assert.throws(() => new StaffIdentityStack(new App(), "BadEnv", { environmentName: "demo", publicOrigin: "https://staging.vandlabs.test" }));
 });
+
+test("single sign-in adds a Google provider and an Intelligence client without a secret in the template", () => {
+  const stack = new StaffIdentityStack(new App(), "SsoTest", { environmentName: "staging", publicOrigin: "https://staging.vandlabs.test", intelligenceOrigin: "https://intelligence.vandlabs.test", googleClientId: "google-client.apps.googleusercontent.com", env: { account: "111122223333", region: "ap-south-1" } });
+  const template = Template.fromStack(stack);
+  const json = template.toJSON();
+  const resources = Object.values(json.Resources) as Array<{ Type: string; Properties: Record<string, any> }>;
+  const provider = resources.find(r => r.Type === "AWS::Cognito::UserPoolIdentityProvider")!;
+  assert.equal(provider.Properties.ProviderType, "Google");
+  assert.deepEqual(provider.Properties.AttributeMapping, { email: "email", name: "name" });
+  assert.ok(JSON.stringify(provider.Properties.ProviderDetails.client_secret).includes("GoogleClientSecret"));
+  assert.equal(json.Parameters.GoogleClientSecret.NoEcho, true);
+  const clients = resources.filter(r => r.Type === "AWS::Cognito::UserPoolClient");
+  assert.equal(clients.length, 3);
+  const intelligence = clients.find(c => (c.Properties.CallbackURLs as string[])[0] === "https://intelligence.vandlabs.test/api/auth/sso/google/callback")!;
+  assert.deepEqual(intelligence.Properties.SupportedIdentityProviders, ["COGNITO", "Google"]);
+  assert.deepEqual(intelligence.Properties.AllowedOAuthFlows, ["code"]);
+  // The desktop client keeps Cognito-only sign-in.
+  const desktop = clients.find(c => (c.Properties.CallbackURLs as string[])[0].startsWith("http://localhost"))!;
+  assert.deepEqual(desktop.Properties.SupportedIdentityProviders, ["COGNITO"]);
+});
+
+test("Google sign-in requires a real Intelligence origin", () => {
+  assert.throws(() => new StaffIdentityStack(new App(), "A", { environmentName: "staging", publicOrigin: "https://staging.vandlabs.test", googleClientId: "x" }));
+  assert.throws(() => new StaffIdentityStack(new App(), "B", { environmentName: "staging", publicOrigin: "https://staging.vandlabs.test", intelligenceOrigin: "http://intelligence.test" }));
+});

@@ -39,7 +39,7 @@ pnpm test:product             # domain-rule acceptance scenarios (fixtures; test
 pnpm --filter @vandlabs/intelligence build
 ```
 
-Provisioning, deployment, backups and rollback: [docs/INTELLIGENCE_PRODUCTION.md](docs/INTELLIGENCE_PRODUCTION.md).
+Provisioning, deployment, backups and rollback: [docs/INTELLIGENCE_PRODUCTION.md](docs/INTELLIGENCE_PRODUCTION.md). Google single sign-in across Command Center and Intelligence: [docs/SINGLE_SIGN_IN.md](docs/SINGLE_SIGN_IN.md).
 
 ## Local development
 

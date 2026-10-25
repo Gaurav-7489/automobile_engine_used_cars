@@ -96,6 +96,8 @@ export function createPrincipalResolver(options: {
   env?: Environment;
   verifyToken?: TokenVerifier;
   lookupPrincipal?: (sub:string)=>Promise<AuthenticatedPrincipal|null>;
+  /** Maps a federated subject to the staff account it was linked to (single sign-in). Consulted only when no direct grant exists. */
+  lookupLinkedPrincipal?: (sub:string)=>Promise<AuthenticatedPrincipal|null>;
 }) {
   let verifyToken = options.verifyToken;
   return async (request: Request): Promise<AuthenticatedPrincipal> => {
@@ -134,9 +136,15 @@ export function createPrincipalResolver(options: {
       if(bootstrap?.capabilities.includes("platform:admin"))return bootstrap;
       if(!options.lookupPrincipal)throw new AuthenticationError(503,"Staff authorization is not configured.");
       const principal=await options.lookupPrincipal(sub);
-      if(!principal || principal.userId!==sub)throw new AuthorizationError();
-      // Apply the same validation to persisted grants as to the server-owned bootstrap registry.
-      return provisionedPrincipal(sub,JSON.stringify({[sub]:principal}));
+      if(principal && principal.userId===sub) {
+        // Apply the same validation to persisted grants as to the server-owned bootstrap registry.
+        return provisionedPrincipal(sub,JSON.stringify({[sub]:principal}));
+      }
+      if(!principal && options.lookupLinkedPrincipal) {
+        const linked=await options.lookupLinkedPrincipal(sub);
+        if(linked && linked.userId!==sub)return provisionedPrincipal(linked.userId,JSON.stringify({[linked.userId]:linked}));
+      }
+      throw new AuthorizationError();
     }
     if(env.AUTH_REGISTRY_MODE && env.AUTH_REGISTRY_MODE!=="environment")throw new AuthenticationError(503,"Staff authorization is not configured.");
     return provisionedPrincipal(sub, env.AUTH_PRINCIPALS_JSON);

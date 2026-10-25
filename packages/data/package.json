@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./postgres": "./src/postgres.ts",
+    "./federated-identity": "./src/federated-identity.ts",
     "./http": "./src/http.ts",
     "./inventory-spreadsheet": "./src/inventory-spreadsheet.ts",
     "./inventory-template": "./src/inventory-template.ts",

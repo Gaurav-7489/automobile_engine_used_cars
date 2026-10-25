@@ -43,12 +43,28 @@ export async function exchange(config:OAuthConfig,params:Record<string,string>):
   if(!response.ok)throw new AuthenticationError(401,"Sign-in failed.");const value=await response.json() as Tokens;
   if(typeof value.access_token!=="string"||!Number.isFinite(value.expires_in)||value.expires_in<=0||value.expires_in>86400)throw new AuthenticationError(401,"Invalid sign-in response.");return value;
 }
-export function createOAuthHandlers(basePath:string,authorize:(request:Request)=>Promise<unknown>) {
+export interface FederatedProfile { sub:string; email:string; emailVerified:boolean; provider?:string }
+/** Reads the signed-in user's profile from the identity provider with the access token it just issued. */
+export async function fetchProfile(config:OAuthConfig,accessToken:string):Promise<FederatedProfile> {
+  const response=await fetch(config.domain+"/oauth2/userInfo",{headers:{authorization:`Bearer ${accessToken}`},signal:AbortSignal.timeout(10000),cache:"no-store",redirect:"error"});
+  if(!response.ok)throw new AuthenticationError(401,"Sign-in failed.");
+  const value=await response.json() as {sub?:unknown;email?:unknown;email_verified?:unknown;identities?:unknown};
+  if(typeof value.sub!=="string"||!value.sub)throw new AuthenticationError(401,"Invalid sign-in response.");
+  let provider:string|undefined;
+  try{const list=typeof value.identities==="string"?JSON.parse(value.identities):value.identities;if(Array.isArray(list)&&typeof list[0]?.providerName==="string")provider=list[0].providerName;}catch{/* Native Cognito users have no identities. */}
+  return {sub:value.sub,email:typeof value.email==="string"?value.email.trim().toLowerCase():"",emailVerified:value.email_verified===true||value.email_verified==="true",provider};
+}
+export function createOAuthHandlers(basePath:string,authorize:(request:Request)=>Promise<unknown>,options:{linkIdentity?:(profile:FederatedProfile)=>Promise<void>}={}) {
   async function protect(action:()=>Promise<Response>) {
     try{return await action();}catch(e){const status=e instanceof AuthenticationError?e.status:401;return new Response(JSON.stringify({error:status===503?"Sign-in is not configured.":"Sign-in failed. Please try again."}),{status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});}
   }
   function csrf(request:Request,c:OAuthConfig){if(request.headers.get("origin")!==c.origin)throw new AuthenticationError(401,"Invalid request origin.");}
   async function session(config:OAuthConfig,tokens:Tokens,target:string,previousRefresh?:string) {
+    if(options.linkIdentity&&!config.oidc){
+      // Links this Cognito subject to the existing staff account that owns the verified email (never creates one).
+      const profile=await fetchProfile(config,tokens.access_token);
+      if(profile.emailVerified&&profile.email)await options.linkIdentity(profile);
+    }
     await authorize(new Request(config.origin+basePath,{headers:{authorization:`Bearer ${tokens.access_token}`}}));
     const response=redirect(config.origin+target);
     setCookie(response,"__Host-vandlabs-access-token",tokens.access_token,tokens.expires_in);

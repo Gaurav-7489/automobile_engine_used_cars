@@ -58,6 +58,15 @@ export async function signIn(emailInput: string, password: string): Promise<Sign
   return { ok: true, userId: user.id, name: user.display_name, tenantId: usable[0].tenant_id };
 }
 
+/** Workspace chosen for a person who authenticated elsewhere (single sign-in); same membership rules as a password sign-in. */
+export async function federatedSignIn(userId: string): Promise<SignIn> {
+  if (!isUuid(userId)) return { ok: false, code: "invalid" };
+  const memberships = (await plain((c) => c.query("SELECT * FROM intelligence_memberships($1)", [userId]))).rows as { tenant_id: string; payload: StaffPayload }[];
+  const usable = memberships.filter((m) => roleOf(m.payload) !== null);
+  if (!usable.length) return { ok: false, code: "no_access" };
+  return { ok: true, userId, name: usable[0].payload.displayName, tenantId: usable[0].tenant_id };
+}
+
 /** Validates a session against the database on every request, so revocation and role changes apply immediately. */
 export async function resolvePrincipal(userId: string, tenantId: string, issuedAtSeconds: number): Promise<Principal | null> {
   if (!isUuid(userId) || !isUuid(tenantId)) return null;

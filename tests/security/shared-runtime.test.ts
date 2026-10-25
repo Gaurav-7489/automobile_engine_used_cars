@@ -37,3 +37,18 @@ test("platform scopes come only from validated server provisioning",async()=>{
   const empty=createPrincipalResolver({env:{AUTH_MODE:"cognito",AUTH_REGISTRY_MODE:"database",AUTH_PRINCIPALS_JSON:JSON.stringify({admin:{...p,platformTenantIds:[]}})},demoPrincipal:p,verifyToken:async()=>({sub:"admin"})});
   await assert.rejects(empty(request),AuthenticationError);
 });
+test("a linked single sign-in subject resolves to its canonical staff account, only when no direct grant exists",async()=>{
+  const canonical:AuthenticatedPrincipal={userId:"11111111-1111-4111-8111-111111111111",tenantId:"tenant",dealershipIds:["dealer"],locationIds:["location"],capabilities:["lead:read"]};
+  const env={AUTH_MODE:"cognito",AUTH_REGISTRY_MODE:"database",AUTH_PRINCIPALS_JSON:"{}"};
+  let linked:AuthenticatedPrincipal|null=canonical,direct:AuthenticatedPrincipal|null=null;
+  const resolver=createPrincipalResolver({env,demoPrincipal:canonical,verifyToken:async()=>({sub:"google-sub"}),lookupPrincipal:async()=>direct,lookupLinkedPrincipal:async()=>linked});
+  const request=new Request("https://operations.example/command",{headers:{authorization:"Bearer verified"}});
+  assert.deepEqual(await resolver(request),canonical);
+  // Revoking the canonical account (or unlinking) takes effect on the next request.
+  linked=null;await assert.rejects(resolver(request),AuthorizationError);
+  // A direct grant for a different subject id is never accepted through the link path.
+  linked=canonical;direct={...canonical,userId:"someone-else"};await assert.rejects(resolver(request),AuthorizationError);
+  // Without a linked lookup the behaviour is unchanged.
+  const plain=createPrincipalResolver({env,demoPrincipal:canonical,verifyToken:async()=>({sub:"google-sub"}),lookupPrincipal:async()=>null});
+  await assert.rejects(plain(request),AuthorizationError);
+});

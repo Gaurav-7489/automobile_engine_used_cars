@@ -8,6 +8,16 @@ import { Dialog } from "../overlay";
 import { Button, Check, FormSummary, Notice, PasswordField, TextField } from "../ui";
 import { VehicleArt } from "../vehicle-art";
 
+const SSO_MESSAGES: Record<string, string> = {
+  unavailable: "Google sign-in is not available right now. Use your email and password, or try again shortly.",
+  rate_limited: "Too many sign-in attempts. Wait a few minutes and try again.",
+  state: "That sign-in attempt expired. Start again.",
+  provider: "Google could not confirm your identity. Try again.",
+  unverified: "Google did not confirm that email address, so we cannot sign you in with it.",
+  no_access: "This Google account is not a member of any workspace. Ask your owner to invite this email address.",
+  invite_mismatch: "That invitation is for a different email address. Sign in with the Google account the invitation was sent to.",
+};
+
 type Props = { providers: { id: "google" | "microsoft"; label: string }[] };
 
 
@@ -24,6 +34,7 @@ export function LoginExperience({ providers }: Props) {
   const live = useRef<HTMLDivElement>(null);
   const notice = params.get("notice");
   const reason = params.get("reason");
+  const ssoError = params.get("sso_error");
   const provider = params.get("provider") === "microsoft" ? "Microsoft" : "Google";
 
   async function submit(event: React.FormEvent) {
@@ -60,6 +71,7 @@ export function LoginExperience({ providers }: Props) {
           <div><h1 className="h1" style={{ fontSize: 32, lineHeight: "40px" }}>Welcome back</h1><p className="muted" style={{ marginTop: 8 }}>Sign in to your dealership workspace.</p></div>
           {reason === "expired" ? <Notice tone="warn" role="status">Your session expired. Sign in again. Your non-sensitive setup draft was kept; no password was stored.</Notice> : null}
           {notice === "sso_unavailable" ? <Notice tone="warn" role="status">{provider} sign-in is not available in this environment yet. Use your email and password, or ask your administrator to enable it.</Notice> : null}
+          {ssoError ? <Notice tone="warn" role="alert">{SSO_MESSAGES[ssoError] ?? SSO_MESSAGES.provider}</Notice> : null}
           {notice === "sso_unknown" ? <Notice tone="warn" role="status">That sign-in provider is not configured for this workspace.</Notice> : null}
           {error ? <FormSummary errors={{ login: error }} label="Sign-in problem" /> : null}
           <TextField label="Business email" type="email" name="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@dealership.com" />

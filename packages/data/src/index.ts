@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-export { platformSnapshot, saveStaffMember, resolveDatabaseStaff, staffDirectory } from "./platform";
+export { platformSnapshot, saveStaffMember, resolveDatabaseStaff, resolveLinkedStaff, linkFederatedLogin, staffDirectory } from "./platform";
 export { runtimeReadiness } from "./readiness";
 import type { AuthenticatedPrincipal, Lead, LeadActivity, LeadStage, Task, Vehicle, Appointment, JourneyEvent, AutomationRule, AutomationRun, AnalyticsSnapshot, Sale, InventoryChange, StockCost, StockCostChange } from "@vandlabs/contracts";
 import { requireCapability, requireTenant, requireDealership, requireLocation, AuthorizationError } from "@vandlabs/contracts";

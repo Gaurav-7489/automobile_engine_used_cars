@@ -5,6 +5,7 @@ import { tenantConfig, vehicles, leads, tasks } from "@vandlabs/demo-data";
 import * as runtime from "@vandlabs/demo-data/runtime";
 import { dataMode } from "./config";
 import { databasePool, tenantTransaction, type SqlPool } from "./postgres";
+import { linkedStaffUser, resolveFederatedUser } from "./federated-identity";
 import { InputError, RecordNotFound, ConflictError } from "./errors";
 
 export function platformScopes(p: AuthenticatedPrincipal): string[] {
@@ -121,6 +122,16 @@ export async function saveStaffMember(p:AuthenticatedPrincipal,tenantId:string,i
 export async function resolveDatabaseStaff(sub:string,tenantId:string) {
   if(dataMode()==="demo")throw new Error("Database staff registry requires shared PostgreSQL.");
   return postgresPlatformStore(await databasePool()).principal(sub,tenantId);
+}
+/** Single sign-in: staff whose Cognito (e.g. Google) subject was linked to their canonical staff account. */
+export async function resolveLinkedStaff(sub:string,tenantId:string) {
+  if(dataMode()==="demo")return null;
+  const pool=await databasePool(),userId=await linkedStaffUser(pool,sub);
+  return userId?postgresPlatformStore(pool).principal(userId,tenantId):null;
+}
+export async function linkFederatedLogin(profile:{sub:string;email:string}) {
+  if(dataMode()==="demo")return;
+  await resolveFederatedUser(await databasePool(),profile.sub,profile.email);
 }
 export async function staffDirectory(p:AuthenticatedPrincipal) {
   requireCapability(p,"lead:read");

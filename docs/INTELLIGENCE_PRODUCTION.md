@@ -25,7 +25,7 @@ Migration `0010_intelligence_workspace.sql` is additive (new tables and `SECURIT
 
 ## Authentication
 
-Email and password; scrypt hashes; five failed attempts lock an account for 15 minutes; per-address and per-client rate limits; signed HttpOnly `__Host-` session cookie (8 h) that is re-validated against the database on every request (disabled users, revoked sessions and role changes take effect immediately). No account can be created without a one-time link: workspace provisioning (`pnpm intelligence:provision`, administrator connection only) prints an owner setup link once; owners invite staff from Settings, Team; owners issue one-time reset links. No mail service is connected, so links are copied and shared by the owner. Multi-factor authentication and SSO are not available in this release.
+Email and password; scrypt hashes; five failed attempts lock an account for 15 minutes; per-address and per-client rate limits; signed HttpOnly `__Host-` session cookie (8 h) that is re-validated against the database on every request (disabled users, revoked sessions and role changes take effect immediately). No account can be created without a one-time link: workspace provisioning (`pnpm intelligence:provision`, administrator connection only) prints an owner setup link once; owners invite staff from Settings, Team; owners issue one-time reset links. No mail service is connected, so links are copied and shared by the owner. Multi-factor authentication is not available for password sign-in. Google single sign-in through Cognito is available when configured: see [SINGLE_SIGN_IN.md](SINGLE_SIGN_IN.md).
 
 ## Provision a workspace (administrators)
 

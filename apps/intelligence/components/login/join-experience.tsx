@@ -9,7 +9,7 @@ import { Button, FormSummary, Notice, PasswordField } from "../ui";
 type Info = { kind: "invite" | "reset"; email: string; name: string };
 
 /** Completes a one-time invitation or password reset. The person chooses their own password; nobody else ever sees it. */
-export function JoinExperience({ token }: { token: string }) {
+export function JoinExperience({ token, google = false }: { token: string; google?: boolean }) {
   const router = useRouter();
   const [info, setInfo] = useState<Info | "invalid" | null>(null);
   const [password, setPassword] = useState("");
@@ -64,6 +64,7 @@ export function JoinExperience({ token }: { token: string }) {
             <PasswordField label="New password" name="new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} help="At least 12 characters. Use a phrase only you know." />
             <PasswordField label="Confirm password" name="confirm-password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             <Button type="submit" variant="primary" className="btn-block" loading={busy} loadingLabel="Saving">{info.kind === "reset" ? "Save password and sign in" : "Create account and sign in"}</Button>
+            {google && info.kind === "invite" ? <a className="btn btn-block" href={`/api/auth/sso/google?invite=${encodeURIComponent(token)}`}>Or accept with Google ({info.email})</a> : null}
           </form>
         )}
       </main>

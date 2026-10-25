@@ -21,6 +21,8 @@ export async function harness(): Promise<Harness> {
   // 0010 ran before the role existed in this harness, so apply its grants now.
   const migration = await readFile("infra/database/migrations/0010_intelligence_workspace.sql", "utf8");
   await db.exec(migration.slice(migration.indexOf("DO $$ DECLARE r text")).replace(/COMMIT;\s*$/, ""));
+  const federated = await readFile("infra/database/migrations/0011_federated_identity.sql", "utf8");
+  await db.exec(federated.slice(federated.indexOf("DO $$ DECLARE r text")).replace(/COMMIT;\s*$/, ""));
   // PGlite is one session, so role switching is applied per call.
   const make = (role: string | null): SqlPool => ({
     async connect() {
