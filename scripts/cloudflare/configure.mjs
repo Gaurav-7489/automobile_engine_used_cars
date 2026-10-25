@@ -28,7 +28,8 @@ if(shared) {
   const config=JSON.parse(process.env.TENANT_CONFIG_JSON);
   if(config.seo.canonicalBase.replace(/\/$/,"")!==origin)throw new Error("Tenant canonicalBase must match CF_PUBLIC_ORIGIN.");
 }
-for(const name of ["web","command-center","platform"]) {
+// One product address: every app sits behind the gateway on CF_PUBLIC_ORIGIN (Intelligence under /intelligence).
+for(const name of ["web","command-center","platform","intelligence"]) {
   const path=`apps/${name}/wrangler.jsonc`, config=JSON.parse(await readFile(path,"utf8"));
   config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
   config.name=resource(name);
@@ -38,29 +39,10 @@ for(const name of ["web","command-center","platform"]) {
   config.vars={...config.vars,DEPLOYMENT_ENVIRONMENT:target,APP_ORIGIN:origin,SITE_ORIGIN:origin,DATA_MODE:shared?"neon":"demo",AUTH_MODE:shared?authMode:"demo",NEXT_PUBLIC_PREVIEW_READ_ONLY:shared?"false":"true",SEO_INDEXABLE:target==="staging"?"false":process.env.SEO_INDEXABLE ?? "false",NOTIFICATIONS_ENABLED:process.env.NOTIFICATIONS_ENABLED ?? "false",...(name==="web"?{DISCOVERY_AI_ENABLED:process.env.DISCOVERY_AI_ENABLED==="true"?"true":"false"}:{})};
   await writeFile(path,JSON.stringify(fitPlan(config),null,2)+"\n");
 }
-{
-  // Automobile Intelligence is its own Worker on its own hostname (its sign-in cookies and root-level routes
-  // must not share an origin with the public site). It is configured only when its config exists.
-  const path="apps/intelligence/wrangler.jsonc",config=await readFile(path,"utf8").then(JSON.parse,()=>null);
-  if(config) {
-    config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
-    config.name=resource("intelligence");
-    for(const binding of config.services ?? [])if(binding.binding==="WORKER_SELF_REFERENCE")binding.service=config.name;
-    for(const binding of config.r2_buckets ?? [])binding.bucket_name=resource("intelligence-cache");
-    config.workers_dev=false;config.preview_urls=false;config.routes=[];
-    if(process.env.CF_INTELLIGENCE_ORIGIN) {
-      const appOrigin=deploymentOrigin(process.env.CF_INTELLIGENCE_ORIGIN),appHost=new URL(appOrigin).hostname;
-      if(appHost.endsWith(".workers.dev")){if(!appHost.startsWith(config.name+"."))throw new Error("workers.dev origin must match the Intelligence Worker name.");config.workers_dev=true;}
-      else config.routes=[{pattern:appHost,custom_domain:true}];
-      config.vars={...config.vars,DEPLOYMENT_ENVIRONMENT:target,APP_ORIGIN:appOrigin};
-    }
-    await writeFile(path,JSON.stringify(fitPlan(config),null,2)+"\n");
-  }
-}
 const path="infra/cloudflare/wrangler.jsonc",config=JSON.parse(await readFile(path,"utf8"));
 config.account_id=process.env.CLOUDFLARE_ACCOUNT_ID || "98f548fdf2e2be84591c6669493f330b";
 config.name=resource("gateway");
-for(const binding of config.services ?? [])binding.service=resource({WEB:"web",COMMAND:"command-center",PLATFORM:"platform"}[binding.binding]);
+for(const binding of config.services ?? [])binding.service=resource({WEB:"web",COMMAND:"command-center",PLATFORM:"platform",INTELLIGENCE:"intelligence"}[binding.binding]);
 for(const binding of config.durable_objects?.bindings ?? [])if(binding.name==="ADMISSION")binding.script_name=resource("admission");
 for(const binding of config.r2_buckets ?? [])binding.bucket_name=resource("vehicle-media");
 config.vars.PUBLIC_ORIGIN=origin;

@@ -10,6 +10,8 @@ export function takeBucket(bucket: { count: number; reset: number } | undefined,
 export function cleanMediaKey(path: string): string | null {
   return /^\/[a-z0-9-]+\/[0-9a-f-]{36}\.(webp|avif)$/.test(path) ? path.slice(1) : null;
 }
+/** One product address: each path prefix is served by its own Worker; everything else is the public website. */
 export function surface(path: string) {
-  return path === "/command" || path.startsWith("/command/") ? "COMMAND" : path === "/platform" || path.startsWith("/platform/") ? "PLATFORM" : "WEB";
+  const under = (prefix: string) => path === prefix || path.startsWith(prefix + "/");
+  return under("/command") ? "COMMAND" : under("/platform") ? "PLATFORM" : under("/intelligence") ? "INTELLIGENCE" : "WEB";
 }

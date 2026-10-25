@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ProductBar } from "@vandlabs/design-system/product-bar";
 import { getPrincipal } from "@/lib/server/auth";
 import { redactFor } from "@/lib/server/redact";
 import { loadWorkspace } from "@/lib/server/workspace";
@@ -22,8 +23,11 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
     );
   }
   return (
-    <WorkspaceProvider session={current.session} initialState={state} asOf={new Date().toISOString()}>
-      <Shell>{children}</Shell>
-    </WorkspaceProvider>
+    <>
+      <ProductBar current="intelligence" />
+      <WorkspaceProvider session={current.session} initialState={state} asOf={new Date().toISOString()}>
+        <Shell>{children}</Shell>
+      </WorkspaceProvider>
+    </>
   );
 }

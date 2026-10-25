@@ -6,6 +6,9 @@ Current infrastructure and release evidence: [Cloudflare + Neon staging](docs/CL
 
 ## Current V1 reference applications
 
+One product at one address: every section below is served behind a single gateway (`/`, `/intelligence`, `/command`, `/platform`) with one sign-in and a shared VandLabs bar. See [docs/ONE_PRODUCT.md](docs/ONE_PRODUCT.md).
+
+- `apps/intelligence` — Automobile Intelligence, the dealer product, on port 3003 under `/intelligence`.
 - `apps/web` — public dealership experience on port 3000.
 - `apps/command-center` — dealership Growth / Sales OS on port 3001 under `/command`.
 - `apps/desktop` — native Windows/macOS client and installer builds.
@@ -50,12 +53,14 @@ pnpm install --frozen-lockfile
 pnpm demo
 ```
 
-Open:
+Open the one product address, **http://127.0.0.1:8080** ([how it fits together](docs/ONE_PRODUCT.md)):
 
-- Public Experience: http://127.0.0.1:3000
-- Command Center: http://127.0.0.1:3001/command
-- Platform Control Center: http://127.0.0.1:3002/platform
-- Automobile Intelligence: http://127.0.0.1:3003 (needs `DATABASE_URL` and `SESSION_SECRET` to sign in)
+- Website: http://127.0.0.1:8080/
+- Automobile Intelligence: http://127.0.0.1:8080/intelligence (needs `DATABASE_URL` and `SESSION_SECRET` to sign in)
+- Command Center: http://127.0.0.1:8080/command
+- Platform Control Center: http://127.0.0.1:8080/platform
+
+Each section still runs as its own app on ports 3000–3003; a local gateway mirrors the production Cloudflare gateway.
 
 ## Quality commands
 

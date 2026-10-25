@@ -1,3 +1,5 @@
+import { withBase } from "@/lib/base-path";
+
 export function BrandMark({ size = 28 }: { size?: number }) {
   return (
     <svg className="brand-mark" width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true" focusable="false">
@@ -17,5 +19,5 @@ export function Brand({ sub = true, href }: { sub?: boolean; href?: string }) {
       {sub ? <span className="brand-sub">Automotive Intelligence</span> : null}
     </>
   );
-  return href ? <a className="brand" href={href} aria-label="VandLabs home">{inner}</a> : <span className="brand">{inner}</span>;
+  return href ? <a className="brand" href={withBase(href)} aria-label="VandLabs home">{inner}</a> : <span className="brand">{inner}</span>;
 }

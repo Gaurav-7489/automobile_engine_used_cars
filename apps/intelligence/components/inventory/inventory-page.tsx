@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { bulkArchive, bulkAssignBranch, importCommit, importPreview, IMPORT_COLUMNS, publishVehicles, transitionVehicle, type ImportRow, type PublishResult, type Transition } from "@/lib/actions";
+import { withBase } from "@/lib/base-path";
 import type { Lifecycle, Vehicle } from "@/lib/domain";
 import { ageBucket, landedCost, needsPriceReview, stockAgeDays } from "@/lib/finance";
 import { downloadCsv } from "@/lib/export";
@@ -101,7 +102,7 @@ export function InventoryPage() {
           {can("inventory.edit") && v.status !== "sold" && v.status !== "archived" ? <button role="menuitem" onClick={() => { setDrawer({ open: true, vehicle: v }); close(); }}>Edit</button> : null}
           {can("inventory.transition") && v.status !== "sold" && v.status !== "archived" ? <button role="menuitem" onClick={() => { setTransition(v); close(); }}>Change lifecycle state</button> : null}
           {can("price.view") && v.status === "available" ? <Link role="menuitem" href={href("/app/pricing", { vehicle: v.id })} onClick={close}>Review price</Link> : null}
-          <button role="menuitem" onClick={async () => { try { await navigator.clipboard.writeText(`${window.location.origin}/app/inventory/${v.id}`); toast("Internal link copied."); } catch { toast("Copy failed.", "error"); } close(); }}>Copy internal link</button>
+          <button role="menuitem" onClick={async () => { try { await navigator.clipboard.writeText(`${window.location.origin}${withBase(`/app/inventory/${v.id}`)}`); toast("Internal link copied."); } catch { toast("Copy failed.", "error"); } close(); }}>Copy internal link</button>
         </>
       )}
     </Menu>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { withBase } from "@/lib/base-path";
 import { Brand } from "../brand";
 import { Button, FormSummary, Notice, PasswordField } from "../ui";
 
@@ -19,7 +20,7 @@ export function JoinExperience({ token, google = false }: { token: string; googl
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/auth/redeem?token=${encodeURIComponent(token)}`, { cache: "no-store" })
+    fetch(withBase(`/api/auth/redeem?token=${encodeURIComponent(token)}`),{ cache: "no-store" })
       .then(async (r) => (r.ok ? ((await r.json()) as Info) : "invalid"))
       .catch(() => "invalid" as const)
       .then((v) => { if (!cancelled) setInfo(v); });
@@ -33,7 +34,7 @@ export function JoinExperience({ token, google = false }: { token: string; googl
     if (password !== confirm) { setError("The two passwords do not match."); return; }
     setBusy(true);
     try {
-      const response = await fetch("/api/auth/redeem", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password }) });
+      const response = await fetch(withBase("/api/auth/redeem"),{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token, password }) });
       const body = await response.json().catch(() => ({}));
       if (response.ok) { router.replace("/app/overview"); router.refresh(); return; }
       setError(body?.error?.message ?? "This could not be completed. Try again.");
@@ -64,7 +65,7 @@ export function JoinExperience({ token, google = false }: { token: string; googl
             <PasswordField label="New password" name="new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} help="At least 12 characters. Use a phrase only you know." />
             <PasswordField label="Confirm password" name="confirm-password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             <Button type="submit" variant="primary" className="btn-block" loading={busy} loadingLabel="Saving">{info.kind === "reset" ? "Save password and sign in" : "Create account and sign in"}</Button>
-            {google && info.kind === "invite" ? <a className="btn btn-block" href={`/api/auth/sso/google?invite=${encodeURIComponent(token)}`}>Or accept with Google ({info.email})</a> : null}
+            {google && info.kind === "invite" ? <a className="btn btn-block" href={withBase(`/api/auth/sso/google?invite=${encodeURIComponent(token)}`)}>Or accept with Google ({info.email})</a> : null}
           </form>
         )}
       </main>

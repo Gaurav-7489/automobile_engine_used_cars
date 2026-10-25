@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { inviteMember, saveBranch, saveBusiness } from "@/lib/actions";
+import { withBase } from "@/lib/base-path";
 import type { Role } from "@/lib/domain";
 import { emptyDraft, STEPS, validateStep, type OnboardingDraft } from "@/lib/onboarding";
 import { ROLE_LABEL, ROLES } from "@/lib/permissions";
@@ -46,7 +47,7 @@ export function Onboarding() {
   async function next() {
     setBusy(true);
     try {
-      const response = await fetch("/api/onboarding/validate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ step, draft }) });
+      const response = await fetch(withBase("/api/onboarding/validate"),{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ step, draft }) });
       if (response.status === 401) { router.push("/login?reason=expired&returnTo=/onboarding"); return; }
       const body = await response.json().catch(() => ({}));
       if (!response.ok) { setErrors(body?.error?.fields ?? validateStep(step, draft)); return; }

@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { resolveFederatedUser } from "@vandlabs/data/federated-identity";
+import { withBase } from "../base-path";
 import { signPayload, verifyPayload } from "../session";
 import { pool } from "./db";
 import { federatedSignIn, normalizeEmail, redeemToken, tokenInfo, type SignIn } from "./identity";
@@ -27,7 +28,7 @@ export function ssoConfig(env: Record<string, string | undefined> = process.env)
 }
 
 export const ssoProviders = (): { id: "google"; label: string }[] => (ssoConfig() ? [{ id: "google", label: "Continue with Google" }] : []);
-export const callbackUrl = (config: SsoConfig, provider: string) => `${config.origin}/api/auth/sso/${provider}/callback`;
+export const callbackUrl = (config: SsoConfig, provider: string) => `${config.origin}${withBase(`/api/auth/sso/${provider}/callback`)}`;
 
 type Flow = { state: string; verifier: string; provider: string; returnTo: string; invite?: string; exp: number };
 

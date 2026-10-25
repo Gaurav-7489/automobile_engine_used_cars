@@ -71,11 +71,13 @@ Licensed market data (Market Radar, valuations, regional comparison), advertisin
 - Rate limiting is per server instance plus the database account lockout.
 - No error-monitoring service is attached; failures are logged as structured JSON to the host's log stream.
 
-## Cloudflare deployment (optional alternative to Vercel)
+## One product address (Cloudflare)
 
-`apps/intelligence` also builds as a Cloudflare Worker (`pnpm --filter @vandlabs/intelligence cf:build`). It is deliberately **not** behind the shared gateway: its `__Host-` session cookie and root-level routes (`/login`, `/app`, `/api`) need an origin of their own, for example `https://intelligence.<your-domain>`.
+Intelligence is served under `/intelligence` (Next.js `basePath`) on the same address as the website (`/`), Command Center (`/command`) and Platform (`/platform`). See [ONE_PRODUCT.md](ONE_PRODUCT.md). It builds as a Cloudflare Worker (`pnpm --filter @vandlabs/intelligence cf:build`) that only the gateway reaches, through its `INTELLIGENCE` service binding.
 
-1. `CF_INTELLIGENCE_ORIGIN=https://intelligence.<your-domain> pnpm cf:configure` (names the Worker, its cache bucket and the custom-domain route; nothing is routed until the origin is set).
-2. Provide `DATABASE_URL` (pooled restricted runtime role), `INTELLIGENCE_SESSION_SECRET` (32+ random characters, different from the other apps' `SESSION_SECRET`) and, for Google sign-in, `COGNITO_DOMAIN` and `INTELLIGENCE_COGNITO_CLIENT_ID`; then `pnpm cf:deploy` deploys it with the other Workers and sets these as Worker secrets.
+1. `pnpm cf:configure` names it per environment with the other apps and sets its `APP_ORIGIN` to `CF_PUBLIC_ORIGIN`.
+2. Provide `DATABASE_URL` (pooled restricted runtime role), `INTELLIGENCE_SESSION_SECRET` (32+ random characters, different from the other apps' `SESSION_SECRET`) and, for Google sign-in, `COGNITO_DOMAIN` and `INTELLIGENCE_COGNITO_CLIENT_ID`. `pnpm cf:deploy` deploys it before the gateway and sets these as Worker secrets. Without a session secret its sign-in fails closed.
+
+The `__Host-vl_session` cookie is HttpOnly with `Path=/`, so the browser also sends it to the other sections on the same address. Those apps ignore it: they authenticate with their own `__Host-vandlabs-*` cookies, and Intelligence signs its cookie with its own secret.
 
 Known issue (affects every Worker here, not only this one): the pinned Next.js 15.5.27 is now past the Next.js support window, so `opennextjs-cloudflare build` refuses to run without `--dangerouslyUseUnsupportedNextVersion`. Upgrade Next.js before relying on `pnpm cf:build` in CI.

@@ -8,7 +8,7 @@ use tauri::State;
 use url::Url;
 #[derive(Clone,Deserialize,Serialize)]
 #[serde(rename_all="camelCase")]
-struct Config { api_origin:String, cognito_domain:String, client_id:String, #[serde(default)] authorize_url:Option<String>, #[serde(default)] token_url:Option<String>, #[serde(default)] revoke_url:Option<String>, #[serde(default)] audience:Option<String>, #[serde(default)] resource:Option<String>, #[serde(default)] intelligence_url:Option<String> }
+struct Config { api_origin:String, cognito_domain:String, client_id:String, #[serde(default)] authorize_url:Option<String>, #[serde(default)] token_url:Option<String>, #[serde(default)] revoke_url:Option<String>, #[serde(default)] audience:Option<String>, #[serde(default)] resource:Option<String> }
 #[derive(Clone)]
 struct Session { key:String, access:String, expires:u64 }
 #[derive(Default)]
@@ -44,20 +44,20 @@ fn validated(c:&Config)->Result<(Url,Url,String),String>{
   let endpoint=Url::parse(value).map_err(|_|"Invalid authentication endpoint.")?;
   if endpoint.scheme()!="https" || endpoint.origin()!=domain.origin() || !endpoint.username().is_empty() || endpoint.password().is_some() || endpoint.query().is_some() || endpoint.fragment().is_some(){return Err("Authentication endpoints must use the configured HTTPS sign-in origin.".into());}
  }
- if let Some(value)=&c.intelligence_url {intelligence_origin(value)?;}
  let key=URL_SAFE_NO_PAD.encode(Sha256::digest(format!("{}|{}|{}|{:?}|{:?}|{:?}",api,domain,c.client_id,c.authorize_url,c.token_url,c.revoke_url)));
  Ok((api,domain,key))
 }
-fn intelligence_origin(value:&str)->Result<Url,String>{
- let url=Url::parse(value).map_err(|_|"Invalid Automobile Intelligence address.")?;
- if url.scheme()!="https"||url.host_str().is_none()||!url.username().is_empty()||url.password().is_some()||url.query().is_some()||url.fragment().is_some()||url.path()!="/"{return Err("Automobile Intelligence must be an HTTPS origin without credentials or a path.".into());}
- Ok(url)
+/// One product address: every section lives on the workspace origin the user already trusts. Only fixed sections
+/// can be opened, so a workspace response can never send the system browser anywhere else.
+fn product_page(config:&Config,section:&str)->Result<Url,String>{
+ let(api,_,_)=validated(config)?;
+ if !["intelligence","command"].contains(&section){return Err("Unknown product section.".into());}
+ api.join(section).map_err(|_|"Invalid workspace URL.".into())
 }
-/// Opens the dealer's Automobile Intelligence app in the system browser, where Cognito single sign-in continues the session.
+/// Opens a section of the product in the system browser, where Cognito single sign-in continues the session.
 #[tauri::command]
-fn open_intelligence(config:Config)->Result<(),String>{
- validated(&config)?;
- let url=intelligence_origin(config.intelligence_url.as_deref().ok_or("Automobile Intelligence is not set up for this workspace.")?)?;
+fn open_product(config:Config,section:String)->Result<(),String>{
+ let url=product_page(&config,&section)?;
  open::that(url.as_str()).map_err(|_|"Could not open the system browser.".into())
 }
 fn endpoint(domain:&Url,value:&Option<String>,fallback:&str)->Result<Url,String>{
@@ -135,12 +135,11 @@ async fn api_request(config:Config,path:String,method:String,body:Option<serde_j
  if !response.status().is_success(){return Err(match response.status().as_u16(){401=>"Your session expired. Sign in again.",403=>"Your account does not have permission for this operation.",404=>"This record is no longer available.",_=>"The operation could not be completed."}.into());}
  response.json().await.map_err(|_|"Invalid response from dealership API.".into())
 }
-fn main(){tauri::Builder::default().manage(AppState::default()).invoke_handler(tauri::generate_handler![login,restore_session,logout,api_request,discover_connection,open_intelligence]).run(tauri::generate_context!()).expect("Desktop startup failed.");}
+fn main(){tauri::Builder::default().manage(AppState::default()).invoke_handler(tauri::generate_handler![login,restore_session,logout,api_request,discover_connection,open_product]).run(tauri::generate_context!()).expect("Desktop startup failed.");}
 #[cfg(test)]mod tests{use super::*;#[test]fn paths_are_scoped(){assert!(allowed("/snapshot","GET"));assert!(allowed("/vehicles/abc-123/costs","PUT"));assert!(!allowed("/vehicles/abc-123/costs","DELETE"));assert!(!allowed("/vehicles/abc-123/costs","POST"));assert!(allowed("/leads/abc-123/tasks","POST"));assert!(allowed("/leads/abc-123/sales","POST"));assert!(allowed("/leads/abc-123/appointments","POST"));assert!(allowed("/appointments/abc-123","PATCH"));assert!(!allowed("/leads/abc-123/sales","DELETE"));assert!(!allowed("/../platform","GET"));assert!(!allowed("/vehicles/abc?token=secret","PATCH"));}#[test]fn credentials_are_bound_to_connection(){let c=Config{api_origin:"https://dealer.example".into(),cognito_domain:"https://auth.example".into(),client_id:"abc".into(),authorize_url:None,token_url:None,revoke_url:None,audience:None,resource:None,intelligence_url:None};assert!(validated(&c).is_ok());let mut bad=c.clone();bad.api_origin="http://dealer.example".into();assert!(validated(&bad).is_err());}}
 
 #[cfg(test)]mod intelligence_tests{use super::*;
- #[test]fn intelligence_link_is_a_plain_https_origin(){assert!(intelligence_origin("https://intelligence.example").is_ok());for url in ["http://intelligence.example","https://user:pass@intelligence.example","https://intelligence.example/app","https://intelligence.example?x=1","https://intelligence.example#x","javascript:alert(1)","file:///etc/passwd"]{assert!(intelligence_origin(url).is_err());}}
- #[test]fn untrusted_intelligence_urls_invalidate_the_connection(){let mut c=Config{api_origin:"https://dealer.example".into(),cognito_domain:"https://auth.example".into(),client_id:"abc".into(),authorize_url:None,token_url:None,revoke_url:None,audience:None,resource:None,intelligence_url:Some("https://intelligence.example".into())};assert!(validated(&c).is_ok());c.intelligence_url=Some("https://intelligence.example/x".into());assert!(validated(&c).is_err());}
+ #[test]fn product_sections_stay_on_the_workspace_origin(){let c=Config{api_origin:"https://dealer.example".into(),cognito_domain:"https://auth.example".into(),client_id:"abc".into(),authorize_url:None,token_url:None,revoke_url:None,audience:None,resource:None};assert_eq!(product_page(&c,"intelligence").unwrap().as_str(),"https://dealer.example/intelligence");assert_eq!(product_page(&c,"command").unwrap().as_str(),"https://dealer.example/command");for s in ["platform","//evil.example","https://evil.example","../x",""]{assert!(product_page(&c,s).is_err());}let mut bad=c.clone();bad.api_origin="http://dealer.example".into();assert!(product_page(&bad,"intelligence").is_err());}
 }
 
 #[cfg(test)]mod discovery_tests{use super::*;

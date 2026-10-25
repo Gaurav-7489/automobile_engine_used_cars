@@ -23,7 +23,8 @@ async function start(invite?: string) {
   const url = new URL(flow.url);
   assert.equal(url.searchParams.get("identity_provider"), "Google");
   assert.equal(url.searchParams.get("code_challenge_method"), "S256");
-  assert.equal(url.searchParams.get("redirect_uri"), "https://intelligence.test/api/auth/sso/google/callback");
+  // One product address: Intelligence lives under /intelligence on the shared origin.
+  assert.equal(url.searchParams.get("redirect_uri"), "https://intelligence.test/intelligence/api/auth/sso/google/callback");
   return { cookie: flow.cookie, params: new URLSearchParams({ code: "abc", state: url.searchParams.get("state")! }) };
 }
 

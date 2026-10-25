@@ -12,6 +12,7 @@ import { GlobalSearch, SearchTrigger } from "./search";
 import { ToastProvider } from "./toast";
 import { Button } from "./ui";
 import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./workspace";
+import { withBase } from "@/lib/base-path";
 import { initials } from "@/lib/format";
 import { NAV, ROLE_LABEL } from "@/lib/permissions";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
@@ -52,7 +53,7 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const url = useUrlState();
   const permitted = state.branches.filter((b) => session.branchIds.includes(b.id));
-  const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); router.refresh(); };
+  const signOut = async () => { await fetch(withBase("/api/auth/logout"), { method: "POST" }); router.push("/login"); router.refresh(); };
   return (
     <Dialog open={open} onClose={onClose} title="Menu" size="w480">
       <nav aria-label="All destinations" className="stack-sm">
@@ -97,7 +98,7 @@ export function Shell({ children }: { children: ReactNode }) {
   // Route changes restore useful focus: the new page heading.
   useEffect(() => { const handle = window.setTimeout(() => document.getElementById("page-title")?.focus({ preventScroll: true }), 50); return () => window.clearTimeout(handle); }, [pathname]);
 
-  const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); router.refresh(); };
+  const signOut = async () => { await fetch(withBase("/api/auth/logout"), { method: "POST" }); router.push("/login"); router.refresh(); };
   const bottom = NAV.filter((n) => ["overview", "market", "inventory", "leads"].includes(n.key));
 
   return (

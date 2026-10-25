@@ -4,6 +4,7 @@ import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { changeRole, connectIntegration, disconnectIntegration, inviteMember, removeMember, revokeSessions, saveBranch, saveBusiness, scopeText, setNotification, setPolicy, testConnection } from "@/lib/actions";
+import { withBase } from "@/lib/base-path";
 import type { Integration, IntegrationState, Role } from "@/lib/domain";
 import { formatDateTime, formatShortDateTime } from "@/lib/format";
 import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions";
@@ -22,7 +23,7 @@ type SectionKey = (typeof SECTIONS)[number]["key"];
 
 async function reauth(password: string): Promise<string | null> {
   try {
-    const r = await fetch("/api/auth/reauth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password }) });
+    const r = await fetch(withBase("/api/auth/reauth"),{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password }) });
     if (r.ok) return null;
     const body = await r.json().catch(() => ({}));
     return body?.error?.message ?? "Re-authentication failed.";
@@ -231,7 +232,7 @@ function Team() {
       {!admin ? <Notice tone="warn" role="status">Team changes need Owner access. You can see roles and branches.</Notice> : null}
       <div className="table-wrap fit"><table className="data-table"><thead><tr><th>Person</th><th>Role</th><th>Branches</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
         <tbody>{state.team.map((m) => <tr key={m.id}><td><span className="row-title">{m.name}</span><span className="sub">{m.email}</span></td><td>{ROLE_LABEL[m.role]}</td><td>{m.branchIds.map((b) => state.branches.find((x) => x.id === b)?.city ?? b).join(", ")}</td><td>{m.status}</td>
-          <td>{admin ? <div className="row-flex">{m.status === "Active" ? <Button size="sm" variant="ghost" onClick={async () => { const r = await fetch("/api/team/reset-link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: m.email }) }); const body = await r.json().catch(() => ({})); if (!r.ok) { toast(body?.error?.message ?? "Could not issue a reset link.", "error"); return; } window.dispatchEvent(new CustomEvent("vl:effects", { detail: { inviteLinks: [{ email: m.email, token: body.token, expiresAt: body.expires_at, kind: "reset" }] } })); }}>Reset link</Button> : null}<Button size="sm" variant="ghost" onClick={() => setRoleFor({ id: m.id, name: m.name, role: m.role })}>Change role</Button><Button size="sm" variant="ghost" onClick={() => setRemoveFor(m.id)}>Remove</Button></div> : null}</td></tr>)}</tbody></table></div>
+          <td>{admin ? <div className="row-flex">{m.status === "Active" ? <Button size="sm" variant="ghost" onClick={async () => { const r = await fetch(withBase("/api/team/reset-link"),{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: m.email }) }); const body = await r.json().catch(() => ({})); if (!r.ok) { toast(body?.error?.message ?? "Could not issue a reset link.", "error"); return; } window.dispatchEvent(new CustomEvent("vl:effects", { detail: { inviteLinks: [{ email: m.email, token: body.token, expiresAt: body.expires_at, kind: "reset" }] } })); }}>Reset link</Button> : null}<Button size="sm" variant="ghost" onClick={() => setRoleFor({ id: m.id, name: m.name, role: m.role })}>Change role</Button><Button size="sm" variant="ghost" onClick={() => setRemoveFor(m.id)}>Remove</Button></div> : null}</td></tr>)}</tbody></table></div>
       <dl className="kv">{ROLES.map((r) => <div key={r}><dt>{ROLE_LABEL[r]}</dt><dd style={{ maxWidth: 420, fontWeight: 400 }}>{ROLE_SUMMARY[r]}</dd></div>)}</dl>
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
       <RoleDialog target={roleFor} onClose={() => setRoleFor(null)} />

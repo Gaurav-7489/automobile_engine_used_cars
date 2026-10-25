@@ -20,6 +20,10 @@
     {
       "binding": "PLATFORM",
       "service": "vandlabs-platform"
+    },
+    {
+      "binding": "INTELLIGENCE",
+      "service": "vandlabs-intelligence"
     }
   ],
   "durable_objects": {

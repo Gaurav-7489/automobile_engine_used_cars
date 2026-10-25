@@ -1,5 +1,6 @@
 import "./globals.css";
 import { WorkspaceNav, WorkspaceMenu } from "@vandlabs/design-system/navigation";
+import { ProductBar } from "@vandlabs/design-system/product-bar";
 
 const nav = [
   ["Overview", "/"],
@@ -24,6 +25,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <body>
         <a className="skip-link" href="#workspace-content">Skip to workspace</a>
+        <ProductBar current="platform" platform />
         <div className="platform-shell">
           <header className="platform-header">
             <div>

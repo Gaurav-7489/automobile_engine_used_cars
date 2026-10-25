@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
+import { withBase } from "@/lib/base-path";
 import { clientKey, hit } from "@/lib/rate-limit";
 import { safeReturnTo } from "@/lib/session";
 import { SSO_STATE_COOKIE, beginSso, ssoConfig } from "@/lib/server/federated";
 
 export const dynamic = "force-dynamic";
 
-const back = (request: Request, error: string) => NextResponse.redirect(new URL(`/login?sso_error=${error}`, request.url), 303);
+const back = (request: Request, error: string) => NextResponse.redirect(new URL(withBase(`/login?sso_error=${error}`), request.url), 303);
 
 /** Starts Google sign-in through the shared Cognito pool. `invite` carries a one-time invitation token to accept with Google. */
 export async function GET(request: Request) {

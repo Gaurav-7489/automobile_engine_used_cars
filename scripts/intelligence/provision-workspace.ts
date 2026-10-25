@@ -48,7 +48,7 @@ try {
   });
   console.log(`Workspace created. Tenant ${result.tenantId}; ${result.locationIds.length} location(s).`);
   console.log(`Owner setup link (shown once, expires ${result.ownerTokenExpiresAt}):`);
-  console.log(`${origin}/join/${result.ownerToken}`);
+  console.log(`${origin}/intelligence/join/${result.ownerToken}`);
 } finally {
   client.release();
   await pool.end();

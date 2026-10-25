@@ -1,9 +1,12 @@
 import type { NextConfig } from "next";
+import { BASE_PATH } from "./lib/base-path";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // One product address: the gateway serves this app under /intelligence next to the website, /command and /platform.
+  basePath: BASE_PATH,
   // The shared data package is TypeScript source in this monorepo.
-  transpilePackages: ["@vandlabs/data", "@vandlabs/contracts"],
+  transpilePackages: ["@vandlabs/data", "@vandlabs/contracts", "@vandlabs/design-system"],
   serverExternalPackages: ["pg", "@aws-sdk/client-secrets-manager"],
   async headers() {
     return [

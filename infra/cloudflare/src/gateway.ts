@@ -1,5 +1,5 @@
 import { takeBucket, validLimit, cleanMediaKey, surface } from "./admission-core";
-type Env = { WEB: Fetcher; COMMAND: Fetcher; PLATFORM: Fetcher; ADMISSION: DurableObjectNamespace;
+type Env = { WEB: Fetcher; COMMAND: Fetcher; PLATFORM: Fetcher; INTELLIGENCE: Fetcher; ADMISSION: DurableObjectNamespace;
   VEHICLE_MEDIA: R2Bucket; PUBLIC_ORIGIN: string };
 const json = (value: unknown, status = 200, retry = 1) => Response.json(value, {status, headers: {"Cache-Control":"no-store", "Retry-After":String(retry)}});
 

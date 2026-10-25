@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { withBase } from "@/lib/base-path";
 import { Dialog } from "./overlay";
 import { useToast } from "./toast";
 import { Button, Notice } from "./ui";
@@ -21,7 +22,7 @@ export function LiveEffects() {
     window.addEventListener("vl:sync-error", onError);
     return () => { window.removeEventListener("vl:effects", onEffects); window.removeEventListener("vl:sync-error", onError); };
   }, [toast]);
-  const url = (link: Link) => `${window.location.origin}/join/${link.token}`;
+  const url = (link: Link) => `${window.location.origin}${withBase(`/join/${link.token}`)}`;
   return (
     <Dialog open={links.length > 0} onClose={() => setLinks([])} title={links[0]?.kind === "reset" ? "Password reset link" : "Invitation link"} description="Shown once. Share it only with the person named. It works one time and expires." footer={<Button variant="primary" onClick={() => setLinks([])}>I have shared it</Button>}>
       <div className="stack">

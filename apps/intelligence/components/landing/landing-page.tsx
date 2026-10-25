@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { withBase } from "@/lib/base-path";
 import { Brand } from "../brand";
 import { Icon } from "../icons";
 import { Dialog } from "../overlay";
@@ -62,7 +63,7 @@ export function LandingPage() {
     setBusy(true);
     setFailure("");
     try {
-      const response = await fetch("/api/demo-requests", { method: "POST", headers: { "content-type": "application/json", "idempotency-key": keyRef.current }, body: JSON.stringify({ ...draft, plan }) });
+      const response = await fetch(withBase("/api/demo-requests"),{ method: "POST", headers: { "content-type": "application/json", "idempotency-key": keyRef.current }, body: JSON.stringify({ ...draft, plan }) });
       const body = await response.json().catch(() => ({}));
       if (response.ok) { setReference(body.reference); setDraft(EMPTY); setErrors({}); keyRef.current = ""; }
       else if (body?.error?.fields) { setErrors(body.error.fields); keyRef.current = keyRef.current || newKey(); }

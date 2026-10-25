@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { withBase } from "@/lib/base-path";
 import type { EvidenceTier, RegionStat } from "@/lib/domain";
 import { evidenceTier } from "@/lib/evidence";
 import { CITIES } from "@/lib/fixtures/market";
@@ -52,7 +53,7 @@ export function RegionsPage() {
     if (demoState === "error") { setStatus("error"); return; }
     const controller = new AbortController();
     setStatus("loading");
-    fetch(`/api/market/regions?${cohortKey}`, { signal: controller.signal })
+    fetch(withBase(`/api/market/regions?${cohortKey}`),{ signal: controller.signal })
       .then(async (r) => { const body = await r.json(); if (!r.ok) throw new Error(body?.error?.message); setData(body); setStatus("ready"); })
       .catch((e) => { if ((e as Error).name !== "AbortError") setStatus("error"); });
     return () => controller.abort();

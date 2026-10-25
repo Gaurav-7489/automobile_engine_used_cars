@@ -2,6 +2,7 @@
 
 import { createContext, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { withBase } from "@/lib/base-path";
 import type { Session } from "@/lib/domain";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { setLive } from "@/lib/mode";
@@ -71,7 +72,7 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
   const refresh = useCallback(async () => {
     if (pending.current > 0) return;
     try {
-      const response = await fetch("/api/workspace", { cache: "no-store" });
+      const response = await fetch(withBase("/api/workspace"),{ cache: "no-store" });
       if (response.status === 401) { router.replace("/login?reason=expired"); return; }
       if (!response.ok) return;
       const body = (await response.json()) as { state: WorkspaceState; as_of: string };
@@ -94,7 +95,7 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
     setSaving(true);
     chain.current = chain.current.then(async () => {
       try {
-        const response = await fetch("/api/workspace/commands", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commands }) });
+        const response = await fetch(withBase("/api/workspace/commands"),{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commands }) });
         if (response.status === 401) { router.replace("/login?reason=expired"); return; }
         const body = (await response.json().catch(() => null)) as { ok?: boolean; state?: WorkspaceState; effects?: Effects; error?: { message?: string } } | null;
         if (body?.state && pending.current <= 1) { stateRef.current = body.state; setState(body.state); }

@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Dialog } from "./overlay";
 import { Icon } from "./icons";
 import { useScopedHref, useWorkspace } from "./workspace";
+import { withBase } from "@/lib/base-path";
 import { formatMoney } from "@/lib/format";
 import { landedCost } from "@/lib/finance";
 
@@ -37,7 +38,7 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
     const id = ++requestRef.current;
     const controller = new AbortController();
     setSearching(true);
-    fetch(`/api/market/listings?q=${encodeURIComponent(query)}&limit=25&sort=newest`, { signal: controller.signal })
+    fetch(withBase(`/api/market/listings?q=${encodeURIComponent(query)}&limit=25&sort=newest`),{ signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
         if (id !== requestRef.current || !body) return;

@@ -9,6 +9,7 @@ if(!process.env.CLOUDFLARE_API_TOKEN)throw new Error("Provide a scoped CLOUDFLAR
 // The Dealer AI Worker accepts only 43-character base64url bearer tokens (32 random bytes).
 const aiToken=/^[A-Za-z0-9_-]{43}$/;
 for(const key of ["DEALER_AI_SERVICE_TOKEN","DEALER_AI_SERVICE_TOKEN_ALTERNATE","DISCOVERY_AI_SERVICE_TOKEN","DISCOVERY_AI_SERVICE_TOKEN_ALTERNATE"])if(process.env[key]&&!aiToken.test(process.env[key]))throw new Error(`${key} must be 32 random bytes encoded as base64url (43 characters).`);
+if(process.env.INTELLIGENCE_SESSION_SECRET&&(process.env.INTELLIGENCE_SESSION_SECRET.length<32||process.env.INTELLIGENCE_SESSION_SECRET===process.env.SESSION_SECRET))throw new Error("INTELLIGENCE_SESSION_SECRET must be at least 32 characters and differ from SESSION_SECRET.");
 if(process.env.DEALER_AI_SERVICE_TOKEN_ALTERNATE&&!process.env.DEALER_AI_SERVICE_TOKEN)throw new Error("DEALER_AI_SERVICE_TOKEN_ALTERNATE requires DEALER_AI_SERVICE_TOKEN.");
 if(process.env.DISCOVERY_AI_SERVICE_TOKEN_ALTERNATE&&!process.env.DISCOVERY_AI_SERVICE_TOKEN)throw new Error("DISCOVERY_AI_SERVICE_TOKEN_ALTERNATE requires DISCOVERY_AI_SERVICE_TOKEN.");
 if(process.env.DISCOVERY_AI_SERVICE_TOKEN&&process.env.DISCOVERY_AI_SERVICE_TOKEN===process.env.DEALER_AI_SERVICE_TOKEN)throw new Error("Use a different token for buyer discovery and dealer commentary.");
@@ -27,14 +28,10 @@ const resourceApi=async(method,path,body)=>{
 const existing=await resourceApi("GET","");
 const names=new Set((existing.buckets ?? []).map(bucket=>bucket.name));
 const requiredBuckets=new Set((gateway.r2_buckets ?? []).map(binding=>binding.bucket_name));
-for(const name of ["web","command-center","platform"]) {
+for(const name of ["web","command-center","platform","intelligence"]) {
  const config=JSON.parse(await readFile(`apps/${name}/wrangler.jsonc`,"utf8"));
  for(const binding of config.r2_buckets ?? [])requiredBuckets.add(binding.bucket_name);
 }
-const intelligence=await readFile("apps/intelligence/wrangler.jsonc","utf8").then(JSON.parse,()=>null);
-// Intelligence deploys only once an origin was configured (pnpm cf:configure with CF_INTELLIGENCE_ORIGIN).
-const deployIntelligence=Boolean(intelligence && (intelligence.routes?.length || intelligence.workers_dev));
-if(deployIntelligence)for(const binding of intelligence.r2_buckets ?? [])requiredBuckets.add(binding.bucket_name);
 for(const name of requiredBuckets)if(!names.has(name))await resourceApi("POST","",{name});
 // Deploy the durable coordinator before Workers that bind to it.
 await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/admission.wrangler.jsonc"]);
@@ -53,15 +50,14 @@ for(const name of ["web","command-center","platform"]) {
  await run("pnpm",["cf:deploy"],cwd);
  if(Object.keys(appSecrets).length)await run("pnpm",["exec","wrangler","secret","bulk"],cwd,JSON.stringify(appSecrets));
 }
-if(deployIntelligence) {
- // Own session secret: Intelligence sessions are never valid for the other apps, and the reverse.
- const required=["DATABASE_URL","INTELLIGENCE_SESSION_SECRET"];
- for(const key of required)if(!process.env[key])throw new Error(`Configure ${key} before deploying Automobile Intelligence.`);
- if(process.env.INTELLIGENCE_SESSION_SECRET.length<32)throw new Error("INTELLIGENCE_SESSION_SECRET must be at least 32 characters.");
- const intelligenceSecrets=Object.fromEntries([["DATABASE_URL",process.env.DATABASE_URL],["SESSION_SECRET",process.env.INTELLIGENCE_SESSION_SECRET],...["COGNITO_DOMAIN","INTELLIGENCE_COGNITO_CLIENT_ID"].filter(key=>process.env[key]).map(key=>[key,process.env[key]])]);
+{
+ // Intelligence is behind the gateway under /intelligence. It has its own session secret, so its sessions are
+ // never valid for the other apps and the reverse; without one its sign-in fails closed.
+ const intelligenceSecrets=Object.fromEntries([...["DATABASE_URL","COGNITO_DOMAIN","INTELLIGENCE_COGNITO_CLIENT_ID"].filter(key=>process.env[key]).map(key=>[key,process.env[key]]),...(process.env.INTELLIGENCE_SESSION_SECRET?[["SESSION_SECRET",process.env.INTELLIGENCE_SESSION_SECRET]]:[])]);
  await run("pnpm",["cf:deploy"],"apps/intelligence");
- await run("pnpm",["exec","wrangler","secret","bulk"],"apps/intelligence",JSON.stringify(intelligenceSecrets));
+ if(Object.keys(intelligenceSecrets).length)await run("pnpm",["exec","wrangler","secret","bulk"],"apps/intelligence",JSON.stringify(intelligenceSecrets));
 }
+// The gateway binds to every app Worker, so it deploys last.
 await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/wrangler.jsonc"]);
 if(process.env.NOTIFICATIONS_ENABLED === "true") {
  await run("pnpm",["exec","wrangler","deploy","--config","infra/cloudflare/notifications.wrangler.jsonc"]);

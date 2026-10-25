@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
+import { withBase } from "@/lib/base-path";
 import { Brand } from "../brand";
 import { Dialog } from "../overlay";
 import { Button, Check, FormSummary, Notice, PasswordField, TextField } from "../ui";
@@ -44,7 +45,7 @@ export function LoginExperience({ providers }: Props) {
     if (!email.trim() || !password) { setError("Enter your business email and password."); return; }
     setStatus("checking");
     try {
-      const response = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password, returnTo: params.get("returnTo") ?? undefined }) });
+      const response = await fetch(withBase("/api/auth/login"),{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password, returnTo: params.get("returnTo") ?? undefined }) });
       const body = await response.json().catch(() => ({}));
       if (response.ok) { router.replace(body.returnTo ?? "/app/overview"); router.refresh(); return; }
       setError(body?.error?.message ?? "Sign-in failed. Try again.");
@@ -85,7 +86,7 @@ export function LoginExperience({ providers }: Props) {
           {providers.length ? (
             <>
               <div className="login-divider"><span>Or use configured SSO</span></div>
-              <div className="sso-row">{providers.map((p) => <a key={p.id} className="btn" href={`/api/auth/sso/${p.id}`}>{p.label}</a>)}</div>
+              <div className="sso-row">{providers.map((p) => <a key={p.id} className="btn" href={withBase(`/api/auth/sso/${p.id}`)}>{p.label}</a>)}</div>
             </>
           ) : null}
           <div className="stack-sm">

@@ -8,6 +8,6 @@ const publicOrigin = app.node.tryGetContext("publicOrigin");
 if (typeof publicOrigin !== "string") throw new Error("Set -c publicOrigin=https://your-reviewed-gateway-origin");
 new StaffIdentityStack(app, `VandLabsStaffIdentity-${environmentName}`, {
   environmentName, publicOrigin,
-  intelligenceOrigin: app.node.tryGetContext("intelligenceOrigin"), googleClientId: app.node.tryGetContext("googleClientId"),
+  intelligence: app.node.tryGetContext("intelligence") === "true", googleClientId: app.node.tryGetContext("googleClientId"),
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: app.node.tryGetContext("region") ?? process.env.CDK_DEFAULT_REGION ?? "ap-south-1" },
 });

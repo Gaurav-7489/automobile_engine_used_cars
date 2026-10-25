@@ -55,7 +55,8 @@ test("owner onboarding, invitations, sign-in, lockout, revocation and tenant iso
     const fin = await signIn("sales@alpha.example", "finance person long pass 3");
     assert.ok(fin.ok);
     if (!fin.ok) return;
-    const finance = await resolvePrincipal(fin.userId, a.tenantId, issuedAt);
+    // A session is issued at sign-in; reusing the earlier timestamp could predate this new account by a second.
+    const finance = await resolvePrincipal(fin.userId, a.tenantId, Math.floor(Date.now() / 1000));
     assert.equal(finance?.role, "finance");
     assert.deepEqual(finance?.locationIds, [a.locationIds[0]]);
 

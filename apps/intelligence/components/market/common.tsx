@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { withBase } from "@/lib/base-path";
 import type { EvidenceTier } from "@/lib/domain";
 import { differenceLabel } from "@/lib/evidence";
 import { formatPercent, MISSING } from "@/lib/format";
@@ -29,9 +30,9 @@ export function useListings(queryString: string, enabled: boolean) {
     if (!enabled) return;
     const controller = new AbortController();
     setState((s) => ({ ...s, status: "loading" }));
-    fetch(`/api/market/listings?${queryString}`, { signal: controller.signal })
+    fetch(withBase(`/api/market/listings?${queryString}`),{ signal: controller.signal })
       .then(async (response) => {
-        if (response.status === 401) { window.location.href = `/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}&reason=expired`; return; }
+        if (response.status === 401) { window.location.href = withBase(`/login?returnTo=${encodeURIComponent(window.location.pathname.replace(/^\/intelligence(?=\/)/, "") + window.location.search)}&reason=expired`); return; }
         const body = await response.json();
         if (!response.ok) throw new Error(body?.error?.message ?? "The market feed did not respond.");
         lastGood.current = body;

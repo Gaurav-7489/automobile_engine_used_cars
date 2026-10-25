@@ -38,7 +38,7 @@ test("identity stack rejects unknown environments and unsafe redirect origins", 
 });
 
 test("single sign-in adds a Google provider and an Intelligence client without a secret in the template", () => {
-  const stack = new StaffIdentityStack(new App(), "SsoTest", { environmentName: "staging", publicOrigin: "https://staging.vandlabs.test", intelligenceOrigin: "https://intelligence.vandlabs.test", googleClientId: "google-client.apps.googleusercontent.com", env: { account: "111122223333", region: "ap-south-1" } });
+  const stack = new StaffIdentityStack(new App(), "SsoTest", { environmentName: "staging", publicOrigin: "https://staging.vandlabs.test", googleClientId: "google-client.apps.googleusercontent.com", env: { account: "111122223333", region: "ap-south-1" } });
   const template = Template.fromStack(stack);
   const json = template.toJSON();
   const resources = Object.values(json.Resources) as Array<{ Type: string; Properties: Record<string, any> }>;
@@ -49,7 +49,9 @@ test("single sign-in adds a Google provider and an Intelligence client without a
   assert.equal(json.Parameters.GoogleClientSecret.NoEcho, true);
   const clients = resources.filter(r => r.Type === "AWS::Cognito::UserPoolClient");
   assert.equal(clients.length, 3);
-  const intelligence = clients.find(c => (c.Properties.CallbackURLs as string[])[0] === "https://intelligence.vandlabs.test/api/auth/sso/google/callback")!;
+  // One product address: Intelligence's callback is pinned to the shared gateway origin.
+  const intelligence = clients.find(c => (c.Properties.CallbackURLs as string[])[0] === "https://staging.vandlabs.test/intelligence/api/auth/sso/google/callback")!;
+  assert.deepEqual(intelligence.Properties.LogoutURLs, ["https://staging.vandlabs.test/intelligence/login"]);
   assert.deepEqual(intelligence.Properties.SupportedIdentityProviders, ["COGNITO", "Google"]);
   assert.deepEqual(intelligence.Properties.AllowedOAuthFlows, ["code"]);
   // The desktop client keeps Cognito-only sign-in.
@@ -57,7 +59,8 @@ test("single sign-in adds a Google provider and an Intelligence client without a
   assert.deepEqual(desktop.Properties.SupportedIdentityProviders, ["COGNITO"]);
 });
 
-test("Google sign-in requires a real Intelligence origin", () => {
-  assert.throws(() => new StaffIdentityStack(new App(), "A", { environmentName: "staging", publicOrigin: "https://staging.vandlabs.test", googleClientId: "x" }));
-  assert.throws(() => new StaffIdentityStack(new App(), "B", { environmentName: "staging", publicOrigin: "https://staging.vandlabs.test", intelligenceOrigin: "http://intelligence.test" }));
+test("the Intelligence client can be added without Google, and is absent by default", () => {
+  const count = (props: { intelligence?: boolean }) => (Object.values(Template.fromStack(new StaffIdentityStack(new App(), "C", { environmentName: "staging", publicOrigin: "https://staging.vandlabs.test", ...props, env: { account: "111122223333", region: "ap-south-1" } })).toJSON().Resources) as Array<{ Type: string }>).filter(r => r.Type === "AWS::Cognito::UserPoolClient").length;
+  assert.equal(count({}), 2);
+  assert.equal(count({ intelligence: true }), 3);
 });

@@ -30,6 +30,7 @@ test("atomic rate limits survive concurrent requests and invalid policies fail c
 });
 test("routing uses path boundaries and public media excludes traversal and unsafe types",()=>{
   assert.equal(surface("/command/api/leads"),"COMMAND");assert.equal(surface("/commanding"),"WEB");assert.equal(surface("/platform"),"PLATFORM");
+  assert.equal(surface("/intelligence"),"INTELLIGENCE");assert.equal(surface("/intelligence/api/workspace"),"INTELLIGENCE");assert.equal(surface("/intelligenceX"),"WEB");assert.equal(surface("/"),"WEB");
   assert.ok(cleanMediaKey("/11111111-1111-4111-a111-111111111111/22222222-2222-4222-a222-222222222222.webp"));
   for(const path of ["/../secret.webp","/tenant/file.svg","/%2e%2e/secret.avif","/tenant/file.webp?secret=x"])assert.equal(cleanMediaKey(path),null);
 });

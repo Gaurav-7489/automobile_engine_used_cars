@@ -31,19 +31,19 @@ I cannot create these for you, and secrets must never be pasted in chat.
    ```bash
    cd infra/aws
    npm run identity:synth -- -c environment=staging -c publicOrigin=https://<gateway> \
-     -c intelligenceOrigin=https://<intelligence-host> -c googleClientId=<client-id>
+     -c googleClientId=<client-id>
    ```
-   Create/update the `VandLabsStaffIdentity-staging` stack with that template and enter `GoogleClientSecret` when prompted. New outputs: `CognitoIntelligenceClientId`.
+   Create/update the `VandLabsStaffIdentity-staging` stack with that template and enter `GoogleClientSecret` when prompted. New outputs: `CognitoIntelligenceClientId`. The Intelligence client's callback is pinned to `https://<gateway>/intelligence/api/auth/sso/google/callback` (one product address). Use `-c intelligence=true` instead of a Google client ID to add only the Intelligence client.
 3. **Apply migration 0011** to staging, then production (additive, seconds; same procedure as 0010 in `INTELLIGENCE_PRODUCTION.md`).
-4. **Automobile Intelligence environment** (Vercel):
+4. **Automobile Intelligence environment** (Worker secrets and variables; `pnpm cf:configure` sets `APP_ORIGIN`):
 
    | Variable | Value |
    |---|---|
-   | `APP_ORIGIN` | `https://<intelligence-host>` (now also used at runtime) |
+   | `APP_ORIGIN` | `https://<gateway>`, the one product address (also used at runtime) |
    | `COGNITO_DOMAIN` | the hosted sign-in domain (`CognitoDomain` output) |
    | `INTELLIGENCE_COGNITO_CLIENT_ID` | `CognitoIntelligenceClientId` output |
 
    Without all three, the "Continue with Google" button is simply not shown.
-5. **Command Center** needs `AUTH_REGISTRY_MODE=database` (already the shared-database setting) and the existing Cognito variables; no new variables. Set `INTELLIGENCE_URL` on Command Center and the website to show the cross-app links.
+5. **Command Center** needs `AUTH_REGISTRY_MODE=database` (already the shared-database setting) and the existing Cognito variables; no new variables. Cross-section links need no configuration: every section is on the same address.
 
 Nothing here has been provisioned or tested against real Google or Cognito: the automated tests use an in-process PostgreSQL and a stand-in for the Cognito endpoints.

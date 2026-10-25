@@ -15,6 +15,7 @@
     "@opennextjs/cloudflare": "^1.20.10",
     "@vandlabs/contracts": "workspace:*",
     "@vandlabs/data": "workspace:*",
+    "@vandlabs/design-system": "workspace:*",
     "next": "^15.5.27",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

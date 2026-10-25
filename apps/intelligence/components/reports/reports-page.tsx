@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { metricsFor } from "@/lib/actions";
+import { withBase } from "@/lib/base-path";
 import { downloadBlob, makePdf, toCsv } from "@/lib/export";
 import { AGE_BUCKETS, realizedProfit, isRealized, stockMetrics } from "@/lib/finance";
 
@@ -70,7 +71,7 @@ function Reports() {
   const dirtyFilters = draft.from !== from || draft.to !== to || draft.compare !== compare;
   const noRecords = totals.acquired === 0 && totals.sold === 0;
 
-  const track = (name: string) => { void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, branch: scope.value, properties: { tab } }) }).catch(() => undefined); };
+  const track = (name: string) => { void fetch(withBase("/api/events"),{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, branch: scope.value, properties: { tab } }) }).catch(() => undefined); };
   useEffect(() => { track("report_viewed"); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const drillRows = () => {
