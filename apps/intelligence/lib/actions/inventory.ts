@@ -8,6 +8,10 @@ import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, seq, tri
 export type VehicleInput = {
   make: string; model: string; variant: string; year: string; fuel: Vehicle["fuel"] | ""; transmission: Vehicle["transmission"] | ""; km: string; owners: string; registration: string;
   acquiredOn: string; branchId: string; status: "preparation" | "available"; asking: string; costs: Record<keyof CostLedger, string>; photos: string;
+  /** The user saw the warnings from vehicleChecks and chose to continue. */
+  acknowledged?: boolean;
+  /** Owner's stated reason for saving past a blocking check. Recorded in the audit log. */
+  overrideReason?: string;
 };
 
 export const emptyVehicleInput = (branchId: string): VehicleInput => ({
@@ -22,6 +26,43 @@ const toPaise = (text: string): number | null => {
   return Math.round(Number(cleaned) * 100);
 };
 
+const IST_OFFSET_MS = 5.5 * 3_600_000;
+const asOfYear = () => new Date(new Date(SNAPSHOT_AT).getTime() + IST_OFFSET_MS).getUTCFullYear();
+/** Common Indian formats: state + RTO + series + number (KL 07 AB 1234) and Bharat series (22 BH 1234 AB). */
+const REGISTRATION = /^([A-Z]{2}\s?\d{1,2}\s?[A-Z]{0,3}\s?\d{1,4}|\d{2}\s?BH\s?\d{4}\s?[A-Z]{1,2})$/;
+
+/**
+ * Plausibility checks from the October 2026 build review. Warnings let the user continue after confirming;
+ * overrides block the save unless an Owner states a reason, which is audited.
+ */
+export function vehicleChecks(input: VehicleInput): { warnings: Record<string, string>; overrides: Record<string, string> } {
+  const warnings: Record<string, string> = {};
+  const overrides: Record<string, string> = {};
+  const asking = toPaise(input.asking);
+  const landed = (Object.keys(input.costs) as (keyof CostLedger)[]).reduce((sum, key) => sum + (toPaise(input.costs[key]) || 0), 0);
+  if (asking !== null && !Number.isNaN(asking) && asking > 0) {
+    if (landed > 0 && asking > landed * 5) overrides.asking = `Asking price is ${Math.round(asking / landed)}× the landed cost. Check both amounts; an Owner can override with a reason.`;
+    else if (landed > 0 && asking > landed * 2) warnings.asking = "Asking price is more than twice the landed cost.";
+    else if (landed > 0 && asking < landed) warnings.asking = "Asking price is below the landed cost, so this vehicle would sell at a loss.";
+    if (landed === 0 && input.status === "available") overrides["costs.acquisition"] = "Landed cost is zero on a vehicle set to Available. Record the costs; an Owner can override with a reason.";
+  }
+  const year = Number(input.year);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input.acquiredOn) && Number.isInteger(year)) {
+    const acquired = new Date(`${input.acquiredOn}T00:00:00+05:30`);
+    if (acquired.getTime() < new Date(SNAPSHOT_AT).getTime() - 5 * 365.25 * 86_400_000) warnings.acquiredOn = "Acquisition date is more than 5 years ago. Ageing and price review use this date.";
+    if (Number(input.acquiredOn.slice(0, 4)) < year) warnings.acquiredOn = "Acquisition date is earlier than the model year.";
+  }
+  const km = Number(input.km.replace(/,/g, ""));
+  const age = asOfYear() - year;
+  if (Number.isInteger(km) && Number.isInteger(year)) {
+    if (km < 500 && age > 3) warnings.km = `Under 500 km on a ${age}-year-old vehicle. Check the odometer reading.`;
+    else if (km > 60_000 * Math.max(1, age + 1)) warnings.km = "Odometer reading is unusually high for the vehicle's age (over 60,000 km a year).";
+  }
+  const registration = trim(input.registration).toUpperCase();
+  if (registration && !REGISTRATION.test(registration)) warnings.registration = "Registration does not match an Indian format such as KL 07 AB 1234 or 22 BH 1234 AB.";
+  return { warnings, overrides };
+}
+
 /** Save draft allows incomplete media; Available requires the complete required fields. */
 export function validateVehicle(input: VehicleInput, live = false): Record<string, string> {
   const errors: Record<string, string> = {};
@@ -29,7 +70,7 @@ export function validateVehicle(input: VehicleInput, live = false): Record<strin
   if (!trim(input.model)) errors.model = "Enter the model, for example 520d.";
   if (!trim(input.variant)) errors.variant = "Enter the variant, for example Luxury Line.";
   const year = Number(input.year);
-  if (!Number.isInteger(year) || year < 1990 || year > 2027) errors.year = "Enter a four-digit model year between 1990 and 2027.";
+  if (!Number.isInteger(year) || year < 1980 || year > asOfYear() + 1) errors.year = `Enter a four-digit model year between 1980 and ${asOfYear() + 1}.`;
   if (!input.fuel) errors.fuel = "Choose a fuel type.";
   if (!input.transmission) errors.transmission = "Choose a transmission.";
   const km = Number(input.km.replace(/,/g, ""));
@@ -57,6 +98,13 @@ export function addVehicle(state: WorkspaceState, actor: Actor, input: VehicleIn
   if (denied) return denied;
   const fields = validateVehicle(input, state.live);
   if (Object.keys(fields).length) return fail(422, "invalid", "Fix the highlighted fields to save this vehicle.", { fields });
+  const checks = vehicleChecks(input);
+  const reason = trim(input.overrideReason);
+  if (Object.keys(checks.overrides).length) {
+    if (actor.role !== "owner") return fail(422, "invalid", "These values need an Owner to review them before saving.", { fields: checks.overrides });
+    if (reason.length < 10) return fail(422, "override_required", "Owner override needed: state why these values are correct (at least 10 characters).", { fields: checks.overrides });
+  }
+  if (Object.keys(checks.warnings).length && !input.acknowledged) return fail(422, "confirm_required", "Check the flagged values, then confirm to save.", { fields: checks.warnings });
   const costs: CostLedger = {
     acquisition: toPaise(input.costs.acquisition) ?? 0, transport: toPaise(input.costs.transport) ?? 0, inspection: toPaise(input.costs.inspection) ?? 0,
     refurbishment: toPaise(input.costs.refurbishment) ?? 0, fees: toPaise(input.costs.fees) ?? 0,
@@ -72,6 +120,8 @@ export function addVehicle(state: WorkspaceState, actor: Actor, input: VehicleIn
   };
   let next: WorkspaceState = { ...state, vehicles: [vehicle, ...state.vehicles] };
   next = withAudit(next, actor, "inventory.created", id, `${vehicle.make} ${vehicle.model} added as ${vehicle.status}`);
+  if (Object.keys(checks.warnings).length) next = withAudit(next, actor, "inventory.warning_confirmed", id, Object.values(checks.warnings).join(" "));
+  if (Object.keys(checks.overrides).length) next = withAudit(next, actor, "inventory.owner_override", id, `${Object.values(checks.overrides).join(" ")} Reason: ${reason}`);
   return ok(next, { vehicle });
 }
 
@@ -109,6 +159,9 @@ export function transitionVehicle(state: WorkspaceState, actor: Actor, id: strin
     if (current.asking === null) fields.asking = "Set an asking price through Pricing Intelligence before making this vehicle available.";
     if (!current.hasImages && !state.live) fields.photos = "Add at least one photo before making this vehicle available.";
     if (landedCost(current.costs) === 0) fields.costs = "Record the acquisition cost before making this vehicle available.";
+    else if (current.asking !== null && current.asking > landedCost(current.costs) * 5 && (actor.role !== "owner" || trim(transition.note).length < 10)) {
+      fields.note = actor.role === "owner" ? "Asking price is more than 5× the landed cost. Enter a reason (at least 10 characters) to override." : "Asking price is more than 5× the landed cost. An Owner must review it before it goes on sale.";
+    }
   }
   if (transition.to === "reserved" && !trim(transition.note)) fields.note = "Enter who the vehicle is reserved for or the booking reference.";
   let sale: Sale | undefined;
@@ -139,11 +192,11 @@ export function transitionVehicle(state: WorkspaceState, actor: Actor, id: strin
     return c;
   });
   let next: WorkspaceState = { ...state, vehicles: state.vehicles.map((v) => (v.id === id ? updated : v)), campaigns, sales: sale ? [sale, ...state.sales] : state.sales };
-  next = withAudit(next, actor, "inventory.transition", id, `${current.status} → ${transition.to}${sale ? ` (sale ${sale.id})` : ""}`);
+  next = withAudit(next, actor, "inventory.transition", id, `${current.status} → ${transition.to}${sale ? ` (sale ${sale.id})` : ""}${transition.to === "available" && trim(transition.note) ? `. Note: ${trim(transition.note)}` : ""}`);
   return ok(next, { vehicle: updated, sale, pausedCampaigns });
 }
 
-export type ImportRow = { line: number; values: Record<string, string>; status: "valid" | "duplicate" | "error"; errors: string[] };
+export type ImportRow = { line: number; values: Record<string, string>; status: "valid" | "duplicate" | "error"; errors: string[]; warnings?: string[] };
 
 export const IMPORT_COLUMNS = ["make", "model", "variant", "year", "fuel", "transmission", "km", "owners", "registration", "acquired_on", "acquisition_cost", "asking"] as const;
 
@@ -184,11 +237,15 @@ export function importPreview(state: WorkspaceState, csv: string, mapping: Recor
     }
     const input = importToInput(values, branchId);
     const errors = Object.values(validateVehicle(input, state.live));
+    const checks = vehicleChecks(input);
+    // Values that need an Owner override cannot be bulk-imported; they are added one at a time with a reason.
+    if (!errors.length) errors.push(...Object.values(checks.overrides).map((m) => `${m} Add this vehicle individually.`));
+    const warnings = Object.values(checks.warnings);
     const registration = trim(values.registration);
     let status: ImportRow["status"] = errors.length ? "error" : "valid";
     if (!errors.length && registration && (registrations.has(registration) || seen.has(registration))) { status = "duplicate"; errors.push("Registration already exists in stock or earlier in this file."); }
     if (registration) seen.add(registration);
-    return { line: index + 2, values, status, errors };
+    return { line: index + 2, values, status, errors, warnings };
   });
   return { rows, headers };
 }
@@ -208,7 +265,8 @@ export function importCommit(state: WorkspaceState, actor: Actor, rows: ImportRo
   let next = state;
   let imported = 0;
   for (const row of rows.filter((r) => r.status === "valid")) {
-    const result = addVehicle(next, actor, importToInput(row.values, branchId));
+    // Committing is the explicit confirmation of the warnings listed in the preview.
+    const result = addVehicle(next, actor, { ...importToInput(row.values, branchId), acknowledged: true });
     if (result.ok) { next = result.state; imported += 1; }
   }
   next = withAudit(next, actor, "inventory.import", batchKey, `${imported} imported, ${rows.length - imported} skipped`);

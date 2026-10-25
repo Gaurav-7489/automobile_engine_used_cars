@@ -12,7 +12,7 @@ const GENERIC = "Email or password is not correct. Check both and try again.";
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
-  const body = await readJson<{ email?: string; password?: string; returnTo?: string }>(request);
+  const body = await readJson<{ email?: string; password?: string; code?: string; returnTo?: string }>(request);
   if (!body || typeof body.email !== "string" || typeof body.password !== "string") return problem(422, "invalid", "Enter your business email and password.");
   const email = body.email.trim().toLowerCase();
   // Per-address and per-client limits on top of the database lockout (five failures lock the account for 15 minutes).
@@ -23,13 +23,15 @@ export async function POST(request: Request) {
   }
   let result;
   try {
-    result = await signIn(email, body.password);
+    result = await signIn(email, body.password, typeof body.code === "string" ? body.code : undefined);
   } catch (error) {
     console.error(JSON.stringify({ event: "login_failure", message: error instanceof Error ? error.message : "unknown" }));
     return problem(503, "unavailable", "Sign-in is temporarily unavailable. Try again in a moment.");
   }
   if (!result.ok) {
     if (result.code === "locked") return problem(429, "locked", "This account is temporarily locked after repeated failed attempts. Try again in 15 minutes, or ask an owner to issue a reset link.");
+    if (result.code === "mfa_required") return problem(428, "mfa_required", "Enter the 6-digit code from your authenticator app.");
+    if (result.code === "mfa_invalid") return problem(401, "mfa_invalid", "That code is not correct or has expired. Enter the latest code.");
     if (result.code === "no_access") return problem(403, "no_access", "Your account is not a member of any workspace. Ask your owner to invite you.");
     return problem(401, "invalid_credentials", GENERIC);
   }

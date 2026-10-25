@@ -19,7 +19,8 @@ export function GroupedBars({ title, unit, data, series, onSelect, format = (v) 
   const plotH = height - bottom - 12;
   const groupW = (W - left) / Math.max(1, data.length);
   const barW = Math.min(22, (groupW - 16) / series.length);
-  const ticks = [0, 1 / 3, 2 / 3, 1].map((f) => Math.round(max * f * 10) / 10);
+  // Quarters of a max rounded up to a multiple of four keep count axes on whole numbers.
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(max * f * 100) / 100);
   return (
     <div className="chart-card" style={{ position: "relative" }}>
       <div className="chart-title">
@@ -75,7 +76,7 @@ export function SimpleBars({ title, unit, data, color = "var(--accent)", format,
   return <GroupedBars title={title} unit={unit} data={data.map((d) => ({ label: d.label, values: [d.value] }))} series={[{ name: title, color }]} format={format} onSelect={onSelect ? (i) => onSelect(i) : undefined} height={height} scaleMax={scaleMax} />;
 }
 
-export type HBarDatum = { label: string; value: number; display: string; tone?: "accent" | "warn" | "info"; onSelect?: () => void; ariaLabel?: string };
+export type HBarDatum = { label: string; value: number; display: string; exact?: string; tone?: "accent" | "warn" | "info"; onSelect?: () => void; ariaLabel?: string };
 
 /** Horizontal bars for stock age, capital by age and the lead funnel. Never encode status by colour alone: labels and values are always visible. */
 export function HBars({ data, max }: { data: HBarDatum[]; max?: number }) {
@@ -86,7 +87,7 @@ export function HBars({ data, max }: { data: HBarDatum[]; max?: number }) {
         <div className="hbar" role="listitem" key={d.label}>
           {d.onSelect ? <button type="button" onClick={d.onSelect} aria-label={d.ariaLabel ?? `${d.label}: ${d.display}. Open matching records`}>{d.label}</button> : <span className="muted">{d.label}</span>}
           <span className="track"><span className={`fill ${d.tone === "warn" ? "warn" : d.tone === "info" ? "info" : ""}`} style={{ width: `${(d.value / top) * 100}%` }} /></span>
-          <span className="value">{d.display}</span>
+          <span className="value" title={d.exact}>{d.display}</span>
         </div>
       ))}
     </div>

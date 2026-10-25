@@ -306,10 +306,10 @@ function ImportDialog({ open, onClose, branchId }: { open: boolean; onClose: () 
       {step === 2 ? <div className="form-grid">{IMPORT_COLUMNS.map((c) => <SelectField key={c} label={c.replace(/_/g, " ")} value={mapping[c] ?? ""} onChange={(e) => setMapping({ ...mapping, [c]: e.target.value })} options={headers} placeholder="Not mapped" />)}</div> : null}
       {step === 3 && preview ? (
         <div className="stack">
-          <div className="row-flex"><Badge tone="accent">{valid} valid</Badge><Badge tone="warn">{preview.rows.filter((r) => r.status === "duplicate").length} duplicate</Badge><Badge tone="danger">{preview.rows.filter((r) => r.status === "error").length} errors</Badge>
+          <div className="row-flex"><Badge tone="accent">{valid} valid</Badge><Badge tone="warn">{preview.rows.filter((r) => r.status === "duplicate").length} duplicate</Badge><Badge tone="danger">{preview.rows.filter((r) => r.status === "error").length} errors</Badge>{preview.rows.some((r) => r.status === "valid" && r.warnings?.length) ? <span className="meta">Valid rows marked “check” have plausibility warnings. Committing confirms them, and each is noted in the audit log.</span> : null}
             {preview.rows.some((r) => r.status !== "valid") ? <Button size="sm" onClick={() => errorsCsv(preview.rows)}>Download error report</Button> : null}</div>
           <div className="table-wrap fit"><table className="data-table dense"><thead><tr><th>Line</th><th>Vehicle</th><th>Status</th><th>Issues</th></tr></thead>
-            <tbody>{preview.rows.slice(0, 50).map((r) => <tr key={r.line}><td>{r.line}</td><td>{r.values.make} {r.values.model}</td><td>{r.status === "valid" ? "Valid" : r.status === "duplicate" ? "Duplicate" : "Error"}</td><td className="muted">{r.errors.join("; ") || MISSING}</td></tr>)}</tbody></table></div>
+            <tbody>{preview.rows.slice(0, 50).map((r) => <tr key={r.line}><td>{r.line}</td><td>{r.values.make} {r.values.model}</td><td>{r.status === "valid" ? (r.warnings?.length ? "Valid, check" : "Valid") : r.status === "duplicate" ? "Duplicate" : "Error"}</td><td className="muted">{[...r.errors, ...(r.warnings ?? []).map((w) => `Warning: ${w}`)].join("; ") || MISSING}</td></tr>)}</tbody></table></div>
         </div>
       ) : null}
       {step === 4 && result ? <Notice tone="accent" role="status">{result.imported} imported, {result.skipped} skipped. Retrying this file cannot import the same rows twice.</Notice> : null}

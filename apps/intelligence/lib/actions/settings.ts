@@ -118,8 +118,9 @@ export function saveBranch(state: WorkspaceState, actor: Actor, input: { id?: st
   if (denied) return denied;
   const fields: Record<string, string> = {};
   if (!trim(input.name)) fields.name = "Enter a branch display name.";
-  if (!trim(input.city)) fields.city = "Enter the city.";
-  if (!trim(input.state)) fields.state = "Enter the state.";
+  const unset = (v: string) => !trim(v) || /^not (set|recorded)$/i.test(trim(v));
+  if (unset(input.city)) fields.city = "Enter the city.";
+  if (unset(input.state)) fields.state = "Enter the state.";
   if (!/^[A-Za-z_]+\/[A-Za-z_]+$/.test(trim(input.timezone))) fields.timezone = "Choose a valid timezone, for example Asia/Kolkata.";
   if (Object.keys(fields).length) return fail(422, "invalid", "Fix the highlighted fields to save.", { fields });
   const id = input.id ?? (state.live ? pseudoUuid(`${state.tenant.id}:branch:${trim(input.name)}:${state.branches.length}`) : trim(input.city).slice(0, 3).toLowerCase() + (state.branches.length + 1));

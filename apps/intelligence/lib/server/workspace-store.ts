@@ -81,14 +81,15 @@ export async function readState(c: SqlClient, tenantId: string): Promise<Workspa
         channels: String(row.publish_status) === "published" ? ["Owned site"] : [], documents: [{ name: "Registration certificate", provided: false }, { name: "Inspection report", provided: false }],
       };
     };
-    if (!doc) return fromShared(new Date(String(row.created_at)).toISOString());
+    const photos = (Array.isArray(payload.media) ? payload.media : []).map((m) => String((m as Row).url ?? "")).filter((u) => /^https:\/\//.test(u));
+    if (!doc) return { ...fromShared(new Date(String(row.created_at)).toISOString()), photos };
     const stored = doc.payload as Vehicle;
-    if (sharedUpdated <= doc.updatedAt) return { ...stored, branchId: String(row.location_id) };
+    if (sharedUpdated <= doc.updatedAt) return { ...stored, branchId: String(row.location_id), photos, hasImages: stored.hasImages || photos.length > 0 };
     // Changed elsewhere (for example in Command Center) after our last write: shared core fields win.
     const shared = fromShared(stored.acquiredAt);
     const ledgerTotal = stored.costs.acquisition + stored.costs.transport + stored.costs.inspection + stored.costs.refurbishment + stored.costs.fees;
     return { ...stored, make: shared.make, model: shared.model, variant: shared.variant, year: shared.year, km: shared.km, owners: shared.owners, asking: shared.asking, status: stored.status === "preparation" && shared.status === "available" ? "preparation" : shared.status,
-      branchId: shared.branchId, hasImages: shared.hasImages, costs: costTotal !== null && costTotal !== ledgerTotal ? shared.costs : stored.costs, version: Math.max(stored.version, shared.version) };
+      branchId: shared.branchId, hasImages: shared.hasImages, photos, costs: costTotal !== null && costTotal !== ledgerTotal ? shared.costs : stored.costs, version: Math.max(stored.version, shared.version) };
   });
 
   // Enquiry counts for the last 14 days are measured from real leads, not estimated.

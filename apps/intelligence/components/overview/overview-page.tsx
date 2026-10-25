@@ -110,6 +110,7 @@ export function OverviewPage() {
               info={<InfoTip label="About estimated gross at asking">Asking price minus landed cost for cost-complete, priced, available vehicles. {m.grossExcluded} record(s) excluded for missing cost. Not a realized result.</InfoTip>} />
           </div>
         </Panel>
+        <p className="meta mt-2">Key figures are stock as of {formatDate(SNAPSHOT_AT)}. The movement chart covers whole months; the range selector above applies to activity lists only.</p>
       </section>
 
       <div className="split-60 order-charts" style={{ gridTemplateColumns: "minmax(0, 720fr) minmax(0, 416fr)" }}>

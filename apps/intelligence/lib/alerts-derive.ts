@@ -27,10 +27,12 @@ export function deriveAlerts(state: WorkspaceState, nowIso: string): Alert[] {
     } else if (v.status !== "preparation" && age > state.policy.ageingDays) {
       out.push({ id: `AL-aged-${v.id}`, type: "Pricing", severity: "Info", title: "Ageing stock", recordRef: v.id, recordKind: "vehicle", trigger: `${age} days since acquisition (policy ${state.policy.ageingDays})`, owner: "Manager", dueAt: null, actionLabel: "View", branchId: v.branchId });
     }
-    if (v.status === "available" || v.status === "reserved") {
-      const missing = v.documents.filter((d) => !d.provided).map((d) => d.name);
-      if (missing.length) out.push({ id: `AL-docs-${v.id}`, type: "Documents", severity: "Info", title: "Document check", recordRef: v.id, recordKind: "vehicle", trigger: `${missing.join(", ")} not recorded`, owner: "Inventory", dueAt: null, actionLabel: "View", branchId: v.branchId });
-    }
+    // Record-completeness checks apply to all unsold stock, including In preparation, so gaps surface before a vehicle goes on sale.
+    const onSale = v.status === "available" || v.status === "reserved";
+    const missing = v.documents.filter((d) => !d.provided).map((d) => d.name);
+    if (missing.length) out.push({ id: `AL-docs-${v.id}`, type: "Documents", severity: onSale ? "Warning" : "Info", title: "Document check", recordRef: v.id, recordKind: "vehicle", trigger: `${missing.join(", ")} not recorded`, owner: "Inventory", dueAt: null, actionLabel: "View", branchId: v.branchId });
+    if (!v.hasImages) out.push({ id: `AL-photos-${v.id}`, type: "Documents", severity: onSale ? "Warning" : "Info", title: "No photos", recordRef: v.id, recordKind: "vehicle", trigger: onSale ? "On sale without photos" : "Add photos before this vehicle goes on sale", owner: "Inventory", dueAt: null, actionLabel: "View", branchId: v.branchId });
+    if (!v.costComplete) out.push({ id: `AL-costs-${v.id}`, type: "Documents", severity: onSale ? "Warning" : "Info", title: "Costs incomplete", recordRef: v.id, recordKind: "vehicle", trigger: v.costs.acquisition > 0 ? "Refurbishment cost not recorded, so landed cost and gross may be understated" : "Acquisition cost not recorded", owner: "Inventory", dueAt: null, actionLabel: "View", branchId: v.branchId });
   }
   const slaMs = state.policy.leadResponseMinutes * 60_000;
   for (const l of state.leads) {

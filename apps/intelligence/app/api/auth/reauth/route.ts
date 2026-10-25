@@ -18,7 +18,9 @@ export async function POST(request: Request) {
   const body = await readJson<{ password?: string }>(request);
   if (typeof body?.password !== "string") return problem(401, "invalid_credentials", "That password is not correct.");
   const result = await signIn(current.principal.email, body.password);
-  if (!result.ok || result.userId !== current.principal.userId) return problem(401, "invalid_credentials", "That password is not correct.");
+  // A correct password on a two-factor account reports mfa_required; that is enough to confirm the password here.
+  const confirmed = (result.ok && result.userId === current.principal.userId) || (!result.ok && result.code === "mfa_required");
+  if (!confirmed) return problem(401, "invalid_credentials", "That password is not correct.");
   const token = await signPayload({ sub: current.principal.userId, exp: Math.floor(Date.now() / 1000) + REAUTH_TTL_SECONDS });
   if (!token) return problem(503, "not_configured", "Not configured.");
   const response = NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });

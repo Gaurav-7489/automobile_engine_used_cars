@@ -8,7 +8,7 @@ export type Actor = { sub: string; name: string; role: Role; branchIds: string[]
 export type Fail = {
   ok: false;
   status: 403 | 404 | 409 | 422 | 429;
-  code: "forbidden" | "not_found" | "conflict" | "invalid" | "rate_limited";
+  code: "forbidden" | "not_found" | "conflict" | "invalid" | "rate_limited" | "confirm_required" | "override_required";
   message: string;
   fields?: Record<string, string>;
   /** Safe diff metadata for 409 conflicts: the latest server version the UI can show next to the user's draft. */

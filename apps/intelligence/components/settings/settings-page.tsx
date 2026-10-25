@@ -295,13 +295,82 @@ function Security() {
         <div><dt>Signed in as</dt><dd>{session.name} / {session.email}</dd></div><div><dt>Role</dt><dd>{ROLE_LABEL[session.role]}</dd></div>
         <div><dt>Branches</dt><dd>{session.branchIds.map((b) => state.branches.find((x) => x.id === b)?.city ?? b).join(", ")}</dd></div>
         <div><dt>Session</dt><dd>Secure HttpOnly cookie, 8 hours. No tokens in local storage.</dd></div>
-        <div><dt>Multi-factor authentication</dt><dd>Not available in this release. Use a strong, unique password.</dd></div>
       </dl>
+      <TwoFactor />
       <div className="stack-sm"><h3 className="h3">Sessions</h3><p className="muted">{state.sessionsRevoked ? `Other sessions revoked ${state.sessionsRevoked} time(s).` : "Revoke all other sessions if a device is lost."}</p>
         {confirm ? <Notice tone="danger" role="alert"><div className="spread" style={{ flexWrap: "wrap" }}><span>Revoke every other session?</span><span className="row-flex"><Button size="sm" variant="danger" onClick={() => { run((s, a) => revokeSessions(s, a)); setConfirm(false); toast("Other sessions revoked."); }}>Revoke other sessions</Button><Button size="sm" onClick={() => setConfirm(false)}>Keep</Button></span></div></Notice> : <div><Button onClick={() => setConfirm(true)}>Revoke other sessions</Button></div>}
       </div>
       {can("settings.admin") ? <p className="meta">Identity provider settings and MFA enforcement are managed by your workspace owner.</p> : null}
     </section>
+  );
+}
+
+async function twoFactor(body: Record<string, string>): Promise<{ ok: boolean; data: Record<string, unknown> }> {
+  try {
+    const r = await fetch("/api/auth/two-factor", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    return { ok: r.ok, data: await r.json().catch(() => ({})) };
+  } catch { return { ok: false, data: { error: { message: "We could not reach the server. Try again." } } }; }
+}
+
+function TwoFactor() {
+  const toast = useToast();
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [step, setStep] = useState<"idle" | "password" | "scan" | "disable">("idle");
+  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [secret, setSecret] = useState<{ secret: string; uri: string } | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { fetch("/api/auth/two-factor").then((r) => r.json()).then((b) => setEnabled(Boolean(b.enabled))).catch(() => setEnabled(null)); }, []);
+  const message = (d: Record<string, unknown>) => ((d.error as { message?: string } | undefined)?.message ?? "Something went wrong. Try again.");
+  const reset = () => { setStep("idle"); setPassword(""); setCode(""); setSecret(null); setError(""); };
+
+  async function begin() {
+    setBusy(true); setError("");
+    const failed = await reauth(password);
+    if (failed) { setBusy(false); setError(failed); return; }
+    const r = await twoFactor({ action: "begin" });
+    setBusy(false);
+    if (!r.ok) { setError(message(r.data)); return; }
+    setSecret({ secret: String(r.data.secret), uri: String(r.data.uri) }); setPassword(""); setStep("scan");
+  }
+  async function finish(action: "confirm" | "disable") {
+    setBusy(true); setError("");
+    const r = await twoFactor({ action, code });
+    setBusy(false);
+    if (!r.ok) { setError(message(r.data)); setCode(""); return; }
+    setEnabled(action === "confirm"); reset();
+    toast(action === "confirm" ? "Two-factor login is on. You will be asked for a code at each sign-in." : "Two-factor login is off.");
+  }
+
+  return (
+    <div className="stack-sm">
+      <h3 className="h3">Two-factor login</h3>
+      <p className="muted">{enabled === null ? "Checking status." : enabled ? "On. Each sign-in needs your password and a 6-digit code from your authenticator app." : "Off. Turn it on to require a code from an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password and similar) at sign-in."}</p>
+      {step === "idle" && enabled === false ? <div><Button variant="primary" onClick={() => setStep("password")}>Turn on two-factor login</Button></div> : null}
+      {step === "idle" && enabled ? <div><Button onClick={() => setStep("disable")}>Turn off two-factor login</Button></div> : null}
+      {step === "password" ? (
+        <div className="stack-sm">
+          <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={error} />
+          <span className="row-flex"><Button variant="primary" loading={busy} loadingLabel="Checking" disabled={!password} onClick={begin}>Continue</Button><Button onClick={reset}>Cancel</Button></span>
+        </div>
+      ) : null}
+      {step === "scan" && secret ? (
+        <div className="stack-sm">
+          <p>In your authenticator app, add an account using this setup key, or open the link on the phone that has the app.</p>
+          <p><code style={{ wordBreak: "break-all", fontSize: 15 }}>{secret.secret.replace(/(.{4})/g, "$1 ").trim()}</code></p>
+          <p><a className="link-btn" href={secret.uri}>Open in authenticator app</a></p>
+          <TextField label="6-digit code from the app" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value)} error={error} />
+          <span className="row-flex"><Button variant="primary" loading={busy} loadingLabel="Verifying" disabled={code.replace(/\s/g, "").length < 6} onClick={() => finish("confirm")}>Turn on</Button><Button onClick={reset}>Cancel</Button></span>
+        </div>
+      ) : null}
+      {step === "disable" ? (
+        <div className="stack-sm">
+          <TextField label="Current 6-digit code" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value)} error={error} help="A current code is needed so a stolen session cannot switch this off." />
+          <span className="row-flex"><Button variant="danger" loading={busy} loadingLabel="Verifying" disabled={code.replace(/\s/g, "").length < 6} onClick={() => finish("disable")}>Turn off</Button><Button onClick={reset}>Cancel</Button></span>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -318,12 +387,75 @@ function Billing() {
 
 /* API access --------------------------------------------------------------------- */
 
+type ApiKeyRow = { id: string; name: string; scope: string; prefix: string; createdBy: string; createdAt: string; expiresAt: string; revokedAt: string | null; lastUsedAt: string | null };
+const SCOPE_LABEL: Record<string, string> = { "inventory:read": "Read stock (no costs or margins)", "leads:read": "Read leads, including contact details" };
+
 function ApiAccess() {
+  const { can } = useWorkspace();
+  const toast = useToast();
+  const allowed = can("settings.keys");
+  const [keys, setKeys] = useState<ApiKeyRow[] | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [shown, setShown] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<ApiKeyRow | null>(null);
+  const load = () => fetch("/api/settings/api-keys").then(async (r) => { const b = await r.json().catch(() => ({})); if (r.ok) setKeys(b.keys); else setLoadError(b?.error?.message ?? "Keys could not be loaded."); }).catch(() => setLoadError("We could not reach the server."));
+  useEffect(() => { if (allowed) void load(); }, [allowed]);
+  if (!allowed) return <section className="card"><h2 className="h2">API access</h2><Notice tone="warn" role="status">API keys are managed by the workspace owner.</Notice></section>;
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
   return (
     <section className="card stack" aria-labelledby="api-h">
-      <h2 className="h2" id="api-h">API access</h2>
-      <Notice tone="accent" role="status">API keys are not enabled in this release. No keys can be created, so none are listed.</Notice>
+      <div className="spread" style={{ flexWrap: "wrap" }}><h2 className="h2" id="api-h">API access</h2><Button variant="primary" onClick={() => setCreating(true)}>Create key</Button></div>
+      <p className="muted">Read-only keys let another system (your website, a CRM, a spreadsheet) read this workspace. Keys cover the branches you can see, expire automatically and can be revoked at any time. Only a hash is stored, so a key is shown once.</p>
+      {shown ? <Notice tone="accent" role="alert"><div className="stack-sm"><strong>Copy this key now. It will not be shown again.</strong><code style={{ wordBreak: "break-all" }}>{shown}</code><span className="row-flex"><Button size="sm" onClick={() => { void navigator.clipboard?.writeText(shown); toast("Key copied."); }}>Copy</Button><Button size="sm" onClick={() => setShown(null)}>I have stored it</Button></span></div></Notice> : null}
+      {loadError ? <Notice tone="danger" role="alert">{loadError}</Notice> : null}
+      {keys === null && !loadError ? <p className="muted">Loading keys.</p> : null}
+      {keys && !keys.length ? <EmptyState title="No API keys yet">Create a key when another system needs to read stock or leads.</EmptyState> : null}
+      {keys && keys.length ? (
+        <div className="table-wrap"><table className="data-table dense"><thead><tr><th>Name</th><th>Access</th><th>Key</th><th>Created</th><th>Expires</th><th>Last used</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
+          {keys.map((k) => { const expired = new Date(k.expiresAt) < new Date(); return (
+            <tr key={k.id}><td>{k.name}</td><td>{SCOPE_LABEL[k.scope] ?? k.scope}</td><td><code>{k.prefix}…</code></td><td>{formatShortDateTime(k.createdAt)} by {k.createdBy}</td><td>{formatShortDateTime(k.expiresAt)}</td><td>{k.lastUsedAt ? formatShortDateTime(k.lastUsedAt) : "Never"}</td>
+              <td>{k.revokedAt ? <Badge tone="neutral">Revoked</Badge> : expired ? <Badge tone="warn">Expired</Badge> : <Badge tone="accent">Active</Badge>}</td>
+              <td>{!k.revokedAt && !expired ? <Button size="sm" variant="danger" onClick={() => setRevoking(k)}>Revoke</Button> : null}</td></tr>); })}
+        </tbody></table></div>
+      ) : null}
+      <div className="stack-sm"><h3 className="h3">Using a key</h3><p className="muted">Send the key in the Authorization header. Responses are JSON; each key is limited to 60 requests a minute.</p>
+        <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-all", fontSize: 13 }}>{`curl -H "Authorization: Bearer <key>" ${origin}/api/v1/inventory\ncurl -H "Authorization: Bearer <key>" ${origin}/api/v1/leads`}</pre></div>
+      {creating ? <CreateKeyDialog onClose={() => setCreating(false)} onCreated={(key) => { setCreating(false); setShown(key); void load(); }} /> : null}
+      {revoking ? <Dialog open onClose={() => setRevoking(null)} title={`Revoke ${revoking.name}?`} description="Systems using this key stop working immediately. This cannot be undone; create a new key if needed." footer={<><Button onClick={() => setRevoking(null)}>Keep key</Button><Button variant="danger" onClick={async () => {
+        const r = await fetch(`/api/settings/api-keys?id=${encodeURIComponent(revoking.id)}`, { method: "DELETE" }).catch(() => null);
+        setRevoking(null);
+        if (r?.ok) { toast("Key revoked."); void load(); } else toast("The key could not be revoked. Try again.", "error");
+      }}>Revoke key</Button></>}><p>{revoking.prefix}…</p></Dialog> : null}
     </section>
+  );
+}
+
+function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (key: string) => void }) {
+  const [name, setName] = useState("");
+  const [scope, setScope] = useState("inventory:read");
+  const [days, setDays] = useState("90");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog open onClose={onClose} title="Create API key" description="Read-only. Creating a key needs your password." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating" onClick={async () => {
+      setBusy(true); setErrors({});
+      const failed = await reauth(password);
+      if (failed) { setBusy(false); setErrors({ password: failed }); return; }
+      const r = await fetch("/api/settings/api-keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, scope, days: Number(days) }) }).catch(() => null);
+      const b = await r?.json().catch(() => ({}));
+      setBusy(false);
+      if (r?.ok) { onCreated(String(b.key)); return; }
+      setErrors(b?.error?.fields ?? { name: b?.error?.message ?? "The key could not be created." });
+    }}>Create key</Button></>}>
+      <div className="stack">
+        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={errors.name} help="For example: Website stock feed" />
+        <SelectField label="Access" value={scope} onChange={(e) => setScope(e.target.value)} error={errors.scope} options={Object.entries(SCOPE_LABEL).map(([value, label]) => ({ value, label }))} />
+        <SelectField label="Expires after" value={days} onChange={(e) => setDays(e.target.value)} error={errors.days} options={[{ value: "30", label: "30 days" }, { value: "90", label: "90 days" }, { value: "180", label: "180 days" }, { value: "365", label: "1 year" }]} />
+        <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} />
+      </div>
+    </Dialog>
   );
 }
 
@@ -356,10 +488,10 @@ function Audit() {
   if (!allowed) return <section className="card"><h2 className="h2">Audit</h2><Notice tone="warn" role="status">The audit trail is permission-gated. Requires Owner access.</Notice></section>;
   return (
     <section className="card stack" aria-labelledby="au-h">
-      <div className="spread"><h2 className="h2" id="au-h">Audit</h2><Button onClick={() => { downloadCsv("audit.csv", [["time", "actor", "action", "target", "detail"], ...rows.map((a) => [a.at, a.actor, a.action, a.target, a.detail])], ["# Secrets and contact values are masked in exports. Retention follows policy."]); toast("Audit export ready: secrets masked."); }}>Export</Button></div>
+      <div className="spread"><h2 className="h2" id="au-h">Audit</h2><Button onClick={() => { downloadCsv("audit.csv", [["time (UTC, ISO 8601)", "time (IST)", "actor", "action", "target", "detail"], ...rows.map((a) => [a.at, formatDateTime(a.at), a.actor, a.action, a.target, a.detail])], ["# Secrets and contact values are masked in exports. Retention follows policy."]); toast("Audit export ready: secrets masked."); }}>Export</Button></div>
       <p className="muted">Append-only and filterable. Exports mask secrets and respect retention.</p>
       <TextField label="Filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Actor, action or record" />
-      <div className="table-wrap fit"><table className="data-table dense"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>{rows.slice(0, 100).map((a) => <tr key={a.id}><td>{formatShortDateTime(a.at)}</td><td>{a.actor}</td><td>{a.action}</td><td>{a.target}</td><td className="muted" style={{ maxWidth: 320 }}>{a.detail}</td></tr>)}</tbody></table></div>
+      <div className="table-wrap fit"><table className="data-table dense"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>{rows.slice(0, 100).map((a) => <tr key={a.id}><td style={{ whiteSpace: "nowrap" }}>{formatDateTime(a.at)}</td><td>{a.actor}</td><td>{a.action}</td><td>{a.target}</td><td className="muted" style={{ maxWidth: 320 }}>{a.detail}</td></tr>)}</tbody></table></div>
       {rows.length === 0 ? <p className="muted">No audit events match.</p> : null}
     </section>
   );

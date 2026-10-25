@@ -16,6 +16,8 @@ export function LoginExperience({ providers }: Props) {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [needCode, setNeedCode] = useState(false);
   const [remember, setRemember] = useState(false);
   const [status, setStatus] = useState<"idle" | "checking">("idle");
   const [error, setError] = useState("");
@@ -33,9 +35,11 @@ export function LoginExperience({ providers }: Props) {
     if (!email.trim() || !password) { setError("Enter your business email and password."); return; }
     setStatus("checking");
     try {
-      const response = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password, returnTo: params.get("returnTo") ?? undefined }) });
+      const response = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password, code: needCode ? code.replace(/\s/g, "") : undefined, returnTo: params.get("returnTo") ?? undefined }) });
       const body = await response.json().catch(() => ({}));
       if (response.ok) { router.replace(body.returnTo ?? "/app/overview"); router.refresh(); return; }
+      if (response.status === 428) { setNeedCode(true); setStatus("idle"); return; } // password was right; keep it for the code step
+      if (body?.error?.code === "mfa_invalid") { setCode(""); setError(body.error.message ?? "That code is not correct."); setStatus("idle"); return; }
       setError(body?.error?.message ?? "Sign-in failed. Try again.");
     } catch {
       setError("We could not reach the server. Check your connection and try again.");
@@ -63,7 +67,8 @@ export function LoginExperience({ providers }: Props) {
           {notice === "sso_unknown" ? <Notice tone="warn" role="status">That sign-in provider is not configured for this workspace.</Notice> : null}
           {error ? <FormSummary errors={{ login: error }} label="Sign-in problem" /> : null}
           <TextField label="Business email" type="email" name="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@dealership.com" />
-          <PasswordField label="Password" name="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordField label="Password" name="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setNeedCode(false); }} />
+          {needCode ? <TextField label="Authenticator code" name="code" autoComplete="one-time-code" inputMode="numeric" maxLength={8} value={code} onChange={(e) => setCode(e.target.value)} help="Two-factor login is on for this account. Enter the 6-digit code from your authenticator app." autoFocus /> : null}
           <div className="spread" style={{ flexWrap: "wrap" }}>
             <Check label="Remember this device" checked={remember} onChange={setRemember} />
             <button type="button" className="link-btn" onClick={() => setForgotOpen(true)}>Forgot password?</button>

@@ -84,7 +84,7 @@ function Reports() {
 
   const mobileCharts = [
     { title: "Inventory events / vehicle counts", node: <GroupedBars title="Inventory events" unit="vehicles" data={rows.map((r) => ({ label: monthName(r.month), values: [r.acquired, r.sold] }))} series={[{ name: "Acquired", color: "var(--accent)" }, { name: "Sold", color: "var(--info)" }]} onSelect={(_, s) => setDrill(s === 0 ? "acquired" : "sold")} /> },
-    { title: "Realized profit / ₹L", node: <SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => String(Math.round(v * 10) / 10)} onSelect={() => setDrill("profit")} /> },
+    { title: "Realized profit / ₹L", node: <SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => (Math.abs(v) < 1 && v !== 0 ? v.toFixed(2) : String(Math.round(v * 10) / 10))} onSelect={() => setDrill("profit")} /> },
     { title: "Unique lead cohort funnel", node: <Funnel data={funnel} /> },
   ];
 
@@ -104,6 +104,7 @@ function Reports() {
         <Button onClick={() => setScheduleOpen(true)} disabled={!can("reports.schedule")} reason={!can("reports.schedule") ? "Scheduling needs Owner, Manager or Finance access." : undefined}>Schedule</Button>
       </form>
       <p className="meta">Period {periodLabel} / one applied scope across all panels. {dirtyFilters ? <Badge tone="warn">Changes not applied</Badge> : null}</p>
+      <p className="meta">Dates used: acquired stock by acquisition date, sales by sale-close date, leads by the date the lead was created. Stock age and landed capital are as of today, whatever the period. Records dated before {monthLabel(getMonths()[0])} fall outside every selectable period.</p>
 
       {tab === "finance" && !financeAllowed ? (
         <div className="state-box" role="alert"><h2 className="h3">Finance reports are restricted</h2><p className="muted">Requires Owner or Finance access. Nothing about the underlying ledger is shown here.</p></div>
@@ -129,7 +130,7 @@ function Reports() {
           ) : null}
           {tab === "finance" ? (
             <div className="report-charts only-desktop">
-              <section className="card"><h2 className="h3">Realized profit series / ₹L</h2><div className="mt-4"><SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => String(Math.round(v * 10) / 10)} onSelect={() => setDrill("profit")} /></div></section>
+              <section className="card"><h2 className="h3">Realized profit series / ₹L</h2><div className="mt-4"><SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => (Math.abs(v) < 1 && v !== 0 ? v.toFixed(2) : String(Math.round(v * 10) / 10))} onSelect={() => setDrill("profit")} /></div></section>
               <section className="card"><h2 className="h3">Financial definitions</h2><dl className="kv mt-2"><div><dt>Realized profit</dt><dd style={{ maxWidth: 300 }}>Completed, non-void, reconciled sale proceeds minus landed and posted direct costs. Excludes tax and allocated overhead.</dd></div><div><dt>Unrealized estimates</dt><dd style={{ maxWidth: 300 }}>Never included.</dd></div><div><dt>Stock landed capital</dt><dd>{formatMoney(metrics.landedCapital)}</dd></div></dl></section>
             </div>
           ) : null}

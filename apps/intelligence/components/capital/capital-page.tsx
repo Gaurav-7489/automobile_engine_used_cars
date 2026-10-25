@@ -6,7 +6,7 @@ import type { Sale, Vehicle } from "@/lib/domain";
 import { downloadBlob, downloadCsv, makePdf } from "@/lib/export";
 import { AGE_BUCKETS, isRealized, landedCost, realizedMetrics, realizedProfit, saleGross, stockAgeDays, stockMetrics } from "@/lib/finance";
 
-import { formatDate, formatLakh2, formatLakhPlain, formatMoney, MISSING, monthKey, monthLabel, monthName } from "@/lib/format";
+import { formatDate, formatExact, formatLakh2, formatLakhPlain, formatMoney, MISSING, monthKey, monthLabel, monthName } from "@/lib/format";
 import { daysToSale, inScope, monthlyProfit } from "@/lib/selectors";
 import { getMonths, REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
 import { HBars, SimpleBars } from "../charts";
@@ -98,13 +98,13 @@ function Capital() {
       <div className="capital-charts">
         <section className="card" aria-labelledby="cb-age"><h2 className="h3" id="cb-age">Stock capital by age / ₹L</h2><p className="meta">Population: unsold stock as of {formatDate(SNAPSHOT_AT)}</p>
           <Panel title="Capital by age" rows={4}>
-            <div className="mt-4"><HBars max={Math.max(...Object.values(metrics.capitalByAge), 1) * 1.15} data={AGE_BUCKETS.map((b) => ({ label: b.label.replace(" days", "d"), value: metrics.capitalByAge[b.key], display: formatLakhPlain(metrics.capitalByAge[b.key]), tone: b.key === ">45" ? "warn" : "accent", onSelect: () => setPopulation(`age:${b.key}`), ariaLabel: `${b.label}: ${formatLakhPlain(metrics.capitalByAge[b.key])} landed capital. Open filtered stock.` }))} /></div>
+            <div className="mt-4"><HBars max={Math.max(...Object.values(metrics.capitalByAge), 1) * 1.15} data={AGE_BUCKETS.map((b) => ({ label: b.label.replace(" days", "d"), value: metrics.capitalByAge[b.key], display: formatLakhPlain(metrics.capitalByAge[b.key], 2), exact: formatExact(metrics.capitalByAge[b.key]), tone: b.key === ">45" ? "warn" : "accent", onSelect: () => setPopulation(`age:${b.key}`), ariaLabel: `${b.label}: ${formatExact(metrics.capitalByAge[b.key])} landed capital. Open filtered stock.` }))} /></div>
           </Panel>
         </section>
         <section className="card" aria-labelledby="cb-profit"><h2 className="h3" id="cb-profit">Realized profit by close month / ₹L</h2><p className="meta">Population: completed, reconciled sales closed in the selected period. Sales revenue is never plotted on this axis.</p>
           <Panel title="Realized profit" rows={4}>
             {noSales ? <EmptyState title="No realized results yet">No posted sales in this period. Stock-only panels still show estimated gross. No average days-to-sale is invented.</EmptyState> : (
-              <SimpleBars title="Realized profit" unit="₹L" data={monthly.filter((m) => m.month >= from && m.month <= to).map((m) => ({ label: monthName(m.month), value: m.profit / lakh(1) }))} format={(v) => String(Math.round(v * 10) / 10)} height={232} onSelect={() => setPopulation("realized")} />
+              <SimpleBars title="Realized profit" unit="₹L" data={monthly.filter((m) => m.month >= from && m.month <= to).map((m) => ({ label: monthName(m.month), value: m.profit / lakh(1) }))} format={(v) => (Math.abs(v) < 1 && v !== 0 ? v.toFixed(2) : String(Math.round(v * 10) / 10))} height={232} onSelect={() => setPopulation("realized")} />
             )}
           </Panel>
         </section>

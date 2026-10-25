@@ -1,6 +1,7 @@
 import type { Role } from "../domain";
 import { hashPassword, hashToken, newToken, passwordProblem, burnPasswordCheck, verifyPassword } from "./password";
 import { isUuid, plain, tenantTx, type SqlClient } from "./db";
+import { newTotpSecret, verifyTotp } from "./totp";
 
 /** The shared platform's role vocabulary. Intelligence's inventory and finance roles are stored as an overlay. */
 const TO_PLATFORM: Record<Role, "owner" | "manager" | "sales" | "acquisition" | "marketing" | "viewer"> = {
@@ -36,21 +37,29 @@ export function roleOf(payload: Pick<StaffPayload, "role" | "intelligenceRole">)
 
 export type SignIn =
   | { ok: true; userId: string; name: string; tenantId: string }
-  | { ok: false; code: "invalid" | "locked" | "no_access" };
+  | { ok: false; code: "invalid" | "locked" | "no_access" | "mfa_required" | "mfa_invalid" };
 
 const emailOk = (email: string) => /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/.test(email) && email.length <= 254;
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 export const validEmail = (email: string) => emailOk(normalizeEmail(email));
 
-export async function signIn(emailInput: string, password: string): Promise<SignIn> {
+export async function signIn(emailInput: string, password: string, code?: string): Promise<SignIn> {
   const email = normalizeEmail(emailInput);
   if (!emailOk(email) || !password || password.length > 200) { await burnPasswordCheck(password || "x"); return { ok: false, code: "invalid" }; }
   const user = (await plain((c) => c.query("SELECT * FROM intelligence_login_lookup($1)", [email]))).rows[0] as
-    { id: string; display_name: string; password_hash: string; disabled: boolean; locked_until: string | null } | undefined;
+    { id: string; display_name: string; password_hash: string; disabled: boolean; locked_until: string | null; totp_enabled: boolean; totp_secret: string | null } | undefined;
   if (!user) { await burnPasswordCheck(password); return { ok: false, code: "invalid" }; }
   if (user.locked_until && new Date(user.locked_until).getTime() > Date.now()) { await burnPasswordCheck(password); return { ok: false, code: "locked" }; }
   const valid = await verifyPassword(password, user.password_hash);
-  await plain((c) => c.query("SELECT intelligence_record_login($1, $2)", [user.id, valid && !user.disabled]));
+  if (valid && !user.disabled && user.totp_enabled && user.totp_secret) {
+    // The password is right; the second factor decides. A wrong code counts as a failed attempt toward the lockout.
+    if (!code) return { ok: false, code: "mfa_required" };
+    const second = verifyTotp(user.totp_secret, code.trim());
+    await plain((c) => c.query("SELECT intelligence_record_login($1, $2)", [user.id, second]));
+    if (!second) return { ok: false, code: "mfa_invalid" };
+  } else {
+    await plain((c) => c.query("SELECT intelligence_record_login($1, $2)", [user.id, valid && !user.disabled]));
+  }
   if (!valid || user.disabled) return { ok: false, code: "invalid" };
   const memberships = (await plain((c) => c.query("SELECT * FROM intelligence_memberships($1)", [user.id]))).rows as { tenant_id: string; payload: StaffPayload }[];
   const usable = memberships.filter((m) => roleOf(m.payload) !== null);
@@ -147,4 +156,33 @@ export async function redeemToken(token: string, password: string): Promise<Rede
     { out_outcome: string; out_user_id: string | null; out_tenant_id: string | null } | undefined;
   if (!row || row.out_outcome === "invalid" || !row.out_user_id || !row.out_tenant_id) return { ok: false, message: INVALID };
   return { ok: true, outcome: row.out_outcome as "account_created" | "membership_added" | "password_reset", userId: row.out_user_id, tenantId: row.out_tenant_id };
+}
+
+/* Two-factor authentication ------------------------------------------------- */
+
+export async function totpState(userId: string): Promise<{ enabled: boolean; pending: string | null }> {
+  const row = (await plain((c) => c.query("SELECT * FROM intelligence_totp_state($1)", [userId]))).rows[0] as { totp_enabled: boolean; totp_secret: string | null } | undefined;
+  return { enabled: Boolean(row?.totp_enabled), pending: row && !row.totp_enabled ? row.totp_secret : null };
+}
+
+/** Starts enrolment with a fresh secret. Refused while two-factor is already on. */
+export async function beginTotp(userId: string): Promise<string | null> {
+  if ((await totpState(userId)).enabled) return null;
+  const secret = newTotpSecret();
+  await plain((c) => c.query("SELECT intelligence_set_totp($1, $2, false)", [userId, secret]));
+  return secret;
+}
+
+export async function confirmTotp(userId: string, code: string): Promise<boolean> {
+  const state = await totpState(userId);
+  if (state.enabled || !state.pending || !verifyTotp(state.pending, code)) return false;
+  await plain((c) => c.query("SELECT intelligence_set_totp($1, $2, true)", [userId, state.pending]));
+  return true;
+}
+
+export async function disableTotp(userId: string, code: string): Promise<boolean> {
+  const row = (await plain((c) => c.query("SELECT * FROM intelligence_totp_state($1)", [userId]))).rows[0] as { totp_enabled: boolean; totp_secret: string | null } | undefined;
+  if (!row?.totp_enabled || !row.totp_secret || !verifyTotp(row.totp_secret, code)) return false;
+  await plain((c) => c.query("SELECT intelligence_set_totp($1, NULL, false)", [userId]));
+  return true;
 }

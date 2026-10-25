@@ -36,6 +36,8 @@ export type Vehicle = {
   version: number;
   channels: string[];
   documents: { name: string; provided: boolean }[];
+  /** Public photo addresses from the shared vehicle record (live workspaces). */
+  photos?: string[];
 };
 
 export type Sale = {
