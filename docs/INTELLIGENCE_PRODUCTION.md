@@ -44,6 +44,7 @@ The command refuses to touch an existing organization and never prints or stores
 | `DATABASE_URL` | pooled Neon URL for the restricted `vandlabs_runtime` role (never the owner) |
 | `SESSION_SECRET` | 32+ random characters |
 | `DATABASE_POOL_MAX` | optional; 2 on Vercel by default |
+| `BLOB_READ_WRITE_TOKEN` | set by Vercel when the Blob store `vandlabs-intelligence-photos` is connected; enables photo upload |
 
 Do not set `MIGRATION_DATABASE_URL` on the web deployment.
 
@@ -60,13 +61,27 @@ Do not set `MIGRATION_DATABASE_URL` on the web deployment.
 - Application: promote the previous Vercel deployment. Nothing in the schema is required by older deployments.
 - Database: `0010` only adds objects. To revert, drop the `intelligence_*` tables and functions after confirming no tenant data is needed, or restore the backup branch. Existing platform tables are never altered.
 
-## Not connected (shown as "Setup required")
+## Built in (no outside provider)
 
-Licensed market data (Market Radar, valuations, regional comparison), advertising accounts and campaign publishing, WhatsApp/SMS/email delivery, API keys, single sign-on, multi-factor authentication, photo upload, billing. These need provider credentials or separate build-out and are never simulated.
+- **Two-factor login**: Settings, Security. Authenticator-app codes (RFC 6238). Turning it on needs the password; turning it off needs a current code. Migration `0011`.
+- **API keys**: Settings, API access (Owner). Read-only `inventory:read` or `leads:read`, scoped to the creator's branches, expiring, revocable, stored as SHA-256 hashes. Endpoints `GET /api/v1/inventory` and `GET /api/v1/leads` with `Authorization: Bearer <key>`; 60 requests a minute per key. Costs and margins are never exposed.
+- **Photo upload**: vehicle drawer, Media tab. JPEG/PNG/WebP up to 8 MB, 20 per vehicle, content checked by file signature, written to the shared vehicle `media` so the owned website uses the same set.
+- **Plausibility checks** (build review, 25 Oct 2026): warnings need confirmation; asking above 5× landed cost, or zero landed cost on Available, needs an Owner reason, which is audited.
+
+## Needs an outside provider (shown as "Setup required", never simulated)
+
+| Feature | What the owner must supply |
+|---|---|
+| Market data (Radar, valuations, regional comparison) | A licensed Indian used-car listings/valuation feed: contract, API credentials, coverage and refresh cadence |
+| Ad publishing | Meta Business and/or Google Ads account, developer/app approval, an ad account with a spend cap |
+| Messaging | WhatsApp Business (Meta Cloud API or a BSP), SMS (DLT-registered sender and templates), email (verified sending domain) |
+| Single sign-on | Google Workspace and/or Microsoft Entra OAuth client (client ID, secret, allowed domain) |
+| Billing | Razorpay or Stripe account (KYC complete), plan prices, webhook secret |
 
 ## Known limits
 
 - Sales recorded without a lead are not mirrored into the shared `sales` table.
+- TOTP codes may be reused within their 30-second window.
 - Cost fields are visible to every role that can see inventory; branch scope and contact masking are enforced, per-field cost redaction is not.
 - Rate limiting is per server instance plus the database account lockout.
 - No error-monitoring service is attached; failures are logged as structured JSON to the host's log stream.
