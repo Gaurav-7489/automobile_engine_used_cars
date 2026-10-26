@@ -7,7 +7,7 @@ export default async function Login({searchParams}:{searchParams:Promise<{return
   const target = safeReturnTo(params.returnTo || null, "/command");
   const providerKeys=process.env.AUTH_MODE === "oidc"
     ? ["OIDC_ISSUER","OIDC_CLIENT_ID","OIDC_AUDIENCE","OIDC_JWKS_URL","OIDC_AUTHORIZE_URL","OIDC_TOKEN_URL","OIDC_REVOKE_URL"]
-    : ["COGNITO_DOMAIN","COGNITO_CLIENT_ID","COGNITO_USER_POOL_ID"];
+    : ["GOOGLE_CLIENT_ID","GOOGLE_CLIENT_SECRET"];
   const configured = ["APP_ORIGIN", "SESSION_SECRET", ...providerKeys]
     .every(key => Boolean(process.env[key])) && (process.env.AUTH_REGISTRY_MODE === "database" || Boolean(process.env.AUTH_PRINCIPALS_JSON));
   return <main className="main"><section className="panel login-panel">

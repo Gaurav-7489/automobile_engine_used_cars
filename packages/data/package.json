@@ -12,10 +12,14 @@
     "./commerce": "./src/commerce.ts",
     "./commerce-rules": "./src/commerce-rules.ts",
     "./discovery": "./src/discovery.ts",
-    "./dead-stock": "./src/dead-stock.ts"
+    "./dead-stock": "./src/dead-stock.ts",
+    "./platform-overview": "./src/platform-overview.ts",
+    "./cockpit": "./src/cockpit.ts",
+    "./capital-insights": "./src/capital-insights.ts",
+    "./price-approval": "./src/price-approval.ts",
+    "./pipeline": "./src/pipeline.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-secrets-manager": "^3.900.0",
     "@neondatabase/serverless": "^1.2.0",
     "@vandlabs/contracts": "workspace:*",
     "@vandlabs/demo-data": "workspace:*",

@@ -1,10 +1,9 @@
-import { migrationPool, databaseSecret } from "../../packages/data/src/postgres";
+import { migrationPool } from "../../packages/data/src/postgres";
 if(!process.env.MIGRATION_DATABASE_URL)throw new Error("Migration URL is required.");
 const role=process.env.APPLICATION_DATABASE_USER ?? (process.env.DATA_MODE === "neon" ? "vandlabs_runtime" : "vandlabs_app");
 if(!["vandlabs_runtime","vandlabs_app"].includes(role))throw new Error("Unsupported application role name.");
-const secret=process.env.APPLICATION_DATABASE_PASSWORD ? {username:role,password:process.env.APPLICATION_DATABASE_PASSWORD} :
-  process.env.APPLICATION_DATABASE_SECRET_ARN ? await databaseSecret(process.env.APPLICATION_DATABASE_SECRET_ARN) : undefined;
-if(!secret)throw new Error("Configure APPLICATION_DATABASE_PASSWORD securely for Neon, or an AWS role secret.");
+const secret=process.env.APPLICATION_DATABASE_PASSWORD ? {username:role,password:process.env.APPLICATION_DATABASE_PASSWORD} : undefined;
+if(!secret)throw new Error("Configure APPLICATION_DATABASE_PASSWORD securely for Neon.");
 if(secret.username!==role||!secret.password)throw new Error("Expected the application-role secret.");
 const pool=migrationPool();const client=await pool.connect();
 try{

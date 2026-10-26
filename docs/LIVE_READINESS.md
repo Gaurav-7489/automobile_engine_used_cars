@@ -48,21 +48,13 @@ updating every `DATABASE_URL` secret.
 Rollback: there are no down migrations. Restore the backup branch, after first
 rolling back any Worker version that writes commerce state.
 
-## 2. Staff MFA, tenant and runtime secrets (owner)
+## 2. Staff sign-in (Google), tenant and runtime secrets (owner)
 
-1. AWS ap-south-1: create the stack from `infra/aws/templates/staff-identity-staging.json`
-   (TOTP MFA required, no self-signup). The user pool is retained even if the stack is deleted.
-2. `cloudflare-staging` environment, variables: `CLOUDFLARE_ACCOUNT_ID`,
-   `CF_PUBLIC_ORIGIN=https://vandlabs-staging-gateway.vandlabs-automobile.workers.dev`,
-   `AUTH_MODE=cognito`.
-3. Secrets: `CLOUDFLARE_API_TOKEN` (Workers Scripts edit, Workers AI, R2, account read),
-   `DATABASE_URL` (pooled, user `vandlabs_runtime`), `TENANT_CONFIG_JSON` (its
-   `seo.canonicalBase` must equal `CF_PUBLIC_ORIGIN`), `SESSION_SECRET`
-   (`openssl rand -base64 32`), `COGNITO_DOMAIN`, `COGNITO_USER_POOL_ID`,
-   `COGNITO_CLIENT_ID`, `COGNITO_DESKTOP_CLIENT_ID`, `DEALER_AI_SERVICE_TOKEN`.
-4. Create real staff users in Cognito, then set `AUTH_PRINCIPALS_JSON` for the first
-   platform admin (non-empty `platformTenantIds`). After deploy, the admin signs in,
-   enrolls TOTP, and grants other staff at `/platform/staff`.
+Follow [GOOGLE_SIGN_IN_SETUP.md](GOOGLE_SIGN_IN_SETUP.md): create a Google OAuth web client with the exact
+redirect URIs, then set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SESSION_SECRET`, `DATABASE_URL` (pooled,
+user `vandlabs_runtime`), `TENANT_CONFIG_JSON` (its `seo.canonicalBase` must equal `CF_PUBLIC_ORIGIN`),
+`DEALER_AI_SERVICE_TOKEN`, `AUTH_REGISTRY_MODE=database` and `AUTH_PRINCIPALS_JSON` (first admin, keyed by
+Google email). `CLOUDFLARE_ACCOUNT_ID`, `CF_PUBLIC_ORIGIN` and `AUTH_MODE=google` are environment variables.
 
 ## 3. Deploy the gateway and apps
 

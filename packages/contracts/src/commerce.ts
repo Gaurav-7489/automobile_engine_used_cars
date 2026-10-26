@@ -33,6 +33,11 @@ export interface AcquisitionRequest {
   budget: number; reserve: number; city: string; latitude: number; longitude: number; radiusKm: number; count: 1 | 2;
   goal: "margin" | "demand"; transportPerKm: number; dailyHoldingCost: number; holdingDays: number;
   fuel: "any" | SourcingVehicle["fuel"]; annualKm: number;
+  /** How much downside the dealer accepts. cautious: only options that cover their landed cost at the low resale end. balanced (default): no downside filter. opportunistic: no filter, margin goal ranks by the high resale end. */
+  risk?: "cautious" | "balanced" | "opportunistic";
 }
-export interface AcquisitionChoice { cars: (SourcingVehicle & { distanceKm: number; transportEstimate: number; landedCost: number; annualFuelEstimate: number | null })[]; landedCost: number; remaining: number; marginLow: number | null; marginHigh: number | null; demandScore: number | null; explanation: string }
-export interface AcquisitionReport { version: string; generatedAt: string; candidates: number; options: AcquisitionChoice[]; notices: string[]; demo: boolean; ai?: { status: "available" | "unavailable" | "not_configured" | "restricted"; text?: string; model?: string } }
+export interface AcquisitionRisk { level: "low" | "medium" | "high"; reasons: string[] }
+export interface AcquisitionChoice { cars: (SourcingVehicle & { distanceKm: number; transportEstimate: number; landedCost: number; annualFuelEstimate: number | null })[]; landedCost: number; remaining: number; marginLow: number | null; marginHigh: number | null; demandScore: number | null; explanation: string;
+  /** Sum of the recorded resale range of the cars, and the holding cost already inside landedCost. */
+  resaleLow?: number | null; resaleHigh?: number | null; holdingCost?: number; marginLowPercent?: number | null; capitalShare?: number; risk?: AcquisitionRisk }
+export interface AcquisitionReport { version: string; generatedAt: string; candidates: number; options: AcquisitionChoice[]; notices: string[]; demo: boolean; ai?: { status: "available" | "unavailable" | "not_configured" | "restricted" | "quota_exceeded"; text?: string; model?: string } }

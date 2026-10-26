@@ -23,7 +23,7 @@ test("platform staff grants persist, reject stale writes and appear in the audit
 test("staff access form saves and disables a persistent grant",async({request,page},testInfo)=>{
   const userId="form-staff-"+testInfo.project.name;
   await page.goto(platform+"/staff");
-  await page.getByLabel("Cognito subject ID").fill(userId);
+  await page.getByLabel("Google account email").fill(userId);
   await page.getByLabel("Staff name").fill("Form staff "+testInfo.project.name);
   await page.getByLabel("Role",{exact:true}).selectOption("viewer");
   await page.getByRole("group",{name:"Dealership access"}).getByRole("checkbox").first().check();

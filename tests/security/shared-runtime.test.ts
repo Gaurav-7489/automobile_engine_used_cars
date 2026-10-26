@@ -22,7 +22,7 @@ test("readiness reports configuration gaps without returning values",()=>{
 test("persisted permissions are consulted on every verified request, revocation beats old environment grants",async()=>{
   const principal:AuthenticatedPrincipal={userId:"staff",tenantId:"tenant",dealershipIds:["dealer"],locationIds:["location"],capabilities:["lead:read"]};
   let active:AuthenticatedPrincipal|null=principal,calls=0;
-  const env={AUTH_MODE:"cognito",AUTH_REGISTRY_MODE:"database",AUTH_PRINCIPALS_JSON:JSON.stringify({staff:principal})};
+  const env={AUTH_MODE:"google",AUTH_REGISTRY_MODE:"database",AUTH_PRINCIPALS_JSON:JSON.stringify({staff:principal})};
   const resolver=createPrincipalResolver({env,demoPrincipal:principal,verifyToken:async()=>({sub:"staff"}),lookupPrincipal:async()=>{calls++;return active;}});
   const request=new Request("https://operations.example/command",{headers:{authorization:"Bearer verified"}});
   assert.deepEqual(await resolver(request),principal);active=null;await assert.rejects(resolver(request),AuthorizationError);assert.equal(calls,2);
@@ -32,8 +32,8 @@ test("persisted permissions are consulted on every verified request, revocation 
 test("platform scopes come only from validated server provisioning",async()=>{
   const p:AuthenticatedPrincipal={userId:"admin",tenantId:"platform",dealershipIds:[],locationIds:[],capabilities:["platform:admin"],platformTenantIds:["tenant-a"]};
   const request=new Request("https://platform.example/platform",{headers:{authorization:"Bearer verified","x-vandlabs-platform-tenants":"tenant-b"}});
-  const resolver=createPrincipalResolver({env:{AUTH_MODE:"cognito",AUTH_REGISTRY_MODE:"database",AUTH_PRINCIPALS_JSON:JSON.stringify({admin:p})},demoPrincipal:p,verifyToken:async()=>({sub:"admin"}),lookupPrincipal:async()=>{throw new Error("bootstrap should not query business scope");}});
+  const resolver=createPrincipalResolver({env:{AUTH_MODE:"google",AUTH_REGISTRY_MODE:"database",AUTH_PRINCIPALS_JSON:JSON.stringify({admin:p})},demoPrincipal:p,verifyToken:async()=>({sub:"admin"}),lookupPrincipal:async()=>{throw new Error("bootstrap should not query business scope");}});
   assert.deepEqual(await resolver(request),p);
-  const empty=createPrincipalResolver({env:{AUTH_MODE:"cognito",AUTH_REGISTRY_MODE:"database",AUTH_PRINCIPALS_JSON:JSON.stringify({admin:{...p,platformTenantIds:[]}})},demoPrincipal:p,verifyToken:async()=>({sub:"admin"})});
+  const empty=createPrincipalResolver({env:{AUTH_MODE:"google",AUTH_REGISTRY_MODE:"database",AUTH_PRINCIPALS_JSON:JSON.stringify({admin:{...p,platformTenantIds:[]}})},demoPrincipal:p,verifyToken:async()=>({sub:"admin"})});
   await assert.rejects(empty(request),AuthenticationError);
 });

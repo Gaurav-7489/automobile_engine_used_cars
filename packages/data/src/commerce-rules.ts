@@ -1,4 +1,4 @@
-import { commercePlans, type AcquisitionRequest, type AcquisitionReport, type AcquisitionChoice, type CommerceState, type CommercePlan, type DataSource, type SourcingVehicle, type FuelObservation } from "@vandlabs/contracts";
+import { commercePlans, type AcquisitionRequest, type AcquisitionReport, type AcquisitionChoice, type AcquisitionRisk, type CommerceState, type CommercePlan, type DataSource, type SourcingVehicle, type FuelObservation } from "@vandlabs/contracts";
 export class CommerceError extends Error {
   constructor(public readonly status: 400 | 401 | 402 | 403 | 404 | 409 | 429 | 503, message: string, public readonly retryAfter?: number) { super(message); }
 }
@@ -61,8 +61,9 @@ export function fuelInput(value: unknown, source: DataSource, now: Date): FuelOb
 export function acquisitionInput(value: unknown): AcquisitionRequest {
   const b = object(value);
   if (![1, 2].includes(b.count as number) || !["margin", "demand"].includes(String(b.goal)) || !["any", "petrol", "diesel", "electric", "hybrid"].includes(String(b.fuel))) throw new CommerceError(400, "Choose valid planning options.");
+  if (b.risk !== undefined && !["cautious", "balanced", "opportunistic"].includes(String(b.risk))) throw new CommerceError(400, "Choose a valid risk tolerance.");
   const budget = number(b.budget, 1, 100000000, true), reserve = number(b.reserve, 0, budget, true);
-  return { budget, reserve, city: text(b.city), latitude: number(b.latitude, -90, 90), longitude: number(b.longitude, -180, 180), radiusKm: number(b.radiusKm, 0, 3000), count: b.count as 1 | 2, goal: b.goal as AcquisitionRequest["goal"], fuel: b.fuel as AcquisitionRequest["fuel"], transportPerKm: number(b.transportPerKm, 0, 1000), dailyHoldingCost: number(b.dailyHoldingCost, 0, 10000), holdingDays: number(b.holdingDays, 0, 365, true), annualKm: number(b.annualKm, 0, 200000, true) };
+  return { budget, reserve, city: text(b.city), latitude: number(b.latitude, -90, 90), longitude: number(b.longitude, -180, 180), radiusKm: number(b.radiusKm, 0, 3000), count: b.count as 1 | 2, goal: b.goal as AcquisitionRequest["goal"], fuel: b.fuel as AcquisitionRequest["fuel"], transportPerKm: number(b.transportPerKm, 0, 1000), dailyHoldingCost: number(b.dailyHoldingCost, 0, 10000), holdingDays: number(b.holdingDays, 0, 365, true), annualKm: number(b.annualKm, 0, 200000, true), risk: (b.risk ?? "balanced") as AcquisitionRequest["risk"] };
 }
 export function allowedSource(source: DataSource | undefined, external: boolean, now: Date) {
   return !!source && source.enabled && source.dealerUse && Date.parse(source.expiresAt) > now.getTime() && (!external || source.redistribute);
@@ -105,12 +106,31 @@ export function recommend(state: CommerceState, input: AcquisitionRequest, subsc
   }).filter(v => v.distanceKm <= input.radiusKm && v.landedCost <= input.budget - input.reserve);
   if (candidates.length > 200) throw new CommerceError(400, "Narrow the radius or fuel filter to at most 200 eligible vehicles.");
   const groups = input.count === 1 ? candidates.map(c => [c]) : candidates.flatMap((c, i) => candidates.slice(i + 1).map(other => [c, other]));
+  const risk = input.risk ?? "balanced", deployable = input.budget - input.reserve, holdingEach = input.dailyHoldingCost * input.holdingDays;
+  const assess = (cars: typeof candidates, landedCost: number, marginLow: number | null, marginHigh: number | null, demandScore: number | null): AcquisitionRisk => {
+    const reasons: string[] = []; let high = false;
+    if (marginLow === null || marginHigh === null) { reasons.push("No recorded resale range, so profit cannot be estimated."); high = true; }
+    else if (marginHigh < 0) { reasons.push(`Loses ₹${Math.round(-marginHigh).toLocaleString("en-IN")} even at the top of the resale range.`); high = true; }
+    else if (marginLow < 0) reasons.push(`Loses ₹${Math.round(-marginLow).toLocaleString("en-IN")} if it resells at the low end.`);
+    else if (marginHigh > 0 && (marginHigh - marginLow) / marginHigh > .6) reasons.push("The resale range is wide, so the outcome is uncertain.");
+    if (demandScore === null) reasons.push("No demand score is recorded."); else if (demandScore < 50) reasons.push(`Source demand score is low (${demandScore} / 100).`);
+    const share = deployable > 0 ? landedCost / deployable : 1;
+    if (share > .8) reasons.push(`Commits ${Math.round(share * 100)}% of the capital available after reserve.`);
+    const far = cars.find(c => c.distanceKm > 400); if (far) reasons.push(`${far.make} ${far.model} is ${Math.round(far.distanceKm)} km away; transport is a straight-line estimate.`);
+    const old = cars.find(c => now.getTime() - Date.parse(c.observedAt) > 14 * 86400000); if (old) reasons.push(`${old.make} ${old.model} was last observed over 14 days ago; confirm it is still available.`);
+    return { level: high ? "high" : reasons.length ? "medium" : "low", reasons };
+  };
   const options: AcquisitionChoice[] = groups.map(cars => {
     const landedCost = round(cars.reduce((sum, c) => sum + c.landedCost, 0));
     const resaleKnown = cars.every(c => c.resaleLow !== null && c.resaleHigh !== null), demandKnown = cars.every(c => c.demandScore !== null);
-    return { cars, landedCost, remaining: round(input.budget - input.reserve - landedCost), marginLow: resaleKnown ? round(cars.reduce((sum, c) => sum + c.resaleLow!, 0) - landedCost) : null, marginHigh: resaleKnown ? round(cars.reduce((sum, c) => sum + c.resaleHigh!, 0) - landedCost) : null, demandScore: demandKnown ? round(cars.reduce((sum, c) => sum + c.demandScore!, 0) / cars.length) : null, explanation: `Fits capital after reserve; includes purchase, preparation, transfer, estimated transport and ${input.holdingDays} days of holding costs. Ranked by ${input.goal === "margin" ? "lower gross contribution estimate" : "average source demand score"}; missing evidence ranks last.` };
-  }).filter(o => o.remaining >= 0).sort((a, b) => {
-    const av = input.goal === "margin" ? a.marginLow : a.demandScore, bv = input.goal === "margin" ? b.marginLow : b.demandScore;
+    const resaleLow = resaleKnown ? round(cars.reduce((sum, c) => sum + c.resaleLow!, 0)) : null, resaleHigh = resaleKnown ? round(cars.reduce((sum, c) => sum + c.resaleHigh!, 0)) : null;
+    const marginLow = resaleLow === null ? null : round(resaleLow - landedCost), marginHigh = resaleHigh === null ? null : round(resaleHigh - landedCost);
+    const demandScore = demandKnown ? round(cars.reduce((sum, c) => sum + c.demandScore!, 0) / cars.length) : null;
+    const rank = input.goal === "margin" ? (risk === "opportunistic" ? "higher gross contribution estimate" : "lower gross contribution estimate") : "average source demand score";
+    return { cars, landedCost, remaining: round(deployable - landedCost), marginLow, marginHigh, demandScore, resaleLow, resaleHigh, holdingCost: round(holdingEach * cars.length), marginLowPercent: marginLow === null || landedCost <= 0 ? null : Math.round(marginLow / landedCost * 1000) / 10, capitalShare: deployable > 0 ? Math.round(landedCost / deployable * 1000) / 10 : 100, risk: assess(cars, landedCost, marginLow, marginHigh, demandScore),
+      explanation: `Fits capital after reserve; includes purchase, preparation, transfer, estimated transport and ${input.holdingDays} days of holding costs. Ranked by ${rank}; missing evidence ranks last.${risk === "cautious" ? " Cautious: only options whose low-end resale covers the landed cost are shown." : ""}` };
+  }).filter(o => o.remaining >= 0 && (risk !== "cautious" || (o.marginLow !== null && o.marginLow >= 0))).sort((a, b) => {
+    const av = input.goal === "margin" ? (risk === "opportunistic" ? a.marginHigh : a.marginLow) : a.demandScore, bv = input.goal === "margin" ? (risk === "opportunistic" ? b.marginHigh : b.marginLow) : b.demandScore;
     if (av === null && bv !== null) return 1; if (bv === null && av !== null) return -1;
     return (bv ?? 0) - (av ?? 0) || a.landedCost - b.landedCost;
   }).slice(0, 10);

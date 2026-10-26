@@ -46,4 +46,4 @@ Production promotion must include negative tests proving Tenant A cannot read, m
 
 ## Verified identity boundary
 
-See `staff-authentication.md`. Staff tokens are verified in the application; incoming identity headers are never accepted as proof. Mutation authorization now includes location scope. The current schema and reference adapters do not constitute a deployed, tested production isolation system.
+See `GOOGLE_SIGN_IN_SETUP.md`. Staff tokens are verified in the application; incoming identity headers are never accepted as proof. Mutation authorization now includes location scope. The current schema and reference adapters do not constitute a deployed, tested production isolation system.

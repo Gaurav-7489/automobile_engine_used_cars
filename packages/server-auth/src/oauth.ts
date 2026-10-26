@@ -1,17 +1,19 @@
 import { createCipheriv, createDecipheriv, randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { AuthenticationError } from "./index";
-export interface OAuthConfig { origin:string; domain:string; clientId:string; secret:string; basePath:string; authorizeUrl?:string; tokenUrl?:string; revokeUrl?:string; oidc?:boolean; audience?:string; resource?:string }
+export interface OAuthConfig { origin:string; domain:string; clientId:string; clientSecret?:string; secret:string; basePath:string; authorizeUrl?:string; tokenUrl?:string; revokeUrl?:string; oidc?:boolean; google?:boolean; audience?:string; resource?:string }
+const googleEndpoints={issuer:"https://accounts.google.com",authorize:"https://accounts.google.com/o/oauth2/v2/auth",token:"https://oauth2.googleapis.com/token",revoke:"https://oauth2.googleapis.com/revoke"};
 export function oauthConfig(basePath:string):OAuthConfig {
-  const oidc=process.env.AUTH_MODE === "oidc";
+  const google=process.env.AUTH_MODE === "google", oidc=process.env.AUTH_MODE === "oidc";
   const {APP_ORIGIN,SESSION_SECRET}=process.env;
-  const COGNITO_DOMAIN=oidc?process.env.OIDC_ISSUER:process.env.COGNITO_DOMAIN;
-  const COGNITO_CLIENT_ID=oidc?process.env.OIDC_CLIENT_ID:process.env.COGNITO_CLIENT_ID;
-  if(!APP_ORIGIN||!COGNITO_DOMAIN||!COGNITO_CLIENT_ID||!SESSION_SECRET)throw new AuthenticationError(503,"Sign-in is not configured.");
-  const origin=new URL(APP_ORIGIN).origin, domain=new URL(COGNITO_DOMAIN).origin;
+  const issuer=google?googleEndpoints.issuer:process.env.OIDC_ISSUER;
+  const clientId=google?process.env.GOOGLE_CLIENT_ID:process.env.OIDC_CLIENT_ID;
+  const clientSecret=google?process.env.GOOGLE_CLIENT_SECRET:process.env.OIDC_CLIENT_SECRET;
+  if(!google&&!oidc||!APP_ORIGIN||!issuer||!clientId||!SESSION_SECRET||(google&&!clientSecret))throw new AuthenticationError(503,"Sign-in is not configured.");
+  const origin=new URL(APP_ORIGIN).origin, domain=new URL(issuer).origin;
   if(!origin.startsWith("https://")||!domain.startsWith("https://")||Buffer.from(SESSION_SECRET,"base64").length!==32)throw new AuthenticationError(503,"Sign-in configuration is invalid.");
-  const endpoints=oidc?[process.env.OIDC_AUTHORIZE_URL,process.env.OIDC_TOKEN_URL,process.env.OIDC_REVOKE_URL]:[];
-  if(oidc && endpoints.some(url=>{try{const parsed=new URL(url!);return parsed.protocol!=="https:" || Boolean(parsed.username||parsed.password);}catch{return true;}}))throw new AuthenticationError(503,"OIDC endpoints require HTTPS.");
-  return {origin,domain,clientId:COGNITO_CLIENT_ID,secret:SESSION_SECRET,basePath,oidc,
+  const endpoints=google?[googleEndpoints.authorize,googleEndpoints.token,googleEndpoints.revoke]:[process.env.OIDC_AUTHORIZE_URL,process.env.OIDC_TOKEN_URL,process.env.OIDC_REVOKE_URL];
+  if(endpoints.some(url=>{try{const parsed=new URL(url!);return parsed.protocol!=="https:" || Boolean(parsed.username||parsed.password);}catch{return true;}}))throw new AuthenticationError(503,"Sign-in endpoints require HTTPS.");
+  return {origin,domain,clientId,clientSecret,secret:SESSION_SECRET,basePath,oidc:true,google,
     authorizeUrl:endpoints[0],tokenUrl:endpoints[1],revokeUrl:endpoints[2],audience:oidc?process.env.OIDC_AUDIENCE:undefined,resource:oidc?process.env.OIDC_RESOURCE:undefined};
 }
 export function seal(value:unknown,secret:string) {
@@ -37,9 +39,9 @@ function setCookie(response:Response,name:string,value:string,seconds:number) {
   response.headers.append("Set-Cookie",`${name}=${value}; Max-Age=${seconds}; Path=/; HttpOnly; Secure; SameSite=Lax`);
 }
 function redirect(url:string) {return new Response(null,{status:303,headers:{Location:url,"Cache-Control":"private, no-store"}});}
-interface Tokens { access_token:string; refresh_token?:string; expires_in:number }
+interface Tokens { access_token:string; id_token?:string; refresh_token?:string; expires_in:number }
 export async function exchange(config:OAuthConfig,params:Record<string,string>):Promise<Tokens> {
-  const response=await fetch(config.tokenUrl ?? config.domain+"/oauth2/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:config.clientId,...params}),signal:AbortSignal.timeout(10000),cache:"no-store",redirect:"error"});
+  const response=await fetch(config.tokenUrl ?? config.domain+"/oauth2/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:config.clientId,...(config.clientSecret?{client_secret:config.clientSecret}:{}),...params}),signal:AbortSignal.timeout(10000),cache:"no-store",redirect:"error"});
   if(!response.ok)throw new AuthenticationError(401,"Sign-in failed.");const value=await response.json() as Tokens;
   if(typeof value.access_token!=="string"||!Number.isFinite(value.expires_in)||value.expires_in<=0||value.expires_in>86400)throw new AuthenticationError(401,"Invalid sign-in response.");return value;
 }
@@ -49,9 +51,12 @@ export function createOAuthHandlers(basePath:string,authorize:(request:Request)=
   }
   function csrf(request:Request,c:OAuthConfig){if(request.headers.get("origin")!==c.origin)throw new AuthenticationError(401,"Invalid request origin.");}
   async function session(config:OAuthConfig,tokens:Tokens,target:string,previousRefresh?:string) {
-    await authorize(new Request(config.origin+basePath,{headers:{authorization:`Bearer ${tokens.access_token}`}}));
+    // Google access tokens are opaque; its signed ID token is the verifiable staff credential.
+    const credential=config.google?tokens.id_token:tokens.access_token;
+    if(!credential)throw new AuthenticationError(401,"Invalid sign-in response.");
+    await authorize(new Request(config.origin+basePath,{headers:{authorization:`Bearer ${credential}`}}));
     const response=redirect(config.origin+target);
-    setCookie(response,"__Host-vandlabs-access-token",tokens.access_token,tokens.expires_in);
+    setCookie(response,"__Host-vandlabs-access-token",credential,config.google?Math.min(tokens.expires_in,3600):tokens.expires_in);
     const refresh=tokens.refresh_token||previousRefresh;
     if(refresh)setCookie(response,"__Host-vandlabs-refresh",seal({token:refresh,expires:Date.now()+30*86400000},config.secret),30*86400);
     setCookie(response,"__Host-vandlabs-oauth","",0);return response;
@@ -61,6 +66,7 @@ export function createOAuthHandlers(basePath:string,authorize:(request:Request)=
       const c=oauthConfig(basePath);const verifier=randomBytes(32).toString("base64url"),state=randomBytes(32).toString("base64url");
       const returnTo=safeReturnTo(new URL(request.url).searchParams.get("returnTo"),basePath);
       const url=new URL(c.authorizeUrl ?? c.domain+"/oauth2/authorize");url.search=new URLSearchParams({response_type:"code",client_id:c.clientId,redirect_uri:c.origin+basePath+"/auth/callback",scope:"openid email profile",state,code_challenge_method:"S256",code_challenge:createHash("sha256").update(verifier).digest("base64url")}).toString();
+      if(c.google){url.searchParams.set("access_type","offline");url.searchParams.set("prompt","select_account");}
       if(c.audience)url.searchParams.set("audience",c.audience);
       if(c.resource)url.searchParams.set("resource",c.resource);
       const response=redirect(url.toString());setCookie(response,"__Host-vandlabs-oauth",seal({state,verifier,returnTo,expires:Date.now()+600000},c.secret),600);return response;

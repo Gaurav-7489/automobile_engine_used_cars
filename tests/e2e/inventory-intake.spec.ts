@@ -45,7 +45,7 @@ test("CSV preview creates nothing; reviewed batches persist once with duplicate 
   const repeated=await request.post(`${api}/vehicles/import`,{data:body});expect(repeated.status()).toBe(400);expect((await repeated.json()).issues[0].field).toBe("stockId");
   expect((await request.post(`${api}/vehicles/import`,{data:{...body,locationId:"forged"}})).status()).toBe(403);
   expect((await request.post(`${api}/vehicles/import`,{data:{...body,csv:"x".repeat(1000001)}})).status()).toBe(400);
-  await page.screenshot({path:`test-results/inventory-intake-${info.project.name}.png`,fullPage:true});
+  await page.screenshot({path:`test-results/inventory-intake-${info.project.name}.png`,fullPage:info.project.name!=="mobile"});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
 });
 
@@ -86,7 +86,7 @@ test("Excel download, row-error review and atomic draft import connect to publis
   await expect(review.getByRole("button", { name: "Import 1 draft" })).toBeDisabled();
   const during = (await (await request.get(`${api}/snapshot`)).json()).data;
   expect(during.vehicles.some((v: { stockId: string }) => v.stockId === stockId)).toBeFalsy();
-  await page.screenshot({ path: `test-results/excel-review-${info.project.name}.png`, fullPage: true });
+  await page.screenshot({ path: `test-results/excel-review-${info.project.name}.png`, fullPage: info.project.name !== "mobile" });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await page.getByLabel("I checked all rows, the destination and the rights to any supplied images.").check();
   await review.getByRole("button", { name: "Import 1 draft" }).click();

@@ -106,7 +106,7 @@ test("mobile homepage has no horizontal overflow", async ({ page }) => {
 test("command center CRM loads", async ({ page }) => {
   await page.goto("http://127.0.0.1:3001/command");
   await expect(
-    page.getByRole("heading", { name: "Today, at a glance." }),
+    page.getByRole("heading", { name: "Today, decided." }),
   ).toBeVisible();
   await page.goto("http://127.0.0.1:3001/command/leads");
   await expect(page.getByRole("heading", { name: "Lead inbox" })).toBeVisible();

@@ -18,7 +18,7 @@ pnpm + Turborepo coordinates three Next.js applications, a React/Tauri native st
 
 - `@vandlabs/contracts` — canonical domain, capabilities and repository contracts.
 - `@vandlabs/data` — shared PostgreSQL/demo repositories, scoped business mutations and deterministic inventory/capital evidence.
-- `@vandlabs/server-auth` — Cognito token/session verification and server-owned staff scope resolution.
+- `@vandlabs/server-auth` — Google ID-token/session verification and server-owned staff scope resolution.
 - `@vandlabs/demo-data` — reference tenant/inventory/CRM/analytics fixtures plus local demo persistence.
 - `@vandlabs/design-system` — shared primitive/token foundation.
 
@@ -94,7 +94,7 @@ Customer
   → analytics / observability / integrations
 ```
 
-See `docs/aws-integration.md` for the migration sequence.
+The earlier AWS path was removed; the stack is Neon + Cloudflare + Google sign-in.
 
 ## Experience Engine
 

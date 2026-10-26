@@ -121,5 +121,5 @@ a readiness check.
 `cognito`. Both configuration generation and preflight select the matching
 required credentials; shared demo authentication is rejected. The deployment
 forwards Cognito pool/domain/client configuration through Worker secret storage.
-See `STAFF_IDENTITY_SETUP.md` for the isolated MFA-required Cognito stack and
+See `GOOGLE_SIGN_IN_SETUP.md` for Google OAuth client setup and
 reviewable staging CloudFormation template. No AWS resources are provisioned by CI.

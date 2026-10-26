@@ -57,10 +57,21 @@ export function marketReport(state: CommerceState, input: Record<string, unknown
     askingPrice: v.askingPrice!, source: state.sources.find(s => s.id === v.sourceId)!.name, evidence: v.evidence,
     demo: state.sources.find(s => s.id === v.sourceId)!.kind === "demo",
   }));
+  // Evidence quality: a rule over the records themselves (count, sources, cohort narrowness, age). It rates the evidence, never the market.
+  const narrow = Boolean(filters.make && filters.model && filters.minYear === filters.maxYear);
+  const ageDays = (iso: string | undefined) => iso === undefined ? null : Math.max(0, Math.round((now.getTime() - Date.parse(iso)) / 86400000 * 10) / 10);
+  const reasons: string[] = [`${matched.length} matching ${matched.length === 1 ? "record" : "records"} from ${sourceIds.size} ${sourceIds.size === 1 ? "source" : "sources"}`];
+  reasons.push(narrow ? "Single make, model and year cohort" : "Mixed cohort — narrow make, model and year");
+  const oldest = ageDays(dates[0]), newest = ageDays(dates.at(-1));
+  if (oldest !== null) reasons.push(`Observations are ${newest} to ${oldest} days old`);
+  const level = matched.length < 5 ? "insufficient" : matched.length >= 15 && sourceIds.size >= 2 && narrow ? "high" : matched.length >= 8 && narrow ? "medium" : "low";
+  const overall = distribution.median;
   return {
     generatedAt: now.toISOString(), currency: "INR" as const, filters, distribution,
+    confidence: { level: level as "insufficient" | "low" | "medium" | "high", reasons, narrowCohort: narrow },
+    freshness: { newestAgeDays: newest, oldestAgeDays: oldest, windowDays: filters.maxAgeDays, withinWindow: priced.length, excludedStale: eligible.filter(v => v.askingPrice && Date.parse(v.askingPrice.observedAt) < cutoff).length },
     coverage: { eligible: eligible.length, freshAskingPrices: priced.length, matching: matched.length, sources: sourceIds.size, oldestObservationAt: dates[0] ?? null, latestObservationAt: dates.at(-1) ?? null },
-    cities: [...cities.values()].map(c => ({ city: c.city, ...stats(c.prices) })).sort((a, b) => a.city.localeCompare(b.city)),
+    cities: [...cities.values()].map(c => { const st = stats(c.prices); return { city: c.city, ...st, vsOverallPercent: overall && st.median !== null && matched.length >= 5 && c.prices.length >= 2 ? Math.round((st.median - overall) / overall * 1000) / 10 : null }; }).sort((a, b) => a.city.localeCompare(b.city)),
     demo: matched.some(v => state.sources.find(s => s.id === v.sourceId)!.kind === "demo"),
     items, pageSize: 25, notices,
   };
