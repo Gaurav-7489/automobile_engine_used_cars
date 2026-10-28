@@ -55,7 +55,10 @@ test("owner onboarding, invitations, sign-in, lockout, revocation and tenant iso
     const fin = await signIn("sales@alpha.example", "finance person long pass 3");
     assert.ok(fin.ok);
     if (!fin.ok) return;
-    const finance = await resolvePrincipal(fin.userId, a.tenantId, issuedAt);
+    // This account was created after the owner's session. A slow runner may
+    // cross a second boundary; model the finance user's own fresh sign-in.
+    const financeIssuedAt = Math.floor(Date.now() / 1000);
+    const finance = await resolvePrincipal(fin.userId, a.tenantId, financeIssuedAt);
     assert.equal(finance?.role, "finance");
     assert.deepEqual(finance?.locationIds, [a.locationIds[0]]);
 
@@ -71,12 +74,12 @@ test("owner onboarding, invitations, sign-in, lockout, revocation and tenant iso
 
     // Revocation applies to sessions issued before it.
     await revokeSessions(fin.userId);
-    assert.equal(await resolvePrincipal(fin.userId, a.tenantId, issuedAt - 5), null);
-    assert.ok(await resolvePrincipal(fin.userId, a.tenantId, issuedAt + 5));
+    assert.equal(await resolvePrincipal(fin.userId, a.tenantId, financeIssuedAt - 5), null);
+    assert.ok(await resolvePrincipal(fin.userId, a.tenantId, financeIssuedAt + 5));
 
     // Disabling a membership removes access at once.
     await tenantTx(a.tenantId, (c) => c.query("UPDATE staff_members SET payload = jsonb_set(payload,'{enabled}','false') WHERE user_id = $1", [fin.userId]));
-    assert.equal(await resolvePrincipal(fin.userId, a.tenantId, issuedAt + 5), null);
+    assert.equal(await resolvePrincipal(fin.userId, a.tenantId, financeIssuedAt + 5), null);
     assert.deepEqual(await signIn("sales@alpha.example", "finance person long pass 3"), { ok: false, code: "no_access" });
 
     // Lockout after five consecutive failures, even with the right password afterwards.
