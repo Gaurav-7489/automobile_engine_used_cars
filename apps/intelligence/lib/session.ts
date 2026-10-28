@@ -86,6 +86,6 @@ export async function verifySession(token: string | undefined | null): Promise<S
 /** returnTo must stay inside the application. */
 export function safeReturnTo(value: string | null | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/app/overview";
-  if (!(value.startsWith("/app/") || value === "/app" || value.startsWith("/onboarding"))) return "/app/overview";
+  if (!(value.startsWith("/app/") || value === "/app" || value.startsWith("/onboarding") || value === "/admin" || value.startsWith("/admin/"))) return "/app/overview";
   return value;
 }

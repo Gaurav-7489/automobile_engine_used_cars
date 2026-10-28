@@ -29,6 +29,9 @@ Email and password; scrypt hashes; five failed attempts lock an account for 15 m
 
 ## Provision a workspace (administrators)
 
+Preferred: the admin console's **Add dealership**. The command-line script below remains for automation.
+
+
 ```bash
 MIGRATION_DATABASE_URL=... APP_ORIGIN=https://<production-host> \
 pnpm intelligence:provision --organization "Legal Name" --dealership "Display Name" \
@@ -60,6 +63,23 @@ Do not set `MIGRATION_DATABASE_URL` on the web deployment.
 
 - Application: promote the previous Vercel deployment. Nothing in the schema is required by older deployments.
 - Database: `0010` only adds objects. To revert, drop the `intelligence_*` tables and functions after confirming no tenant data is needed, or restore the backup branch. Existing platform tables are never altered.
+
+## One application, one sign-in
+
+Automobile Intelligence is the single application for everyone who signs in. After sign-in:
+
+- **VandLabs administrators** land in the admin console at `/admin`. It lists every dealership with live counts, adds a dealership (business, branches, owner) and returns a one-time owner setup link, issues a fresh link while nobody has joined, and suspends or restores accounts (suspension ends every session at once). The console requires two-factor login on the administrator's account, and every change requires the password again and is written to that dealership's audit log. Administrators also keep their own dealership workspace.
+- **Dealer owners and staff** land in their dealership workspace, limited by role and branch. Owners invite staff from Settings, Team.
+- **Customers** browse the public website without an account.
+
+Administrator rights are granted only on the database owner connection; the application cannot grant them:
+
+```sql
+INSERT INTO intelligence_platform_admins(user_id, granted_by)
+SELECT id, '<who granted it>' FROM intelligence_users WHERE lower(email) = lower('<admin email>');
+```
+
+The separate Command Center and Platform console apps were never configured for production (they wait for an Amazon Cognito pool that was not created). Their dealer features are covered by this application, and the admin console replaces the platform console. They are left untouched.
 
 ## Built in (no outside provider)
 

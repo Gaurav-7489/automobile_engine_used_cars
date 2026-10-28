@@ -5,6 +5,7 @@ import { SESSION_COOKIE, SESSION_TTL_SECONDS, safeReturnTo } from "@/lib/session
 import { newSessionCookie } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { signIn } from "@/lib/server/identity";
+import { isPlatformAdmin } from "@/lib/server/platform-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,9 @@ export async function POST(request: Request) {
   }
   const token = await newSessionCookie(result.userId, result.tenantId);
   if (!token) return problem(503, "not_configured", "Sign-in is not configured for this environment. Ask your administrator.");
-  const response = NextResponse.json({ ok: true, returnTo: safeReturnTo(body.returnTo), user: { name: result.name } }, { headers: { "Cache-Control": "no-store" } });
+  // One sign-in for everyone: VandLabs administrators land in the admin console, dealer owners and staff in their workspace.
+  const landing = body.returnTo ? safeReturnTo(body.returnTo) : (await isPlatformAdmin(result.userId).catch(() => false)) ? "/admin" : "/app/overview";
+  const response = NextResponse.json({ ok: true, returnTo: landing, user: { name: result.name } }, { headers: { "Cache-Control": "no-store" } });
   response.cookies.set(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: SESSION_TTL_SECONDS });
   return response;
 }

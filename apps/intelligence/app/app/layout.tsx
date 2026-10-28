@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getPrincipal } from "@/lib/server/auth";
 import { redactFor } from "@/lib/server/redact";
 import { loadWorkspace } from "@/lib/server/workspace";
+import { isPlatformAdmin } from "@/lib/server/platform-admin";
 import { Shell } from "@/components/shell";
 import { WorkspaceProvider } from "@/components/workspace";
 
@@ -11,8 +12,10 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   const current = await getPrincipal();
   if (!current) redirect("/login");
   let state;
+  let platformAdmin = false;
   try {
     state = redactFor(await loadWorkspace(current.principal), current.session);
+    platformAdmin = await isPlatformAdmin(current.principal.userId);
   } catch (error) {
     console.error(JSON.stringify({ event: "workspace_render_failure", message: error instanceof Error ? error.message : "unknown" }));
     return (
@@ -23,7 +26,7 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   }
   return (
     <WorkspaceProvider session={current.session} initialState={state} asOf={new Date().toISOString()}>
-      <Shell>{children}</Shell>
+      <Shell platformAdmin={platformAdmin}>{children}</Shell>
     </WorkspaceProvider>
   );
 }

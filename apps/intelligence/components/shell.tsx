@@ -46,7 +46,7 @@ function BranchSelect() {
   );
 }
 
-function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+function MoreSheet({ open, onClose, platformAdmin }: { open: boolean; onClose: () => void; platformAdmin: boolean }) {
   const href = useScopedHref();
   const { state, session, scope } = useWorkspace();
   const router = useRouter();
@@ -66,12 +66,13 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         </select>
       </div>
       <Link href="/app/settings/security" className="btn" onClick={onClose}>Account and security</Link>
+      {platformAdmin ? <Link href="/admin" className="btn" onClick={onClose}><Icon name="shield" size={18} />VandLabs admin console</Link> : null}
       <Button onClick={signOut}><Icon name="logout" size={18} />Sign out</Button>
     </Dialog>
   );
 }
 
-export function Shell({ children }: { children: ReactNode }) {
+export function Shell({ children, platformAdmin = false }: { children: ReactNode; platformAdmin?: boolean }) {
   const { state, session, scope, demoState } = useWorkspace();
   const pathname = usePathname();
   const href = useScopedHref();
@@ -116,6 +117,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </nav>
           <div className="rail-foot">
             <div className="who"><strong>{state.tenant.name}</strong><span>{ROLE_LABEL[session.role]}{demoState === "empty" ? " / Empty-state preview" : ""}</span></div>
+            {platformAdmin ? <Link href="/admin" className="btn btn-block"><Icon name="shield" size={18} /><span className="label">VandLabs admin</span></Link> : null}
             <Button onClick={() => setHelpOpen(true)} className="btn-block"><Icon name="help" size={18} /><span className="label">Help &amp; shortcuts</span></Button>
           </div>
         </aside>
@@ -133,6 +135,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 <>
                   <div className="menu-label" role="presentation">{session.name}<br />{session.email} / {ROLE_LABEL[session.role]}</div><hr />
                   <Link role="menuitem" href={href("/app/settings/security")} onClick={close}>Account and security</Link>
+                  {platformAdmin ? <Link role="menuitem" href="/admin" onClick={close}>VandLabs admin console</Link> : null}
                   <button role="menuitem" onClick={signOut}><Icon name="logout" size={18} />Sign out</button>
                 </>
               )}
@@ -152,7 +155,7 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
       </div>
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
+      <MoreSheet platformAdmin={platformAdmin} open={moreOpen} onClose={() => setMoreOpen(false)} />
       <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title="Help and keyboard shortcuts" description="Documentation opens in a new tab. Shortcuts work on every page." footer={<Button variant="primary" onClick={() => setHelpOpen(false)}>Done</Button>}>
         <dl className="kv">{SHORTCUTS.map(([k, v]) => <div key={k}><dt>{v}</dt><dd><span className="kbd">{k}</span></dd></div>)}</dl>
         <p className="meta">Branch scope, filters, sort, tab and page cursor are held in the address bar, so Back restores them. Switching workspace clears cached private data.</p>
