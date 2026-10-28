@@ -4,12 +4,13 @@ import { getDesktopRelease, releaseRepository } from "../../lib/desktop-release"
 import { dealershipService } from "../../lib/services";
 import { DesktopTour } from "../../components/desktop-tour";
 import { SpotlightCard } from "../../components/spotlight-card";
+import { workspaceLink } from "../../lib/workspace-links";
 
 export const metadata = pageMetadata('VandLabs Dealer Desktop App', 'Download the VandLabs dealer desktop app for your computer. Connect to your dealership workspace to manage inventory, enquiries and follow-ups.', "/download");
 export default async function Download() {
   const [release, inventory] = await Promise.all([getDesktopRelease(), dealershipService.inventory()]);
   const vehicles = inventory.map(({ id, slug, make, model, year, price, availabilityStatus }) => ({ id, slug, make, model, year, price, availabilityStatus }));
-  const installUrl = `${process.env.UNIFIED_APP_ORIGIN ?? ""}/install`;
+  const installUrl = workspaceLink("/install");
   return <main className="shell section connected-page desktop-page">
     <section className="section" aria-label="Install the unified app"><p className="eyebrow">One application · one sign-in</p><h2>Install the current VandLabs app.</h2><p>The showroom, dealer workspace and VandLabs admin console now share one address. Install it on your computer or phone and use your existing account.</p><a href={installUrl} className="button primary">Install VandLabs Auto</a><p className="subtle">The older native installers below are development builds using a separate legacy sign-in. Use the installable web app for the current workspace.</p></section>
     <div className="download-head" data-reveal><span className="app-logo" aria-hidden="true">A<span>↗</span></span><p className="eyebrow">VandLabs Automobile Engine</p><h1>A workspace<br />that moves with you.</h1><p className="lede">Your inventory. Your conversations. Your next move.<br />Connected, wherever your day takes you.</p><div className="actions"><a href="#installers" className="button primary">Get the desktop app ↓</a><a href="#product-tour" className="rolling-link">Take a closer look ↗</a></div><span className="download-version">{release ? `Development build · ${release.tag}` : "Installer release pending"}</span></div>

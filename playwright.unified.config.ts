@@ -5,7 +5,7 @@ export default defineConfig({
   workers: 1,
   use: { baseURL: "http://127.0.0.1:3003", trace: "retain-on-failure" },
   webServer: [
-    { command: "pnpm --filter @vandlabs/web start", url: "http://127.0.0.1:3000", env: { DATA_MODE: "demo", NEXT_PUBLIC_PREVIEW_READ_ONLY: "true" } },
+    { command: "pnpm --filter @vandlabs/web start", url: "http://127.0.0.1:3000", env: { DATA_MODE: "demo", NEXT_PUBLIC_PREVIEW_READ_ONLY: "true", UNIFIED_APP_ORIGIN: "http://127.0.0.1:3003" } },
     { command: "pnpm --filter @vandlabs/intelligence start", url: "http://127.0.0.1:3003/login", env: { SHOWROOM_ORIGIN: "http://127.0.0.1:3000" } },
   ],
   projects: [

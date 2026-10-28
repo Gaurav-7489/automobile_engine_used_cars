@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PrimaryNav } from "./primary-nav";
+import { workspaceLink } from "../lib/workspace-links";
 
 /** Original VandLabs Auto mark: a split chevron — the road ahead, in two strokes. */
 export function BrandMark({ id = "vl-mark" }: { id?: string }) {
@@ -16,7 +17,7 @@ export function SiteHeader() {
       <div className="shell nav">
         <Link className="brand" href="/" aria-label="VandLabs Auto home"><BrandMark /><span>VandLabs <b>Auto</b></span></Link>
         <PrimaryNav items={[{ href: "/", label: "Home" }, { href: "/discover", label: "Discover" }, { href: "/saved", label: "Saved Cars" }]} />
-        <a className="nav-call" href={process.env.DEALER_WORKSPACE_URL ?? "/login"}>Sign in</a>
+        <a className="nav-call" href={process.env.DEALER_WORKSPACE_URL ?? workspaceLink("/login")}>Sign in</a>
       </div>
     </header>
   );

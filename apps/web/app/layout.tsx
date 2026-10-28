@@ -10,6 +10,7 @@ import { SiteHeader } from "../components/site-header";
 import { SiteFooter } from "../components/site-footer";
 import { JourneyCapture } from "../components/journey-capture";
 import { tenantConfig } from "../lib/config";
+import { workspaceLink } from "../lib/workspace-links";
 
 import { isReadOnlyPreview } from "../lib/hosting";
 
@@ -31,9 +32,9 @@ export const metadata: Metadata = {
   },
   description: tenantConfig.seo.description,
   applicationName: "VandLabs Auto",
-  manifest: "/manifest.webmanifest",
+  manifest: workspaceLink("/manifest.webmanifest"),
   appleWebApp: { capable: true, title: "VandLabs Auto", statusBarStyle: "default" },
-  icons: { apple: "/app-icons/icon-192.png" },
+  icons: { apple: workspaceLink("/app-icons/icon-192.png") },
   openGraph: {
     title: "VandLabs Auto",
     description: tenantConfig.seo.description,
