@@ -83,7 +83,7 @@ export async function recordJourneyEvent(
   if (process.env.NEXT_PUBLIC_PREVIEW_READ_ONLY === "true") return;
   const attribution = readAttribution();
   try {
-    await fetch("/api/events", {
+    await fetch("/api/showroom/events", {
       method: "POST",
       headers: { "content-type": "application/json" },
       keepalive: true,

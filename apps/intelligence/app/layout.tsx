@@ -5,6 +5,9 @@ export const metadata: Metadata = {
   title: { default: "VandLabs Automotive Intelligence", template: "%s | VandLabs" },
   description: "Market evidence, inventory operations and vehicle-specific advertising for Indian dealerships, in one workspace.",
   robots: { index: true, follow: true },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "VandLabs Auto", statusBarStyle: "default" },
+  icons: { apple: "/app-icons/icon-192.png" },
 };
 
 export const viewport: Viewport = { themeColor: "#0a0d14", width: "device-width", initialScale: 1 };
