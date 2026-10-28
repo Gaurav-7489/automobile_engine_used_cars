@@ -77,6 +77,14 @@ jobs:
       - name: Cloudflare admission and runtime regressions
         run: pnpm test:cloudflare
 
+      - name: Build the unified local gateway
+        run: pnpm --filter @vandlabs/intelligence build
+        env:
+          SHOWROOM_ORIGIN: http://127.0.0.1:3000
+
+      - name: Unified showroom, login and installation browser checks
+        run: pnpm exec playwright test --config playwright.unified.config.ts
+
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4

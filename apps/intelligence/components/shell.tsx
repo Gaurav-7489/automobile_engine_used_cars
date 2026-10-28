@@ -66,6 +66,8 @@ function MoreSheet({ open, onClose, platformAdmin }: { open: boolean; onClose: (
         </select>
       </div>
       <Link href="/app/settings/security" className="btn" onClick={onClose}>Account and security</Link>
+      <a href="/" className="btn">Public showroom</a>
+      <Link href="/install" className="btn" onClick={onClose}>Install app</Link>
       {platformAdmin ? <Link href="/admin" className="btn" onClick={onClose}><Icon name="shield" size={18} />VandLabs admin console</Link> : null}
       <Button onClick={signOut}><Icon name="logout" size={18} />Sign out</Button>
     </Dialog>
@@ -116,6 +118,8 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
             ))}
           </nav>
           <div className="rail-foot">
+            <a href="/" className="btn btn-block">Public showroom</a>
+            <Link href="/install" className="btn btn-block">Install app</Link>
             <div className="who"><strong>{state.tenant.name}</strong><span>{ROLE_LABEL[session.role]}{demoState === "empty" ? " / Empty-state preview" : ""}</span></div>
             {platformAdmin ? <Link href="/admin" className="btn btn-block"><Icon name="shield" size={18} /><span className="label">VandLabs admin</span></Link> : null}
             <Button onClick={() => setHelpOpen(true)} className="btn-block"><Icon name="help" size={18} /><span className="label">Help &amp; shortcuts</span></Button>

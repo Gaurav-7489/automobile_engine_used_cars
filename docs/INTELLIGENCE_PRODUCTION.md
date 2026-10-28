@@ -1,6 +1,6 @@
 # VandLabs Automobile Intelligence: production runbook
 
-Application root `apps/intelligence`. Independent Vercel project `vandlabs-automobile-intelligence`; it shares the Neon database with Command Center and the public website but deploys on its own.
+Application root `apps/intelligence`. Vercel project `vandlabs-automobile-intelligence` is the unified entry point. Its private workspace uses Neon; the public showroom is a separately built zone served through this application’s address. Sharing a URL does not activate the showroom’s database adapter: the current public deployment remains a read-only reference showroom.
 
 ## Architecture
 
@@ -25,7 +25,7 @@ Migration `0010_intelligence_workspace.sql` is additive (new tables and `SECURIT
 
 ## Authentication
 
-Email and password; scrypt hashes; five failed attempts lock an account for 15 minutes; per-address and per-client rate limits; signed HttpOnly `__Host-` session cookie (8 h) that is re-validated against the database on every request (disabled users, revoked sessions and role changes take effect immediately). No account can be created without a one-time link: workspace provisioning (`pnpm intelligence:provision`, administrator connection only) prints an owner setup link once; owners invite staff from Settings, Team; owners issue one-time reset links. No mail service is connected, so links are copied and shared by the owner. Multi-factor authentication and SSO are not available in this release.
+Email and password; scrypt hashes; five failed attempts lock an account for 15 minutes; per-address and per-client rate limits; signed HttpOnly `__Host-` session cookie (8 h) that is re-validated against the database on every request (disabled users, revoked sessions and role changes take effect immediately). No account can be created without a one-time link: workspace provisioning (`pnpm intelligence:provision`, administrator connection only) prints an owner setup link once; owners invite staff from Settings, Team; owners issue one-time reset links. No mail service is connected, so links are copied and shared by the owner. Authenticator-app two-factor authentication is available; external SSO is not configured.
 
 ## Provision a workspace (administrators)
 

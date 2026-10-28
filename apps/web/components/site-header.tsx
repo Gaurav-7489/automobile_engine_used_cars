@@ -16,7 +16,7 @@ export function SiteHeader() {
       <div className="shell nav">
         <Link className="brand" href="/" aria-label="VandLabs Auto home"><BrandMark /><span>VandLabs <b>Auto</b></span></Link>
         <PrimaryNav items={[{ href: "/", label: "Home" }, { href: "/discover", label: "Discover" }, { href: "/saved", label: "Saved Cars" }]} />
-        <Link className="nav-call" href="/contact">Contact</Link>
+        <a className="nav-call" href={process.env.DEALER_WORKSPACE_URL ?? "/login"}>Sign in</a>
       </div>
     </header>
   );
