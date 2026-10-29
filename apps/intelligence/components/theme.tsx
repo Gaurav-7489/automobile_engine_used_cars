@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LiquidSegmented } from "./motion/liquid";
+import { MOTION_KEY, THEME_KEY } from "@/lib/init-scripts";
 
 export type ThemeChoice = "system" | "light" | "dark";
-const KEY = "vl-theme";
+const KEY = THEME_KEY;
 
-/** Runs before first paint (inline in the layout) so the chosen theme never flashes the other one. */
-export const THEME_INIT_SCRIPT = `try{var t=localStorage.getItem("${KEY}");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}`;
 
 function read(): ThemeChoice {
   try { const t = localStorage.getItem(KEY); return t === "light" || t === "dark" ? t : "system"; } catch { return "system"; }
@@ -22,23 +22,37 @@ export function applyTheme(choice: ThemeChoice): void {
 export function ThemeSwitch({ label = "Theme" }: { label?: string }) {
   const [choice, setChoice] = useState<ThemeChoice>("system");
   useEffect(() => { setChoice(read()); }, []);
-  const set = (next: ThemeChoice) => { setChoice(next); applyTheme(next); };
-  return (
-    <div role="group" aria-label={label} className="theme-switch">
-      {(["system", "light", "dark"] as const).map((c) => <button key={c} type="button" aria-pressed={choice === c} onClick={() => set(c)}>{c[0].toUpperCase() + c.slice(1)}</button>)}
-    </div>
-  );
+  return <LiquidSegmented label={label} value={choice} onChange={(c) => { setChoice(c); applyTheme(c); }} options={[{ value: "system", label: "System" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }]} />;
+}
+
+export type MotionChoice = "full" | "reduced";
+function readMotion(): MotionChoice { try { return localStorage.getItem(MOTION_KEY) === "reduced" ? "reduced" : "full"; } catch { return "full"; } }
+export function applyMotion(choice: MotionChoice): void {
+  const root = document.documentElement;
+  if (choice === "reduced") root.setAttribute("data-motion", "reduced");
+  else if (matchMedia("(prefers-reduced-motion: reduce)").matches) root.setAttribute("data-motion", "reduced");
+  else root.removeAttribute("data-motion");
+  try { if (choice === "reduced") localStorage.setItem(MOTION_KEY, "reduced"); else localStorage.removeItem(MOTION_KEY); } catch { /* the choice then lasts for this visit only */ }
+}
+
+/** Full or reduced motion. Reduced is also what the operating system's "reduce motion" setting selects. */
+export function MotionSwitch() {
+  const [choice, setChoice] = useState<MotionChoice>("full");
+  useEffect(() => { setChoice(readMotion()); }, []);
+  return <LiquidSegmented label="Motion" value={choice} onChange={(c) => { setChoice(c); applyMotion(c); }} options={[{ value: "full", label: "Full motion" }, { value: "reduced", label: "Reduced" }]} />;
 }
 
 /** The same choice as menu items, for use inside a role="menu" (which may only contain menu items). */
 export function ThemeMenuItems({ onChoose }: { onChoose?: () => void }) {
   const [choice, setChoice] = useState<ThemeChoice>("system");
-  useEffect(() => { setChoice(read()); }, []);
+  const [motion, setMotion] = useState<MotionChoice>("full");
+  useEffect(() => { setChoice(read()); setMotion(readMotion()); }, []);
   return (
     <>
       {(["system", "light", "dark"] as const).map((c) => (
         <button key={c} role="menuitemradio" aria-checked={choice === c} onClick={() => { setChoice(c); applyTheme(c); onChoose?.(); }}>Theme: {c[0].toUpperCase() + c.slice(1)}</button>
       ))}
+      <button role="menuitemradio" aria-checked={motion === "reduced"} onClick={() => { const next = motion === "reduced" ? "full" : "reduced"; setMotion(next); applyMotion(next); onChoose?.(); }}>Motion: {motion === "reduced" ? "Reduced" : "Full"}</button>
     </>
   );
 }

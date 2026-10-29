@@ -8,7 +8,7 @@ import { AGE_BUCKETS, realizedProfit } from "@/lib/finance";
 import { formatDate, formatDateTime, formatMoney, formatRupees, MISSING, monthLabel, monthName, lakh } from "@/lib/format";
 import { REPORT_FORMULA } from "@/lib/selectors";
 import { getMonths, REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
-import { GroupedBars, HBars, SimpleBars } from "../charts";
+import { GroupedBars, HBars, SimpleBars } from "../charts-lazy";
 import { Dialog, Drawer, Menu } from "../overlay";
 import { Gate, Panel } from "../panel";
 import { useToast } from "../toast";

@@ -8,7 +8,7 @@ import { AGE_BUCKETS, isRealized, landedCost, realizedProfit, saleGross, stockAg
 
 import { formatDate, formatExact, formatLakh2, formatLakhPlain, formatMoney, MISSING, monthLabel, monthName } from "@/lib/format";
 import { getMonths, REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
-import { HBars, SimpleBars } from "../charts";
+import { HBars, SimpleBars } from "../charts-lazy";
 import { Dialog, Drawer, Menu } from "../overlay";
 import { Gate, RemotePanel } from "../panel";
 import { useRemote } from "../use-remote";

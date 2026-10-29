@@ -15,7 +15,8 @@ import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./wor
 import { initials } from "@/lib/format";
 import { NAV, ROLE_LABEL, visibleNav } from "@/lib/permissions";
 import { entitled } from "@/lib/entitlements";
-import { ThemeMenuItems, ThemeSwitch } from "./theme";
+import { ThemeMenuItems, ThemeSwitch, MotionSwitch } from "./theme";
+import { RouteLoader } from "./motion/route-loader";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { sumAlertCounts } from "@/lib/selectors";
 
@@ -79,6 +80,7 @@ function MoreSheet({ open, onClose, platformAdmin }: { open: boolean; onClose: (
       </div>
       <Link href="/app/settings/security" className="btn" onClick={onClose}>Account and security</Link>
       <div className="field"><span className="label">Theme</span><ThemeSwitch /></div>
+      <div className="field"><span className="label">Motion</span><MotionSwitch /></div>
       <Link href="/install" className="btn" onClick={onClose}>Install app</Link>
       {platformAdmin ? <Link href="/admin" className="btn" onClick={onClose}><Icon name="shield" size={18} />VandLabs admin console</Link> : null}
       <Button onClick={signOut}><Icon name="logout" size={18} />Sign out</Button>
@@ -121,6 +123,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
   return (
     <ToastProvider>
       <LiveEffects />
+      <RouteLoader />
       <div className="app">
         <aside className="rail" aria-label="Workspace">
           <Link href={href("/app/overview")} className="brand" aria-label="VandLabs Command Centre"><Brand sub /></Link>
@@ -165,7 +168,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
         <main className="main" id="content" tabIndex={-1}>
           <div className="main-inner">
             <div className="meta only-mobile" style={{ marginBottom: 8 }}>{scope.label}</div>
-            {gate ? <FeatureOff label={gate.label} reason={state.entitlements!.features[gate.feature!].reason} /> : children}
+            <div key={pathname} className="route-enter">{gate ? <FeatureOff label={gate.label} reason={state.entitlements!.features[gate.feature!].reason} /> : children}</div>
           </div>
         </main>
         <nav className="bottom-nav" aria-label="Primary mobile">

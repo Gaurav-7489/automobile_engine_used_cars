@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { THEME_INIT_SCRIPT } from "@/components/theme";
+import { MotionRoot } from "@/components/motion/motion";
+import { MOTION_INIT_SCRIPT, THEME_INIT_SCRIPT } from "@/lib/init-scripts";
 
 export const metadata: Metadata = {
   title: { default: "VandLabs Automotive Intelligence", template: "%s | VandLabs" },
@@ -16,8 +17,10 @@ export const viewport: Viewport = { themeColor: [{ media: "(prefers-color-scheme
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-IN" suppressHydrationWarning>
-      <head><script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} /></head>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT + MOTION_INIT_SCRIPT }} /></head>
       <body>
+        <div className="ambient" aria-hidden="true"><i /><i /><i /></div>
+        <MotionRoot />
         <a className="skip-link" href="#content">Skip to content</a>
         {children}
       </body>

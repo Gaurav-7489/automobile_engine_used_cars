@@ -7,7 +7,7 @@ import type { Campaign, CampaignStatus, Vehicle } from "@/lib/domain";
 import { formatDate, formatDateTime, formatKm, formatMoney, formatRupees, MISSING, parseRupeeInput, rupees } from "@/lib/format";
 import { stockAgeDays } from "@/lib/finance";
 import { SNAPSHOT_AT } from "@/lib/time";
-import { SpendLine } from "../charts";
+import { SpendLine } from "../charts-lazy";
 import { Drawer } from "../overlay";
 import { Panel } from "../panel";
 import { useRemote } from "../use-remote";

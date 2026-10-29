@@ -196,7 +196,7 @@ function PhotoManager({ stockId, initial, canEdit, onChange }: { stockId: string
           {photos.map((url, i) => (
             <li key={url} className="stack-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt={`Photo ${i + 1}`} style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 8, background: "var(--surface-2)" }} loading="lazy" />
+              <img src={url} alt={`Photo ${i + 1}`} style={{ width: "100%", aspectRatio: "4 / 3", objectFit: "cover", borderRadius: 8, background: "var(--surface-2)" }} loading="lazy" decoding="async" />
               {canEdit ? <Button size="sm" disabled={busy} onClick={() => void send({ method: "DELETE" }, `${base}?url=${encodeURIComponent(url)}`)}>Remove</Button> : null}
             </li>
           ))}

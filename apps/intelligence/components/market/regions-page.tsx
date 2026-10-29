@@ -10,7 +10,7 @@ import { DEFAULT_COHORT, type CohortFilter } from "@/lib/market";
 import { saveScenario } from "@/lib/actions";
 import { downloadCsv } from "@/lib/export";
 import { SNAPSHOT_ID } from "@/lib/time";
-import { RangeBars } from "../charts";
+import { RangeBars } from "../charts-lazy";
 import { Dialog, Drawer } from "../overlay";
 import { Panel } from "../panel";
 import { useToast } from "../toast";

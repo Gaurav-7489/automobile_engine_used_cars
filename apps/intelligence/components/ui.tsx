@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { Icon } from "./icons";
+import { Liquid, useLiquid } from "./motion/liquid";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "primary" | "secondary" | "danger" | "ghost";
@@ -136,8 +137,10 @@ export function Tabs<T extends string>({ tabs, value, onChange, label, idPrefix 
     onChange(tabs[next].value);
     window.setTimeout(() => document.getElementById(`${idPrefix}-${tabs[next].value}`)?.focus(), 0);
   };
+  const { host, box } = useLiquid('[aria-selected="true"]', [value, tabs.length]);
   return (
-    <div className="tabs" role="tablist" aria-label={label} onKeyDown={onKey}>
+    <div className="tabs" role="tablist" aria-label={label} onKeyDown={onKey} ref={host}>
+      <Liquid box={box} />
       {tabs.map((t) => (
         <button key={t.value} type="button" role="tab" id={`${idPrefix}-${t.value}`} className="tab" aria-selected={t.value === value} tabIndex={t.value === value ? 0 : -1} onClick={() => onChange(t.value)}>
           {t.label}{t.count !== undefined ? ` (${t.count})` : ""}

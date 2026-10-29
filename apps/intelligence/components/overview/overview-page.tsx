@@ -7,7 +7,7 @@ import { AGE_BUCKETS } from "@/lib/finance";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { formatDate, formatDateTime, formatMoney, formatTime, monthLabel, monthName, MISSING } from "@/lib/format";
 import { getMonths, SNAPSHOT_AT } from "@/lib/time";
-import { HBars, GroupedBars } from "../charts";
+import { HBars, GroupedBars } from "../charts-lazy";
 import { Drawer, Menu } from "../overlay";
 import { RemotePanel } from "../panel";
 import { useRemote } from "../use-remote";

@@ -24,7 +24,9 @@ async function scan(page: Page) {
 }
 async function settled(page: Page) {
   await page.waitForFunction(() => !document.querySelector('[aria-busy="true"]'), null, { timeout: 20_000 }).catch(() => undefined);
-  await page.waitForTimeout(400);
+  // Panels reveal as they scroll into view; walk the page once so every panel is at rest, then measure from the top.
+  await page.evaluate(async () => { for (let y = 0; y < document.documentElement.scrollHeight; y += 500) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 60)); } window.scrollTo(0, 0); });
+  await page.waitForTimeout(900);
 }
 async function signIn(page: Page) {
   await page.goto("/login");
@@ -88,7 +90,7 @@ test("overlays: search, rule dialog and profile menu have no WCAG 2.2 AA violati
     await page.keyboard.press("/"); await expect(page.getByRole("dialog")).toBeVisible(); await page.waitForTimeout(500);
     failures.push(...(await scan(page)).map((v) => `${theme} search: ${JSON.stringify(v)}`));
     await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: /^Profile menu/ }).click(); await expect(page.getByRole("menu")).toBeVisible();
+    await page.getByRole("button", { name: /^Profile menu/ }).click(); await expect(page.getByRole("menu")).toBeVisible(); await page.waitForTimeout(600);
     failures.push(...(await scan(page)).map((v) => `${theme} profile menu: ${JSON.stringify(v)}`));
     await page.keyboard.press("Escape");
     await page.goto("/app/automations"); await settled(page);
