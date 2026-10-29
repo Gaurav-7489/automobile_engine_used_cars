@@ -1,7 +1,8 @@
 import type { Command } from "../actions/recorder";
 import type { Alert, AuditEvent, Lead, Sale, Vehicle } from "../domain";
 import type { WorkspaceState } from "../state";
-import { deriveTenantAlerts } from "./alerts-model";
+import { reopenExpired } from "../actions/alerts";
+import { deriveAlerts } from "../alerts-derive";
 import type { SqlClient } from "./db";
 import { enquiryContext, idFloors, salesByIds } from "./read-queries";
 
@@ -41,9 +42,22 @@ const campaignVehicle = (a: Needs, shell: WorkspaceState, id: unknown) => { cons
 const requestVehicle = (a: Needs, shell: WorkspaceState, id: unknown) => { const r = shell.priceRequests.find((x) => x.id === id); if (r) a.vehicles.add(r.vehicleId); };
 const none: Extractor = () => undefined;
 
+/** An alert id names the record that raised it (AL-price-V-1001, AL-sla-L-1002, AL-approval-PR-1001 ...), so acting on an alert loads that record. */
+const alertRecords = (a: Needs, shell: WorkspaceState, ids: string[]) => {
+  for (const id of ids) {
+    const m = /^AL-(price|aged|docs|photos|costs|sla|task|approval|campaign)-(.+)$/.exec(id);
+    if (!m) continue;
+    if (["price", "aged", "docs", "photos", "costs"].includes(m[1])) a.vehicles.add(m[2]);
+    else if (m[1] === "sla" || m[1] === "task") a.leads.add(m[2]);
+    else if (m[1] === "approval") requestVehicle(a, shell, m[2]);
+    else campaignVehicle(a, shell, m[2]);
+  }
+};
+
 const NEEDS: Record<string, Extractor> = {
   // Alerts: acted on by id; the alert objects themselves are provided from the derived set.
-  acknowledge: none, assignAlerts: none, snooze: none, resolve: none, updateRules: none,
+  acknowledge: (a, s, n) => alertRecords(n, s, strs(a[0])), assignAlerts: (a, s, n) => alertRecords(n, s, strs(a[0])),
+  snooze: (a, s, n) => alertRecords(n, s, [str(a[0]) ?? ""]), resolve: (a, s, n) => alertRecords(n, s, [str(a[0]) ?? ""]), updateRules: none,
   // Campaigns: the campaign is in the shell; the vehicle it refers to is loaded.
   createCampaign: (a, _s, v) => vehicle(v, a[0]),
   updateCampaign: (a, s, v) => campaignVehicle(v, s, a[0]),
@@ -120,9 +134,12 @@ export async function scopedState(c: SqlClient, tenantId: string, shell: Workspa
     ? ((await c.query("SELECT payload FROM intelligence_documents WHERE tenant_id = $1 AND collection = 'audit' AND payload->>'action' = 'inventory.import' AND payload->>'target' = ANY($2::text[])", [tenantId, [...needs.importBatches]])).rows.map((r) => r.payload as AuditEvent))
     : [];
 
-  // Alerts the commands can act on: those named in the arguments or attached to a record they name, plus integration alerts.
-  const refs = new Set<string>([...needs.refs, ...vehicles.map((v) => v.id), ...leads.map((l) => l.id), ...sales.map((s) => s.id)]);
-  const derived = await deriveTenantAlerts(c, tenantId, shell);
+  // Alerts the commands can act on: derived from just the records loaded here (an alert depends only on its own record, the policy and the
+  // pending requests), merged with the stored alert documents exactly as the whole-workspace read does.
+  const stored = (await c.query("SELECT payload FROM intelligence_documents WHERE tenant_id = $1 AND collection = 'alerts'", [tenantId])).rows.map((r) => r.payload as Alert);
+  const partial: WorkspaceState = { ...shell, vehicles, leads, alerts: stored };
+  const derived = reopenExpired({ ...partial, alerts: deriveAlerts(partial, new Date().toISOString()) }).alerts;
+  const refs = new Set<string>([...needs.refs, ...vehicles.map((v) => v.id), ...leads.map((l) => l.id), ...sales.map((x) => x.id)]);
   const alerts: Alert[] = derived.filter((a) => refs.has(a.id) || refs.has(a.recordRef) || a.type === "Integration");
 
   return { ...shell, vehicles, leads, sales, alerts, audit, events: [], idFloor: await idFloors(c, tenantId), partial: true };
