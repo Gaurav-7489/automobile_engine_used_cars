@@ -592,3 +592,28 @@ dl.kv { margin: 0; }
   .onb-continue { flex: 1; min-width: 0; }
   .onb-card { padding: 0; border: 0; background: none; }
 }
+
+/* Elevation and glass. Glass is reserved for floating chrome (menus, toasts, the search sheet, confirmations, the phone tab bar).
+   Dense tables, long forms and charts stay on solid surfaces. Blur is applied to small surfaces only and never nested. */
+:root {
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --e2: 0 4px 12px rgba(0, 0, 0, 0.32);
+  --e3: 0 12px 28px rgba(0, 0, 0, 0.42);
+  --e4: 0 24px 56px rgba(0, 0, 0, 0.52);
+  --glass-bg: rgba(23, 30, 44, 0.78);
+  --glass-edge: rgba(255, 255, 255, 0.09);
+  --glass-blur: blur(14px) saturate(140%);
+}
+.menu, .toast, .bottom-nav, .overlay.sheet-wrap .dialog, .dialog.w480 { box-shadow: var(--e3), inset 0 1px 0 var(--glass-edge); }
+.dialog { box-shadow: var(--e4); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .menu, .toast, .bottom-nav, .overlay.sheet-wrap .dialog, .dialog.w480 { background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .menu, .toast, .bottom-nav, .overlay.sheet-wrap .dialog, .dialog.w480 { background: var(--raised) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+/* Skeletons are static for people who ask for less motion. */
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; background: var(--raised); } }
+/* Immediate press feedback on transform only. */
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn { transition: background-color 120ms ease, border-color 120ms ease, transform 80ms ease; }

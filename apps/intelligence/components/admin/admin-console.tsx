@@ -194,7 +194,7 @@ function CreateDealership({ onClose, onCreated }: { onClose: () => void; onCreat
   const setBranch = (i: number, patch: Partial<Branch>) => setBranches((list) => list.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   return (
     <Dialog open onClose={onClose} dirty={dirty} size="w640" title="Add dealership" description="Creates the dealership's private workspace and a one-time setup link for its owner. The owner chooses their own password."
-      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating" onClick={async () => {
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating dealership…" onClick={async () => {
         setBusy(true); setErrors({});
         const failed = await auth.confirm(password);
         if (failed) { setBusy(false); setErrors({ password: failed }); return; }

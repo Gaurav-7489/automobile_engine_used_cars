@@ -72,9 +72,9 @@ export async function tenantTransaction<T>(pool: SqlPool, tenantId: string, acti
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const role = (await client.query("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")).rows[0];
+    // One statement sets the tenant and reads the role's flags: a round trip saved on every request.
+    const role = (await client.query("SELECT set_config('app.tenant_id', $1, true) AS tenant, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user", [tenantId])).rows[0];
     if (!role || role.rolsuper || role.rolbypassrls) throw new Error("Application database role must not bypass RLS.");
-    await client.query("SELECT set_config('app.tenant_id', $1, true)", [tenantId]);
     const result = await action(client);
     await client.query("COMMIT");
     return result;

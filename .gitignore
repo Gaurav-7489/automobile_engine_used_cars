@@ -98,3 +98,4 @@ infra/cloudflare/bootstrap.wrangler.jsonc
 live-test-results/
 role-test-results/
 .vercel
+local-stack-results/

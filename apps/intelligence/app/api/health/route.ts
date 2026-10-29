@@ -9,7 +9,8 @@ export async function GET() {
   try {
     await plain((c) => c.query("SELECT 1 AS ok"));
     return json({ status: "ok", service: "vandlabs-intelligence", database: "ok", latency_ms: Date.now() - started });
-  } catch {
+  } catch (error) {
+    console.error(JSON.stringify({ event: "health_database_unavailable", message: error instanceof Error ? error.message : "unknown" }));
     return json({ status: "degraded", service: "vandlabs-intelligence", database: "unavailable" }, { status: 503 });
   }
 }

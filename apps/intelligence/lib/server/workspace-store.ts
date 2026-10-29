@@ -26,20 +26,22 @@ const stageFromContract = (s: string): LeadStage => LEAD_STAGES.find((x) => stag
 /* ------------------------------------------------------------------ read */
 
 export async function readState(c: SqlClient, tenantId: string): Promise<WorkspaceState> {
-  const q = async (sql: string, values: unknown[] = [tenantId]) => (await c.query(sql, values)).rows as Row[];
-  const [orgs, locations, vehicles, costs, leads, tasks, sales, staff, docs, tokens] = await Promise.all([
-    q("SELECT id, name FROM organizations WHERE tenant_id=$1 ORDER BY created_at LIMIT 1"),
-    q("SELECT id, dealership_id, name, city, state FROM locations WHERE tenant_id=$1 ORDER BY name"),
-    q("SELECT id, dealership_id, location_id, stock_id, payload, publish_status, availability_status, created_at, updated_at FROM vehicles WHERE tenant_id=$1"),
-    q("SELECT vehicle_id, payload FROM stock_costs WHERE tenant_id=$1"),
-    q("SELECT id, location_id, vehicle_id, payload, stage, source, campaign, created_at, updated_at FROM leads WHERE tenant_id=$1"),
-    q("SELECT id, lead_id, payload, due_at, completed FROM tasks WHERE tenant_id=$1"),
-    q("SELECT id, lead_id, vehicle_id, payload, amount, sold_at FROM sales WHERE tenant_id=$1"),
-    q("SELECT user_id, payload FROM staff_members WHERE tenant_id=$1"),
-    // Audit history is large and append-only: the workspace carries the most recent 500 entries.
-    q(`SELECT collection, id, payload, updated_at FROM intelligence_documents WHERE tenant_id=$1 AND (collection <> 'audit' OR id IN (SELECT id FROM intelligence_documents WHERE tenant_id=$1 AND collection='audit' ORDER BY updated_at DESC LIMIT 500))`),
-    q("SELECT token_hash, email, role, intelligence_role, location_ids, display_name, created_at, expires_at FROM intelligence_tokens WHERE tenant_id=$1 AND kind='invite' AND used_at IS NULL AND expires_at > now()"),
-  ]);
+  // One round trip instead of ten: each result set comes back as a JSON array in a single row. A network hop to a hosted
+  // database costs far more than the query, and the connection runs statements one at a time.
+  const queries = [
+    "SELECT id, name FROM organizations WHERE tenant_id=$1 ORDER BY created_at LIMIT 1",
+    "SELECT id, dealership_id, name, city, state FROM locations WHERE tenant_id=$1 ORDER BY name",
+    "SELECT id, dealership_id, location_id, stock_id, payload, publish_status, availability_status, created_at, updated_at FROM vehicles WHERE tenant_id=$1",
+    "SELECT vehicle_id, payload FROM stock_costs WHERE tenant_id=$1",
+    "SELECT id, location_id, vehicle_id, payload, stage, source, campaign, created_at, updated_at FROM leads WHERE tenant_id=$1",
+    "SELECT id, lead_id, payload, due_at, completed FROM tasks WHERE tenant_id=$1",
+    "SELECT id, lead_id, vehicle_id, payload, amount, sold_at FROM sales WHERE tenant_id=$1",
+    "SELECT user_id, payload FROM staff_members WHERE tenant_id=$1",
+    `SELECT collection, id, payload, updated_at FROM intelligence_documents WHERE tenant_id=$1 AND (collection <> 'audit' OR id IN (SELECT id FROM intelligence_documents WHERE tenant_id=$1 AND collection='audit' ORDER BY updated_at DESC LIMIT 500))`,
+    "SELECT token_hash, email, role, intelligence_role, location_ids, display_name, created_at, expires_at FROM intelligence_tokens WHERE tenant_id=$1 AND kind='invite' AND used_at IS NULL AND expires_at > now()",
+  ];
+  const packed = (await c.query(`SELECT ${queries.map((sql, i) => `(SELECT coalesce(json_agg(r), '[]'::json) FROM (${sql}) r) AS r${i}`).join(", ")}`, [tenantId])).rows[0] ?? {};
+  const [orgs, locations, vehicles, costs, leads, tasks, sales, staff, docs, tokens] = queries.map((_, i) => (typeof packed[`r${i}`] === "string" ? JSON.parse(packed[`r${i}`] as string) : packed[`r${i}`] ?? []) as Row[]);
 
   const org = orgs[0];
   const byCollection = new Map<string, Map<string, { payload: unknown; updatedAt: number }>>();

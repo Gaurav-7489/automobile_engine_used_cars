@@ -14,8 +14,10 @@ export default async function WorkspaceLayout({ children }: { children: React.Re
   let state;
   let platformAdmin = false;
   try {
-    state = redactFor(await loadWorkspace(current.principal), current.session);
-    platformAdmin = await isPlatformAdmin(current.principal.userId);
+    // Independent reads run together, so the page waits for the slower one rather than both.
+    const [workspace, admin] = await Promise.all([loadWorkspace(current.principal), isPlatformAdmin(current.principal.userId)]);
+    state = redactFor(workspace, current.session);
+    platformAdmin = admin;
   } catch (error) {
     console.error(JSON.stringify({ event: "workspace_render_failure", message: error instanceof Error ? error.message : "unknown" }));
     return (
