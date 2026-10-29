@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "VandLabs Automobile",
     short_name: "VandLabs Auto",
-    description: "Showroom, dealership workspace and VandLabs administration in one application.",
+    description: "Private dealership workspace and VandLabs administration in one application.",
     start_url: "/login?source=installed",
     scope: "/",
     display: "standalone",
@@ -14,7 +14,6 @@ export default function manifest(): MetadataRoute.Manifest {
     icons: [192, 512].map(size => ({ src: `/app-icons/icon-${size}.png`, sizes: `${size}x${size}`, type: "image/png", purpose: "any" })),
     shortcuts: [
       { name: "My workspace", url: "/app/overview" },
-      { name: "Showroom", url: "/" },
     ],
   };
 }

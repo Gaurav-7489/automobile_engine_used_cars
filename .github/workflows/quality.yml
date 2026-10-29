@@ -67,10 +67,8 @@ jobs:
 
       - name: Build the unified local gateway
         run: pnpm --filter @vandlabs/intelligence build
-        env:
-          SHOWROOM_ORIGIN: http://127.0.0.1:3000
 
-      - name: Unified showroom, login and installation browser checks
+      - name: Private platform sign-in, boundary and installation browser checks
         run: pnpm exec playwright test --config playwright.unified.config.ts
 
       - name: End-to-end smoke tests

@@ -1,15 +1,10 @@
 import { test, expect } from "@playwright/test";
 
-test("showroom, shared sign-in and install screen stay at one address", async ({ page, request, baseURL }) => {
+test("the root address leads to sign-in, and the install screen and manifest are served", async ({ page, request, baseURL }) => {
   const failures: string[] = [];
   page.on("pageerror", error => failures.push(error.message));
-  page.on("response", response => {
-    if (response.url().startsWith(baseURL!) && response.url().includes("/_next/") && response.status() >= 400) failures.push(`${response.status()} ${response.url()}`);
-  });
+  page.on("response", response => { if (response.url().startsWith(baseURL!) && response.url().includes("/_next/") && response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
   await page.goto("/");
-  await expect(page.getByRole("banner").getByRole("link", { name: "Sign in" })).toBeVisible();
-  expect(await page.locator('script[src*="/showroom-assets/_next/"]').count()).toBeGreaterThan(0);
-  await page.getByRole("banner").getByRole("link", { name: "Sign in" }).click();
   await expect(page).toHaveURL(`${baseURL}/login`);
   await expect(page.getByLabel(/business email/i)).toBeVisible();
   await page.goto("/install");
@@ -17,25 +12,26 @@ test("showroom, shared sign-in and install screen stay at one address", async ({
   const manifest = await (await request.get("/manifest.webmanifest")).json();
   expect(manifest.start_url).toBe("/login?source=installed");
   for (const icon of manifest.icons) expect((await request.get(icon.src)).status()).toBe(200);
-  await page.getByRole("link", { name: "Browse showroom" }).click();
-  await expect(page).toHaveURL(`${baseURL}/`);
   expect(failures).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
 
-test("private routes and APIs keep their authentication boundary", async ({ request }) => {
-  for (const path of ["/app/inventory", "/admin"]) {
+test("private routes and APIs keep their authentication boundary and nothing is public", async ({ request }) => {
+  for (const path of ["/app/inventory", "/admin", "/desktop/authorize"]) {
     const result = await request.get(path, { maxRedirects: 0 });
     expect(result.status()).toBe(307);
     expect(new URL(result.headers().location).pathname).toBe("/login");
   }
-  for (const path of ["/api/workspace", "/api/admin/workspaces", "/api/v1/leads"]) {
+  for (const path of ["/api/workspace", "/api/inventory", "/api/leads", "/api/overview", "/api/stock-intelligence", "/api/automations", "/api/acquisition", "/api/admin/workspaces", "/api/admin/audit", "/api/v1/leads"]) {
     const result = await request.get(path);
-    expect(result.status()).toBe(401);
+    expect(result.status(), path).toBe(401);
     expect(result.headers()["cache-control"]).toContain("no-store");
   }
-  const publicStock = await request.get("/api/vehicles");
-  expect(publicStock.status()).toBe(200);
-  const enquiry = await request.post("/api/leads", { data: {} });
-  expect(enquiry.status()).toBe(503); // Existing showroom remains explicitly read-only.
+  // No public showroom, listing, enquiry or discovery surface exists.
+  for (const path of ["/inventory", "/vehicles/any", "/api/vehicles", "/api/discover/cards", "/contact", "/saved", "/compare"]) {
+    expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
+  }
+  expect((await request.post("/api/leads", { data: {} })).status()).toBe(405);
+  // The desktop sign-in configuration holds no secret; the token endpoint rejects anything without a valid one-time code.
+  expect((await request.post("/api/desktop/token", { data: { grant_type: "authorization_code", code: "x", code_verifier: "y" } })).status()).toBe(400);
 });

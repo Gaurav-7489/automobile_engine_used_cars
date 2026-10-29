@@ -1,10 +1,15 @@
 import type { NextConfig } from "next";
-import { showroomRewrites } from "./lib/showroom-routing";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  async rewrites() {
-    return { beforeFiles: showroomRewrites(process.env.SHOWROOM_ORIGIN), afterFiles: [], fallback: [] };
+  // Short names for the destinations the platform's navigation groups differently.
+  async redirects() {
+    return [
+      { source: "/app", destination: "/app/overview", permanent: false },
+      { source: "/app/finance", destination: "/app/capital", permanent: false },
+      { source: "/app/sales", destination: "/app/capital", permanent: false },
+      { source: "/app/staff", destination: "/app/settings/team", permanent: false },
+    ];
   },
   // The shared data package is TypeScript source in this monorepo.
   transpilePackages: ["@vandlabs/data", "@vandlabs/contracts"],

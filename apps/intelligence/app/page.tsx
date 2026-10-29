@@ -1,11 +1,10 @@
-import type { Metadata } from "next";
-import { LandingPage } from "@/components/landing/landing-page";
+import { redirect } from "next/navigation";
+import { getPrincipal } from "@/lib/server/auth";
 
-export const metadata: Metadata = {
-  title: { absolute: "VandLabs Automotive Intelligence: market evidence, stock and advertising for Indian dealerships" },
-  description: "Know your stock. Understand the market. Decide with evidence. Market evidence, inventory operations and vehicle-specific advertising in one dealership workspace.",
-};
+export const dynamic = "force-dynamic";
 
-export default function Home() {
-  return <LandingPage />;
+/** A private platform has no public front page: the root address goes to the sign-in page, or straight to the workspace for a signed-in person. */
+export default async function Home() {
+  const current = await getPrincipal();
+  redirect(current ? "/app/overview" : "/login");
 }
