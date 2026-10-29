@@ -16,11 +16,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * `branches=` in the URL can only narrow what the member may already see. Failures are logged with a correlation id and
  * returned without internals.
  */
-export async function readRoute(request: Request, capability: Capability | null, handler: (ctx: ReadContext) => Promise<unknown>): Promise<Response> {
+export async function readRoute(request: Request, capability: Capability | Capability[] | null, handler: (ctx: ReadContext) => Promise<unknown>): Promise<Response> {
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Your session has expired. Sign in again.");
   const { principal } = current;
-  if (capability && !can(principal.role, capability)) return problem(403, "forbidden", "Your role cannot view this.");
+  if (capability && ![capability].flat().some((cap) => can(principal.role, cap))) return problem(403, "forbidden", "Your role cannot view this.");
   const url = new URL(request.url);
   const asked = (url.searchParams.get("branches") ?? "").split(",").filter((id) => UUID.test(id));
   const branchIds = asked.length ? asked.filter((id) => principal.locationIds.includes(id)) : principal.locationIds;

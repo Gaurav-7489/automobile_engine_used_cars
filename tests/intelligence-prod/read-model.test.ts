@@ -13,7 +13,8 @@ import { seedSynthetic } from "../../scripts/perf/synthetic";
 import { ageBucket, landedCost, needsPriceReview, realizedMetrics, stockAgeDays, stockMetrics } from "../../apps/intelligence/lib/finance";
 import { capitalModel, funnelFor, overviewModel, reportsModel } from "../../apps/intelligence/lib/selectors";
 import { getMonths, SNAPSHOT_AT } from "../../apps/intelligence/lib/time";
-import { monthKey } from "../../apps/intelligence/lib/format";
+import { daysBetween, monthKey } from "../../apps/intelligence/lib/format";
+import { capitalData, reportsData } from "../../apps/intelligence/lib/server/finance-model";
 import type { Lead, Vehicle } from "../../apps/intelligence/lib/domain";
 
 const plain = <T>(x: T): T => JSON.parse(JSON.stringify(x));
@@ -115,6 +116,10 @@ test("read model agrees with the full workspace read: records, filters, sorting,
     // 4. KPIs, ageing buckets and capital reconcile exactly.
     for (const scope of [ids3, [ids3[0]], [ids3[1], ids3[2]]]) {
       assert.deepEqual(await run((c) => stockMetricsSql(c, p.tenantId, scope, day)), stockMetrics(live.filter((v) => scope.includes(v.branchId)), SNAPSHOT_AT));
+      for (const cost of ["complete", "incomplete"] as const) {
+        const want = live.filter((v) => scope.includes(v.branchId) && (cost === "complete" ? v.costComplete : !v.costComplete));
+        assert.deepEqual(await run((c) => stockMetricsSql(c, p.tenantId, scope, day, cost)), stockMetrics(want, SNAPSHOT_AT));
+      }
       const model = overviewModel(full, scope);
       assert.deepEqual(await run((c) => movementSql(c, p.tenantId, scope, getMonths())), model.movement);
     }
@@ -138,6 +143,28 @@ test("read model agrees with the full workspace read: records, filters, sorting,
       assert.equal(listed.total, cap.sales.length);
       assert.deepEqual(plain(listed.sales.map((s) => ({ id: s.id, landed: s.landed, state: s.state, branchId: s.branchId, salePrice: s.salePrice })).sort((a, b) => (a.id < b.id ? -1 : 1))),
         plain(cap.sales.map((s) => ({ id: s.id, landed: s.landed, state: s.state, branchId: s.branchId, salePrice: s.salePrice })).sort((a, b) => (a.id < b.id ? -1 : 1))));
+    }
+
+    // 5b. The Capital page's aggregate: realized figures, median days to sale and the monthly series equal the capital model.
+    for (const scope of [ids3, [ids3[1]]]) {
+      const cap = capitalModel(full, scope);
+      const got = await run((c) => capitalData(c, p.tenantId, scope, months[0], months[months.length - 1]));
+      const inWindow = cap.sales.filter((s) => monthKey(s.closedAt) >= months[0] && monthKey(s.closedAt) <= months[months.length - 1]);
+      const want = realizedMetrics(inWindow, (s) => { const v = full.vehicles.find((x) => x.id === s.vehicleId); return v ? daysBetween(v.acquiredAt, s.closedAt) : null; });
+      assert.deepEqual(got.realized, want);
+      assert.deepEqual(got.monthly.map((m) => m.profit), cap.monthly.map((m) => m.profit));
+      assert.equal(got.ledger.completedTotal + got.ledger.excludedTotal, inWindow.length);
+    }
+
+    // 5c. The Reports aggregate equals the reports model for the same period, including the comparison period.
+    for (const scope of [ids3, [ids3[0]]]) {
+      const rep = reportsModel(full, scope);
+      const got = await run((c) => reportsData(c, p.tenantId, scope, months[1], months[months.length - 1], "previous"));
+      const want = months.slice(1).map((m) => rep.rows.find((r) => r.month === m)!);
+      assert.deepEqual(got.rows.map((r) => [r.month, r.acquired, r.sold, r.profit]), want.map((r) => [r.month, r.acquired, r.sold, r.realized]));
+      assert.deepEqual(got.metrics, stockMetrics(live.filter((v) => scope.includes(v.branchId)), SNAPSHOT_AT));
+      const cohort = full.leads.filter((l) => scope.includes(l.branchId) && months.slice(1).includes(monthKey(l.createdAt)));
+      assert.deepEqual(got.funnel, funnelFor(cohort));
     }
 
     // 6. Leads: filtered list, facets and the funnel.

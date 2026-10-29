@@ -100,6 +100,13 @@ export function alertCounts(alerts: readonly Alert[]): AlertCounts {
   };
 }
 
+/** Adds per-branch counts from the server for the branches in scope. */
+export function sumAlertCounts(byBranch: WorkspaceState["alertCounts"], ids: readonly string[]): AlertCounts {
+  const total: AlertCounts = { critical: 0, dueToday: 0, overdue: 0, waiting: 0, open: 0 };
+  for (const id of ids) { const c = byBranch?.[id]; if (c) { total.critical += c.critical; total.dueToday += c.dueToday; total.overdue += c.overdue; total.waiting += c.waiting; total.open += c.open; } }
+  return total;
+}
+
 const SEVERITY_RANK: Record<Alert["severity"], number> = { Critical: 0, Warning: 1, "Due today": 2, Overdue: 3, Info: 4 };
 
 export function sortAlerts(alerts: readonly Alert[]): Alert[] {

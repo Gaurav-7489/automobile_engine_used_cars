@@ -6,15 +6,20 @@ import { useMemo, useState } from "react";
 import { AGE_BUCKETS } from "@/lib/finance";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { formatDate, formatDateTime, formatMoney, formatTime, monthLabel, monthName, MISSING } from "@/lib/format";
-import { sortAlerts, alertsFor, eventsForMonth, overviewModel } from "@/lib/selectors";
 import { getMonths, SNAPSHOT_AT } from "@/lib/time";
 import { HBars, GroupedBars } from "../charts";
 import { Drawer, Menu } from "../overlay";
-import { Panel } from "../panel";
+import { RemotePanel } from "../panel";
+import { useRemote } from "../use-remote";
 import { Badge, Button, EmptyState, InfoTip, Kpi, PageHead, Tabs, TextField } from "../ui";
 import { VehicleDrawer } from "../inventory/vehicle-drawer";
 import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "../workspace";
-import type { Alert } from "@/lib/domain";
+import type { Alert, InventoryEvent, Lead, Vehicle } from "@/lib/domain";
+import type { StockMetrics } from "@/lib/finance";
+
+type OverviewData = { metrics: StockMetrics; movement: { month: string; acquired: number; sold: number }[]; hasStock: boolean; alerts: Alert[]; alertTotal: number; records: { vehicles: Vehicle[]; leads: Lead[] } };
+const ZERO_AGE = { "0-15": 0, "16-30": 0, "31-45": 0, ">45": 0 };
+const ZERO_METRICS: StockMetrics = { unsold: 0, available: 0, reserved: 0, preparation: 0, landedCapital: 0, ageing: 0, estimatedGross: 0, grossExcluded: 0, availableByAge: ZERO_AGE, capitalByAge: ZERO_AGE };
 
 type RangeKey = "today" | "30d" | "mtd" | "custom";
 const RANGES: { value: RangeKey; label: string }[] = [{ value: "today", label: "Today" }, { value: "30d", label: "Last 30 days" }, { value: "mtd", label: "Month to date" }, { value: "custom", label: "Custom" }];
@@ -34,7 +39,7 @@ function inRange(alert: Alert, range: RangeKey, from: string, to: string): boole
 }
 
 export function OverviewPage() {
-  const { state, scope, can, demoState } = useWorkspace();
+  const { state, scope, can, demoState, mergeRecords } = useWorkspace();
   const url = useUrlState();
   const href = useScopedHref();
   const router = useRouter();
@@ -45,15 +50,18 @@ export function OverviewPage() {
   const [draftTo, setDraftTo] = useState(url.get("to"));
   const [customOpen, setCustomOpen] = useState(false);
   const tab = (["all", "pricing", "leads", "integrations"].includes(url.get("queue")) ? url.get("queue") : "all") as QueueTab;
-  const model = useMemo(() => overviewModel(state, scope.ids), [state, scope.ids]);
+  // Aggregated in the database for the permitted branches; the browser never receives the stock or lead lists to compute these.
+  const remote = useRemote<OverviewData>(`/api/overview?branches=${scope.ids.join(",")}`, (d) => mergeRecords({ vehicles: d.records.vehicles, leads: d.records.leads }));
+  const model = { metrics: remote.data?.metrics ?? ZERO_METRICS, movement: remote.data?.movement ?? getMonths().map((month) => ({ month, acquired: 0, sold: 0 })), hasStock: remote.data?.hasStock ?? true };
   const m = model.metrics;
-  const alerts = useMemo(() => sortAlerts(alertsFor(state, scope.ids).filter((a) => a.status === "Open" && !a.waiting && a.severity !== "Info")).filter((a) => inRange(a, range, url.get("from"), url.get("to"))), [state, scope.ids, range, url]);
+  const alerts = useMemo(() => (remote.data?.alerts ?? []).filter((a) => inRange(a, range, url.get("from"), url.get("to"))), [remote.data, range, url]);
   const filtered = alerts.filter((a) => (tab === "all" ? true : tab === "pricing" ? a.type === "Pricing" : tab === "leads" ? a.type === "Leads" : a.type === "Integration"));
   const rangeLabel = range === "custom" ? `${url.get("from") || "…"} to ${url.get("to") || "…"}` : RANGES.find((r) => r.value === range)!.label;
   const branchParam: Record<string, string> = scope.value === defaultBranchOf(state) ? {} : { branch: scope.value };
   const invHref = (extra: Record<string, string>) => href("/app/inventory", { ...extra, ...branchParam });
   const days = AGE_BUCKETS.map((b) => ({ key: b.key, label: b.label, count: m.availableByAge[b.key] }));
-  const eventRows = monthDrawer ? eventsForMonth(state, scope.ids, monthDrawer.month, monthDrawer.type) : [];
+  const eventsRemote = useRemote<{ events: InventoryEvent[] }>(monthDrawer ? `/api/overview/events?month=${monthDrawer.month}${monthDrawer.type ? `&type=${monthDrawer.type}` : ""}&branches=${scope.ids.join(",")}` : null);
+  const eventRows = monthDrawer ? eventsRemote.data?.events ?? [] : [];
 
   const actionFor = (a: Alert): { label: string; to: string } => {
     if (a.recordKind === "vehicle" && a.type === "Pricing") return { label: "Review", to: href("/app/pricing", { vehicle: a.recordRef }) };
@@ -101,7 +109,7 @@ export function OverviewPage() {
       ) : null}
 
       <section aria-label="Key figures" className="order-kpi">
-        <Panel title="Key figures" rows={2}>
+        <RemotePanel title="Key figures" remote={remote} rows={2}>
           <div className="kpi-grid">
             <Kpi label="Available stock" value={m.available} note="Available vehicles" href={invHref({ tab: "available" })} />
             <Kpi label="Landed capital" value={formatMoney(m.landedCapital)} note={`Stock as of ${formatDate(SNAPSHOT_AT).slice(0, 6)}`} href={href("/app/capital", branchParam)} />
@@ -109,31 +117,31 @@ export function OverviewPage() {
             <Kpi label="Est. gross at asking" value={formatMoney(m.estimatedGross)} note="Estimate / not realized" href={href("/app/capital", { ...branchParam, definition: "gross" })}
               info={<InfoTip label="About estimated gross at asking">Asking price minus landed cost for cost-complete, priced, available vehicles. {m.grossExcluded} record(s) excluded for missing cost. Not a realized result.</InfoTip>} />
           </div>
-        </Panel>
+        </RemotePanel>
         <p className="meta mt-2">Key figures are stock as of {formatDate(SNAPSHOT_AT)}. The movement chart covers whole months; the range selector above applies to activity lists only.</p>
       </section>
 
       <div className="split-60 order-charts" style={{ gridTemplateColumns: "minmax(0, 720fr) minmax(0, 416fr)" }}>
         <section className="card order-movement" aria-labelledby="mv-title">
           <div className="card-head"><h2 className="h3" id="mv-title">Inventory movement</h2><span className="meta">Acquired / Sold · {monthLabel(getMonths()[0])} to {monthLabel(getMonths()[getMonths().length - 1])}</span></div>
-          <Panel title="Inventory movement" rows={5} partialFail>
+          <RemotePanel title="Inventory movement" remote={remote} rows={5}>
             <GroupedBars title="Inventory movement" unit="vehicles" data={model.movement.map((d) => ({ label: monthName(d.month), values: [d.acquired, d.sold], ariaLabel: `${monthLabel(d.month)}: acquired ${d.acquired}, sold ${d.sold}. Open matching inventory events.` }))}
               series={[{ name: "Acquired", color: "var(--accent)" }, { name: "Sold", color: "var(--info)" }]} onSelect={(i, s) => setMonthDrawer({ month: getMonths()[i], type: s === 0 ? "acquired" : "sold" })} />
-          </Panel>
+          </RemotePanel>
         </section>
         <section className="card order-age" aria-labelledby="age-title">
           <div className="card-head"><h2 className="h3" id="age-title">Stock age / {m.available} available</h2></div>
-          <Panel title="Stock age" rows={4}>
+          <RemotePanel title="Stock age" remote={remote} rows={4}>
             <HBars max={Math.max(...days.map((d) => d.count), 1) * 1.15} data={days.map((d) => ({ label: d.label.replace(" days", "d"), value: d.count, display: String(d.count), tone: d.key === ">45" ? "warn" : "accent", onSelect: () => router.push(invHref({ tab: "available", age: d.key })), ariaLabel: `${d.label}: ${d.count} available. Open age-filtered stock.` }))} />
             <p className="meta mt-4">Age buckets sum to available stock ({days.reduce((a, d) => a + d.count, 0)}). Reserved and in-preparation records are in landed capital, not in this count.</p>
-          </Panel>
+          </RemotePanel>
         </section>
       </div>
 
       <section aria-labelledby="pa-title" className="order-actions stack">
         <div className="section-title"><h2 className="h2" id="pa-title">Priority actions</h2><Link className="accent-text" href={href("/app/alerts", branchParam)}>View all &gt;</Link></div>
         <Tabs label="Priority action categories" value={tab} onChange={(v) => url.set({ queue: v === "all" ? null : v })} tabs={[{ value: "all", label: "All" }, { value: "pricing", label: "Pricing" }, { value: "leads", label: "Leads" }, { value: "integrations", label: "Integrations" }]} idPrefix="queue" />
-        <Panel title="Priority actions" rows={5} partialFail>
+        <RemotePanel title="Priority actions" remote={remote} rows={5}>
           {filtered.length === 0 ? (
             <EmptyState title="All caught up">No open actions in {rangeLabel.toLowerCase()} for {scope.label}. Charts above remain available.</EmptyState>
           ) : (
@@ -159,7 +167,7 @@ export function OverviewPage() {
               </table>
             </div>
           )}
-        </Panel>
+        </RemotePanel>
       </section>
 
       <footer className="meta order-foot">

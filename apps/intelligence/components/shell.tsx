@@ -15,7 +15,7 @@ import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./wor
 import { initials } from "@/lib/format";
 import { NAV, ROLE_LABEL } from "@/lib/permissions";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
-import { alertCounts, alertsFor } from "@/lib/selectors";
+import { sumAlertCounts } from "@/lib/selectors";
 
 const SHORTCUTS: [string, string][] = [["Ctrl / ⌘ + K", "Open global search"], ["/", "Open global search (outside fields)"], ["↑ ↓ then Enter", "Select and open a search result"], ["Esc", "Close a dialog, drawer or menu"], ["← → Home End", "Move between tabs"], ["Tab / Shift + Tab", "Move through controls; focus is always visible"]];
 
@@ -83,7 +83,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
   const [helpOpen, setHelpOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const key = activeKey(pathname);
-  const counts = alertCounts(alertsFor(state, scope.ids));
+  const counts = sumAlertCounts(state.alertCounts, scope.ids);
   const urgent = counts.critical + counts.overdue;
 
   useEffect(() => {

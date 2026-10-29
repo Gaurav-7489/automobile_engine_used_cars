@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { addLead, assignLead, cancelAppointment, canMessage, changeStage, LEAD_SOURCES, leadsForExport, logOutcome, mergeLeads, retryMessage, scheduleAppointment, sendMessage, toggleTask } from "@/lib/actions";
-import { LEAD_STAGES, type Lead, type LeadStage } from "@/lib/domain";
+import { LEAD_STAGES, type Lead, type LeadStage, type Sale, type Vehicle } from "@/lib/domain";
 import { downloadCsv } from "@/lib/export";
 import { formatDateTime, formatMoney, formatShortDateTime, MISSING, relativeAge } from "@/lib/format";
 import { SNAPSHOT_AT } from "@/lib/time";
 import { Dialog, Drawer, Menu } from "../overlay";
-import { Panel } from "../panel";
+import { RemotePanel } from "../panel";
+import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
 import { Badge, Button, Check, EmptyState, FormSummary, Notice, PageHead, SelectField, Tabs, TextArea, TextField } from "../ui";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
@@ -16,8 +17,10 @@ import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 const MAIN_STAGES: LeadStage[] = ["New", "Contacted", "Qualified", "Appointment"];
 const MORE_STAGES: LeadStage[] = ["Visited", "Test drive", "Negotiation", "Won", "Lost", "Nurture"];
 
+type LeadPageData = { leads: Lead[]; vehicles: Vehicle[]; total: number; page: number; size: number; owners: string[]; vehicleFacets: string[]; anyLeads: boolean; stages: Record<string, number> };
+
 export function LeadsPage({ leadId }: { leadId?: string }) {
-  const { state, scope, can, session, run } = useWorkspace();
+  const { state, scope, can, session, run, mergeRecords } = useWorkspace();
   const url = useUrlState();
   const href = useScopedHref();
   const toast = useToast();
@@ -34,21 +37,30 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
   const view = url.get("view", "list");
   const open = url.get("lead") || leadId || "";
 
-  const all = useMemo(() => state.leads.filter((l) => scope.ids.includes(l.branchId)), [state.leads, scope.ids]);
-  const rows = useMemo(() => all.filter((l) => {
-    if (stage !== "all" && l.stage !== stage) return false;
-    if (owner && l.owner !== owner) return false;
-    if (source && l.source !== source) return false;
-    if (vehicle && (vehicle === "unspecified" ? l.vehicleId !== null : l.vehicleId !== vehicle)) return false;
-    if (created !== "all" && new Date(l.createdAt).getTime() < new Date(SNAPSHOT_AT).getTime() - Number(created) * 86_400_000) return false;
-    if (overdue && !(l.nextActionTone === "warning" && l.nextAction === "Overdue")) return false;
-    if (mine && l.owner !== session.name) return false;
-    return true;
-  }).sort((a, b) => a.id.localeCompare(b.id)), [all, stage, owner, source, vehicle, created, overdue, mine, session.name]);
-  const owners = Array.from(new Set(all.map((l) => l.owner))).sort();
-  const vehicles = Array.from(new Set(all.map((l) => l.vehicleId).filter(Boolean) as string[])).sort();
+  // Filtering, counting and paging happen in the database. The pipeline view loads the most recently touched leads instead of a page.
+  const pageNo = Math.max(1, Number(url.get("page", "1")) || 1);
+  const size = [25, 50, 100].includes(Number(url.get("size"))) ? Number(url.get("size")) : 25;
+  const query = useMemo(() => {
+    const p = new URLSearchParams({ stage, created, branches: scope.ids.join(","), page: String(view === "pipeline" ? 1 : pageNo), size: String(view === "pipeline" ? 200 : size) });
+    if (view === "pipeline") p.set("order", "recent");
+    for (const [k, v] of Object.entries({ owner, source, vehicle, overdue: overdue ? "1" : "", mine: mine ? "1" : "" })) if (v) p.set(k, v);
+    return p.toString();
+  }, [stage, created, scope.ids, view, pageNo, size, owner, source, vehicle, overdue, mine]);
+  const remote = useRemote<LeadPageData>(`/api/leads?${query}`, (d) => mergeRecords({ leads: d.leads, vehicles: d.vehicles }));
+  const cachedLeads = useMemo(() => new Map(state.leads.map((l) => [l.id, l])), [state.leads]);
+  const rows = useMemo(() => (remote.data?.leads ?? []).map((l) => cachedLeads.get(l.id) ?? l), [remote.data, cachedLeads]);
+  const cachedVehicles = useMemo(() => new Map(state.vehicles.map((v) => [v.id, v])), [state.vehicles]);
+  const owners = remote.data?.owners ?? [];
+  const vehicles = remote.data?.vehicleFacets ?? [];
+  const total = remote.data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / size));
+  const currentPage = remote.data?.page ?? 1;
+  const anyLeads = remote.data?.anyLeads ?? true;
+  const stageCount = remote.data?.stages ?? {};
+  const needsDetail = open && !state.leads.some((l) => l.id === open);
+  const deep = useRemote<{ lead: Lead }>(needsDetail ? `/api/leads/${encodeURIComponent(open)}` : null, (d) => mergeRecords({ leads: [d.lead] }));
   const filterCount = [owner, source, vehicle, created !== "30" ? created : "", overdue ? "1" : "", mine ? "1" : ""].filter(Boolean).length;
-  const selected = open ? all.find((l) => l.id === open) : undefined;
+  const selected = open ? state.leads.find((l) => l.id === open) : undefined;
   const clearFilters = () => url.set({ owner: null, source: null, vehicle: null, created: null, overdue: null, mine: null });
 
   const tabs = [{ value: "all", label: "All leads" }, ...MAIN_STAGES.map((s) => ({ value: s, label: s })), { value: MORE_STAGES.includes(stage as LeadStage) ? stage : "more", label: MORE_STAGES.includes(stage as LeadStage) ? stage : "More stages" }];
@@ -89,18 +101,18 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
       </div>
       {filterCount ? <div className="chip-row"><span className="meta" aria-live="polite">{filterCount} active filter{filterCount > 1 ? "s" : ""}</span><button className="link-btn" onClick={clearFilters}>Clear all</button></div> : null}
 
-      <Panel title="Leads" rows={8} partialFail>
-        {all.length === 0 ? <EmptyState title="No leads yet" actions={<><Button variant="primary" onClick={() => setAddOpen(true)} disabled={!can("leads.edit")}>Add lead</Button><Link className="btn" href={href("/app/settings/integrations")}>Configure capture</Link></>}>Enquiries from your website, campaigns and walk-ins appear here with their vehicle context.</EmptyState>
-          : rows.length === 0 ? <EmptyState title="No leads match" actions={<Button onClick={() => { clearFilters(); url.set({ stage: null }); }}>Reset filters</Button>}>Nothing matches the current stage and filters. No notification implies a contact attempt.</EmptyState>
+      <RemotePanel title="Leads" remote={remote} rows={8}>
+        {remote.data && !anyLeads ? <EmptyState title="No leads yet" actions={<><Button variant="primary" onClick={() => setAddOpen(true)} disabled={!can("leads.edit")}>Add lead</Button><Link className="btn" href={href("/app/settings/integrations")}>Configure capture</Link></>}>Enquiries from your website, campaigns and walk-ins appear here with their vehicle context.</EmptyState>
+          : remote.data && rows.length === 0 ? <EmptyState title="No leads match" actions={<Button onClick={() => { clearFilters(); url.set({ stage: null }); }}>Reset filters</Button>}>Nothing matches the current stage and filters. No notification implies a contact attempt.</EmptyState>
           : view === "pipeline" ? (
-            <Pipeline leads={all.filter((l) => rows.some((r) => r.id === l.id) || stage === "all")} onOpen={(id) => url.set({ lead: id })} onStage={handleStage} />
+            <Pipeline leads={rows} counts={stageCount} onOpen={(id) => url.set({ lead: id })} onStage={handleStage} />
           ) : (
             <>
               <div className="table-wrap only-desktop">
                 <table className="data-table" aria-label="Leads">
                   <thead><tr><th style={{ width: 180 }}>Lead</th><th style={{ width: 204 }}>Vehicle</th><th style={{ width: 134 }}>Source</th><th style={{ width: 164 }}>Stage</th><th style={{ width: 120 }}>Owner</th><th style={{ width: 142 }}>Last touch</th><th style={{ width: 216 }}>Next action</th></tr></thead>
                   <tbody>{rows.map((l) => {
-                    const v = state.vehicles.find((x) => x.id === l.vehicleId);
+                    const v = cachedVehicles.get(l.vehicleId ?? "");
                     return (
                       <tr key={l.id}>
                         <td><button type="button" className="row-title" onClick={() => url.set({ lead: l.id })}>{l.name}</button><span className="sub">{l.id} / masked contact</span></td>
@@ -121,9 +133,21 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
                   </li>
                 ))}
               </ul>
+              {view !== "pipeline" ? (
+                <div className="pager">
+                  <span className="meta">{(currentPage - 1) * size + 1}-{Math.min(total, currentPage * size)} of {total}</span>
+                  <div className="row-flex">
+                    <label className="sr-only" htmlFor="lead-page-size">Rows per page</label>
+                    <select id="lead-page-size" className="select" style={{ width: 96, minHeight: 44 }} value={size} onChange={(e) => url.set({ size: e.target.value === "25" ? null : e.target.value, page: null })}><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option></select>
+                    <Button disabled={currentPage <= 1} onClick={() => url.set({ page: currentPage - 1 === 1 ? null : currentPage - 1 }, { push: true })}>Previous</Button>
+                    <Button disabled={currentPage >= pages} onClick={() => url.set({ page: currentPage + 1 }, { push: true })}>Next</Button>
+                  </div>
+                </div>
+              ) : null}
             </>
           )}
-      </Panel>
+      </RemotePanel>
+      {deep.status === "error" && open && !selected ? <div className="notice danger" role="alert">{deep.code === 404 ? "That lead does not exist or is not available to you." : deep.error} <button className="link-btn" onClick={() => url.set({ lead: null })}>Close</button></div> : null}
       <div className="spread" style={{ flexWrap: "wrap" }}>
         <p className="meta">Contacts are masked unless your role may contact leads / message delivery is not a contact outcome</p>
         <div className="seg" role="group" aria-label="View"><Button variant={view !== "pipeline" ? "primary" : "secondary"} aria-pressed={view !== "pipeline"} onClick={() => url.set({ view: null })}>List</Button><Button variant={view === "pipeline" ? "primary" : "secondary"} aria-pressed={view === "pipeline"} onClick={() => url.set({ view: "pipeline" })}>Pipeline</Button></div>
@@ -139,7 +163,7 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
 
 function Icon2() { return <span aria-hidden="true" style={{ marginLeft: 4 }}>▾</span>; }
 
-function Pipeline({ leads, onOpen, onStage }: { leads: Lead[]; onOpen: (id: string) => void; onStage: (lead: Lead, stage: LeadStage) => void }) {
+function Pipeline({ leads, counts, onOpen, onStage }: { leads: Lead[]; counts: Record<string, number>; onOpen: (id: string) => void; onStage: (lead: Lead, stage: LeadStage) => void }) {
   const [drag, setDrag] = useState<string | null>(null);
   return (
     <div className="pipeline" role="list" aria-label="Pipeline by canonical stage">
@@ -148,7 +172,7 @@ function Pipeline({ leads, onOpen, onStage }: { leads: Lead[]; onOpen: (id: stri
         const gross = items.reduce((a, l) => a + (l.expectedGross ?? 0), 0);
         return (
           <section key={s} className="pipe-col" role="listitem" aria-label={`${s}: ${items.length} leads`} onDragOver={(e) => e.preventDefault()} onDrop={() => { const l = leads.find((x) => x.id === drag); if (l) onStage(l, s); setDrag(null); }}>
-            <h3 className="h3">{s} <span className="meta">({items.length})</span></h3>
+            <h3 className="h3">{s} <span className="meta">({counts[s] ?? items.length}{(counts[s] ?? 0) > items.length ? `, showing ${items.length} most recent` : ""})</span></h3>
             <p className="meta">{gross ? `Expected gross ${formatMoney(gross)}` : "Expected gross: not set"}</p>
             {items.map((l) => (
               <div key={l.id} className="card tight pipe-card" draggable onDragStart={() => setDrag(l.id)}>
@@ -166,14 +190,15 @@ function Pipeline({ leads, onOpen, onStage }: { leads: Lead[]; onOpen: (id: stri
 }
 
 function StageDialog({ pending, onClose }: { pending: { lead: Lead; stage: LeadStage } | null; onClose: () => void }) {
-  const { state, run } = useWorkspace();
+  const { run, mergeRecords, scope } = useWorkspace();
   const toast = useToast();
   const [saleId, setSaleId] = useState("");
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => { setSaleId(""); setReason(""); setErrors({}); }, [pending]);
+  const salesRemote = useRemote<{ sales: Sale[] }>(pending?.stage === "Won" ? `/api/sales?state=Completed&size=50&branches=${scope.ids.join(",")}` : null, (d) => mergeRecords({ sales: d.sales }));
   if (!pending) return null;
-  const sales = state.sales.filter((s) => s.state === "Completed").slice(0, 20);
+  const sales = salesRemote.data?.sales ?? [];
   return (
     <Dialog open onClose={onClose} title={`Move ${pending.lead.id} to ${pending.stage}`} description={pending.stage === "Won" ? "Won requires a reconciled sale link. Stage Won alone never posts revenue or profit." : "Lost requires a reason."}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={() => { const r = run((s, a) => changeStage(s, a, pending.lead.id, pending.lead.version, pending.stage, { saleId, lostReason: reason })); if (!r.ok) { setErrors(r.fields ?? { form: r.message }); return; } toast(`${pending.lead.id} moved to ${pending.stage}.`); onClose(); }}>Confirm</Button></>}>
@@ -197,14 +222,16 @@ function FilterSheet({ open, onClose, owners, vehicles }: { open: boolean; onClo
 }
 
 function AddLead({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state, run, scope, session } = useWorkspace();
+  const { state, run, scope, session, mergeRecords } = useWorkspace();
+  // The freshest stock first; a long list is capped rather than loaded in full.
+  const stock = useRemote<{ vehicles: Vehicle[] }>(open ? `/api/inventory?tab=all&size=200&sort=age&dir=asc&branches=${scope.ids.join(",")}` : null, (d) => mergeRecords({ vehicles: d.vehicles }));
   const toast = useToast();
   const url = useUrlState();
   const blank = { name: "", contact: "", source: "", vehicleId: "", owner: session.name, consentEvidence: "", marketingConsent: false };
   const [form, setForm] = useState(blank);
   const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => { if (open) { setForm({ ...blank, owner: state.team.find((t) => t.role === "sales" && t.name === session.name)?.name ?? session.name }); setErrors({}); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-  const vehicles = state.vehicles.filter((v) => scope.ids.includes(v.branchId) && (v.status === "available" || v.status === "reserved" || v.status === "preparation"));
+  const vehicles = (stock.data?.vehicles ?? []).filter((v) => v.status === "available" || v.status === "reserved" || v.status === "preparation");
   return (
     <Dialog open={open} onClose={onClose} dirty={Boolean(form.name || form.contact)} title="Add lead" description="Name or contact, source, vehicle (or Unspecified interest), owner and consent provenance are required." size="w640"
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={() => {
@@ -227,7 +254,9 @@ function AddLead({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 function LeadDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) {
-  const { state, run, can } = useWorkspace();
+  const { state, run, can, mergeRecords } = useWorkspace();
+  // Related records (the vehicle, other leads from the same contact, a duplicate) are fetched with the lead rather than assumed to be loaded.
+  useRemote<{ lead: Lead; vehicle: Vehicle | null; linked: Lead[]; duplicate: Lead | null }>(`/api/leads/${encodeURIComponent(lead.id)}`, (d) => mergeRecords({ vehicles: d.vehicle ? [d.vehicle] : [], leads: [...d.linked, ...(d.duplicate ? [d.duplicate] : [])] }));
   const href = useScopedHref();
   const toast = useToast();
   const [reveal, setReveal] = useState(false);

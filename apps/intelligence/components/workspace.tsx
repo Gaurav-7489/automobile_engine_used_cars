@@ -31,6 +31,20 @@ type Ctx = {
   saving: boolean;
   /** Reload the authoritative state now. */
   refresh: () => Promise<void>;
+  /** Adds or replaces records a page fetched, so actions on them work locally. Live workspaces hold only the records the visible pages loaded. */
+  mergeRecords: (records: Partial<Pick<WorkspaceState, "vehicles" | "leads" | "sales" | "alerts">>) => void;
+  /** Increases whenever the server's truth may have moved (a refresh, a saved change, a failed change); remote reads reload on it. */
+  epoch: number;
+};
+
+type Mergeable = "vehicles" | "leads" | "sales" | "alerts";
+const upsert = <T extends { id: string }>(current: T[], incoming: T[]): T[] => {
+  if (!incoming.length) return current;
+  const byId = new Map(incoming.map((x) => [x.id, x]));
+  const merged = current.map((x) => byId.get(x.id) ?? x);
+  const known = new Set(current.map((x) => x.id));
+  for (const x of incoming) if (!known.has(x.id)) merged.push(x);
+  return merged;
 };
 
 const WorkspaceContext = createContext<Ctx | null>(null);
@@ -58,6 +72,7 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
   const demoState = (["loading", "empty", "error", "partial"] as const).find((v) => v === demoParam) ?? "normal";
   const [state, setState] = useState<WorkspaceState>(initialState);
   const [saving, setSaving] = useState(false);
+  const [epoch, setEpoch] = useState(0);
   const stateRef = useRef(state);
   stateRef.current = state;
   const demoRef = useRef(demoState);
@@ -77,8 +92,11 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
       const body = (await response.json()) as { state: WorkspaceState; as_of: string };
       if (pending.current > 0) return;
       setAsOf(body.as_of);
-      stateRef.current = body.state;
-      setState(body.state);
+      const cached = stateRef.current;
+      const next: WorkspaceState = body.state.partial ? { ...body.state, vehicles: cached.vehicles, leads: cached.leads, sales: cached.sales, alerts: cached.alerts } : body.state;
+      stateRef.current = next;
+      setState(next);
+      setEpoch((n) => n + 1);
     } catch { /* keep the current state; the next refresh retries */ }
   }, [router]);
 
@@ -96,8 +114,16 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
       try {
         const response = await fetch("/api/workspace/commands", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commands }) });
         if (response.status === 401) { router.replace("/login?reason=expired"); return; }
-        const body = (await response.json().catch(() => null)) as { ok?: boolean; state?: WorkspaceState; effects?: Effects; error?: { message?: string } } | null;
-        if (body?.state && pending.current <= 1) { stateRef.current = body.state; setState(body.state); }
+        const body = (await response.json().catch(() => null)) as { ok?: boolean; state?: WorkspaceState; changes?: Pick<WorkspaceState, Mergeable>; effects?: Effects; error?: { message?: string } } | null;
+        if (body?.state && pending.current <= 1) {
+          // The server returns the small collections plus the records this change touched; cached records it did not touch stay as they are.
+          const cached = stateRef.current;
+          const merged: WorkspaceState = body.state.partial
+            ? { ...body.state, vehicles: upsert(cached.vehicles, body.changes?.vehicles ?? []), leads: upsert(cached.leads, body.changes?.leads ?? []), sales: upsert(cached.sales, body.changes?.sales ?? []), alerts: upsert(cached.alerts, body.changes?.alerts ?? []) }
+            : body.state;
+          stateRef.current = merged; setState(merged);
+          setEpoch((n) => n + 1);
+        }
         if (body?.ok && body.effects) window.dispatchEvent(new CustomEvent("vl:effects", { detail: body.effects }));
         if (!body?.ok) window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: body?.error?.message ?? "The change could not be saved. It has been undone." } }));
       } catch {
@@ -128,10 +154,17 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
 
   const queueAck = useCallback(() => { /* provider acknowledgement is never simulated */ }, []);
 
+  const mergeRecords = useCallback<Ctx["mergeRecords"]>((records) => {
+    const cur = stateRef.current;
+    const next: WorkspaceState = { ...cur, vehicles: upsert(cur.vehicles, records.vehicles ?? []), leads: upsert(cur.leads, records.leads ?? []), sales: upsert(cur.sales, records.sales ?? []), alerts: upsert(cur.alerts, records.alerts ?? []) };
+    stateRef.current = next;
+    setState(next);
+  }, []);
+
   const scope = useMemo(() => resolveScope(active, session.branchIds, params.get("branch")), [active, session.branchIds, params]);
   const can = useCallback((capability: Capability) => canDo(session.role, capability), [session.role]);
 
-  const value = useMemo<Ctx>(() => ({ state: active, session, actor, can, run, runAsync, queueAck, scope, demoState, hydrated: true, saving, refresh }), [active, session, actor, can, run, runAsync, queueAck, scope, demoState, saving, refresh]);
+  const value = useMemo<Ctx>(() => ({ state: active, session, actor, can, run, runAsync, queueAck, scope, demoState, hydrated: true, saving, refresh, mergeRecords, epoch }), [active, session, actor, can, run, runAsync, queueAck, scope, demoState, saving, refresh, mergeRecords, epoch]);
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
 

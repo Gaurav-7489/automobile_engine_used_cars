@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { approveCampaign, ADVERTISING_ACCOUNT_ID, CHANNELS, changeVehicle, channelStatus, checkCopy, createCampaign, discardCampaign, factsFor, metricsFor, pauseCampaign, preflight, publishCampaign, resumeCampaign, submitCampaign, totalBudget, updateCampaign, validateCampaign } from "@/lib/actions";
-import type { Campaign, CampaignStatus } from "@/lib/domain";
+import type { Campaign, CampaignStatus, Vehicle } from "@/lib/domain";
 import { formatDate, formatDateTime, formatKm, formatMoney, formatRupees, MISSING, parseRupeeInput, rupees } from "@/lib/format";
 import { stockAgeDays } from "@/lib/finance";
 import { SNAPSHOT_AT } from "@/lib/time";
 import { SpendLine } from "../charts";
 import { Drawer } from "../overlay";
 import { Panel } from "../panel";
+import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
-import { Badge, Button, Check, EmptyState, FormSummary, Kpi, Notice, PageHead, RupeeField, SelectField, TextArea, TextField } from "../ui";
+import { Badge, Button, Check, EmptyState, ErrorPanel, FormSummary, Kpi, Notice, PageHead, PanelSkeleton, RupeeField, SelectField, TextArea, TextField } from "../ui";
 import { VehicleArt } from "../vehicle-art";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 
@@ -19,8 +20,9 @@ const STEPS = ["Vehicle", "Audience", "Channels & budget", "Creative", "Review"]
 const STATUS_TONE: Record<CampaignStatus, "neutral" | "accent" | "warn" | "danger"> = { Draft: "neutral", Pending: "warn", Approved: "accent", Publishing: "warn", Active: "accent", Pausing: "warn", Paused: "neutral", Failed: "danger", Completed: "neutral" };
 
 export function AdvertisingPage({ campaignId }: { campaignId?: string }) {
-  const { state, scope, can, run } = useWorkspace();
+  const { state, scope, can, run, mergeRecords } = useWorkspace();
   const url = useUrlState();
+  const remote = useRemote<{ campaignVehicles: Vehicle[]; available: Vehicle[] }>(`/api/advertising?branches=${scope.ids.join(",")}`, (d) => mergeRecords({ vehicles: [...d.campaignVehicles, ...d.available] }));
   const href = useScopedHref();
   const toast = useToast();
   const [listOpen, setListOpen] = useState(false);
@@ -37,6 +39,8 @@ export function AdvertisingPage({ campaignId }: { campaignId?: string }) {
     toast(`${r.campaign.id} draft created from stock ${vehicleId}.`);
   };
 
+  if (!remote.data && remote.status !== "error") return <div className="page"><PageHead title="Advertising Studio" lead="Loading your campaigns…" /><PanelSkeleton rows={6} title="Advertising Studio" /></div>;
+  if (!remote.data) return <div className="page"><PageHead title="Advertising Studio" /><ErrorPanel title="Advertising Studio could not load" onRetry={remote.reload} /></div>;
   if (!campaign) {
     return (
       <div className="page">

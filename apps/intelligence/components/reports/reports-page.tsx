@@ -12,8 +12,15 @@ import { GroupedBars, HBars, SimpleBars } from "../charts";
 import { Dialog, Drawer, Menu } from "../overlay";
 import { Gate, Panel } from "../panel";
 import { useToast } from "../toast";
-import { Badge, Button, Check, EmptyState, ErrorPanel, Kpi, Notice, PageHead, SelectField, Tabs, TextField } from "../ui";
+import { Badge, Button, Check, EmptyState, ErrorPanel, Kpi, Notice, PageHead, PanelSkeleton, SelectField, Tabs, TextField } from "../ui";
 import { useUrlState, useWorkspace } from "../workspace";
+import { useRemote } from "../use-remote";
+import type { Sale } from "@/lib/domain";
+import type { StockMetrics } from "@/lib/finance";
+
+type ReportData = { rows: { month: string; acquired: number; sold: number; profit: number }[]; funnel: { stage: string; count: number }[]; metrics: StockMetrics; prior: { acquired: number; sold: number } | null };
+const ZERO_AGE = { "0-15": 0, "16-30": 0, "31-45": 0, ">45": 0 };
+const ZERO_METRICS: StockMetrics = { unsold: 0, available: 0, reserved: 0, preparation: 0, landedCapital: 0, ageing: 0, estimatedGross: 0, grossExcluded: 0, availableByAge: ZERO_AGE, capitalByAge: ZERO_AGE };
 
 type TabKey = "overview" | "inventory" | "leads" | "marketing" | "finance";
 type Drill = null | "acquired" | "sold" | "profit" | "qualified";
@@ -41,26 +48,16 @@ function Reports() {
   const [chartIndex, setChartIndex] = useState(0);
 
   const months = getMonths().filter((m) => m >= from && m <= to);
-  const events = useMemo(() => inScope(state.events, scope.ids).filter((e) => months.includes(monthKey(e.at) as string)), [state.events, scope.ids, months]);
-  const sales = useMemo(() => inScope(state.sales, scope.ids).filter((s) => months.includes(monthKey(s.closedAt) as string)), [state.sales, scope.ids, months]);
-  const completed = sales.filter(isRealized);
-  const rows = months.map((m) => ({ month: m, acquired: events.filter((e) => e.type === "acquired" && monthKey(e.at) === m).length, sold: completed.filter((s) => monthKey(s.closedAt) === m).length, profit: completed.filter((s) => monthKey(s.closedAt) === m).reduce((a, s) => a + realizedProfit(s), 0) }));
+  // One aggregate for the period, computed in the database for the permitted branches.
+  const remote = useRemote<ReportData>(`/api/reports?from=${from}&to=${to}&compare=${compare}&branches=${scope.ids.join(",")}`);
+  const rows = remote.data?.rows ?? months.map((month) => ({ month, acquired: 0, sold: 0, profit: 0 }));
   const totals = { acquired: rows.reduce((a, r) => a + r.acquired, 0), sold: rows.reduce((a, r) => a + r.sold, 0), profit: rows.reduce((a, r) => a + r.profit, 0) };
-  const cohort = inScope(state.leads, scope.ids).filter((l) => months.includes(monthKey(l.createdAt) as string));
-  const funnel = funnelFor(cohort);
+  const funnel = remote.data?.funnel ?? ["Enquiries", "Qualified", "Appointments", "Attended", "Sales linked"].map((stage) => ({ stage, count: 0 }));
   const qualified = funnel[1].count;
-  const metrics = stockMetrics(inScope(state.vehicles, scope.ids), SNAPSHOT_AT);
+  const metrics = remote.data?.metrics ?? ZERO_METRICS;
   const incomplete = demoState === "partial";
-
-  const prior = useMemo(() => {
-    if (compare === "none") return null;
-    const idx = getMonths().indexOf(from as string);
-    const len = months.length;
-    if (compare === "yoy") return null;
-    if (idx - len < 0) return null;
-    const prev = getMonths().slice(idx - len, idx);
-    return { acquired: events.length ? inScope(state.events, scope.ids).filter((e) => e.type === "acquired" && prev.includes(monthKey(e.at) as string)).length : 0, sold: inScope(state.sales, scope.ids).filter((s) => isRealized(s) && prev.includes(monthKey(s.closedAt) as string)).length };
-  }, [compare, from, months.length, events, state, scope.ids]);
+  const prior = remote.data?.prior ?? null;
+  const drillRemote = useRemote<{ rows: Record<string, unknown>[]; total: number }>(drill ? `/api/reports/drill?kind=${drill}&from=${from}&to=${to}&branches=${scope.ids.join(",")}` : null);
 
   const apply = () => {
     if (draft.from > draft.to) { toast("The end month cannot be before the start month.", "error"); return; }
@@ -68,17 +65,18 @@ function Reports() {
   };
   const periodLabel = `${formatDate(`${from}-01T00:00:00+05:30`)} to ${formatDate(new Date(Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5)), 0, 12)).toISOString())}`;
   const dirtyFilters = draft.from !== from || draft.to !== to || draft.compare !== compare;
-  const noRecords = totals.acquired === 0 && totals.sold === 0;
+  const noRecords = Boolean(remote.data) && totals.acquired === 0 && totals.sold === 0;
 
   const track = (name: string) => { void fetch("/api/events", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, branch: scope.value, properties: { tab } }) }).catch(() => undefined); };
   useEffect(() => { track("report_viewed"); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const drillRows = () => {
-    if (drill === "acquired") return { title: "Acquired stock / inventory event cohort", rows: events.filter((e) => e.type === "acquired").map((e) => [e.ref, e.label, formatDate(e.at)]), head: ["Record", "Vehicle", "Date"] };
-    if (drill === "sold") return { title: "Completed sales / sale-close cohort", rows: completed.map((s) => [s.id, s.label, formatDate(s.closedAt)]), head: ["Record", "Vehicle", "Closed"] };
-    if (drill === "profit") return { title: "Realized profit / reconciled sales", rows: completed.map((s) => [s.id, s.label, formatMoney(realizedProfit(s), { dp: 2 })]), head: ["Record", "Vehicle", "Realized profit"] };
-    const qual = cohort.filter((l) => !["New", "Contacted", "Nurture", "Lost"].includes(l.stage));
-    return { title: "Qualified leads / lead-created cohort", rows: qual.map((l) => [l.id, l.name, l.stage]), head: ["Record", "Lead", "Stage"], note: `Leads created in the selected period that currently sit at Qualified or beyond.` };
+    const rowsIn = drillRemote.data?.rows ?? [];
+    const shown = `Showing ${rowsIn.length} of ${drillRemote.data?.total ?? 0}.`;
+    if (drill === "acquired") return { title: "Acquired stock / inventory event cohort", rows: rowsIn.map((e) => [String(e.ref), String(e.label), formatDate(String(e.at))]), head: ["Record", "Vehicle", "Date"], note: shown };
+    if (drill === "sold") return { title: "Completed sales / sale-close cohort", rows: (rowsIn as unknown as Sale[]).map((s) => [s.id, s.label, formatDate(s.closedAt)]), head: ["Record", "Vehicle", "Closed"], note: shown };
+    if (drill === "profit") return { title: "Realized profit / reconciled sales", rows: (rowsIn as unknown as Sale[]).map((s) => [s.id, s.label, formatMoney(realizedProfit(s), { dp: 2 })]), head: ["Record", "Vehicle", "Realized profit"], note: shown };
+    return { title: "Qualified leads / lead-created cohort", rows: rowsIn.map((l) => [String(l.ref), String(l.label), String(l.stage)]), head: ["Record", "Lead", "Stage"], note: `Leads created in the selected period that currently sit at Qualified or beyond. ${shown}` };
   };
   const dr = drill ? drillRows() : null;
 
@@ -108,6 +106,8 @@ function Reports() {
 
       {tab === "finance" && !financeAllowed ? (
         <div className="state-box" role="alert"><h2 className="h3">Finance reports are restricted</h2><p className="muted">Requires Owner or Finance access. Nothing about the underlying ledger is shown here.</p></div>
+      ) : !remote.data ? (
+        remote.status === "error" ? <ErrorPanel title="The report could not load" onRetry={remote.reload} /> : <PanelSkeleton rows={6} title="Report" />
       ) : noRecords ? (
         <EmptyState title="No records in this range">The query succeeded, so counts of zero are real. Ratios and medians display an em dash ({MISSING}) rather than zero. Scope: {scope.label}, {periodLabel}.</EmptyState>
       ) : (

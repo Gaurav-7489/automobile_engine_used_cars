@@ -7,6 +7,7 @@ import { Icon } from "./icons";
 import { useScopedHref, useWorkspace } from "./workspace";
 import { formatMoney } from "@/lib/format";
 import { landedCost } from "@/lib/finance";
+import type { Alert, Lead, Vehicle } from "@/lib/domain";
 
 type Result = { id: string; group: "Vehicles" | "Market listings" | "Leads" | "Actions"; title: string; sub: string; href: string };
 
@@ -30,7 +31,17 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
     return () => window.clearTimeout(handle);
   }, [raw]);
 
-  useEffect(() => { if (!open) { setRaw(""); setQuery(""); setMarket([]); } }, [open]);
+  useEffect(() => { if (!open) { setRaw(""); setQuery(""); setMarket([]); setHits({ vehicles: [], leads: [], alerts: [] }); } }, [open]);
+
+  // Records are looked up on the server as the person types (debounced above); the browser never searches a local copy of the stock.
+  const [hits, setHits] = useState<{ vehicles: Vehicle[]; leads: Lead[]; alerts: Alert[] }>({ vehicles: [], leads: [], alerts: [] });
+  useEffect(() => {
+    if (query.length < 2) { setHits({ vehicles: [], leads: [], alerts: [] }); return; }
+    const controller = new AbortController();
+    fetch(`/api/search?q=${encodeURIComponent(query)}&branches=${scope.ids.join(",")}`, { signal: controller.signal, cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null)).then((body) => { if (body) setHits(body); }).catch(() => undefined);
+    return () => controller.abort();
+  }, [query, scope.ids]);
 
   useEffect(() => {
     if (query.length < 2 || !can("market.view")) { setMarket([]); return; }
@@ -53,22 +64,22 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
     if (query.length < 2) return [];
     const q = query.toLowerCase();
     const vehicles = can("inventory.view")
-      ? state.vehicles.filter((v) => scope.ids.includes(v.branchId) && `${v.id} ${v.make} ${v.model} ${v.variant} ${v.registration}`.toLowerCase().includes(q)).slice(0, 5).map((v) => ({
+      ? hits.vehicles.map((v) => ({
           id: v.id, group: "Vehicles" as const, title: `${v.make} ${v.model} ${v.variant}`, sub: `${v.id} / ${v.year} / ${v.status === "preparation" ? "In preparation" : v.status[0].toUpperCase() + v.status.slice(1)} / landed ${formatMoney(landedCost(v.costs))}`, href: href(`/app/inventory/${v.id}`),
         }))
       : [];
     const leads = can("leads.view")
-      ? state.leads.filter((l) => scope.ids.includes(l.branchId) && `${l.id} ${l.name} ${l.vehicleId ?? ""} ${l.source}`.toLowerCase().includes(q)).slice(0, 5).map((l) => ({
+      ? hits.leads.map((l) => ({
           id: l.id, group: "Leads" as const, title: `${l.name} / ${l.stage}`, sub: `${l.id} / ${l.vehicleId ?? "Unspecified interest"} / ${l.source}`, href: href(`/app/leads/${l.id}`),
         }))
       : [];
     const actions: Result[] = [
-      ...(can("alerts.view") ? state.alerts.filter((a) => scope.ids.includes(a.branchId) && a.status !== "Resolved" && `${a.id} ${a.title} ${a.recordRef}`.toLowerCase().includes(q)).slice(0, 4).map((a) => ({ id: a.id, group: "Actions" as const, title: a.title, sub: `${a.id} / ${a.recordRef} / ${a.severity}`, href: href("/app/alerts", { alert: a.id }) })) : []),
+      ...(can("alerts.view") ? hits.alerts.map((a) => ({ id: a.id, group: "Actions" as const, title: a.title, sub: `${a.id} / ${a.recordRef} / ${a.severity}`, href: href("/app/alerts", { alert: a.id }) })) : []),
       ...(can("inventory.edit") && "add vehicle".includes(q) ? [{ id: "add-vehicle", group: "Actions" as const, title: "Add vehicle", sub: "Open the validated inventory drawer", href: href("/app/inventory", { add: "1" }) }] : []),
       ...(can("price.view") && "price review approval".includes(q) ? [{ id: "pricing", group: "Actions" as const, title: "Pricing review queue", sub: "Evidence-led asking-price decisions", href: href("/app/pricing") }] : []),
     ];
     return [...vehicles, ...market, ...leads, ...actions];
-  }, [query, state, scope.ids, can, href, market]);
+  }, [query, hits, can, href, market]);
 
   useEffect(() => setActive(0), [query, market.length]);
 

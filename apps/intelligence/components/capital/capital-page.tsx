@@ -4,19 +4,23 @@ import { useEffect, useMemo, useState } from "react";
 import { proposeCorrection, saleStateNote } from "@/lib/actions";
 import type { Sale, Vehicle } from "@/lib/domain";
 import { downloadBlob, downloadCsv, makePdf } from "@/lib/export";
-import { AGE_BUCKETS, isRealized, landedCost, realizedMetrics, realizedProfit, saleGross, stockAgeDays, stockMetrics } from "@/lib/finance";
+import { AGE_BUCKETS, isRealized, landedCost, realizedProfit, saleGross, stockAgeDays, type StockMetrics } from "@/lib/finance";
 
 import { formatDate, formatExact, formatLakh2, formatLakhPlain, formatMoney, MISSING, monthKey, monthLabel, monthName } from "@/lib/format";
-import { daysToSale, inScope, monthlyProfit } from "@/lib/selectors";
 import { getMonths, REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
 import { HBars, SimpleBars } from "../charts";
 import { Dialog, Drawer, Menu } from "../overlay";
-import { Gate, Panel } from "../panel";
+import { Gate, RemotePanel } from "../panel";
+import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
 import { Badge, Button, EmptyState, InfoTip, Kpi, Notice, PageHead, SelectField, TextArea, TextField } from "../ui";
 import { useUrlState, useWorkspace } from "../workspace";
 import { scenarioTotals } from "@/lib/finance";
 import { lakh, parseLakhInput } from "@/lib/format";
+
+type CapitalData = { metrics: StockMetrics; realized: { count: number; profit: number; medianDaysToSale: number | null; excluded: number }; monthly: { month: string; count: number; profit: number }[]; ledger: { completed: Sale[]; completedTotal: number; excluded: Sale[]; excludedTotal: number } };
+const ZERO_AGE = { "0-15": 0, "16-30": 0, "31-45": 0, ">45": 0 };
+const ZERO_METRICS: StockMetrics = { unsold: 0, available: 0, reserved: 0, preparation: 0, landedCapital: 0, ageing: 0, estimatedGross: 0, grossExcluded: 0, availableByAge: ZERO_AGE, capitalByAge: ZERO_AGE };
 
 type Population = null | "stock" | "available" | "realized" | `age:${string}`;
 
@@ -25,7 +29,7 @@ export function CapitalPage() {
 }
 
 function Capital() {
-  const { state, scope, can, run, demoState } = useWorkspace();
+  const { scope, can, run, demoState, mergeRecords } = useWorkspace();
   const url = useUrlState();
   const toast = useToast();
   const from = url.get("from", getMonths()[0]);
@@ -39,14 +43,20 @@ function Capital() {
   const [showAll, setShowAll] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
 
-  const stock = useMemo(() => inScope(state.vehicles, scope.ids).filter((v) => (completeness === "complete" ? v.costComplete : completeness === "incomplete" ? !v.costComplete : true)), [state.vehicles, scope.ids, completeness]);
-  const allSales = useMemo(() => inScope(state.sales, scope.ids).filter((s) => { const key = monthKey(s.closedAt); return key >= from && key <= to; }), [state.sales, scope.ids, from, to]);
-  const metrics = useMemo(() => stockMetrics(stock, SNAPSHOT_AT), [stock]);
-  const realized = useMemo(() => realizedMetrics(allSales, (s) => daysToSale(state, s)), [allSales, state]);
-  const monthly = useMemo(() => monthlyProfit(allSales), [allSales]);
+  // Figures, charts and the ledger come from one aggregate computed in the database for the permitted branches.
+  const remote = useRemote<CapitalData>(`/api/capital?from=${from}&to=${to}${completeness !== "all" ? `&cost=${completeness}` : ""}&branches=${scope.ids.join(",")}`, (d) => mergeRecords({ sales: [...d.ledger.completed, ...d.ledger.excluded] }));
+  const metrics = remote.data?.metrics ?? ZERO_METRICS;
+  const realized = remote.data?.realized ?? { count: 0, profit: 0, medianDaysToSale: null, excluded: 0 };
+  const monthly = remote.data?.monthly ?? [];
+  const allSales = useMemo(() => [...(remote.data?.ledger.completed ?? []), ...(remote.data?.ledger.excluded ?? [])], [remote.data]);
+  // The underlying records behind a figure are fetched when it is opened, not held in advance.
+  const populationUrl = population === "realized" ? `/api/sales?state=Completed&from=${from}&to=${to}&size=200&branches=${scope.ids.join(",")}`
+    : population ? `/api/inventory?size=200&sort=landed&dir=desc&branches=${scope.ids.join(",")}${completeness === "complete" ? "&flag=costok" : completeness === "incomplete" ? "&flag=cost" : ""}${population === "available" ? "&tab=available&flag=priced" : population.startsWith("age:") ? `&tab=all&age=${encodeURIComponent(population.slice(4))}` : "&tab=all"}` : null;
+  const populationRemote = useRemote<{ vehicles?: Vehicle[]; sales?: Sale[]; total: number }>(populationUrl);
+  const stock = useMemo(() => populationRemote.data?.vehicles ?? [], [populationRemote.data]);
+  const noSales = realized.count === 0;
   const periodLabel = `${formatDate(`${from}-01T00:00:00+05:30`)} to ${from === to ? formatDate(new Date(Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5)), 0, 12)).toISOString()) : formatDate(new Date(Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5)), 0, 12)).toISOString())}`;
   const partial = demoState === "partial";
-  const noSales = realized.count === 0;
 
   const ledgerRows = useMemo(() => {
     const completed = allSales.filter(isRealized).sort((a, b) => b.closedAt.localeCompare(a.closedAt));
@@ -55,17 +65,27 @@ function Capital() {
   }, [allSales]);
 
   const populationRows = (): { title: string; rows: { id: string; label: string; value: string; sub: string }[] } => {
-    if (population === "realized") return { title: "Completed, reconciled sales", rows: allSales.filter(isRealized).map((s) => ({ id: s.id, label: s.label, value: formatLakh2(realizedProfit(s)), sub: `${formatDate(s.closedAt)} / realized profit` })) };
+    if (population === "realized") return { title: "Completed, reconciled sales", rows: (populationRemote.data?.sales ?? []).filter(isRealized).map((s) => ({ id: s.id, label: s.label, value: formatLakh2(realizedProfit(s)), sub: `${formatDate(s.closedAt)} / realized profit` })) };
     const unsold = stock.filter((v) => v.status !== "sold" && v.status !== "archived");
     if (population === "available") return { title: "Available, cost-complete, priced stock", rows: unsold.filter((v) => v.status === "available" && v.costComplete && v.asking !== null).map((v) => ({ id: v.id, label: `${v.make} ${v.model}`, value: formatLakh2((v.asking ?? 0) - landedCost(v.costs)), sub: "Estimated gross at asking" })) };
     if (population && population.startsWith("age:")) { const key = population.slice(4); return { title: `Unsold stock aged ${key} days`, rows: unsold.filter((v) => (key === ">45" ? stockAgeDays(v, SNAPSHOT_AT) > 45 : AGE_BUCKETS.find((b) => b.key === key && stockAgeDays(v, SNAPSHOT_AT) >= b.min && stockAgeDays(v, SNAPSHOT_AT) <= b.max))).map((v) => ({ id: v.id, label: `${v.make} ${v.model}`, value: formatMoney(landedCost(v.costs)), sub: `${v.status} / ${stockAgeDays(v, SNAPSHOT_AT)}d / landed` })) }; }
     return { title: "All unsold stock (available, reserved and in preparation)", rows: unsold.map((v) => ({ id: v.id, label: `${v.make} ${v.model}`, value: formatMoney(landedCost(v.costs)), sub: `${v.status === "preparation" ? "In preparation" : v.status} / ${stockAgeDays(v, SNAPSHOT_AT)}d` })) };
   };
 
-  const exportLedger = (kind: "csv" | "pdf", provisional: boolean) => {
+  const exportLedger = async (kind: "csv" | "pdf", provisional: boolean) => {
+    // A financial export is complete: every page of the ledger for this scope and period is fetched, never just the rows on screen.
+    const everySale: Sale[] = [];
+    for (let page = 1; page <= 50; page++) {
+      const r = await fetch(`/api/sales?from=${from}&to=${to}&page=${page}&size=200&branches=${scope.ids.join(",")}`, { cache: "no-store" });
+      if (!r.ok) { toast("The ledger could not be loaded for export. Nothing was exported.", "error"); return; }
+      const body = (await r.json()) as { sales: Sale[]; total: number };
+      everySale.push(...body.sales);
+      if (everySale.length >= body.total) break;
+    }
+
     const label = provisional || partial ? "PROVISIONAL" : "CERTIFIED";
     const rows = [["record", "state", "sale_or_ask_rupees", "landed_rupees", "gross_rupees", "direct_costs_rupees", "realized_profit_rupees", "cost_completeness"],
-      ...allSales.map((s) => [s.id, s.state, String(s.salePrice / 100), String(s.landed / 100), String(saleGross(s) / 100), String(s.directCosts / 100), isRealized(s) ? String(realizedProfit(s) / 100) : "", "Complete"])];
+      ...everySale.map((s) => [s.id, s.state, String(s.salePrice / 100), String(s.landed / 100), String(saleGross(s) / 100), String(s.directCosts / 100), isRealized(s) ? String(realizedProfit(s) / 100) : "", "Complete"])];
     const header = [`# ${label} / snapshot ${REPORT_SNAPSHOT_ID} / stock as of ${formatDate(SNAPSHOT_AT)} / realized ${periodLabel} / scope ${scope.label}`, "# Units: rupees. Realized profit excludes tax and allocated overhead. Cost-incomplete records are excluded from definitive totals.", `# Excluded from realized: ${realized.excluded} (void or unreconciled)`];
     if (kind === "csv") downloadCsv(`capital-${label.toLowerCase()}.csv`, rows, header);
     else downloadBlob(`capital-${label.toLowerCase()}.pdf`, makePdf(`Capital and profit intelligence (${label})`, [...header.map((h) => h.replace("# ", "")), "", `Stock landed capital: ${formatMoney(metrics.landedCapital)} (as of ${formatDate(SNAPSHOT_AT)})`, `Estimated gross at asking: ${formatMoney(metrics.estimatedGross)} (estimate, not realized)`, `Realized profit: ${formatMoney(realized.profit)} (${realized.count} completed reconciled sales)`, `Median days to sale: ${realized.medianDaysToSale ?? "-"}`]));
@@ -84,35 +104,35 @@ function Capital() {
         </>} />
       {partial ? <Notice tone="warn" role="status"><Badge tone="warn">Partial</Badge> A panel failed to load: totals are marked Incomplete and never shown as zero. Certified export is blocked; a provisional export is labelled.</Notice> : null}
 
-      <Panel title="Key figures" rows={2} partialFail>
+      <RemotePanel title="Key figures" remote={remote} rows={2}>
         <div className="kpi-grid">
           <Kpi label="Stock landed capital" value={formatMoney(metrics.landedCapital)} note="As-of stock snapshot" onClick={() => setPopulation("stock")} info={<InfoTip label="About landed capital">Acquisition + transport + inspection + refurbishment + purchase fees, for all unsold stock: available, reserved and in preparation.</InfoTip>} />
           <Kpi label="Est. gross at asking" value={formatMoney(metrics.estimatedGross)} note="Estimate / not realized" onClick={() => setPopulation("available")} info={<InfoTip label="About estimated gross">Asking minus landed cost for available, cost-complete, priced vehicles. An estimate: it never enters realized profit.</InfoTip>} />
           <Kpi label="Realized profit" value={noSales ? MISSING : formatMoney(realized.profit)} note={noSales ? "No realized results yet" : "Completed / reconciled sales"} onClick={() => setPopulation("realized")} info={<InfoTip label="About realized profit">Completed, non-void, reconciled sale proceeds minus landed and posted direct selling/holding costs. Excludes tax and allocated overhead.</InfoTip>} />
           <Kpi label="Median days to sale" value={realized.medianDaysToSale === null ? MISSING : `${realized.medianDaysToSale} days`} note={realized.medianDaysToSale === null ? "No average invented" : "Completed-sale cohort"} tone="accent" onClick={() => setPopulation("realized")} />
         </div>
-      </Panel>
+      </RemotePanel>
 
       {metrics.grossExcluded ? <p className="meta">{metrics.grossExcluded} available record{metrics.grossExcluded === 1 ? " is" : "s are"} excluded from estimated gross: cost evidence is incomplete and labelled separately.</p> : null}
 
       <div className="capital-charts">
         <section className="card" aria-labelledby="cb-age"><h2 className="h3" id="cb-age">Stock capital by age / ₹L</h2><p className="meta">Population: unsold stock as of {formatDate(SNAPSHOT_AT)}</p>
-          <Panel title="Capital by age" rows={4}>
+          <RemotePanel title="Capital by age" remote={remote} rows={4}>
             <div className="mt-4"><HBars max={Math.max(...Object.values(metrics.capitalByAge), 1) * 1.15} data={AGE_BUCKETS.map((b) => ({ label: b.label.replace(" days", "d"), value: metrics.capitalByAge[b.key], display: formatLakhPlain(metrics.capitalByAge[b.key], 2), exact: formatExact(metrics.capitalByAge[b.key]), tone: b.key === ">45" ? "warn" : "accent", onSelect: () => setPopulation(`age:${b.key}`), ariaLabel: `${b.label}: ${formatExact(metrics.capitalByAge[b.key])} landed capital. Open filtered stock.` }))} /></div>
-          </Panel>
+          </RemotePanel>
         </section>
         <section className="card" aria-labelledby="cb-profit"><h2 className="h3" id="cb-profit">Realized profit by close month / ₹L</h2><p className="meta">Population: completed, reconciled sales closed in the selected period. Sales revenue is never plotted on this axis.</p>
-          <Panel title="Realized profit" rows={4}>
+          <RemotePanel title="Realized profit" remote={remote} rows={4}>
             {noSales ? <EmptyState title="No realized results yet">No posted sales in this period. Stock-only panels still show estimated gross. No average days-to-sale is invented.</EmptyState> : (
               <SimpleBars title="Realized profit" unit="₹L" data={monthly.filter((m) => m.month >= from && m.month <= to).map((m) => ({ label: monthName(m.month), value: m.profit / lakh(1) }))} format={(v) => (Math.abs(v) < 1 && v !== 0 ? v.toFixed(2) : String(Math.round(v * 10) / 10))} height={232} onSelect={() => setPopulation("realized")} />
             )}
-          </Panel>
+          </RemotePanel>
         </section>
       </div>
 
       <section aria-labelledby="ledger-h" className="stack">
         <h2 className="h2" id="ledger-h">Vehicle ledger</h2>
-        <Panel title="Vehicle ledger" rows={5} partialFail>
+        <RemotePanel title="Vehicle ledger" remote={remote} rows={5}>
           <div className="table-wrap">
             <table className="data-table" aria-label="Vehicle ledger"><thead><tr><th style={{ width: 220 }}>Sale / vehicle</th><th style={{ width: 130 }}>State</th><th className="num" style={{ width: 160 }}>Sale or ask</th><th className="num" style={{ width: 160 }}>Landed</th><th className="num" style={{ width: 160 }}>Gross</th><th className="num" style={{ width: 160 }}>Direct costs</th><th className="num" style={{ width: 170 }}>Realized profit</th><th style={{ width: 56 }}><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>
@@ -121,8 +141,8 @@ function Capital() {
               </tbody>
             </table>
           </div>
-          <div className="spread" style={{ flexWrap: "wrap" }}><button className="link-btn" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show fewer rows" : `Show all ${ledgerRows.completed.length + ledgerRows.excluded.length} ledger rows`}</button><Button size="sm" onClick={() => setScenarioFor("new")} disabled={!can("capital.scenario")}>Open scenario calculator</Button></div>
-        </Panel>
+          <div className="spread" style={{ flexWrap: "wrap" }}><button className="link-btn" onClick={() => setShowAll((v) => !v)}>{showAll ? "Show fewer rows" : `Show up to ${Math.min(200, (remote.data?.ledger.completedTotal ?? 0) + (remote.data?.ledger.excludedTotal ?? 0))} of ${(remote.data?.ledger.completedTotal ?? 0) + (remote.data?.ledger.excludedTotal ?? 0)} ledger rows`}</button><Button size="sm" onClick={() => setScenarioFor("new")} disabled={!can("capital.scenario")}>Open scenario calculator</Button></div>
+        </RemotePanel>
       </section>
       <p className="footnote">Realized profit excludes tax and allocated overhead under this design basis. Cost-incomplete records are separately labelled and excluded from definitive totals.</p>
 
@@ -131,7 +151,7 @@ function Capital() {
       </Drawer>
       <ScopeDialog open={scopeOpen} onClose={() => setScopeOpen(false)} from={from} to={to} cost={completeness} onApply={(f, t, c) => { url.set({ from: f === getMonths()[0] ? null : f, to: t === getMonths()[getMonths().length - 1] ? null : t, cost: c === "all" ? null : c }); setScopeOpen(false); }} />
       <Definitions open={defsOpen} onClose={() => { setDefsOpen(false); if (url.get("definition")) url.set({ definition: null }); }} />
-      <Scenario open={scenarioFor !== null} onClose={() => setScenarioFor(null)} stock={stock.filter((v) => v.status === "available")} />
+      <Scenario open={scenarioFor !== null} onClose={() => setScenarioFor(null)} branches={scope.ids} />
       <Correction sale={correction} onClose={() => setCorrection(null)} onSave={(reason, evidence) => { const r = run((s, a) => proposeCorrection(s, a, correction!.id, reason, evidence)); if (!r.ok) return r.fields ?? { form: r.message }; toast("Correction proposed as reversal + new entry. The ledger is unchanged until finance posts it."); setCorrection(null); return null; }} />
       <Dialog open={exportOpen} onClose={() => setExportOpen(false)} title="Export ledger" description="Values, units, cost-completeness and filters are included. Definitions list formulas and excluded records." footer={<><Button onClick={() => setExportOpen(false)}>Cancel</Button><Button onClick={() => { exportLedger("csv", partial); setExportOpen(false); }}>CSV records</Button><Button variant="primary" onClick={() => { exportLedger("pdf", partial); setExportOpen(false); }}>PDF summary</Button></>}>
         {partial ? <Notice tone="warn">Ledger reconciliation is incomplete, so certified results are blocked. Exports are labelled PROVISIONAL.</Notice> : <Notice tone="accent">Reconciled. Exports are labelled CERTIFIED with snapshot {REPORT_SNAPSHOT_ID}.</Notice>}
@@ -183,7 +203,9 @@ function Definitions({ open, onClose }: { open: boolean; onClose: () => void }) 
   );
 }
 
-function Scenario({ open, onClose, start, stock }: { open: boolean; onClose: () => void; start?: Vehicle; stock: Vehicle[] }) {
+function Scenario({ open, onClose, start, branches }: { open: boolean; onClose: () => void; start?: Vehicle; branches: string[] }) {
+  const available = useRemote<{ vehicles: Vehicle[] }>(open ? `/api/inventory?tab=available&size=200&sort=age&dir=desc&branches=${branches.join(",")}` : null);
+  const stock = available.data?.vehicles ?? [];
   const [vehicleId, setVehicleId] = useState("");
   const [ask, setAsk] = useState("");
   const [landedL, setLanded] = useState("");

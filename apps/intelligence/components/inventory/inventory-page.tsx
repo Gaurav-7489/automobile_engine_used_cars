@@ -9,21 +9,23 @@ import { downloadCsv } from "@/lib/export";
 import { formatKm, formatMoney, formatCount, MISSING } from "@/lib/format";
 import { SNAPSHOT_AT } from "@/lib/time";
 import { Dialog, Menu } from "../overlay";
-import { Panel } from "../panel";
 import { useToast } from "../toast";
 import { Badge, Button, Check, EmptyState, FormSummary, Notice, PageHead, SelectField, Skeleton, Tabs, TextField } from "../ui";
 import { Icon } from "../icons";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
+import { useRemote } from "../use-remote";
+import { RemotePanel } from "../panel";
 import { VehicleDrawer } from "./vehicle-drawer";
 
 type TabKey = "all" | "available" | "reserved" | "preparation" | "sold" | "archived";
 const LIFECYCLE_LABEL: Record<Lifecycle, string> = { available: "Available", reserved: "Reserved", preparation: "In preparation", sold: "Sold", archived: "Archived" };
+type VehiclePageData = { vehicles: Vehicle[]; total: number; page: number; size: number; counts: Record<"all" | "available" | "reserved" | "preparation" | "sold" | "archived", number>; makes: string[] };
 type SortKey = "year" | "km" | "landed" | "asking" | "age";
 
 const SAMPLE_CSV = "make,model,variant,year,fuel,transmission,km,owners,registration,acquired_on,acquisition_cost,asking\nHonda,City,VX,2020,Petrol,Automatic,32000,1,KL 07 CD 4521,2026-10-12,925000,1040000\nSkoda,Octavia,Style,2019,Diesel,Automatic,54000,1,KL 08 EF 9901,2026-10-10,1180000,1325000\n";
 
 export function InventoryPage() {
-  const { state, scope, can, demoState, run, queueAck } = useWorkspace();
+  const { state, scope, can, demoState, run, queueAck, mergeRecords } = useWorkspace();
   const url = useUrlState();
   const href = useScopedHref();
   const toast = useToast();
@@ -51,32 +53,21 @@ export function InventoryPage() {
   useEffect(() => { const handle = window.setTimeout(() => { if (qDraft !== q) url.set({ q: qDraft || null, page: null }); }, 350); return () => window.clearTimeout(handle); }, [qDraft]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (url.get("add") === "1" && can("inventory.edit")) { setDrawer({ open: true }); url.set({ add: null }); } if (url.get("import") === "1") { setImportOpen(true); url.set({ import: null }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const all = useMemo(() => state.vehicles.filter((v) => scope.ids.includes(v.branchId)), [state.vehicles, scope.ids]);
-  const counts = useMemo(() => {
-    const unsold = all.filter((v) => v.status !== "sold" && v.status !== "archived");
-    return { all: unsold.length, available: all.filter((v) => v.status === "available").length, reserved: all.filter((v) => v.status === "reserved").length, preparation: all.filter((v) => v.status === "preparation").length };
-  }, [all]);
-  const makes = useMemo(() => Array.from(new Set(all.map((v) => v.make))).sort(), [all]);
-
-  const filtered = useMemo(() => {
-    let rows = all.filter((v) => (tab === "all" ? v.status !== "sold" && v.status !== "archived" : v.status === tab));
-    if (q) { const t = q.toLowerCase(); rows = rows.filter((v) => `${v.id} ${v.make} ${v.model} ${v.variant} ${v.registration}`.toLowerCase().includes(t)); }
-    if (make) rows = rows.filter((v) => v.make === make);
-    if (age) rows = rows.filter((v) => (age === ">45" ? stockAgeDays(v, SNAPSHOT_AT) > 45 : ageBucket(stockAgeDays(v, SNAPSHOT_AT)) === age));
-    if (branchFilter) rows = rows.filter((v) => v.branchId === branchFilter);
-    if (flag === "cost") rows = rows.filter((v) => !v.costComplete);
-    if (flag === "media") rows = rows.filter((v) => !v.hasImages);
-    if (flag === "review") rows = rows.filter((v) => needsPriceReview(v));
-    const value: Record<SortKey, (v: Vehicle) => number> = { year: (v) => v.year, km: (v) => v.km, landed: (v) => landedCost(v.costs), asking: (v) => v.asking ?? -1, age: (v) => stockAgeDays(v, SNAPSHOT_AT) };
-    if (sort) rows = [...rows].sort((a, b) => (value[sort](a) - value[sort](b)) * (dir === "desc" ? -1 : 1) || a.id.localeCompare(b.id));
-    else rows = [...rows].sort((a, b) => a.id.localeCompare(b.id));
-    return rows;
-  }, [all, tab, q, make, age, branchFilter, flag, sort, dir]);
-
-  const total = filtered.length;
+  // The server filters, sorts, counts and pages; the browser only ever holds the rows on screen (plus any it fetched earlier).
+  const query = useMemo(() => {
+    const p = new URLSearchParams({ tab, page: String(page), size: String(size), branches: scope.ids.join(",") });
+    for (const [k, v] of Object.entries({ q, make, age, vbranch: branchFilter, flag, sort, dir: sort ? dir : "" })) if (v) p.set(k, v);
+    return p.toString();
+  }, [tab, page, size, scope.ids, q, make, age, branchFilter, flag, sort, dir]);
+  const remote = useRemote<VehiclePageData>(`/api/inventory?${query}`, (d) => mergeRecords({ vehicles: d.vehicles }));
+  const cached = useMemo(() => new Map(state.vehicles.map((v) => [v.id, v])), [state.vehicles]);
+  const pageRows = useMemo(() => (remote.data?.vehicles ?? []).map((v) => cached.get(v.id) ?? v), [remote.data, cached]);
+  const counts = remote.data?.counts ?? { all: 0, available: 0, reserved: 0, preparation: 0, sold: 0, archived: 0 };
+  const makes = remote.data?.makes ?? [];
+  const totalEverywhere = counts.all + counts.sold + counts.archived;
+  const total = remote.data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / size));
-  const current = Math.min(page, pages);
-  const pageRows = filtered.slice((current - 1) * size, current * size);
+  const current = remote.data?.page ?? 1;
   const activeFilters = [q && `Search “${q}”`, make && `Make ${make}`, age && `Age ${age === ">45" ? ">45 days" : `${age} days`}`, branchFilter && `Branch ${state.branches.find((b) => b.id === branchFilter)?.name}`, flag && `Flag: ${flag}`].filter(Boolean) as string[];
   const clearFilters = () => url.set({ q: null, make: null, age: null, vbranch: null, flag: null, page: null });
   const setSort = (key: SortKey) => url.set({ sort: sort === key && dir === "desc" ? null : key, dir: sort === key && dir === "asc" ? "desc" : sort === key ? null : "asc", page: null });
@@ -108,7 +99,7 @@ export function InventoryPage() {
   );
 
   const attention = (v: Vehicle) => [!v.costComplete ? "Cost incomplete" : "", !v.hasImages ? "No photo" : ""].filter(Boolean);
-  const bulkTargets = all.filter((v) => selected.includes(v.id));
+  const bulkTargets = state.vehicles.filter((v) => selected.includes(v.id));
 
   return (
     <div className="page">
@@ -141,8 +132,8 @@ export function InventoryPage() {
         </div>
       ) : null}
 
-      <Panel title="Inventory table" rows={8} partialFail>
-        {demoState === "empty" || (all.length === 0) ? (
+      <RemotePanel title="Inventory table" remote={remote} rows={8}>
+        {demoState === "empty" || (remote.data && totalEverywhere === 0) ? (
           <EmptyState title="No stock yet" actions={<><Button variant="primary" onClick={() => setDrawer({ open: true })} disabled={!can("inventory.edit")}>Add first vehicle</Button><Button onClick={() => setImportOpen(true)} disabled={!can("inventory.edit")}>Import CSV</Button></>}>Add your first vehicle or import stock from a spreadsheet. Totals appear once records exist.</EmptyState>
         ) : total === 0 ? (
           <EmptyState title="No vehicles match these filters" actions={<Button onClick={clearFilters}>Clear filters</Button>}>Totals for this scope are retained above: {counts.all} unsold, {counts.available} available. Clear a filter to see them.</EmptyState>
@@ -192,7 +183,7 @@ export function InventoryPage() {
             </div>
           </>
         )}
-      </Panel>
+      </RemotePanel>
       <p className="footnote">Price review is a flag. Available / Reserved / In preparation / Sold / Archived are lifecycle states.</p>
 
       <VehicleDrawer key={`${drawer.open}-${drawer.vehicle?.id}-${drawer.vehicle?.version}`} open={drawer.open} onClose={() => setDrawer({ open: false })} vehicle={drawer.vehicle} defaultBranch={scope.ids[0] ?? "koc"} />

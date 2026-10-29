@@ -25,7 +25,7 @@ const SALES_EFFECTIVE = `
 
 const q = async (c: SqlClient, sql: string, values: unknown[]) => (await c.query(sql.replace(/\$TODAY/g, `$${values.length}`), values)).rows as Record<string, unknown>[];
 
-export type VehicleFilter = { tab: "all" | Lifecycle; q?: string; make?: string; age?: string; vbranch?: string; flag?: "cost" | "media" | "review" | ""; sort?: "year" | "km" | "landed" | "asking" | "age" | ""; dir?: "asc" | "desc"; page: number; size: number };
+export type VehicleFilter = { tab: "all" | Lifecycle; q?: string; make?: string; age?: string; vbranch?: string; flag?: "cost" | "media" | "review" | "priced" | "costok" | ""; sort?: "year" | "km" | "landed" | "asking" | "age" | ""; dir?: "asc" | "desc"; page: number; size: number };
 
 const SORT_SQL: Record<string, string> = { year: "v.year", km: "v.km", landed: "v.landed_paise", asking: "COALESCE(v.asking_paise, -1)", age: AGE };
 
@@ -63,6 +63,8 @@ export async function listVehicles(c: SqlClient, tenantId: string, branchIds: st
   if (f.age) where.push(f.age === ">45" ? `${AGE.replace(/\$TODAY/g, todayP)} > 45` : `(${BUCKET.replace(/\$TODAY/g, todayP)}) = ${add(f.age)}`);
   if (f.flag === "cost") where.push("NOT v.cost_complete");
   if (f.flag === "media") where.push("NOT v.has_images");
+  if (f.flag === "costok") where.push("v.cost_complete");
+  if (f.flag === "priced") where.push("v.cost_complete AND v.asking_paise IS NOT NULL");
   if (f.flag === "review") {
     // Price review: available, priced, older than 30 days, with fewer enquiries than the cohort median.
     const atOrAbove = [...ctx.byStock].filter(([, n]) => n >= ctx.median).map(([sid]) => sid);
@@ -98,12 +100,13 @@ export type StockMetricsRow = {
 };
 
 /** SQL equivalent of lib/finance.stockMetrics over the permitted branches. */
-export async function stockMetricsSql(c: SqlClient, tenantId: string, branchIds: string[], today = todayIst()): Promise<StockMetricsRow> {
+export async function stockMetricsSql(c: SqlClient, tenantId: string, branchIds: string[], today = todayIst(), cost?: "complete" | "incomplete"): Promise<StockMetricsRow> {
   const rows = await q(c,
     `SELECT ${BUCKET} AS bucket, v.status, count(*)::int AS n, COALESCE(sum(v.landed_paise), 0)::bigint AS landed,
             COALESCE(sum(CASE WHEN v.status = 'available' AND v.cost_complete AND v.asking_paise IS NOT NULL THEN v.asking_paise - v.landed_paise END), 0)::bigint AS gross,
             count(*) FILTER (WHERE v.status = 'available' AND NOT (v.cost_complete AND v.asking_paise IS NOT NULL))::int AS excluded
-     FROM intelligence_vehicle_index v WHERE v.tenant_id = $1 AND v.branch_id = ANY($2::uuid[]) AND v.status NOT IN ('sold', 'archived') GROUP BY 1, 2`, [tenantId, branchIds, today]);
+     FROM intelligence_vehicle_index v WHERE v.tenant_id = $1 AND v.branch_id = ANY($2::uuid[]) AND v.status NOT IN ('sold', 'archived')
+       AND ($3::text IS NULL OR ($3 = 'complete' AND v.cost_complete) OR ($3 = 'incomplete' AND NOT v.cost_complete)) GROUP BY 1, 2`, [tenantId, branchIds, cost ?? null, today]);
   const empty = () => ({ "0-15": 0, "16-30": 0, "31-45": 0, ">45": 0 }) as Record<string, number>;
   const m: StockMetricsRow = { unsold: 0, available: 0, reserved: 0, preparation: 0, landedCapital: 0, ageing: 0, estimatedGross: 0, grossExcluded: 0, availableByAge: empty(), capitalByAge: empty() };
   for (const r of rows) {
@@ -138,17 +141,17 @@ export async function salesSummarySql(c: SqlClient, tenantId: string, branchIds:
   return rows.map((r) => ({ month: String(r.m), state: String(r.state), count: Number(r.n), profit: Number(r.profit), days: (r.days as number[]).map((d) => Math.max(0, Number(d))) }));
 }
 
-export async function listSales(c: SqlClient, tenantId: string, branchIds: string[], fromMonth: string, toMonth: string, page: number, size: number) {
+export async function listSales(c: SqlClient, tenantId: string, branchIds: string[], fromMonth: string, toMonth: string, page: number, size: number, onlyState?: Sale["state"] | "NotCompleted") {
   const limit = Math.min(Math.max(1, size), 200);
   const rows = await q(c,
-    `SELECT s.*, count(*) OVER () AS total FROM (${SALES_EFFECTIVE}) s WHERE s.branch_id = ANY($2::uuid[]) AND to_char(closed_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM') BETWEEN $3 AND $4
-     ORDER BY s.closed_at DESC, s.sale_id COLLATE "C" LIMIT $5 OFFSET $6`, [tenantId, branchIds, fromMonth, toMonth, limit, (Math.max(1, page) - 1) * limit]);
+    `SELECT s.*, count(*) OVER () AS total FROM (${SALES_EFFECTIVE}) s WHERE s.branch_id = ANY($2::uuid[]) AND to_char(closed_at AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM') BETWEEN $3 AND $4 AND ($7::text IS NULL OR s.state = $7 OR ($7 = 'NotCompleted' AND s.state <> 'Completed'))
+     ORDER BY s.closed_at DESC, s.sale_id COLLATE "C" LIMIT $5 OFFSET $6`, [tenantId, branchIds, fromMonth, toMonth, limit, (Math.max(1, page) - 1) * limit, onlyState ?? null]);
   return { sales: rows.map(toSale), total: rows.length ? Number(rows[0].total) : 0 };
 }
 
 /* ------------------------------------------------------------------ leads */
 
-export type LeadFilter = { stage: string; owner?: string; source?: string; vehicle?: string; createdDays: string; overdue?: boolean; mineName?: string; q?: string; page: number; size: number };
+export type LeadFilter = { stage: string; owner?: string; source?: string; vehicle?: string; createdDays: string; overdue?: boolean; mineName?: string; q?: string; order?: "recent"; page: number; size: number };
 
 export async function listLeads(c: SqlClient, tenantId: string, branchIds: string[], f: LeadFilter, now = new Date()) {
   const values: unknown[] = [tenantId, branchIds];
@@ -164,11 +167,11 @@ export async function listLeads(c: SqlClient, tenantId: string, branchIds: strin
   if (f.q) where.push(`l.search LIKE ${add(`%${f.q.toLowerCase().replace(/[%_\\]/g, (m) => `\\${m}`)}%`)}`);
   const size = Math.min(Math.max(1, f.size), 200);
   const rows = (await c.query(
-    `SELECT l.data, count(*) OVER () AS total FROM intelligence_lead_index l WHERE ${where.join(" AND ")} ORDER BY l.lead_id COLLATE "C" LIMIT ${add(size)} OFFSET ${add((Math.max(1, f.page) - 1) * size)}`, values)).rows as { data: Lead; total: string }[];
+    `SELECT l.data, count(*) OVER () AS total FROM intelligence_lead_index l WHERE ${where.join(" AND ")} ORDER BY ${f.order === "recent" ? "l.last_touch_at DESC, " : ""}l.lead_id COLLATE "C" LIMIT ${add(size)} OFFSET ${add((Math.max(1, f.page) - 1) * size)}`, values)).rows as { data: Lead; total: string }[];
   const facets = (await c.query(
     `SELECT COALESCE(array_agg(DISTINCT owner ORDER BY owner), '{}') AS owners, COALESCE(array_agg(DISTINCT vehicle_stock_id ORDER BY vehicle_stock_id) FILTER (WHERE vehicle_stock_id IS NOT NULL), '{}') AS vehicles, count(*)::int AS total
      FROM intelligence_lead_index WHERE tenant_id = $1 AND branch_id = ANY($2::uuid[])`, [tenantId, branchIds])).rows[0] as { owners: string[]; vehicles: string[]; total: number };
-  return { leads: rows.map((r) => r.data), total: rows.length ? Number(rows[0].total) : 0, page: f.page, size, owners: facets.owners, vehicles: facets.vehicles, anyLeads: Number(facets.total) > 0 };
+  return { leads: rows.map((r) => r.data), total: rows.length ? Number(rows[0].total) : 0, page: f.page, size, owners: facets.owners, vehicleFacets: facets.vehicles, anyLeads: Number(facets.total) > 0 };
 }
 
 export async function stageCounts(c: SqlClient, tenantId: string, branchIds: string[]): Promise<Record<LeadStage | string, number>> {

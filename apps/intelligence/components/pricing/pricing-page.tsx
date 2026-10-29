@@ -11,8 +11,9 @@ import { SNAPSHOT_AT } from "@/lib/time";
 import { comparablesForVehicle, valuationFor } from "@/lib/valuation";
 import { Dialog, Drawer } from "../overlay";
 import { Panel } from "../panel";
+import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
-import { Badge, Button, EmptyState, FormSummary, Notice, PageHead, RupeeField, SelectField, Tabs, TextArea, TextField } from "../ui";
+import { Badge, Button, EmptyState, ErrorPanel, FormSummary, Notice, PageHead, PanelSkeleton, RupeeField, SelectField, Tabs, TextArea, TextField } from "../ui";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 import { EvidenceBadge } from "../market/common";
 
@@ -22,8 +23,12 @@ const STATUS_LABEL: Record<PriceRequestStatus, string> = { Draft: "Draft", Pendi
 const FLOW: PriceRequestStatus[] = ["Draft", "Pending", "Approved", "Applying", "Applied"];
 
 export function PricingPage({ requestId }: { requestId?: string }) {
-  const { state, scope } = useWorkspace();
+  const { state, scope, mergeRecords } = useWorkspace();
   const url = useUrlState();
+  // The queue's stock comes from the server (flagged, already requested, and a bounded manual list); a deep-linked vehicle is fetched on its own.
+  const remote = useRemote<{ flagged: Vehicle[]; options: Vehicle[]; requestVehicles: Vehicle[] }>(`/api/pricing?branches=${scope.ids.join(",")}`, (d) => mergeRecords({ vehicles: [...d.flagged, ...d.options, ...d.requestVehicles] }));
+  const wanted = url.get("vehicle");
+  useRemote<{ vehicle: Vehicle }>(wanted && !state.vehicles.some((v) => v.id === wanted) ? `/api/inventory/${encodeURIComponent(wanted)}` : null, (d) => mergeRecords({ vehicles: [d.vehicle] }));
   const inScopeVehicles = useMemo(() => state.vehicles.filter((v) => scope.ids.includes(v.branchId)), [state.vehicles, scope.ids]);
   const requests = useMemo(() => state.priceRequests.filter((r) => inScopeVehicles.some((v) => v.id === r.vehicleId)), [state.priceRequests, inScopeVehicles]);
   const activeIds = new Set(requests.filter((r) => ["Draft", "Pending"].includes(r.status)).map((r) => r.vehicleId));
@@ -55,7 +60,9 @@ export function PricingPage({ requestId }: { requestId?: string }) {
       <Tabs label="Request queue" value={tab} onChange={(v) => url.set({ tab: v === "review" ? null : v, request: null, vehicle: null })} idPrefix="prc"
         tabs={[{ value: "review", label: "Needs review", count: reviewVehicles.length }, { value: "pending", label: "Pending", count: pending.length }, { value: "approved", label: "Approved", count: approved.length }, { value: "rejected", label: "Rejected", count: rejected.length }]} />
 
-      {tab === "review" ? (
+      {!remote.data && remote.status !== "error" ? <PanelSkeleton rows={6} title="Pricing queue" /> : null}
+      {!remote.data && remote.status === "error" ? <ErrorPanel title="The pricing queue could not load" onRetry={remote.reload} /> : null}
+      {!remote.data ? null : tab === "review" ? (
         reviewVehicles.length === 0 && manualOptions.length === 0 ? <NoCandidates lastScan={SNAPSHOT_AT} /> : (
           <>
             <div className="selector-row">

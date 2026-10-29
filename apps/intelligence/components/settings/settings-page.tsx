@@ -4,14 +4,15 @@ import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { changeRole, connectIntegration, disconnectIntegration, inviteMember, removeMember, revokeSessions, saveBranch, saveBusiness, scopeText, setNotification, setPolicy, testConnection } from "@/lib/actions";
-import type { Integration, IntegrationState, Role } from "@/lib/domain";
+import type { AuditEvent, Integration, IntegrationState, Role } from "@/lib/domain";
 import { formatDateTime, formatShortDateTime } from "@/lib/format";
 import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions";
 import { downloadCsv } from "@/lib/export";
 import { Dialog, Drawer } from "../overlay";
 import { Panel } from "../panel";
 import { useToast } from "../toast";
-import { Badge, Button, Check, EmptyState, FormSummary, Notice, PageHead, PasswordField, SelectField, TextField } from "../ui";
+import { Badge, Button, Check, EmptyState, ErrorPanel, FormSummary, Notice, PageHead, PanelSkeleton, PasswordField, SelectField, TextField } from "../ui";
+import { useRemote } from "../use-remote";
 import { useScopedHref, useWorkspace } from "../workspace";
 
 export const SECTIONS = [
@@ -480,19 +481,28 @@ function Notifications() {
 /* Audit -------------------------------------------------------------------------- */
 
 function Audit() {
-  const { state, can } = useWorkspace();
+  const { can } = useWorkspace();
   const toast = useToast();
   const [filter, setFilter] = useState("");
+  const [term, setTerm] = useState("");
+  const [page, setPage] = useState(1);
   const allowed = can("settings.audit");
-  const rows = useMemo(() => state.audit.filter((a) => `${a.actor} ${a.action} ${a.target} ${a.detail}`.toLowerCase().includes(filter.toLowerCase())), [state.audit, filter]);
+  useEffect(() => { const h = window.setTimeout(() => { setTerm(filter.trim()); setPage(1); }, 300); return () => window.clearTimeout(h); }, [filter]);
+  // The trail is searched and paged in the database; only the page on screen is ever loaded.
+  const remote = useRemote<{ events: AuditEvent[]; total: number; page: number; size: number }>(allowed ? `/api/audit?page=${page}&size=50${term ? `&q=${encodeURIComponent(term)}` : ""}` : null);
+  const rows = remote.data?.events ?? [];
+  const total = remote.data?.total ?? 0;
   if (!allowed) return <section className="card"><h2 className="h2">Audit</h2><Notice tone="warn" role="status">The audit trail is permission-gated. Requires Owner access.</Notice></section>;
   return (
     <section className="card stack" aria-labelledby="au-h">
       <div className="spread"><h2 className="h2" id="au-h">Audit</h2><Button onClick={() => { downloadCsv("audit.csv", [["time (UTC, ISO 8601)", "time (IST)", "actor", "action", "target", "detail"], ...rows.map((a) => [a.at, formatDateTime(a.at), a.actor, a.action, a.target, a.detail])], ["# Secrets and contact values are masked in exports. Retention follows policy."]); toast("Audit export ready: secrets masked."); }}>Export</Button></div>
       <p className="muted">Append-only and filterable. Exports mask secrets and respect retention.</p>
       <TextField label="Filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Actor, action or record" />
-      <div className="table-wrap fit"><table className="data-table dense"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>{rows.slice(0, 100).map((a) => <tr key={a.id}><td style={{ whiteSpace: "nowrap" }}>{formatDateTime(a.at)}</td><td>{a.actor}</td><td>{a.action}</td><td>{a.target}</td><td className="muted" style={{ maxWidth: 320 }}>{a.detail}</td></tr>)}</tbody></table></div>
-      {rows.length === 0 ? <p className="muted">No audit events match.</p> : null}
+      <div className="table-wrap fit"><table className="data-table dense"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>{rows.map((a) => <tr key={a.id}><td style={{ whiteSpace: "nowrap" }}>{formatDateTime(a.at)}</td><td>{a.actor}</td><td>{a.action}</td><td>{a.target}</td><td className="muted" style={{ maxWidth: 320 }}>{a.detail}</td></tr>)}</tbody></table></div>
+      {remote.status === "loading" ? <PanelSkeleton rows={4} title="Audit events" /> : null}
+      {remote.status === "error" && !remote.data ? <ErrorPanel title="The audit trail could not load" onRetry={remote.reload} /> : null}
+      {remote.data && rows.length === 0 ? <p className="muted">No audit events match.</p> : null}
+      {total > 50 ? <div className="pager"><span className="meta">Page {page} of {Math.ceil(total / 50)} / {total} events</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><Button disabled={page * 50 >= total} onClick={() => setPage(page + 1)}>Next</Button></div></div> : null}
     </section>
   );
 }

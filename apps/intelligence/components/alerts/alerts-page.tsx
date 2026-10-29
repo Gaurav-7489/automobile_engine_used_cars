@@ -2,22 +2,24 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { acknowledge, assignAlerts, previewRuleImpact, RESOLUTION_CODES, resolve, snooze, updateRules, type SnoozeChoice } from "@/lib/actions";
+import { acknowledge, assignAlerts, RESOLUTION_CODES, resolve, snooze, updateRules, type SnoozeChoice } from "@/lib/actions";
 import type { Alert } from "@/lib/domain";
-import { stockAgeDays } from "@/lib/finance";
 import { formatDateTime, formatShortDateTime, formatTime, MISSING } from "@/lib/format";
-import { alertCounts, alertsFor, sortAlerts } from "@/lib/selectors";
+import type { AlertCounts } from "@/lib/selectors";
 import { SNAPSHOT_AT } from "@/lib/time";
 import { Dialog, Drawer } from "../overlay";
-import { Panel } from "../panel";
+import { Panel, RemotePanel } from "../panel";
+import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
 import { Button, Check, EmptyState, ErrorPanel, FormSummary, Kpi, Notice, PageHead, SelectField, Tabs, TextArea, TextField } from "../ui";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 
 type TabKey = "open" | "snoozed" | "resolved";
 
+type AlertPage = { alerts: Alert[]; total: number; page: number; size: number; counts: AlertCounts; people: string[] };
+
 export function AlertsPage() {
-  const { state, scope, can, session, run, demoState } = useWorkspace();
+  const { state, scope, can, run, demoState, mergeRecords } = useWorkspace();
   const url = useUrlState();
   const href = useScopedHref();
   const toast = useToast();
@@ -32,22 +34,25 @@ export function AlertsPage() {
   const [dialog, setDialog] = useState<null | { kind: "snooze" | "assign" | "resolve"; ids: string[] }>(null);
   const openId = url.get("alert");
 
-  const scoped = useMemo(() => alertsFor(state, scope.ids), [state, scope.ids]);
-  const counts = alertCounts(scoped);
-  const statusFor = (t: TabKey): Alert["status"] => (t === "open" ? "Open" : t === "snoozed" ? "Snoozed" : "Resolved");
-  const rows = useMemo(() => sortAlerts(scoped.filter((a) => a.status === statusFor(tab))).filter((a) => {
-    if (type && a.type !== type) return false;
-    if (severity && a.severity !== severity) return false;
-    if (assignee && a.assignee !== assignee) return false;
-    if (mine && a.assignee !== session.name) return false;
-    if (due === "today" && !(a.dueAt && formatTime(a.dueAt) && new Date(a.dueAt).toDateString() === new Date(SNAPSHOT_AT).toDateString())) return false;
-    if (due === "overdue" && !(a.dueAt && new Date(a.dueAt).getTime() < new Date(SNAPSHOT_AT).getTime())) return false;
-    if (url.get("waiting") === "1" && !a.waiting) return false;
-    return true;
-  }), [scoped, tab, type, severity, assignee, mine, due, url, session.name]);
-  const active = scoped.find((a) => a.id === openId);
+  // The queue, its counts and the filters are computed on the server; the browser holds one page.
+  const pageNo = Math.max(1, Number(url.get("page", "1")) || 1);
+  const query = useMemo(() => {
+    const p = new URLSearchParams({ tab, page: String(pageNo), size: "50", branches: scope.ids.join(",") });
+    for (const [k, v] of Object.entries({ type, severity, assignee, due, mine: mine ? "1" : "", waiting: url.get("waiting") })) if (v) p.set(k, v);
+    return p.toString();
+  }, [tab, pageNo, scope.ids, type, severity, assignee, due, mine, url]);
+  const remote = useRemote<AlertPage>(`/api/alerts?${query}`, (d) => mergeRecords({ alerts: d.alerts }));
+  const counts = remote.data?.counts ?? { critical: 0, dueToday: 0, overdue: 0, waiting: 0, open: 0 };
+  const cachedAlerts = useMemo(() => new Map(state.alerts.map((a) => [a.id, a])), [state.alerts]);
+  const rows = useMemo(() => (remote.data?.alerts ?? []).map((a) => cachedAlerts.get(a.id) ?? a), [remote.data, cachedAlerts]);
+  const total = remote.data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / (remote.data?.size ?? 50)));
+  const currentPage = remote.data?.page ?? 1;
+  const deepAlert = useRemote<AlertPage>(openId && !state.alerts.some((a) => a.id === openId) ? `/api/alerts?id=${encodeURIComponent(openId)}&branches=${scope.ids.join(",")}` : null, (d) => mergeRecords({ alerts: d.alerts }));
+  void deepAlert;
+  const active = openId ? state.alerts.find((a) => a.id === openId) : undefined;
   const filters = [type, severity, assignee, due, mine ? "mine" : "", url.get("waiting")].filter(Boolean).length;
-  const people = Array.from(new Set(scoped.map((a) => a.assignee))).sort();
+  const people = remote.data?.people ?? [];
   const action = (a: Alert): { label: string; to: string } => {
     if (a.type === "Pricing") return { label: "Review", to: href("/app/pricing", { vehicle: a.recordRef }) };
     if (a.type === "Leads") return { label: "Open", to: href(`/app/leads/${a.recordRef}`) };
@@ -67,14 +72,14 @@ export function AlertsPage() {
           <Button variant="primary" className="primary-cta" onClick={() => setRulesOpen(true)} disabled={!can("alerts.rules")} reason={!can("alerts.rules") ? "Rule settings are for administrators." : undefined}>Rule settings</Button>
         </>} />
 
-      <Panel title="Alert summary" rows={2} partialFail>
+      <RemotePanel title="Alert summary" remote={remote} rows={2}>
         <div className="kpi-grid">
           <Kpi label="Critical" value={counts.critical} note="Integration action" tone="warn" onClick={() => url.set({ tab: null, severity: "Critical" })} />
           <Kpi label="Due today" value={counts.dueToday} note="Assigned work" tone="warn" onClick={() => url.set({ tab: null, due: "today" })} />
           <Kpi label="Overdue" value={counts.overdue} note="Response SLA" tone="warn" onClick={() => url.set({ tab: null, severity: "Overdue" })} />
           <Kpi label="Waiting" value={counts.waiting} note="Approval or acknowledgement" tone="warn" onClick={() => url.set({ tab: null, waiting: "1" })} />
         </div>
-      </Panel>
+      </RemotePanel>
 
       <Tabs label="Alert status" value={tab} onChange={(v) => url.set({ tab: v === "open" ? null : v })} idPrefix="al" tabs={[{ value: "open", label: "Open" }, { value: "snoozed", label: "Snoozed" }, { value: "resolved", label: "Resolved" }]} />
       <div className="alert-filters" role="group" aria-label="Filters">
@@ -93,7 +98,7 @@ export function AlertsPage() {
       ) : null}
 
       {demoState === "error" ? <ErrorPanel title="Monitoring delayed" message={`Rule evaluation failed. Last successful evaluation ${formatDateTime(SNAPSHOT_AT)}. Existing alerts are not auto-cleared.`} onRetry={() => url.set({ demo_state: null })} /> : (
-        <Panel title="Alert queue" rows={5} partialFail>
+        <RemotePanel title="Alert queue" remote={remote} rows={5}>
           {rows.length === 0 ? (
             <EmptyState title={tab === "open" && !filters ? "All caught up" : "No alerts match"} actions={filters ? <Button onClick={clear}>Clear filters</Button> : undefined}>
               {tab === "open" && !filters ? `No open alerts. Last rule run ${formatDateTime(SNAPSHOT_AT)}. A scope with no rule run shows Unknown health, never healthy.` : "Nothing matches the current tab and filters."}
@@ -122,7 +127,12 @@ export function AlertsPage() {
               ); })}</ul>
             </>
           )}
-        </Panel>
+          {total > (remote.data?.size ?? 50) ? (
+            <div className="pager"><span className="meta">Page {currentPage} of {pages} / {total} alerts</span><div className="row-flex">
+              <Button disabled={currentPage <= 1} onClick={() => url.set({ page: currentPage - 1 === 1 ? null : currentPage - 1 }, { push: true })}>Previous</Button>
+              <Button disabled={currentPage >= pages} onClick={() => url.set({ page: currentPage + 1 }, { push: true })}>Next</Button></div></div>
+          ) : null}
+        </RemotePanel>
       )}
       <p className="meta">Last rule evaluation {formatTime(SNAPSHOT_AT)} IST / Acknowledge does not resolve / Alerts are calculated from your records and thresholds</p>
 
@@ -221,7 +231,8 @@ function RulesDialog({ open, onClose }: { open: boolean; onClose: () => void }) 
   const [form, setForm] = useState({ reviewThresholdDays: 30, ageingDays: 45, staleFeedHours: 24, leadResponseMinutes: 60 });
   const [errors, setErrors] = useState<Record<string, string>>({});
   useEffect(() => { if (open) { const p = state.policy; setForm({ reviewThresholdDays: p.reviewThresholdDays, ageingDays: p.ageingDays, staleFeedHours: p.staleFeedHours, leadResponseMinutes: p.leadResponseMinutes }); setErrors({}); } }, [open, state.policy]);
-  const affected = previewRuleImpact(state, form.reviewThresholdDays, (id) => { const v = state.vehicles.find((x) => x.id === id); return v ? stockAgeDays(v, SNAPSHOT_AT) : 0; });
+  const preview = useRemote<{ affected: number }>(open ? `/api/alerts/preview?days=${Math.max(1, form.reviewThresholdDays || 1)}&branches=${state.branches.map((b) => b.id).join(",")}` : null);
+  const affected = preview.data?.affected ?? 0;
   const num = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: Number(e.target.value.replace(/\D/g, "")) });
   return (
     <Dialog open={open} onClose={onClose} dirty={JSON.stringify(form) !== JSON.stringify({ reviewThresholdDays: state.policy.reviewThresholdDays, ageingDays: state.policy.ageingDays, staleFeedHours: state.policy.staleFeedHours, leadResponseMinutes: state.policy.leadResponseMinutes })} title="Rule settings" description={`Rules version ${state.policy.rulesVersion}. Saving creates version ${state.policy.rulesVersion + 1}.`} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={() => { const r = run((s, a) => updateRules(s, a, form)); if (!r.ok) { setErrors(r.fields ?? { form: r.message }); return; } toast(`Rules version ${state.policy.rulesVersion + 1} saved.`); onClose(); }}>Save rules</Button></>}>

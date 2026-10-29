@@ -8,7 +8,9 @@ import { formatDate, formatExact, formatKm, formatLakh2, formatMoney, formatPerc
 import { SNAPSHOT_AT } from "@/lib/time";
 import { valuationFor } from "@/lib/valuation";
 import { Panel } from "../panel";
-import { Badge, Button, EmptyState, PageHead } from "../ui";
+import { Badge, Button, EmptyState, ErrorPanel, PageHead, PanelSkeleton } from "../ui";
+import { useRemote } from "../use-remote";
+import type { Lead, Sale, Vehicle } from "@/lib/domain";
 import { VehicleArt } from "../vehicle-art";
 import { useScopedHref, useWorkspace } from "../workspace";
 import { EvidenceBadge } from "../market/common";
@@ -17,11 +19,15 @@ import { VehicleDrawer } from "./vehicle-drawer";
 const LABEL = { available: "Available", reserved: "Reserved", preparation: "In preparation", sold: "Sold", archived: "Archived" } as const;
 
 export function StockDetail({ id }: { id: string }) {
-  const { state, scope, can, actor } = useWorkspace();
+  const { state, scope, can, mergeRecords } = useWorkspace();
   const href = useScopedHref();
-  const vehicle = state.vehicles.find((v) => v.id === id && actor.branchIds.includes(v.branchId));
+  const remote = useRemote<{ vehicle: Vehicle; leads: Lead[]; sale: Sale | null }>(`/api/inventory/${encodeURIComponent(id)}`, (d) => mergeRecords({ vehicles: [d.vehicle], leads: d.leads, sales: d.sale ? [d.sale] : [] }));
+  // The cached record carries any change made on this device that the server has not echoed back yet.
+  const vehicle = state.vehicles.find((v) => v.id === id) ?? remote.data?.vehicle;
   const [edit, setEdit] = useState(false);
   const valuation = useMemo(() => (vehicle ? valuationFor(vehicle) : null), [vehicle]);
+  if (!vehicle && (remote.status === "loading" || remote.status === "refreshing")) return <div className="page"><PageHead title="Stock record" lead="Loading the record…" /><PanelSkeleton rows={6} title="Stock record" /></div>;
+  if (!vehicle && remote.status === "error" && remote.code !== 404) return <div className="page"><PageHead title="Stock record" /><ErrorPanel title="This record could not load" onRetry={remote.reload} /></div>;
   if (!vehicle || !valuation) {
     return <div className="page"><PageHead title="Record not found" lead="This record does not exist or is not available to you." /><EmptyState title="Back to inventory" actions={<Link href={href("/app/inventory")} className="btn btn-primary">Back to inventory</Link>}>Inaccessible and missing records look the same by design.</EmptyState></div>;
   }
