@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useWorkspace } from "./workspace";
+import { useWorkspaceEpoch } from "./workspace";
 
 export type RemoteStatus = "loading" | "refreshing" | "ready" | "error";
 export type Remote<T> = { data: T | null; status: RemoteStatus; error: string; /** HTTP status of the last failed response, 0 for a network failure. */ code: number; reload: () => void };
@@ -14,7 +14,7 @@ export type Remote<T> = { data: T | null; status: RemoteStatus; error: string; /
  */
 export function useRemote<T>(url: string | null, onData?: (data: T) => void): Remote<T> {
   const router = useRouter();
-  const { epoch } = useWorkspace();
+  const epoch = useWorkspaceEpoch();
   const [state, setState] = useState<{ data: T | null; status: RemoteStatus; error: string; code: number }>({ data: null, status: url ? "loading" : "ready", error: "", code: 0 });
   const [nonce, setNonce] = useState(0);
   const latest = useRef(0);

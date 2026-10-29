@@ -5,6 +5,8 @@ import { getPrincipal } from "./auth";
 import { tenantTx, type SqlClient } from "./db";
 import type { Principal } from "./identity";
 import { syncReadModel } from "./read-model";
+import { readEntitlements } from "./entitlement-store";
+import type { FeatureKey } from "../entitlements";
 import { enterLive } from "./workspace";
 
 export type ReadContext = { c: SqlClient; principal: Principal; role: Principal["role"]; branchIds: string[]; url: URL };
@@ -16,7 +18,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * `branches=` in the URL can only narrow what the member may already see. Failures are logged with a correlation id and
  * returned without internals.
  */
-export async function readRoute(request: Request, capability: Capability | Capability[] | null, handler: (ctx: ReadContext) => Promise<unknown>): Promise<Response> {
+export async function readRoute(request: Request, capability: Capability | Capability[] | null, handler: (ctx: ReadContext) => Promise<unknown>, feature?: FeatureKey): Promise<Response> {
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Your session has expired. Sign in again.");
   const { principal } = current;
@@ -28,9 +30,14 @@ export async function readRoute(request: Request, capability: Capability | Capab
   try {
     enterLive();
     const body = await tenantTx(principal.tenantId, async (c) => {
+      if (feature) {
+        const entitlements = await readEntitlements(c, principal.tenantId);
+        if (!entitlements.features[feature].enabled) return { notEntitled: entitlements.features[feature].reason };
+      }
       await syncReadModel(c, principal.tenantId);
       return handler({ c, principal, role: principal.role, branchIds, url });
     });
+    if (body && typeof body === "object" && "notEntitled" in body) return problem(403, "not_entitled", String((body as { notEntitled: string }).notEntitled));
     const response = json(body);
     response.headers.set("Server-Timing", `app;dur=${Date.now() - started}`);
     return response;

@@ -56,6 +56,9 @@ export function useWorkspace(): Ctx {
   return ctx;
 }
 
+/** The reload counter, or 0 outside a workspace (the admin console reads data without one). */
+export function useWorkspaceEpoch(): number { return useContext(WorkspaceContext)?.epoch ?? 0; }
+
 const defaultBranchOf = (state: Pick<WorkspaceState, "branches">): string => (state.branches.find((b) => b.isDefault) ?? state.branches[0])?.id ?? "";
 export { defaultBranchOf };
 

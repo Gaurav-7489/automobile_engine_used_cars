@@ -11,5 +11,5 @@ export async function GET(request: Request) {
     const campaignVehicles = refs.length ? (await c.query("SELECT data FROM intelligence_vehicle_index WHERE tenant_id = $1 AND stock_id = ANY($2::text[]) AND branch_id = ANY($3::uuid[])", [principal.tenantId, refs, branchIds])).rows.map((r) => r.data as Vehicle) : [];
     const available = await listVehicles(c, principal.tenantId, branchIds, { tab: "available", sort: "age", dir: "desc", page: 1, size: 200 });
     return { campaignVehicles, available: available.vehicles, availableTotal: available.total };
-  });
+  }, "advertising");
 }

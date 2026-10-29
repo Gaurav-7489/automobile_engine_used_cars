@@ -15,5 +15,5 @@ export async function GET(request: Request) {
       sort: choice(p.get("sort"), ["", "year", "km", "landed", "asking", "age"] as const, ""), dir: choice(p.get("dir"), ["asc", "desc"] as const, "asc"),
       page: intParam(url, "page", 1, 1, 100_000), size: intParam(url, "size", 25, 1, 200),
     });
-  });
+  }, "inventory");
 }

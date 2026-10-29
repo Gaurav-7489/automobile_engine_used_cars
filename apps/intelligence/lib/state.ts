@@ -2,6 +2,7 @@ import type { Alert, ApiKey, AuditEvent, Branch, Campaign, Integration, Lead, Pr
 import { BRANCHES, TENANT } from "./fixtures/branches";
 import { ARCHIVED_STOCK, EVENTS, KOCHI_STOCK, KOZHIKODE_STOCK, SALES, THRISSUR_STOCK, soldVehicles } from "./fixtures/inventory";
 import { ALERTS, API_KEYS, AUDIT, CAMPAIGNS, INTEGRATIONS, LEADS, PRICE_REQUESTS, TEAM } from "./fixtures/workspace";
+import type { Entitlements } from "./entitlements";
 import { lakh } from "./format";
 
 export type Policy = {
@@ -48,6 +49,8 @@ export type WorkspaceState = {
    * the visible pages have fetched, and `events` is not used. Open-alert counts per permitted branch come from the server.
    */
   partial?: boolean;
+  /** What this dealership may use (subscription and feature switches). Absent in sample workspaces, where everything is available. */
+  entitlements?: Entitlements;
   /** Highest stock, lead and sale numbers already issued, so new ids stay unique while only some records are loaded. */
   idFloor?: { V: number; L: number; S: number };
   alertCounts?: Record<string, { critical: number; dueToday: number; overdue: number; waiting: number; open: number }>;

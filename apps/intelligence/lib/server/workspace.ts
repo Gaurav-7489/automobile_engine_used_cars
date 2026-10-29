@@ -11,6 +11,8 @@ import { syncReadModel } from "./read-model";
 import { invalidateAlerts } from "./alerts-model";
 import { enquiryContext } from "./read-queries";
 import { needsOf, scopedState } from "./scoped-state";
+import { readEntitlements } from "./entitlement-store";
+import { COMMAND_FEATURE } from "../entitlements";
 import type { Alert, Lead, Sale, Vehicle } from "../domain";
 
 export function enterLive(): void {
@@ -60,6 +62,12 @@ export async function runCommandsIn(c: SqlClient, principal: Principal, commands
   lap("lock");
   // Commands proven to depend only on the records they name run against just those records; any other command reads everything.
   const shellState = await readState(c, principal.tenantId, { shell: true });
+  // Features a platform administrator has switched off cannot be changed, whatever the caller's role.
+  const entitlements = await readEntitlements(c, principal.tenantId);
+  for (const command of commands) {
+    const feature = COMMAND_FEATURE[command.name];
+    if (feature && !entitlements.features[feature].enabled) return { ok: false as const, status: 403 as const, code: "forbidden" as const, message: entitlements.features[feature].reason, state: asShell(shellState) };
+  }
   const needs = mode === "auto" ? needsOf(commands, shellState) : null;
   let before: WorkspaceState;
   if (needs) {

@@ -12,5 +12,5 @@ export async function GET(request: Request) {
     const requested = (await c.query("SELECT DISTINCT payload->>'vehicleId' AS id FROM intelligence_documents WHERE tenant_id = $1 AND collection = 'priceRequests'", [principal.tenantId])).rows.map((r) => String(r.id));
     const requestVehicles = requested.length ? (await c.query("SELECT data FROM intelligence_vehicle_index WHERE tenant_id = $1 AND stock_id = ANY($2::text[]) AND branch_id = ANY($3::uuid[])", [principal.tenantId, requested, branchIds])).rows.map((r) => r.data as Vehicle) : [];
     return { flagged: flagged.vehicles, flaggedTotal: flagged.total, options: options.vehicles, optionsTotal: options.total, requestVehicles };
-  });
+  }, "pricing");
 }

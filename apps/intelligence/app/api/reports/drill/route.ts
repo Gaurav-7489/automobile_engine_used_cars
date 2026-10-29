@@ -12,5 +12,5 @@ export async function GET(request: Request) {
     const from = MONTH.test(p.get("from") ?? "") ? p.get("from")! : "0000-00";
     const to = MONTH.test(p.get("to") ?? "") ? p.get("to")! : "9999-99";
     return reportDrill(c, principal.tenantId, branchIds, getMonths().filter((m) => m >= from && m <= to), choice(p.get("kind"), ["acquired", "sold", "profit", "qualified"] as const, "acquired"));
-  });
+  }, "reports");
 }

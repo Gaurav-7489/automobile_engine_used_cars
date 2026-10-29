@@ -28,6 +28,6 @@ export async function GET(request: Request) {
     const size = intParam(url, "size", 50, 1, 200);
     const page = Math.min(intParam(url, "page", 1, 1, 100_000), Math.max(1, Math.ceil(rows.length / size)));
     return { alerts: rows.slice((page - 1) * size, page * size), total: rows.length, page, size, counts: alertCounts(all), people: [...new Set(all.map((a) => a.assignee))].sort() };
-  });
+  }, "alerts");
 }
 

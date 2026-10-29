@@ -13,7 +13,7 @@ import { ToastProvider } from "./toast";
 import { Button } from "./ui";
 import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./workspace";
 import { initials } from "@/lib/format";
-import { NAV, ROLE_LABEL } from "@/lib/permissions";
+import { NAV, ROLE_LABEL, visibleNav } from "@/lib/permissions";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { sumAlertCounts } from "@/lib/selectors";
 
@@ -56,7 +56,7 @@ function MoreSheet({ open, onClose, platformAdmin }: { open: boolean; onClose: (
   return (
     <Dialog open={open} onClose={onClose} title="Menu" size="w480">
       <nav aria-label="All destinations" className="stack-sm">
-        {NAV.map((item) => <Link key={item.key} href={href(item.href)} className="nav-link" onClick={onClose} style={{ fontSize: 15 }}><Icon name={item.icon} />{item.label}</Link>)}
+        {visibleNav(session.role, state.entitlements).map((item) => <Link key={item.key} href={href(item.href)} className="nav-link" onClick={onClose} style={{ fontSize: 15 }}><Icon name={item.icon} />{item.label}</Link>)}
       </nav>
       <hr className="divider" />
       <div className="field"><label htmlFor="mobile-branch">Branch scope</label>
@@ -101,7 +101,8 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
   useEffect(() => { const handle = window.setTimeout(() => document.getElementById("page-title")?.focus({ preventScroll: true }), 50); return () => window.clearTimeout(handle); }, [pathname]);
 
   const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); router.refresh(); };
-  const bottom = NAV.filter((n) => ["overview", "market", "inventory", "leads"].includes(n.key));
+  const allowedNav = visibleNav(session.role, state.entitlements);
+  const bottom = allowedNav.filter((n) => ["overview", "market", "inventory", "leads"].includes(n.key));
 
   return (
     <ToastProvider>
@@ -110,7 +111,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
         <aside className="rail" aria-label="Workspace">
           <Link href={href("/app/overview")} className="brand" aria-label="VandLabs Command Centre"><Brand sub /></Link>
           <nav aria-label="Primary">
-            {NAV.map((item) => (
+            {allowedNav.map((item) => (
               <Link key={item.key} href={href(item.href)} className="nav-link" aria-current={key === item.key ? "page" : undefined} aria-label={item.label}>
                 <Icon name={item.icon} /><span className="nav-label label-text">{item.label}</span>
                 {item.key === "alerts" && urgent > 0 ? <span className="nav-badge" aria-label={`${urgent} urgent`}>{urgent}</span> : null}

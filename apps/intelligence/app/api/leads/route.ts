@@ -22,5 +22,5 @@ export async function GET(request: Request) {
     const stockIds = [...new Set(page.leads.map((l) => l.vehicleId).filter(Boolean) as string[])];
     const vehicles = stockIds.length ? (await c.query("SELECT data FROM intelligence_vehicle_index WHERE tenant_id = $1 AND stock_id = ANY($2::text[]) AND branch_id = ANY($3::uuid[])", [principal.tenantId, stockIds, branchIds])).rows.map((r) => r.data as Vehicle) : [];
     return { ...page, leads: contact ? page.leads : page.leads.map(hideContact), vehicles, stages: await stageCounts(c, principal.tenantId, branchIds) };
-  });
+  }, "leads");
 }

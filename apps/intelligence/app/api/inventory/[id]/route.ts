@@ -21,7 +21,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       leads: leads.map((l) => (mask ? l.data : { ...l.data, contactFull: l.data.contactMasked, email: undefined })),
       sale: sale?.data ?? null,
     };
-  }).then(async (response) => {
+  }, "inventory").then(async (response) => {
     const body = (await response.clone().json().catch(() => null)) as { missing?: boolean } | null;
     return body?.missing ? problem(404, "not_found", "Not found.") : response;
   });

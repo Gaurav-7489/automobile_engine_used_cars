@@ -18,7 +18,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const linked = digits ? (await c.query("SELECT data FROM intelligence_lead_index WHERE tenant_id = $1 AND lead_id <> $2 AND branch_id = ANY($3::uuid[]) AND contact_digits = $4 LIMIT 20", [principal.tenantId, id, principal.locationIds, digits])).rows.map((r) => hide(r.data as Lead)) : [];
     const duplicate = row.data.duplicateOf ? ((await c.query("SELECT data FROM intelligence_lead_index WHERE tenant_id = $1 AND lead_id = $2 AND branch_id = ANY($3::uuid[])", [principal.tenantId, row.data.duplicateOf, principal.locationIds])).rows[0] as { data: Lead } | undefined)?.data : undefined;
     return { lead, vehicle, linked, duplicate: duplicate ? hide(duplicate) : null };
-  }).then(async (response) => {
+  }, "leads").then(async (response) => {
     const body = (await response.clone().json().catch(() => null)) as { missing?: boolean } | null;
     return body?.missing ? problem(404, "not_found", "Not found.") : response;
   });

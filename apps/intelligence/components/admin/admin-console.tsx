@@ -7,42 +7,13 @@ import { formatDateTime } from "@/lib/format";
 import { Brand } from "../brand";
 import { Icon } from "../icons";
 import { Dialog } from "../overlay";
-import { Badge, Button, EmptyState, FormSummary, Kpi, Notice, PasswordField, TextField } from "../ui";
+import { Badge, Button, EmptyState, FormSummary, Kpi, Notice, PasswordField, Tabs, TextField } from "../ui";
+import { call, useReauth, type Problem } from "./shared";
+import { EntitlementsDialog } from "./entitlements-dialog";
+import { PlatformAudit } from "./platform-audit";
 
 type Workspace = { tenantId: string; organization: string; dealership: string; createdAt: string; locations: number; vehicles: number; published: number; leads: number; members: number; owners: string; pendingInvites: number };
 type Member = { userId: string; email: string; name: string; role: string; enabled: boolean; suspended: boolean; twoFactor: boolean; platformAdmin: boolean; createdAt: string };
-type Problem = { error?: { code?: string; message?: string; fields?: Record<string, string> } };
-
-async function call<T>(url: string, init?: RequestInit): Promise<{ ok: boolean; data: T & Problem }> {
-  try {
-    const r = await fetch(url, { ...init, headers: init?.body ? { "content-type": "application/json" } : undefined });
-    return { ok: r.ok, data: await r.json().catch(() => ({})) };
-  } catch {
-    return { ok: false, data: { error: { message: "We could not reach the server. Try again." } } as T & Problem };
-  }
-}
-
-/** Password confirmation shared by every sensitive dialog: the field only appears when no valid confirmation is held. */
-function useReauth() {
-  const [needsPassword, setNeedsPassword] = useState(true);
-  useEffect(() => {
-    let live = true;
-    void call<{ valid?: boolean }>("/api/auth/reauth").then((r) => { if (live && r.ok && r.data.valid) setNeedsPassword(false); });
-    return () => { live = false; };
-  }, []);
-  /** Returns an error message, or null once the account is confirmed. */
-  const confirm = async (password: string): Promise<string | null> => {
-    if (!needsPassword) return null;
-    if (!password) return "Enter your password to continue.";
-    const r = await call<object>("/api/auth/reauth", { method: "POST", body: JSON.stringify({ password }) });
-    if (r.ok) { setNeedsPassword(false); return null; }
-    return r.data.error?.message ?? "We could not confirm your password. Try again.";
-  };
-  /** Call when the server says the confirmation lapsed between the check and the change. */
-  const expired = () => setNeedsPassword(true);
-  return { needsPassword, confirm, expired };
-}
-
 export function AdminConsole({ name, email }: { name: string; email: string }) {
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<Workspace[] | null>(null);
@@ -51,6 +22,8 @@ export function AdminConsole({ name, email }: { name: string; email: string }) {
   const [open, setOpen] = useState<string | null>(null);
   const [link, setLink] = useState<{ title: string; url: string; expiresAt: string } | null>(null);
   const [reissue, setReissue] = useState<Workspace | null>(null);
+  const [access, setAccess] = useState<Workspace | null>(null);
+  const [view, setView] = useState<"dealerships" | "audit">("dealerships");
 
   const load = useCallback(async () => {
     const r = await call<{ workspaces: Workspace[] }>("/api/admin/workspaces");
@@ -94,7 +67,9 @@ export function AdminConsole({ name, email }: { name: string; email: string }) {
             <Kpi label="Leads" value={workspaces ? total("leads") : "—"} note="All dealerships" />
             <Kpi label="People with access" value={workspaces ? total("members") : "—"} note="Active memberships" />
           </div>
-          <section className="card stack" aria-labelledby="ws-h">
+          <Tabs label="Admin sections" value={view} onChange={setView} idPrefix="adm" tabs={[{ value: "dealerships", label: "Dealerships" }, { value: "audit", label: "Platform audit" }]} />
+          {view === "audit" ? <PlatformAudit dealerships={(workspaces ?? []).map((w) => ({ tenantId: w.tenantId, organization: w.organization }))} /> : null}
+          <section className="card stack" aria-labelledby="ws-h" hidden={view !== "dealerships"}>
             <h2 className="h2" id="ws-h">Dealerships</h2>
             {workspaces === null && !error ? <p className="muted">Loading.</p> : null}
             {workspaces && !workspaces.length ? <EmptyState title="No dealerships yet">Add the first dealership. Its owner gets a one-time link to set their own password.</EmptyState> : null}
@@ -110,6 +85,7 @@ export function AdminConsole({ name, email }: { name: string; email: string }) {
                       <td>{formatDateTime(w.createdAt)}</td>
                       <td><span className="row-flex" style={{ justifyContent: "flex-end" }}>
                         {w.members === 0 ? <Button size="sm" onClick={() => setReissue(w)}>New setup link</Button> : null}
+                        <Button size="sm" onClick={() => setAccess(w)}>Plan and access</Button>
                         <Button size="sm" aria-expanded={open === w.tenantId} onClick={() => setOpen(open === w.tenantId ? null : w.tenantId)}>{open === w.tenantId ? "Hide people" : "People"}</Button>
                       </span></td>
                     </tr>
@@ -123,6 +99,7 @@ export function AdminConsole({ name, email }: { name: string; email: string }) {
         </div>
       </main>
       {creating ? <CreateDealership onClose={() => setCreating(false)} onCreated={(path, expiresAt) => { setCreating(false); showLink("Dealership created", path, expiresAt); void load(); }} /> : null}
+      {access ? <EntitlementsDialog tenantId={access.tenantId} name={access.dealership} onClose={() => setAccess(null)} onSaved={() => undefined} /> : null}
       {reissue ? <ReissueInvite workspace={reissue} onClose={() => setReissue(null)} onDone={(path, expiresAt) => { setReissue(null); showLink("New owner setup link", path, expiresAt); void load(); }} /> : null}
     </div>
   );
