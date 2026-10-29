@@ -121,6 +121,9 @@ importers:
 
   apps/intelligence:
     dependencies:
+      '@opennextjs/cloudflare':
+        specifier: ^1.20.10
+        version: 1.20.10(next@15.5.27(@playwright/test@1.63.0)(@types/node@24.19.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(supports-color@10.2.2)(wrangler@4.149.0(@cloudflare/workers-types@5.20261011.1)(@types/node@24.19.0))
       '@vandlabs/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

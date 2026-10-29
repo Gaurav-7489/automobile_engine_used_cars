@@ -23,8 +23,19 @@ Migration `0014`: `intelligence_rate_limits` (RLS forced, no runtime access) and
 | Workspace commands | 240 / min per user |
 | Public demo/access forms | 8 / 10 min per address |
 | `/api/v1/*` | 120 / min per address, 60 / min per key |
+| Desktop token exchange | 30 / min per address; each code is single-use (1 / 5 min) |
+| Desktop sign-in approval | 10 / 10 min per user and address |
+| Automation rule changes | 60 / min per user |
+| Acquisition calculation | 20 / min per user, plus the plan's monthly and per-minute quota |
 
 Not covered: search and AI endpoints (not present in Intelligence), per-tenant quotas, data export, and the other apps' limiters. Cloudflare/Vercel edge rules would be a useful outer layer; none were configured. `clientKey` trusts the first `x-forwarded-for` entry, which is correct on Vercel (the platform overwrites it) but must be re-checked on any other host.
+
+## Phase 2 additions
+
+- **Desktop sign-in**: authorization code with PKCE. The signed-in browser session (with its MFA) approves; the code is signed, bound to the PKCE challenge, valid 60 s and single-use; the token endpoint re-resolves the account and honours the `desktop` feature switch. The desktop receives the same signed session (8 h, no refresh), sent as a bearer token and validated against the database on every request, so disabling a user, changing a role or revoking sessions applies at once. Bearer requests without cookies skip the origin check (nothing ambient to forge); requests with cookies do not. Step-up actions that need the password-confirmation cookie must be done in the browser.
+- **Entitlements**: a platform administrator (password-confirmed, audited, rate limited) switches features per dealership; the switches are enforced in navigation, page gate, read APIs and commands, not only in the UI.
+- **Platform audit** is readable only through a SECURITY DEFINER function that re-checks the administrator grant.
+- **Public surface removed**: no showroom gateway, no public vehicle or enquiry endpoints; `/` redirects to sign-in or the workspace; every business API returns 401 when signed out (`tests/unified/ecosystem.spec.ts`).
 
 ## Verified
 

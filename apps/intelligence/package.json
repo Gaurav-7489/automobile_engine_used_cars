@@ -6,9 +6,13 @@
     "start": "next start -H 127.0.0.1 -p 3003",
     "build": "next build",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "opennextjs-cloudflare preview",
+    "cf:deploy": "opennextjs-cloudflare deploy"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.10",
     "@vandlabs/contracts": "workspace:*",
     "@vandlabs/data": "workspace:*",
     "next": "^15.5.27",

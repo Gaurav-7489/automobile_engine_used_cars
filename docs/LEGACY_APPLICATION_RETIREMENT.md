@@ -1,45 +1,53 @@
-# Legacy application retirement
+# Legacy application retirement and parity matrix
 
-**Conclusion: nothing is retired in this change.** `apps/command-center` and `apps/platform` still provide capabilities Intelligence does not, and the desktop app and Cloudflare scripts depend on them. This document is the parity matrix and the plan. The matrix comes from reading routes, components and keyword searches, not from exercising each feature; confirm each "missing" item with the product owner before building it.
+**Conclusion: nothing is deleted or switched in this change.** The six capabilities that were still missing from `apps/intelligence` are now implemented and tested there. `apps/command-center` and `apps/platform` stay in the repository, and their Vercel projects stay up, until the "Before retirement" list below is done. `apps/web` (the public showroom) is out of the target architecture: the platform is private, so none of its public features were migrated.
 
-## Dependencies found
-
-- Root scripts `cf:build`, and the `cloudflare.yml` workflow build `web`, `command-center` and `platform`.
-- `playwright.roles.config.ts`, `playwright.auth.config.ts`, `tests/cloudflare/staging.test.ts` and `scripts/cloudflare/*` reference them.
-- `apps/desktop` consumes `GET /api/desktop-config` from command-center.
+Status words: **Migrated** = implemented in Intelligence and covered by an automated test. **Different** = a deliberate change from the legacy behaviour. **Open** = not done.
 
 ## command-center → intelligence
 
-| Capability | command-center | intelligence | Gap |
-|---|---|---|---|
-| Leads, follow-ups, lead detail | yes | yes (`/app/leads`) | verify field parity |
-| Appointments, tasks | yes | yes (state + commands) | verify |
-| Inventory + spreadsheet import/template | yes (`/api/vehicles/import`, template) | inventory page with import | verify spreadsheet format parity |
-| Capital / costs | yes | yes (`/app/capital`) | none found |
-| Market / acquisition | yes | `/app/market`, `/app/pricing` | verify |
-| Sales pipeline view, customers view | yes | leads & customers combined | verify |
-| **Automation rules** (`automation`) | yes | **no** (`automation_*` tables exist, no UI) | **missing** |
-| **Subscriptions** (`subscription-controls`) | yes | **no** | **missing** |
-| **Dead-stock intelligence** (`api/dead-stock`) | yes | no equivalent endpoint | **missing** |
-| **Business API** (`/api/v1/vehicles`, `fuel-prices`, `recommendations`, `ingest`) | yes | `/api/v1/inventory`, `/api/v1/leads` only | **different contract; clients must be inventoried** |
-| Notifications outbox, readiness | yes | `/app/alerts`, `/api/health` | partial |
-| Desktop config for Tauri app | yes | no | **blocks desktop** |
-| Authentication | OIDC staff roles | one sign-in, own users, TOTP | model differs; do not merge silently |
+| Capability | Status | Where / evidence |
+|---|---|---|
+| Leads, follow-ups, lead detail, appointments, tasks | Migrated earlier | `/app/leads`; read-model differential tests |
+| Inventory, spreadsheet import | Migrated earlier | `/app/inventory`; scoped-command tests |
+| Capital / costs | Migrated earlier | `/app/capital`; finance differential tests |
+| **Automation rules** | **Migrated** | `/app/automations`, `/api/automations`, migration `0017`; `tests/intelligence-prod/automations.test.ts`. Different: rules create tasks in the same transaction as the lead change; `intents` filter dropped (Intelligence leads have no intent); WhatsApp channel is recorded as held, never sent |
+| **Subscriptions and plan limits** | **Migrated** | admin "Plan and access" dialog, settings "Plan and access", `entitlements.test.ts`. Different: no payment is taken; a subscription is recorded against a contract reference |
+| **Dead-stock / ageing intelligence** | **Migrated** | `/app/stock-intelligence`, `lib/server/stock-model.ts`; differential test against a plain computation. Different: view counts and publish status are not used (no public showroom), so "promote" and "publish" prompts no longer exist |
+| **Acquisition planner** | **Migrated** | `/app/acquisition`; metered against the plan; `acquisition.test.ts`. Not migrated: AI commentary (the `dealer-ai` worker) |
+| **Desktop configuration and sign-in** | **Migrated** | `/api/desktop/{config,authorize,token}`, `/desktop/authorize`, rewritten `apps/desktop`; `desktop.test.ts` and Rust rule tests |
+| Business API `/api/v1/vehicles`, `fuel-prices`, `recommendations`, `ingest` | **Open** | Intelligence has only `/api/v1/inventory` and `/api/v1/leads`. Live consumers of the old contract must be inventoried first |
+| Data-source management and sourcing ingest (supplier keys, `sourcing:write`) | **Open** | Admins can see approved sources read-only; adding sources and ingesting records is still only in the legacy apps |
+| Notifications outbox, readiness page | Partial | `/app/alerts`, `/api/health` |
+| Authentication | Different | One sign-in with TOTP; legacy OIDC is not copied |
 
 ## platform → intelligence `/admin`
 
-| Capability | platform | intelligence | Gap |
-|---|---|---|---|
-| Dealerships / tenants, onboarding | yes | workspace list + create + owner invite | covered |
-| People and access (staff) | yes (`staff-manager`) | members + suspend | partial |
-| Commerce / subscriptions | yes (`commerce-manager`) | no | **missing** |
-| Audit log | yes | audit written to `platform_audit`; no viewer in admin | **missing viewer** |
-| Integrations, feature entitlements | yes | no | **missing** |
-| Health / readiness | yes | `/api/health` only | partial |
+| Capability | Status | Evidence |
+|---|---|---|
+| Dealerships, onboarding, owner invite | Migrated earlier | admin console |
+| **Platform audit viewer** | **Migrated** | admin "Platform audit" tab, `/api/admin/audit` (SECURITY DEFINER, platform admins only) |
+| **Feature entitlements** | **Migrated** | per-feature switches stored in `dealer_commerce.payload.features`; navigation, pages, APIs and commands all honour them |
+| Commerce: sources, keys, usage | **Open** (see above) | |
+| Staff management | Partial | members and suspension exist; role editing for staff lives in dealer settings |
+| Platform health | Partial | `/api/health` only |
 
-## Plan
+## Before retirement (not done)
 
-1. Decide which "missing" rows are still wanted; port those to Intelligence behind roles (automation, subscriptions/commerce, dead stock, audit viewer, feature entitlements, desktop config).
-2. Inventory live consumers of `command-center`/`platform` URLs and `/api/v1/*` keys (Vercel/Cloudflare access logs).
-3. Repoint desktop and `cf:*` scripts, then remove the apps on a branch with a one-step revert (the apps stay in git history; do not delete databases or tenant data).
-4. Keep `apps/web` as a separate build behind the unified origin; that already works and keeps dealer JS off the public site.
+1. Inventory live consumers of command-center / platform URLs and of the legacy `/api/v1/*` contract (Vercel access logs, supplier keys). Not possible from this environment.
+2. Port or consciously drop the two **Open** rows.
+3. Cloudflare staging passes the acceptance list in `CLOUDFLARE_MIGRATION_AND_ROLLBACK.md`.
+4. Repoint `scripts/cloudflare/*`, `cloudflare.yml`, `playwright.roles.config.ts`, `playwright.auth.config.ts` and `tests/cloudflare/staging.test.ts`, which still build and test the legacy apps.
+5. Remove the apps on a branch with a one-step revert. Never delete databases, tenant data or Vercel projects as part of this.
+
+## Vercel inventory (read-only, 29 Oct 2026)
+
+| Project | Notes |
+|---|---|
+| `vandlabs-automobile-intelligence` | Next.js, latest deployment READY. The target app. |
+| `vandlabs-automobile-command` | Next.js, READY, SSO-protected. Legacy. |
+| `vandlabs-automobile-platform` | Legacy. |
+| `vandlabs-automobile-web` | Public showroom. Out of the target architecture. |
+| `automobile_engine_used_cars` | No framework detected, **latest deployment ERROR**. Root-level project, probably redundant. |
+
+The final architecture needs one web project (Intelligence, or its Cloudflare Worker) plus the desktop release pipeline. No project was changed or deleted.
