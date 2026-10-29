@@ -16,6 +16,10 @@ export function json(body: unknown, init: ResponseInit = {}): NextResponse {
 
 export const problem = (status: number, code: string, message: string, extra: Record<string, unknown> = {}): NextResponse => json({ error: { code, message, ...extra } }, { status });
 
+/** Standard 429: machine-readable `retry_after` in the body and the standard `Retry-After` header. */
+export const rateLimited = (message: string, retryAfter: number): NextResponse =>
+  json({ error: { code: "rate_limited", message, retry_after: retryAfter } }, { status: 429, headers: { "Retry-After": String(Math.max(1, retryAfter)) } });
+
 /** Common response envelope. Null means unknown; zero means measured zero. */
 export function envelope<T>(session: Session, branchId: string, data: T, dataStatus: "complete" | "partial" | "stale" | "unavailable" = "complete") {
   return {

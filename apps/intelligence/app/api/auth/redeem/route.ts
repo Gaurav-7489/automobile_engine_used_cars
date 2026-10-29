@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { json, problem, readJson } from "@/lib/api";
-import { clientKey, hit } from "@/lib/rate-limit";
+import { json, problem, rateLimited, readJson } from "@/lib/api";
+import { clientKey, hitShared } from "@/lib/rate-limit";
 import { SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/session";
 import { newSessionCookie } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 
 /** Reveals only which address a link is for. */
 export async function GET(request: Request) {
-  const limit = hit(`token-info:${clientKey(request)}`, 30, 10 * 60_000);
-  if (!limit.allowed) return problem(429, "rate_limited", "Too many requests. Try again shortly.");
+  const limit = await hitShared(`token-info:${clientKey(request)}`, 30, 10 * 60_000);
+  if (!limit.allowed) return rateLimited("Too many requests. Try again shortly.", limit.retryAfter);
   const info = await tokenInfo(new URL(request.url).searchParams.get("token") ?? "");
   return info ? json({ kind: info.kind, email: info.email, name: info.name }) : problem(404, "invalid_link", "This link is not valid or has expired. Ask your administrator for a new one.");
 }
@@ -19,8 +19,8 @@ export async function GET(request: Request) {
 /** Completes an invitation or password reset: the person chooses their own password and is signed in. */
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
-  const limit = hit(`redeem:${clientKey(request)}`, 10, 10 * 60_000);
-  if (!limit.allowed) return problem(429, "rate_limited", "Too many attempts. Try again in a few minutes.");
+  const limit = await hitShared(`redeem:${clientKey(request)}`, 10, 10 * 60_000);
+  if (!limit.allowed) return rateLimited("Too many attempts. Try again in a few minutes.", limit.retryAfter);
   const body = await readJson<{ token?: string; password?: string }>(request);
   if (typeof body?.token !== "string" || typeof body.password !== "string") return problem(422, "invalid", "Choose a password.");
   const result = await redeemToken(body.token, body.password);

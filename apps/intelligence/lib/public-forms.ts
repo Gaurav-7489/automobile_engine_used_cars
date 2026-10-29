@@ -1,5 +1,5 @@
 import { plain } from "./server/db";
-import { clientKey, hit } from "./rate-limit";
+import { clientKey, hitShared } from "./rate-limit";
 
 export const CONSENT_VERSION = "consent-2026-10";
 
@@ -7,7 +7,7 @@ export type FormResult = { status: number; body: Record<string, unknown> };
 
 /** Idempotent public form handling: the same Idempotency-Key always returns the same reference and creates one request. */
 export async function handlePublicForm(request: Request, kind: "demo" | "access"): Promise<FormResult> {
-  const limit = hit(`${kind}:${clientKey(request)}`, 8, 10 * 60_000);
+  const limit = await hitShared(`${kind}:${clientKey(request)}`, 8, 10 * 60_000);
   if (!limit.allowed) return { status: 429, body: { error: { code: "rate_limited", message: `Too many requests. Try again in ${Math.ceil(limit.retryAfter / 60)} minutes.`, retry_after: limit.retryAfter } } };
   const text = await request.text();
   if (text.length > 10_000) return { status: 413, body: { error: { code: "too_large", message: "Request is too large." } } };

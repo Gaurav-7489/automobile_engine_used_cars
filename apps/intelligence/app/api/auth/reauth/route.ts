@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { problem, readJson } from "@/lib/api";
-import { clientKey, hit } from "@/lib/rate-limit";
+import { problem, rateLimited, readJson } from "@/lib/api";
+import { clientKey, hitShared } from "@/lib/rate-limit";
 import { REAUTH_COOKIE, REAUTH_TTL_SECONDS } from "@/lib/session";
 import { getPrincipal, newReauthGrant, reauthSecondsLeft } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
@@ -25,8 +25,8 @@ export async function POST(request: Request) {
   if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Your session has expired. Sign in again.");
-  const limit = hit(`reauth:${clientKey(request)}:${current.principal.userId}`, 8, 10 * 60_000);
-  if (!limit.allowed) return problem(429, "rate_limited", "Too many attempts. Wait a few minutes and try again.", { retry_after: limit.retryAfter });
+  const limit = await hitShared(`reauth:${clientKey(request)}:${current.principal.userId}`, 8, 10 * 60_000);
+  if (!limit.allowed) return rateLimited("Too many attempts. Wait a few minutes and try again.", limit.retryAfter);
   const body = await readJson<{ password?: string }>(request);
   if (typeof body?.password !== "string") return problem(401, "invalid_credentials", "That password is not correct.");
   const result = await reauthenticate(current.principal.userId, body.password);

@@ -1,4 +1,4 @@
-import { json, problem, readJson } from "@/lib/api";
+import { json, problem, rateLimited, readJson } from "@/lib/api";
 import { isCommandList } from "@/lib/actions/registry";
 import type { Command } from "@/lib/actions/recorder";
 import { NextResponse } from "next/server";
@@ -7,7 +7,7 @@ import { getPrincipal, hasRecentReauth } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { redactFor } from "@/lib/server/redact";
 import { runCommands } from "@/lib/server/workspace";
-import { clientKey, hit } from "@/lib/rate-limit";
+import { clientKey, hitShared } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,8 @@ export async function POST(request: Request) {
   if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Sign in to continue.");
-  const limit = hit(`commands:${current.principal.userId}:${clientKey(request)}`, 240, 60_000);
-  if (!limit.allowed) return problem(429, "rate_limited", "Too many changes in a short time. Wait a moment.", { retry_after: limit.retryAfter });
+  const limit = await hitShared(`commands:${current.principal.userId}:${clientKey(request)}`, 240, 60_000);
+  if (!limit.allowed) return rateLimited("Too many changes in a short time. Wait a moment.", limit.retryAfter);
   const body = await readJson<{ commands?: unknown }>(request, 400_000);
   if (!body || !isCommandList(body.commands)) return problem(422, "invalid", "Send a list of operations.");
   try {

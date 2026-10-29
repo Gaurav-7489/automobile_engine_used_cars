@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { problem, readJson } from "@/lib/api";
-import { clientKey, hit } from "@/lib/rate-limit";
+import { problem, rateLimited, readJson } from "@/lib/api";
+import { clientKey, hitShared } from "@/lib/rate-limit";
 import { SESSION_COOKIE, SESSION_TTL_SECONDS, safeReturnTo } from "@/lib/session";
 import { newSessionCookie } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
@@ -17,10 +17,10 @@ export async function POST(request: Request) {
   if (!body || typeof body.email !== "string" || typeof body.password !== "string") return problem(422, "invalid", "Enter your business email and password.");
   const email = body.email.trim().toLowerCase();
   // Per-address and per-client limits on top of the database lockout (five failures lock the account for 15 minutes).
-  const limit = hit(`login:${clientKey(request)}:${email}`, 8, 10 * 60_000);
-  const ipLimit = hit(`login-ip:${clientKey(request)}`, 40, 10 * 60_000);
+  const limit = await hitShared(`login:${clientKey(request)}:${email}`, 8, 10 * 60_000);
+  const ipLimit = await hitShared(`login-ip:${clientKey(request)}`, 40, 10 * 60_000);
   if (!limit.allowed || !ipLimit.allowed) {
-    return problem(429, "rate_limited", `Too many sign-in attempts. Wait ${Math.ceil(Math.max(limit.retryAfter, ipLimit.retryAfter) / 60)} minutes and try again.`, { retry_after: Math.max(limit.retryAfter, ipLimit.retryAfter) });
+    return rateLimited(`Too many sign-in attempts. Wait ${Math.ceil(Math.max(limit.retryAfter, ipLimit.retryAfter) / 60)} minutes and try again.`, Math.max(limit.retryAfter, ipLimit.retryAfter));
   }
   let result;
   try {

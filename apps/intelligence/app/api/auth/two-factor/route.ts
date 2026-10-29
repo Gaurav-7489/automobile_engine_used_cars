@@ -1,5 +1,5 @@
-import { json, problem, readJson } from "@/lib/api";
-import { clientKey, hit } from "@/lib/rate-limit";
+import { json, problem, rateLimited, readJson } from "@/lib/api";
+import { clientKey, hitShared } from "@/lib/rate-limit";
 import { getPrincipal, hasRecentReauth } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { beginTotp, confirmTotp, disableTotp, totpState } from "@/lib/server/identity";
@@ -19,8 +19,8 @@ export async function POST(request: Request) {
   if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Sign in to continue.");
-  const limit = hit(`2fa:${clientKey(request)}:${current.principal.userId}`, 10, 10 * 60_000);
-  if (!limit.allowed) return problem(429, "rate_limited", "Too many attempts. Wait a few minutes and try again.");
+  const limit = await hitShared(`2fa:${clientKey(request)}:${current.principal.userId}`, 10, 10 * 60_000);
+  if (!limit.allowed) return rateLimited("Too many attempts. Wait a few minutes and try again.", limit.retryAfter);
   const body = await readJson<{ action?: string; code?: string }>(request);
   const code = typeof body?.code === "string" ? body.code.replace(/\s/g, "") : "";
   const userId = current.principal.userId;

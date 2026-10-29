@@ -1,7 +1,7 @@
-import { json, problem, readJson } from "@/lib/api";
+import { json, problem, rateLimited, readJson } from "@/lib/api";
 import { adminApi } from "@/lib/server/admin-gate";
 import { createWorkspace, listWorkspaces, validateWorkspace, type NewWorkspace } from "@/lib/server/platform-admin";
-import { clientKey, hit } from "@/lib/rate-limit";
+import { hitShared } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,8 @@ export async function GET() {
 export async function POST(request: Request) {
   const gate = await adminApi(request, { reauth: true });
   if (gate.error) return gate.error;
-  if (!hit(`admin-provision:${clientKey(request)}`, 20, 60 * 60_000).allowed) return problem(429, "rate_limited", "Too many workspaces created in the last hour.");
+  const limit = await hitShared(`admin-provision:${gate.access.userId}`, 20, 60 * 60_000);
+  if (!limit.allowed) return rateLimited("Too many workspaces created in the last hour.", limit.retryAfter);
   const body = (await readJson<Partial<NewWorkspace>>(request)) ?? {};
   const fields = validateWorkspace(body);
   if (Object.keys(fields).length) return problem(422, "invalid", "Fix the highlighted fields.", { fields });
