@@ -8,6 +8,7 @@ import { Dialog } from "../overlay";
 import { useToast } from "../toast";
 import { Badge, Button, Check, EmptyState, FormSummary, Notice, PasswordField, SelectField, TextField } from "../ui";
 import { useWorkspace } from "../workspace";
+import { ListSkeleton } from "./settings-skeleton";
 
 type Data = { keys: BusinessKeyView[]; sources: { id: string; name: string }[]; limit: number | null };
 const SCOPE_LABEL: Record<string, string> = { "vehicles:read": "Read sourcing vehicles", "fuel:read": "Read fuel prices", "recommendations:read": "Acquisition recommendations", "sourcing:write": "Supplier ingest (one approved source)" };
@@ -36,6 +37,7 @@ export function BusinessKeys() {
       <p className="muted">For your own systems and approved suppliers: sourcing vehicles, fuel prices, acquisition recommendations and supplier ingest. Calls count against your plan{data?.limit ? ` (up to ${data.limit} active key${data.limit > 1 ? "s" : ""})` : ""}. Keys are shown once.</p>
       {shown ? <Notice tone="accent" role="alert"><div className="stack-sm"><strong>Copy this key now. It will not be shown again.</strong><code style={{ wordBreak: "break-all" }}>{shown}</code><span className="row-flex"><Button size="sm" onClick={() => { void navigator.clipboard?.writeText(shown); toast("Key copied."); }}>Copy</Button><Button size="sm" onClick={() => setShown(null)}>I have stored it</Button></span></div></Notice> : null}
       {error ? <Notice tone="danger" role="alert">{error} <button className="link-btn" onClick={() => void load()}>Retry</button></Notice> : null}
+      {!data && !error ? <ListSkeleton rows={2} title="Loading business keys" /> : null}
       {data && !data.keys.length ? <EmptyState title="No business keys yet">Create one when a system needs this data.</EmptyState> : null}
       {data?.keys.length ? <div className="table-wrap"><table className="data-table dense"><caption className="sr-only">Business API keys</caption><thead><tr><th>Name</th><th>Access</th><th>Key</th><th>Expires</th><th>Last used</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
         {data.keys.map((k) => { const expired = Date.parse(k.expiresAt) < Date.now(); return <tr key={k.id}><td>{k.name}</td><td>{k.scopes.map((s) => SCOPE_LABEL[s] ?? s).join("; ")}{k.sourceId ? ` (${k.sourceId})` : ""}</td><td><code>{k.prefix}</code></td><td>{formatShortDateTime(k.expiresAt)}</td><td>{k.lastUsedAt ? formatShortDateTime(k.lastUsedAt) : "Never"}</td><td>{k.revokedAt ? <Badge tone="neutral">Revoked</Badge> : expired ? <Badge tone="warn">Expired</Badge> : <Badge tone="accent">Active</Badge>}</td><td>{!k.revokedAt && !expired ? <Button size="sm" variant="danger" onClick={() => revoke(k)}>Revoke</Button> : null}</td></tr>; })}

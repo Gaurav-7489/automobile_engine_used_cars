@@ -41,3 +41,18 @@ export function LiquidSegmented<T extends string>({ label, value, options, onCha
     </div>
   );
 }
+
+/**
+ * A pill with a trailing droplet: two shapes that move at different speeds inside a "goo" filter, so they stretch apart and merge back
+ * like fluid. Only the shapes are filtered (never text), and the real links above them carry all meaning.
+ */
+export function LiquidTrail({ box }: { box: { left: number; width: number; top: number; height: number } | null }) {
+  if (!box) return null;
+  const at = { left: box.left, width: box.width, top: box.top, height: box.height };
+  return (
+    <span className="goo-trail" aria-hidden="true">
+      <span className="liquid-pill lead" style={at} />
+      <span className="liquid-pill trail" style={at} />
+    </span>
+  );
+}

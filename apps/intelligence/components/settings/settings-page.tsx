@@ -10,10 +10,12 @@ import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions
 import { downloadCsv } from "@/lib/export";
 import { FEATURES } from "@/lib/entitlements";
 import { BusinessKeys } from "./business-keys";
+import { LiquidTrail, useLiquid } from "../motion/liquid";
+import { ListSkeleton } from "./settings-skeleton";
 import { Dialog, Drawer } from "../overlay";
 import { Panel } from "../panel";
 import { useToast } from "../toast";
-import { Badge, Button, Check, EmptyState, ErrorPanel, FormSummary, Notice, PageHead, PanelSkeleton, PasswordField, SelectField, TextField } from "../ui";
+import { Badge, Button, Check, EmptyState, ErrorPanel, FormSummary, Notice, PageHead, PasswordField, SelectField, TextField } from "../ui";
 import { useRemote } from "../use-remote";
 import { useScopedHref, useWorkspace } from "../workspace";
 
@@ -44,13 +46,12 @@ function Settings({ section }: { section: SectionKey }) {
   const current = SECTIONS.find((s) => s.key === section)!;
   return (
     <div className="page">
+      <div className="goo-field" aria-hidden="true"><i /><i /><i /></div>
       <PageHead title={section === "integrations" ? "Settings / Integrations" : `Settings / ${current.label}`} lead="Access, configuration and connection health are permissioned.">
         <p className="meta" style={{ marginTop: 4 }}>Settings &gt; {current.label}</p>
       </PageHead>
       <div className="settings-grid">
-        <nav className="settings-nav only-desktop" aria-label="Settings sections">
-          {SECTIONS.map((s) => <Link key={s.key} href={href(`/app/settings/${s.key}`)} aria-current={s.key === section ? "page" : undefined}>{s.label}</Link>)}
-        </nav>
+        <SettingsNav section={section} />
         <div className="settings-tabs only-mobile"><SelectField label="Section" value={section} onChange={(e) => router.push(href(`/app/settings/${e.target.value}`))} options={SECTIONS.map((s) => ({ value: s.key, label: s.label }))} /></div>
         <div className="settings-content" id="settings-content">
           {section === "business" ? <Business /> : null}
@@ -65,6 +66,19 @@ function Settings({ section }: { section: SectionKey }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Section list with a fluid highlight: a droplet follows the pointer or keyboard focus and flows back to the current section. */
+function SettingsNav({ section }: { section: SectionKey }) {
+  const href = useScopedHref();
+  const [hover, setHover] = useState<string | null>(null);
+  const { host, box } = useLiquid(`[data-key="${hover ?? section}"]`, [hover, section]);
+  return (
+    <nav className="settings-nav only-desktop" aria-label="Settings sections" ref={host} onPointerLeave={() => setHover(null)} onBlur={() => setHover(null)}>
+      <LiquidTrail box={box} />
+      {SECTIONS.map((s) => <Link key={s.key} data-key={s.key} href={href(`/app/settings/${s.key}`)} aria-current={s.key === section ? "page" : undefined} onPointerEnter={() => setHover(s.key)} onFocus={() => setHover(s.key)}>{s.label}</Link>)}
+    </nav>
   );
 }
 
@@ -427,7 +441,7 @@ function ApiAccess() {
       <p className="muted">Read-only keys let another system (your website, a CRM, a spreadsheet) read this workspace. Keys cover the branches you can see, expire automatically and can be revoked at any time. Only a hash is stored, so a key is shown once.</p>
       {shown ? <Notice tone="accent" role="alert"><div className="stack-sm"><strong>Copy this key now. It will not be shown again.</strong><code style={{ wordBreak: "break-all" }}>{shown}</code><span className="row-flex"><Button size="sm" onClick={() => { void navigator.clipboard?.writeText(shown); toast("Key copied."); }}>Copy</Button><Button size="sm" onClick={() => setShown(null)}>I have stored it</Button></span></div></Notice> : null}
       {loadError ? <Notice tone="danger" role="alert">{loadError}</Notice> : null}
-      {keys === null && !loadError ? <p className="muted">Loading keys.</p> : null}
+      {keys === null && !loadError ? <ListSkeleton rows={3} title="Loading keys" /> : null}
       {keys && !keys.length ? <EmptyState title="No API keys yet">Create a key when another system needs to read stock or leads.</EmptyState> : null}
       {keys && keys.length ? (
         <div className="table-wrap"><table className="data-table dense"><thead><tr><th>Name</th><th>Access</th><th>Key</th><th>Created</th><th>Expires</th><th>Last used</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
@@ -515,8 +529,8 @@ function Audit() {
       <div className="spread"><h2 className="h2" id="au-h">Audit</h2><Button onClick={() => { downloadCsv("audit.csv", [["time (UTC, ISO 8601)", "time (IST)", "actor", "action", "target", "detail"], ...rows.map((a) => [a.at, formatDateTime(a.at), a.actor, a.action, a.target, a.detail])], ["# Secrets and contact values are masked in exports. Retention follows policy."]); toast("Audit export ready: secrets masked."); }}>Export</Button></div>
       <p className="muted">Append-only and filterable. Exports mask secrets and respect retention.</p>
       <TextField label="Filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Actor, action or record" />
-      <div className="table-wrap fit"><table className="data-table dense"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>{rows.map((a) => <tr key={a.id}><td style={{ whiteSpace: "nowrap" }}>{formatDateTime(a.at)}</td><td>{a.actor}</td><td>{a.action}</td><td>{a.target}</td><td className="muted" style={{ maxWidth: 320 }}>{a.detail}</td></tr>)}</tbody></table></div>
-      {remote.status === "loading" ? <PanelSkeleton rows={4} title="Audit events" /> : null}
+      <div className="table-wrap fit" tabIndex={0} role="region" aria-label="Audit events (scrollable)"><table className="data-table dense"><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead><tbody>{rows.map((a) => <tr key={a.id}><td style={{ whiteSpace: "nowrap" }}>{formatDateTime(a.at)}</td><td>{a.actor}</td><td>{a.action}</td><td>{a.target}</td><td className="muted" style={{ maxWidth: 320 }}>{a.detail}</td></tr>)}</tbody></table></div>
+      {remote.status === "loading" ? <ListSkeleton rows={5} title="Loading audit events" /> : null}
       {remote.status === "error" && !remote.data ? <ErrorPanel title="The audit trail could not load" onRetry={remote.reload} /> : null}
       {remote.data && rows.length === 0 ? <p className="muted">No audit events match.</p> : null}
       {total > 50 ? <div className="pager"><span className="meta">Page {page} of {Math.ceil(total / 50)} / {total} events</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><Button disabled={page * 50 >= total} onClick={() => setPage(page + 1)}>Next</Button></div></div> : null}

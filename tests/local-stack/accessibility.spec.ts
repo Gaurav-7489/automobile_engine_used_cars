@@ -37,7 +37,7 @@ async function signIn(page: Page) {
 }
 
 const PUBLIC = ["/login", "/info/privacy", "/install"];
-const PRIVATE = ["/app/overview", "/app/inventory", "/app/leads", "/app/capital", "/app/alerts", "/app/reports", "/app/stock-intelligence", "/app/automations", "/app/settings/billing", "/app/settings/team"];
+const PRIVATE = ["/app/overview", "/app/inventory", "/app/leads", "/app/capital", "/app/alerts", "/app/reports", "/app/stock-intelligence", "/app/automations", "/app/settings/billing", "/app/settings/team", "/app/settings/api", "/app/settings/audit"];
 
 for (const theme of THEMES) for (const [vp, size] of Object.entries(VIEWPORTS)) {
   test.describe(`${theme} / ${vp}`, () => {

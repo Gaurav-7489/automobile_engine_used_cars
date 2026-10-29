@@ -33,6 +33,14 @@ Intelligence already had: tokens in `app/globals.css`, a `Button` with `loading`
 - **Found and fixed on the way**: the theme init script was concatenated from a client-module export and threw on every page load (it now lives in `lib/init-scripts.ts`; the script had been working only while used alone); `content-visibility` on chart cards caused 8 px of horizontal overflow on phones; selected-state text on the liquid pill was 4.2:1 in light mode (now 4.5:1 or better); scroll-driven reveal on tall tables left their lower rows faint.
 - **Verified** (local production build, headless Chromium without a GPU): `accessibility.spec.ts` 24 of 24 and `motion.spec.ts` 2 of 2; 52 to 53 fps while scrolling with the pointer moving, no script errors. Real-device frame rates, battery impact and touch feel were not measured.
 
+### Settings skeleton and fluid
+
+- `app/app/settings/[section]/loading.tsx` shows the real page's shape while a section loads: page head, the nine-item section list and a form card plus a list card in the real proportions, so nothing jumps. `FormSkeleton` and `ListSkeleton` (also used for API keys, business keys and the audit trail) replace the old "Loading…" text.
+- Every skeleton in the app now flows like liquid: soft light bands move through each bar, stretching and skewing at different speeds, instead of a flat linear sweep. Static under reduced motion.
+- Fluid highlight in the settings list: a droplet follows the pointer or keyboard focus (a fast leader and a slower follower merged by an SVG "goo" filter, so it stretches apart and re-merges), and flows back to the current section. Three metaballs drift behind the settings title. The filter touches only the decorative shapes, never text.
+- Found by the extended accessibility run: the audit table scrolls on phones but had nothing keyboard-focusable; it is now a labelled, focusable region.
+- Verified: accessibility 24 and motion 2 pass with the settings pages added (26 of 26); screenshots `settings-skeleton-{dark,light}.png`, `settings-fluid-{dark,light}.png`.
+
 ## Design references
 
 21st.dev and Skiper UI could not be reviewed from this environment (no browsing of those sites, and their component licences must be checked per component before any code is copied). Nothing was copied from either; the glass treatment is original CSS.
