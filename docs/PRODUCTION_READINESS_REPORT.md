@@ -1,31 +1,51 @@
 # Production readiness report
 
-## Done and verified
+Nothing here has been deployed or run against production. All measurements are from a local PostgreSQL 16, a local production build and synthetic data.
 
-- Dedicated password confirmation (unit + real-PostgreSQL browser test).
-- End-to-end dealership creation → owner activation → private workspace, on a real PostgreSQL 16 with the application role (no RLS bypass): passes.
-- Shared rate limiting on sensitive endpoints (unit tested).
-- 16 → 6 database statements per workspace page render.
-- Lint, typecheck, security, database, intelligence, product, intelligence-prod (8), cloudflare suites pass; `next build` passes.
+## Implemented and tested
 
-## Not done (be explicit)
+| Area | Evidence |
+|---|---|
+| Password re-confirmation for dealership creation | `tests/intelligence-prod/admin.test.ts`, browser test `tests/local-stack/dealership-creation.spec.ts` |
+| Page-specific loading, server paging/filter/sort, scoped commands, delta responses | read-model, scoped-command and workflow tests (differential against the unchanged full read); numbers in `PERFORMANCE_BASELINE_AND_RESULTS.md` |
+| Automations | `automations.test.ts` (2) |
+| Stock / ageing intelligence | `stock-intelligence.test.ts` |
+| Subscriptions, feature entitlements, platform audit viewer | `entitlements.test.ts` (3) |
+| Acquisition planner (metered) | `acquisition.test.ts` |
+| Desktop sign-in (PKCE, bearer sessions) and client | `desktop.test.ts` (2); Rust rule tests (4, run in an isolated crate because the Tauri GUI libraries are not installable here) |
+| Private platform: root redirect, no public surface, route aliases | `tests/unified/ecosystem.spec.ts` (desktop project passes), `tests/product-ui` |
+| Shared rate limiting | `rate-limit.test.ts` |
+| Dark/light graphite-emerald UI, interaction system | `UX_DESIGN_SYSTEM.md` |
+| WCAG 2.2 AA automated checks, mobile overflow, visual regression | `tests/local-stack/accessibility.spec.ts`: 24 of 24 pass |
+| Cloudflare Worker config and bundle | `wrangler.jsonc`, `open-next.config.ts`; build and `wrangler deploy --dry-run` succeed (1.76 MiB gzipped) |
 
-- Legacy apps not retired; parity gaps listed in `LEGACY_APPLICATION_RETIREMENT.md`.
-- No hosted performance measurements, Lighthouse, INP or memory profiling; no before/after screenshots (only after).
-- Full-app redesign, light theme, 21st.dev/Skiper UI components: not done.
-- Playwright suites for web/command-center/platform, accessibility audit, load tests, tenant-isolation tests for two dealerships in a browser (database-level isolation is covered by existing tests).
-- Whole-tenant read per page (audit finding 5).
+Suites run on this branch: lint (0 errors, 27 pre-existing-style unused-import warnings), typecheck, security 39/39, database 35/35, intelligence 30/30, product 11/11, intelligence-prod 19/19, cloudflare 25/25.
 
-## Deploy
+## Not verified (needs live environments)
 
-1. Apply migrations `0013` and `0014` with the migration role (`pnpm db:migrate`). Both are additive (two columns, one table, three functions). The function grants target `vandlabs_app`/`vandlabs_runtime` if they exist.
-2. Deploy the application. No new environment variables.
-3. Smoke test: `/api/health`, admin sign-in with authenticator code, Add dealership.
+- Anything on Vercel or Cloudflare: no deployment was made or measured. Hosted latency, Lighthouse, INP, memory.
+- The Tauri desktop binary was not built or run (GUI libraries unavailable); its protocol is covered by server tests and its pure rules by Rust unit tests. A manual sign-in on Windows/macOS is required.
+- WebKit/mobile-Safari projects (browser not installed here); older Playwright suites for web/command-center/platform were not re-run.
+- Manual accessibility review with a screen reader, keyboard-only walkthrough, forced colours and zoom.
+- Penetration test; dependency audit.
+- Neon-specific behaviour (pooler, `pg` from Workers).
+
+## Incomplete capabilities
+
+- Business API `/api/v1/vehicles|fuel-prices|recommendations|ingest` and supplier ingest/data-source management (legacy apps still own them).
+- AI commentary on acquisition results.
+- Plan-to-feature tiering (a product decision): features are switched per dealership, plans carry usage limits only.
+- Scheduled jobs (reindex, cleanup) and Queues are not built; the read model backfills on first request (4.2 s at 10,000 vehicles).
+- Desktop: no refresh token (re-approve every 8 h), no offline mode, covers Today, Inventory, Leads and Stock ageing only.
+- Legacy apps are not retired (see `LEGACY_APPLICATION_RETIREMENT.md`). Next.js 15.5.27 is rejected by the Cloudflare adapter without an override flag.
+
+## Deploy (when approved)
+
+1. Apply migrations `0013` to `0017` with the migration role (`pnpm db:migrate`). All are additive; grants target the non-bypass `vandlabs_runtime` role.
+2. Deploy to staging first (Vercel preview or the Cloudflare Worker); no new required environment variables for Vercel. `APP_ORIGIN` must be the final HTTPS origin for desktop sign-in.
+3. Smoke test: `/api/health`, admin sign-in with authenticator code, Add dealership, `/api/desktop/config`.
+4. Warm each dealership's read model once.
 
 ## Roll back
 
-Redeploy the previous build. The old build ignores the new columns, table and functions, so the migrations can stay. If they must go: `DROP FUNCTION intelligence_rate_hit(text,integer,integer), intelligence_reauth_state(uuid), intelligence_record_reauth(uuid,boolean); DROP TABLE intelligence_rate_limits; ALTER TABLE intelligence_users DROP COLUMN reauth_failed_attempts, DROP COLUMN reauth_locked_until;` (the old build's reauth keeps working because it only uses sign-in functions).
-
-## External dependencies
-
-Hosted database latency figures, Vercel/Cloudflare access logs for retirement decisions, licence review for any third-party UI source, authenticator enrolment for each platform admin.
+Redeploy the previous build; it ignores the new tables and functions, so migrations can stay. Cloudflare: repoint DNS to the Vercel project (`CLOUDFLARE_MIGRATION_AND_ROLLBACK.md`).

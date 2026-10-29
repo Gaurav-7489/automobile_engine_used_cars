@@ -40,8 +40,11 @@ END $$;
 DO $$ DECLARE r text; BEGIN
   FOREACH r IN ARRAY ARRAY['vandlabs_app', 'vandlabs_runtime'] LOOP
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
-      EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON intelligence_automation_rules TO %I', r);
-      EXECUTE format('GRANT SELECT, INSERT ON intelligence_automation_runs TO %I', r);
+      -- Row-level security protects these tables, so only the non-bypass runtime role may touch them.
+      IF r = 'vandlabs_runtime' THEN
+        EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON intelligence_automation_rules TO %I', r);
+        EXECUTE format('GRANT SELECT, INSERT ON intelligence_automation_runs TO %I', r);
+      END IF;
     END IF;
   END LOOP;
 END $$;

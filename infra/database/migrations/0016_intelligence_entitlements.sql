@@ -71,7 +71,8 @@ REVOKE ALL ON FUNCTION intelligence_admin_commerce(uuid, uuid), intelligence_adm
 DO $$ DECLARE r text; BEGIN
   FOREACH r IN ARRAY ARRAY['vandlabs_app', 'vandlabs_runtime'] LOOP
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
-      EXECUTE format('GRANT SELECT, INSERT, UPDATE ON dealer_commerce TO %I', r);
+      -- Table access only for the non-bypass runtime role (migration 0009 removes it from BYPASSRLS roles).
+      IF r = 'vandlabs_runtime' THEN EXECUTE format('GRANT SELECT, INSERT, UPDATE ON dealer_commerce TO %I', r); END IF;
       EXECUTE format('GRANT EXECUTE ON FUNCTION intelligence_admin_commerce(uuid, uuid), intelligence_admin_set_entitlements(uuid, uuid, jsonb, jsonb), intelligence_admin_audit(uuid, uuid, text, text, integer, integer) TO %I', r);
     END IF;
   END LOOP;
