@@ -29,13 +29,23 @@ export type VehicleFilter = { tab: "all" | Lifecycle; q?: string; make?: string;
 
 const SORT_SQL: Record<string, string> = { year: "v.year", km: "v.km", landed: "v.landed_paise", asking: "COALESCE(v.asking_paise, -1)", age: AGE };
 
-/** Enquiries in the last 14 days per vehicle and the cohort median (upper median of available stock, as the workspace read computes it). */
-const ENQUIRY_CTE = `
-  enq AS (SELECT vh.stock_id AS sid, count(*)::int AS c FROM leads l JOIN vehicles vh ON vh.tenant_id = l.tenant_id AND vh.id = l.vehicle_id
-          WHERE l.tenant_id = $1 AND l.created_at >= now() - interval '14 days' GROUP BY vh.stock_id),
-  cohort AS (SELECT COALESCE((SELECT c FROM (SELECT COALESCE(e.c, 0) AS c, row_number() OVER (ORDER BY COALESCE(e.c, 0)) AS rn, count(*) OVER () AS n
-                                            FROM intelligence_vehicle_index av LEFT JOIN enq e ON e.sid = av.stock_id WHERE av.tenant_id = $1 AND av.status = 'available') x
-                              WHERE rn = floor(n / 2) + 1), 0) AS median)`;
+/**
+ * Enquiries in the last 14 days per vehicle, and the cohort median over available stock (upper median, as the full
+ * workspace read computes it). Only vehicles that actually have enquiries are fetched; the zeros are implied.
+ */
+export async function enquiryContext(c: SqlClient, tenantId: string): Promise<{ byStock: Map<string, number>; median: number }> {
+  const rows = (await c.query(
+    `SELECT vh.stock_id AS sid, count(*)::int AS c, (vi.status = 'available') AS avail
+     FROM leads l JOIN vehicles vh ON vh.tenant_id = l.tenant_id AND vh.id = l.vehicle_id
+     LEFT JOIN intelligence_vehicle_index vi ON vi.tenant_id = l.tenant_id AND vi.stock_id = vh.stock_id
+     WHERE l.tenant_id = $1 AND l.created_at >= now() - interval '14 days' GROUP BY vh.stock_id, vi.status`, [tenantId])).rows as { sid: string; c: number; avail: boolean }[];
+  const available = Number((await c.query("SELECT count(*)::int AS n FROM intelligence_vehicle_index WHERE tenant_id = $1 AND status = 'available'", [tenantId])).rows[0]?.n ?? 0);
+  const positives = rows.filter((r) => r.avail).map((r) => Number(r.c)).sort((a, b) => a - b);
+  const zeros = available - positives.length;
+  const rank = Math.floor(available / 2); // zero-based position in the sorted counts
+  const median = available === 0 ? 0 : rank < zeros ? 0 : positives[rank - zeros];
+  return { byStock: new Map(rows.map((r) => [String(r.sid), Number(r.c)])), median };
+}
 
 export type VehiclePage = { vehicles: Vehicle[]; total: number; page: number; size: number; counts: Record<string, number>; makes: string[] };
 
@@ -43,25 +53,27 @@ export async function listVehicles(c: SqlClient, tenantId: string, branchIds: st
   const values: unknown[] = [tenantId, branchIds];
   const add = (v: unknown) => { values.push(v); return `$${values.length}`; };
   const where = ["v.tenant_id = $1", "v.branch_id = ANY($2::uuid[])"];
+  const ctx = await enquiryContext(c, tenantId);
   if (f.tab === "all") where.push("v.status NOT IN ('sold', 'archived')"); else where.push(`v.status = ${add(f.tab)}`);
   if (f.q) where.push(`v.search LIKE ${add(`%${f.q.toLowerCase().replace(/[%_\\]/g, (m) => `\\${m}`)}%`)}`);
   if (f.make) where.push(`v.make = ${add(f.make)}`);
   if (f.vbranch) where.push(`v.branch_id = ${add(f.vbranch)}::uuid`);
-  if (f.age) where.push(f.age === ">45" ? `${AGE} > 45` : `(${BUCKET}) = ${add(f.age)}`);
+  const todayP = add(today);
+  where.push(`${todayP}::date IS NOT NULL`);
+  if (f.age) where.push(f.age === ">45" ? `${AGE.replace(/\$TODAY/g, todayP)} > 45` : `(${BUCKET.replace(/\$TODAY/g, todayP)}) = ${add(f.age)}`);
   if (f.flag === "cost") where.push("NOT v.cost_complete");
   if (f.flag === "media") where.push("NOT v.has_images");
-  if (f.flag === "review") where.push(`v.status = 'available' AND v.asking_paise IS NOT NULL AND ${AGE} > 30 AND COALESCE((SELECT c FROM enq WHERE sid = v.stock_id), 0) < (SELECT median FROM cohort)`);
-  const sortExpr = f.sort ? SORT_SQL[f.sort] : null;
+  if (f.flag === "review") {
+    // Price review: available, priced, older than 30 days, with fewer enquiries than the cohort median.
+    const atOrAbove = [...ctx.byStock].filter(([, n]) => n >= ctx.median).map(([sid]) => sid);
+    where.push(`v.status = 'available' AND v.asking_paise IS NOT NULL AND ${AGE.replace(/\$TODAY/g, todayP)} > 30 AND ${ctx.median > 0 ? `NOT (v.stock_id = ANY(${add(atOrAbove)}::text[]))` : "false"}`);
+  }
+  const sortExpr = f.sort ? SORT_SQL[f.sort].replace(/\$TODAY/g, todayP) : null;
   const order = sortExpr ? `${sortExpr} ${f.dir === "desc" ? "DESC" : "ASC"}, v.stock_id COLLATE "C" ASC` : `v.stock_id COLLATE "C" ASC`;
   const size = Math.min(Math.max(1, f.size), 200);
-  const limitP = add(size);
-  const offsetP = add((Math.max(1, f.page) - 1) * size);
-  const todayP = add(today);
-  const sql = `WITH ${ENQUIRY_CTE}
-    SELECT v.data, count(*) OVER () AS total, COALESCE((SELECT c FROM enq WHERE sid = v.stock_id), 0) AS enq14, (SELECT median FROM cohort) AS median, $TODAY::date AS today
-    FROM intelligence_vehicle_index v WHERE ${where.join(" AND ")} ORDER BY ${order} LIMIT ${limitP} OFFSET ${offsetP}`.replace(/\$TODAY/g, todayP);
-  const rows = (await c.query(sql, values)).rows as { data: Vehicle; total: string; enq14: number; median: number }[];
-  const vehicles = rows.map((r) => ({ ...r.data, enquiries14d: Number(r.enq14), cohortMedianEnquiries: Number(r.median) }));
+  const sql = `SELECT v.data, count(*) OVER () AS total FROM intelligence_vehicle_index v WHERE ${where.join(" AND ")} ORDER BY ${order} LIMIT ${add(size)} OFFSET ${add((Math.max(1, f.page) - 1) * size)}`;
+  const rows = (await c.query(sql, values)).rows as { data: Vehicle; total: string }[];
+  const vehicles = rows.map((r) => ({ ...r.data, enquiries14d: ctx.byStock.get(r.data.id) ?? 0, cohortMedianEnquiries: ctx.median }));
   const meta = (await c.query(
     `SELECT count(*) FILTER (WHERE status NOT IN ('sold','archived'))::int AS "all", count(*) FILTER (WHERE status = 'available')::int AS available, count(*) FILTER (WHERE status = 'reserved')::int AS reserved,
             count(*) FILTER (WHERE status = 'preparation')::int AS preparation, count(*) FILTER (WHERE status = 'sold')::int AS sold, count(*) FILTER (WHERE status = 'archived')::int AS archived,

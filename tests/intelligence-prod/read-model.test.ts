@@ -1,10 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { harness } from "./harness";
+import { harness, runFull } from "./harness";
 import { provisionWorkspace } from "../../apps/intelligence/lib/server/provision";
 import { redeemToken, resolvePrincipal } from "../../apps/intelligence/lib/server/identity";
 import { loadWorkspace, runCommands } from "../../apps/intelligence/lib/server/workspace";
 import { tenantTx } from "../../apps/intelligence/lib/server/db";
+import { readState } from "../../apps/intelligence/lib/server/workspace-store";
+import { deriveTenantAlerts } from "../../apps/intelligence/lib/server/alerts-model";
 import { syncReadModel } from "../../apps/intelligence/lib/server/read-model";
 import { funnelSql, listLeads, listSales, listVehicles, movementSql, salesSummarySql, stockMetricsSql, todayIst, type VehicleFilter } from "../../apps/intelligence/lib/server/read-queries";
 import { seedSynthetic } from "../../scripts/perf/synthetic";
@@ -56,12 +58,12 @@ test("read model agrees with the full workspace read: records, filters, sorting,
     // Records created by the application itself (Intelligence documents), then changed behind its back (shared row newer than the document).
     const [north] = p.locationIds;
     const add = (extra: Record<string, string> = {}) => ({ make: "Honda", model: "City", variant: "VX", year: "2021", fuel: "Petrol", transmission: "Automatic", km: "32000", owners: "1", registration: `KL 07 CD ${Math.floor(Math.random() * 9000 + 1000)}`, acquiredOn: today(), branchId: north, status: "preparation", asking: "950000", costs: { acquisition: "800000", transport: "5000", inspection: "2000", refurbishment: "30000", fees: "3000" }, photos: "0", ...extra });
-    const first = await runCommands(principal, [{ name: "addVehicle", args: [add()] }, { name: "addVehicle", args: [add({ make: "Kia", asking: "0" })] }], false);
+    const first = await runFull(principal, [{ name: "addVehicle", args: [add()] }, { name: "addVehicle", args: [add({ make: "Kia", asking: "0" })] }], false);
     assert.ok(first.ok, JSON.stringify(first));
     const docId = first.state.vehicles.find((v) => v.make === "Honda" && v.id.startsWith("V-"))!.id;
-    assert.ok((await runCommands(principal, [{ name: "transitionVehicle", args: [docId, 1, { to: "available" }] }], false)).ok);
+    assert.ok((await runFull(principal, [{ name: "transitionVehicle", args: [docId, 1, { to: "available" }] }], false)).ok);
     const someLead = (await loadWorkspace(principal)).leads.find((l) => l.stage === "New")!;
-    assert.ok((await runCommands(principal, [{ name: "changeStage", args: [someLead.id, someLead.version, "Qualified"] }], false)).ok);
+    assert.ok((await runFull(principal, [{ name: "changeStage", args: [someLead.id, someLead.version, "Qualified"] }], false)).ok);
     await new Promise((r) => setTimeout(r, 30));
     await h.db.query("UPDATE vehicles SET payload = jsonb_set(payload, '{price}', '1234567'), updated_at = now() WHERE stock_id IN ($1, 'SYN-150', 'SYN-151')", [docId]);
     await h.db.query("UPDATE stock_costs SET payload = jsonb_set(payload, '{reconditioningCost}', '99999'), version = version + 1 WHERE vehicle_id = (SELECT id FROM vehicles WHERE stock_id = 'SYN-160')");
@@ -152,6 +154,15 @@ test("read model agrees with the full workspace read: records, filters, sorting,
     assert.ok(changed, "a lead changed through the application is visible in the index");
     assert.deepEqual(await run((c) => funnelSql(c, p.tenantId, ids3)), funnelFor(full.leads.filter((l) => ids3.includes(l.branchId))));
     assert.deepEqual(await run((c) => funnelSql(c, p.tenantId, ids3, months)), funnelFor(full.leads.filter((l) => ids3.includes(l.branchId) && months.includes(monthKey(l.createdAt)))));
+
+    // 6b. Alerts derived from only the records that can produce them equal the alerts derived from the whole workspace.
+    const shell = await run((c) => readState(c, p.tenantId, { shell: true }));
+    assert.equal(shell.vehicles.length, 0);
+    assert.equal(shell.leads.length, 0);
+    const key = (a: { id: string; type: string; severity: string; title: string; recordRef: string; trigger: string; status: string; dueAt: string | null; assignee: string; branchId: string }) => plain({ id: a.id, type: a.type, severity: a.severity, title: a.title, recordRef: a.recordRef, trigger: a.trigger, status: a.status, dueAt: a.dueAt, assignee: a.assignee, branchId: a.branchId });
+    const partialAlerts = await run((c) => deriveTenantAlerts(c, p.tenantId, shell));
+    assert.ok(partialAlerts.length > 100);
+    assert.deepEqual(partialAlerts.map(key).sort((a, b) => (a.id < b.id ? -1 : 1)), full.alerts.map(key).sort((a, b) => (a.id < b.id ? -1 : 1)));
 
     // 7. The freshness check is a no-op when nothing changed, and rebuilds exactly what changed.
     assert.equal(await tenantTx(p.tenantId, (c) => syncReadModel(c, p.tenantId, { force: true })), 0);

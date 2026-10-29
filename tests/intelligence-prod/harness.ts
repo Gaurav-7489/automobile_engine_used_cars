@@ -44,3 +44,13 @@ export async function harness(): Promise<Harness> {
   setTestPool(app);
   return { db, app, admin: make(null), async close() { setTestPool(undefined); await db.close(); } };
 }
+
+/**
+ * Runs commands and, on success, replaces the (small) returned state with the full reference read, so tests can assert on records
+ * exactly as before. The production response carries only the shell plus the changed records.
+ */
+export async function runFull(principal: import("../../apps/intelligence/lib/server/identity").Principal, commands: { name: string; args: unknown[] }[], reauthenticated = false) {
+  const { runCommands, loadWorkspace } = await import("../../apps/intelligence/lib/server/workspace");
+  const outcome = await runCommands(principal, commands, reauthenticated);
+  return outcome.ok ? { ...outcome, state: await loadWorkspace(principal) } : outcome;
+}

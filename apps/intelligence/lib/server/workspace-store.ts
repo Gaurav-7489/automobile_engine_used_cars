@@ -20,9 +20,14 @@ type Meta = Pick<WorkspaceState, "policy" | "notifications" | "sessionsRevoked" 
 const LIFECYCLE_AVAILABILITY: Record<Lifecycle, "available" | "reserved" | "sold"> = { available: "available", reserved: "reserved", preparation: "available", sold: "sold", archived: "available" };
 /* ------------------------------------------------------------------ read */
 
-export async function readState(c: SqlClient, tenantId: string): Promise<WorkspaceState> {
+/**
+ * The reference read of a whole workspace. With `shell: true` the large per-record collections (vehicles, costs, leads, tasks,
+ * sales) are not queried: the result holds only the small collections every page needs, and pages fetch their own records.
+ */
+export async function readState(c: SqlClient, tenantId: string, options: { shell?: boolean } = {}): Promise<WorkspaceState> {
   // One round trip instead of ten: each result set comes back as a JSON array in a single row. A network hop to a hosted
   // database costs far more than the query, and the connection runs statements one at a time.
+  const HEAVY = new Set([2, 3, 4, 5, 6]);
   const queries = [
     "SELECT id, name FROM organizations WHERE tenant_id=$1 ORDER BY created_at LIMIT 1",
     "SELECT id, dealership_id, name, city, state FROM locations WHERE tenant_id=$1 ORDER BY name",
@@ -35,7 +40,7 @@ export async function readState(c: SqlClient, tenantId: string): Promise<Workspa
     `SELECT collection, id, payload, updated_at FROM intelligence_documents WHERE tenant_id=$1 AND (collection <> 'audit' OR id IN (SELECT id FROM intelligence_documents WHERE tenant_id=$1 AND collection='audit' ORDER BY updated_at DESC LIMIT 500))`,
     "SELECT token_hash, email, role, intelligence_role, location_ids, display_name, created_at, expires_at FROM intelligence_tokens WHERE tenant_id=$1 AND kind='invite' AND used_at IS NULL AND expires_at > now()",
   ];
-  const packed = (await c.query(`SELECT ${queries.map((sql, i) => `(SELECT coalesce(json_agg(r), '[]'::json) FROM (${sql}) r) AS r${i}`).join(", ")}`, [tenantId])).rows[0] ?? {};
+  const packed = (await c.query(`SELECT ${queries.map((sql, i) => `(SELECT coalesce(json_agg(r), '[]'::json) FROM (${options.shell && HEAVY.has(i) ? "SELECT 1 AS x WHERE false" : sql}) r) AS r${i}`).join(", ")}`, [tenantId])).rows[0] ?? {};
   const [orgs, locations, vehicles, costs, leads, tasks, sales, staff, docs, tokens] = queries.map((_, i) => (typeof packed[`r${i}`] === "string" ? JSON.parse(packed[`r${i}`] as string) : packed[`r${i}`] ?? []) as Row[]);
 
   const org = orgs[0];
@@ -118,6 +123,7 @@ export async function readState(c: SqlClient, tenantId: string): Promise<Workspa
     corrections: list<WorkspaceState["corrections"][number]>("corrections"), reportSchedules: list<WorkspaceState["reportSchedules"][number]>("reportSchedules"), savedViews: list<WorkspaceState["savedViews"][number]>("savedViews"),
     policy: { ...base.policy, ...(meta.policy ?? {}) }, notifications: { ...base.notifications, ...(meta.notifications ?? {}) }, sessionsRevoked: meta.sessionsRevoked ?? 0, watchlist: meta.watchlist ?? [], contactIntents: meta.contactIntents ?? [],
   };
+  if (options.shell) return { ...state, alerts: [] };
   return reopenExpired({ ...state, alerts: deriveAlerts(state, new Date().toISOString()) });
 }
 

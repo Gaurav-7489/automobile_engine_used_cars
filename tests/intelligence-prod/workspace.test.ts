@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { harness } from "./harness";
+import { harness, runFull } from "./harness";
 import { provisionWorkspace } from "../../apps/intelligence/lib/server/provision";
 import { redeemToken, resolvePrincipal, signIn } from "../../apps/intelligence/lib/server/identity";
 import { loadWorkspace, runCommands } from "../../apps/intelligence/lib/server/workspace";
@@ -45,7 +45,7 @@ test("live workspace persists to the shared tables, enforces roles and branches,
 
     // Inventory create -> shared vehicles + stock_costs rows, same record readable back.
     const [main, second] = a.p.locationIds;
-    const added = await runCommands(a.principal, [{ name: "addVehicle", args: [vehicleInput(main)] }], false);
+    const added = await runFull(a.principal, [{ name: "addVehicle", args: [vehicleInput(main)] }], false);
     assert.ok(added.ok, JSON.stringify(added));
     assert.equal(added.state.vehicles.length, 1);
     const vehicle = added.state.vehicles[0];
@@ -69,7 +69,7 @@ test("live workspace persists to the shared tables, enforces roles and branches,
     assert.equal(v.costs.acquisition + v.costs.transport + v.costs.inspection + v.costs.refurbishment + v.costs.fees, 84_000_000 + 1_000_000 - 1_000_000);
 
     // Untrusted patch fields are dropped: an edit cannot change the asking price or status.
-    const tampered = await runCommands(a.principal, [{ name: "updateVehicle", args: [vehicle.id, vehicle.version, { km: 33000, asking: 1, status: "sold", id: "V-9" }] }], false);
+    const tampered = await runFull(a.principal, [{ name: "updateVehicle", args: [vehicle.id, vehicle.version, { km: 33000, asking: 1, status: "sold", id: "V-9" }] }], false);
     assert.ok(tampered.ok);
     const afterTamper = tampered.state.vehicles[0];
     assert.equal(afterTamper.km, 33000);
@@ -77,12 +77,12 @@ test("live workspace persists to the shared tables, enforces roles and branches,
     assert.equal(afterTamper.status, "preparation");
 
     // Optimistic concurrency: a stale version is rejected and nothing changes.
-    const stale = await runCommands(a.principal, [{ name: "updateVehicle", args: [vehicle.id, vehicle.version, { km: 40000 }] }], false);
+    const stale = await runFull(a.principal, [{ name: "updateVehicle", args: [vehicle.id, vehicle.version, { km: 40000 }] }], false);
     assert.equal(stale.ok, false);
-    assert.equal(stale.state.vehicles[0].km, 33000);
+    assert.equal((await loadWorkspace(a.principal)).vehicles[0].km, 33000);
 
     // Lead create -> shared leads + tasks rows.
-    const lead = await runCommands(a.principal, [{ name: "addLead", args: [{ name: "Buyer One", contact: "+91 90000 11111", source: "Walk-in", vehicleId: "unspecified", owner: a.principal.name, branchId: main, consentEvidence: "Walk-in form", marketingConsent: false }] }], false);
+    const lead = await runFull(a.principal, [{ name: "addLead", args: [{ name: "Buyer One", contact: "+91 90000 11111", source: "Walk-in", vehicleId: "unspecified", owner: a.principal.name, branchId: main, consentEvidence: "Walk-in form", marketingConsent: false }] }], false);
     assert.ok(lead.ok, JSON.stringify(lead));
     const leadRows = await tenantTx(a.p.tenantId, async (c) => ({ leads: (await c.query("SELECT stage, source, payload FROM leads")).rows, tasks: (await c.query("SELECT completed FROM tasks")).rows }));
     assert.equal(leadRows.leads.length, 1);
@@ -91,17 +91,17 @@ test("live workspace persists to the shared tables, enforces roles and branches,
     assert.equal(leadRows.tasks.length, 1);
 
     // Making a vehicle available needs a price and a cost; photos are not claimable in a live workspace.
-    const toAvailable = await runCommands(a.principal, [{ name: "transitionVehicle", args: [vehicle.id, afterTamper.version, { to: "available" }] }], false);
+    const toAvailable = await runFull(a.principal, [{ name: "transitionVehicle", args: [vehicle.id, afterTamper.version, { to: "available" }] }], false);
     assert.ok(toAvailable.ok, JSON.stringify(toAvailable));
     assert.equal(toAvailable.state.vehicles[0].status, "available");
     assert.equal(toAvailable.state.vehicles[0].hasImages, false);
     // Publishing to the owned website needs a photo, so it is refused rather than faked.
-    const published = await runCommands(a.principal, [{ name: "publishVehicles", args: [[vehicle.id]] }], false);
+    const published = await runFull(a.principal, [{ name: "publishVehicles", args: [[vehicle.id]] }], false);
     assert.ok(published.ok);
     assert.equal((published as { state: { vehicles: { channels: string[] }[] } }).state.vehicles[0].channels.length, 0);
 
     // Sale: the sold transition records a sale with its cost basis, and realized profit comes from those real numbers.
-    const sold = await runCommands(a.principal, [{ name: "transitionVehicle", args: [vehicle.id, toAvailable.state.vehicles[0].version, { to: "sold", sale: { salePrice: "930000", directCosts: "10000", closedOn: today() } }] }], false);
+    const sold = await runFull(a.principal, [{ name: "transitionVehicle", args: [vehicle.id, toAvailable.state.vehicles[0].version, { to: "sold", sale: { salePrice: "930000", directCosts: "10000", closedOn: today() } }] }], false);
     assert.ok(sold.ok, JSON.stringify(sold));
     assert.equal(sold.state.sales.length, 1);
     const sale = sold.state.sales[0];
@@ -124,29 +124,29 @@ test("live workspace persists to the shared tables, enforces roles and branches,
       return (await resolvePrincipal("00000000-0000-4000-8000-000000000001", a.p.tenantId, Math.floor(Date.now() / 1000)))!;
     })();
     assert.equal(salesToken.role, "sales");
-    const denied = await runCommands(salesToken, [{ name: "addVehicle", args: [vehicleInput(main)] }], false);
+    const denied = await runFull(salesToken, [{ name: "addVehicle", args: [vehicleInput(main)] }], false);
     assert.equal(denied.ok, false);
     assert.equal((denied as { status: number }).status, 403);
     // ...and cannot act on a branch outside their access, even though the record exists.
-    const wrongBranch = await runCommands(salesToken, [{ name: "addLead", args: [{ name: "X", contact: "+91 90000 22222", source: "Walk-in", vehicleId: "unspecified", owner: "Sales", branchId: second, consentEvidence: "form", marketingConsent: false }] }], false);
+    const wrongBranch = await runFull(salesToken, [{ name: "addLead", args: [{ name: "X", contact: "+91 90000 22222", source: "Walk-in", vehicleId: "unspecified", owner: "Sales", branchId: second, consentEvidence: "form", marketingConsent: false }] }], false);
     assert.equal(wrongBranch.ok, false);
     // Redaction: the sales member only receives their own branch.
     const salesView = redactFor(await loadWorkspace(salesToken), principalSession(salesToken, 0, 0));
     assert.deepEqual(salesView.branches.map((x) => x.id), [main]);
 
     // Unknown operations and malformed batches are refused.
-    const unknown = await runCommands(a.principal, [{ name: "dropEverything", args: [] }], false);
+    const unknown = await runFull(a.principal, [{ name: "dropEverything", args: [] }], false);
     assert.equal(unknown.ok, false);
 
     // Re-authentication is decided by the server: a caller-supplied "true" is ignored.
-    const role = await runCommands(a.principal, [{ name: "changeRole", args: [salesToken.userId, "manager", true] }], false);
+    const role = await runFull(a.principal, [{ name: "changeRole", args: [salesToken.userId, "manager", true] }], false);
     assert.equal(role.ok, false);
-    const roleOk = await runCommands(a.principal, [{ name: "changeRole", args: [salesToken.userId, "manager", false] }], true);
+    const roleOk = await runFull(a.principal, [{ name: "changeRole", args: [salesToken.userId, "manager", false] }], true);
     assert.ok(roleOk.ok, JSON.stringify(roleOk));
     assert.equal((await resolvePrincipal(salesToken.userId, a.p.tenantId, Math.floor(Date.now() / 1000)))?.role, "manager");
 
     // Invitations produce a one-time link and no account until redeemed.
-    const invite = await runCommands(a.principal, [{ name: "inviteMember", args: [{ email: "new@alpha.example", role: "viewer", branchIds: [main] }] }], false);
+    const invite = await runFull(a.principal, [{ name: "inviteMember", args: [{ email: "new@alpha.example", role: "viewer", branchIds: [main] }] }], false);
     assert.ok(invite.ok, JSON.stringify(invite));
     assert.equal(invite.effects.inviteLinks.length, 1);
     assert.ok(invite.state.team.some((m) => m.email === "new@alpha.example" && m.status === "Invited"));
@@ -164,7 +164,7 @@ test("live workspace persists to the shared tables, enforces roles and branches,
     assert.equal(await resolvePrincipal(a.principal.userId, b.p.tenantId, Math.floor(Date.now() / 1000)), null);
 
     // Documents (campaigns, price requests, alerts) stay tenant-scoped.
-    await runCommands(a.principal, [{ name: "toggleWatch", args: ["x"] }], false);
+    await runFull(a.principal, [{ name: "toggleWatch", args: ["x"] }], false);
     assert.equal((await loadWorkspace(b.principal)).watchlist.length, 0);
   } finally { await h.close(); }
 });

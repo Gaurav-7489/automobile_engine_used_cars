@@ -24,7 +24,10 @@ export async function POST(request: Request) {
     const outcome = await runCommands(current.principal, body.commands as Command[], await hasRecentReauth(current.principal.userId));
     const state = redactFor(outcome.state, current.session);
     if (!outcome.ok) return json({ ok: false, error: { code: outcome.code, message: outcome.message, fields: outcome.fields, latest: outcome.latest }, state }, { status: outcome.status });
-    const response = NextResponse.json({ ok: true, state, effects: outcome.effects }, { headers: { "Cache-Control": "no-store" } });
+    // Changed records pass through the same branch and contact redaction as everything else the browser receives.
+    const visible = redactFor({ ...outcome.state, ...outcome.changes, events: [] }, current.session);
+    const changes = { vehicles: visible.vehicles, leads: visible.leads, sales: visible.sales, alerts: visible.alerts };
+    const response = NextResponse.json({ ok: true, state, changes, effects: outcome.effects }, { headers: { "Cache-Control": "no-store" } });
     if (outcome.effects.sessionsRevoked) {
       // Revoking "other" sessions must not end this one: issue a fresh cookie dated just after the revocation.
       const iat = Math.floor(Date.now() / 1000) + 2;

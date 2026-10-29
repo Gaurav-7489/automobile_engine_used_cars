@@ -43,6 +43,12 @@ export type WorkspaceState = {
   sessionsRevoked: number;
   reportSchedules: { id: string; report: string; recipients: string[]; cadence: string; timezone: string; startDate: string }[];
   savedViews: { id: string; name: string; query: string }[];
+  /**
+   * Live workspaces load only the small collections up front. `vehicles`, `leads`, `sales` and `alerts` then hold just the records
+   * the visible pages have fetched, and `events` is not used. Open-alert counts per permitted branch come from the server.
+   */
+  partial?: boolean;
+  alertCounts?: Record<string, { critical: number; dueToday: number; overdue: number; waiting: number; open: number }>;
 };
 
 export const STATE_VERSION = 3;
