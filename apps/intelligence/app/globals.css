@@ -131,6 +131,7 @@ table { border-collapse: collapse; width: 100%; }
 .kpi-action:hover { background: var(--raised); border-color: var(--field-border); }
 .kpi-action .kpi-main { cursor: pointer; }
 .kpi-info { position: absolute; top: 16px; right: 16px; }
+.kpi:has(.kpi-info) .kpi-label { padding-right: 28px; }
 .kpi .kpi-label { color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
 .kpi .kpi-value { font-size: 32px; line-height: 40px; font-weight: 600; letter-spacing: -0.01em; }
 .kpi .kpi-note { font-size: 12px; line-height: 18px; color: var(--accent); }

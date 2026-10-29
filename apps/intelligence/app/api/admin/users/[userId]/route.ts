@@ -1,4 +1,5 @@
-import { json, problem, readJson } from "@/lib/api";
+import { json, problem, rateLimited, readJson } from "@/lib/api";
+import { hitShared } from "@/lib/rate-limit";
 import { adminApi } from "@/lib/server/admin-gate";
 import { isUuid } from "@/lib/server/db";
 import { setSuspended } from "@/lib/server/platform-admin";
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request, context: { params: Promise<{ userId: string }> }) {
   const gate = await adminApi(request, { reauth: true });
   if (gate.error) return gate.error;
+  const limit = await hitShared(`admin-users:${gate.access.userId}`, 30, 10 * 60_000);
+  if (!limit.allowed) return rateLimited("Too many account changes. Wait a few minutes.", limit.retryAfter);
   const { userId } = await context.params;
   const body = await readJson<{ suspended?: boolean; reason?: string }>(request);
   const reason = typeof body?.reason === "string" ? body.reason.trim() : "";

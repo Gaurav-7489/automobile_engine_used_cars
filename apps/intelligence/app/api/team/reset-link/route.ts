@@ -1,4 +1,5 @@
-import { json, problem, readJson } from "@/lib/api";
+import { json, problem, rateLimited, readJson } from "@/lib/api";
+import { hitShared } from "@/lib/rate-limit";
 import { can } from "@/lib/permissions";
 import { getPrincipal } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
@@ -12,6 +13,8 @@ export async function POST(request: Request) {
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Sign in to continue.");
   if (!can(current.principal.role, "settings.team")) return problem(403, "forbidden", "Only an owner can issue reset links.");
+  const limit = await hitShared(`reset-link:${current.principal.userId}`, 10, 60 * 60_000);
+  if (!limit.allowed) return rateLimited("Too many reset links issued. Try again later.", limit.retryAfter);
   const body = await readJson<{ email?: string }>(request);
   if (typeof body?.email !== "string") return problem(422, "invalid", "Choose a member.");
   const issued = await issueReset(current.principal, body.email);

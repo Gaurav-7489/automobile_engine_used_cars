@@ -1,4 +1,5 @@
-import { json, problem } from "@/lib/api";
+import { json, problem, rateLimited } from "@/lib/api";
+import { hitShared } from "@/lib/rate-limit";
 import { can } from "@/lib/permissions";
 import { getPrincipal } from "@/lib/server/auth";
 import { blobConfigured, putPublicBlob } from "@/lib/server/blob";
@@ -49,6 +50,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Sign in to continue.");
   if (!can(current.principal.role, "inventory.edit")) return problem(403, "forbidden", "Your role cannot change vehicle photos.");
+  const limit = await hitShared(`photos:${current.principal.tenantId}:${current.principal.userId}`, 60, 10 * 60_000);
+  if (!limit.allowed) return rateLimited("Too many photo changes. Wait a few minutes and try again.", limit.retryAfter);
   if (!blobConfigured()) return problem(503, "not_configured", "Photo storage is not connected for this workspace.");
   const { id } = await context.params;
   const vehicle = await vehicleFor(current.principal.tenantId, id, current.principal.locationIds);

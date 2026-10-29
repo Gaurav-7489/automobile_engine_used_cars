@@ -1,4 +1,5 @@
-import { json, problem, readJson } from "@/lib/api";
+import { json, problem, rateLimited, readJson } from "@/lib/api";
+import { hitShared } from "@/lib/rate-limit";
 import { can } from "@/lib/permissions";
 import { API_SCOPES, createApiKey, listApiKeys, revokeApiKey, type ApiScope } from "@/lib/server/api-keys";
 import { getPrincipal, hasRecentReauth } from "@/lib/server/auth";
@@ -25,6 +26,8 @@ export async function POST(request: Request) {
   const r = await owner(request);
   if (r.error) return r.error;
   if (!(await hasRecentReauth(r.principal.userId))) return problem(403, "reauth_required", "Confirm your password first.");
+  const limit = await hitShared(`api-keys:${r.principal.userId}`, 10, 60 * 60_000);
+  if (!limit.allowed) return rateLimited("Too many key changes. Try again later.", limit.retryAfter);
   const body = await readJson<{ name?: string; scope?: string; days?: number }>(request);
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const scope = API_SCOPES.find((s) => s === body?.scope);
