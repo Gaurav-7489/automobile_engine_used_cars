@@ -19,8 +19,8 @@ export async function harness(): Promise<Harness> {
   await db.exec("GRANT SELECT,INSERT ON sales,inventory_history,stock_cost_history,platform_audit TO vandlabs_runtime");
   await db.exec("GRANT SELECT,INSERT,UPDATE ON stock_costs,staff_members,notification_outbox TO vandlabs_runtime");
   await db.exec("GRANT SELECT,INSERT,UPDATE ON dealer_commerce TO vandlabs_runtime");
-  // 0010 to 0016 ran before the role existed in this harness, so apply their grants now.
-  for (const name of ["0010_intelligence_workspace.sql", "0011_intelligence_security_media.sql", "0012_intelligence_platform_admin.sql", "0013_intelligence_reauth.sql", "0014_intelligence_rate_limits.sql", "0015_intelligence_read_model.sql", "0016_intelligence_entitlements.sql"]) {
+  // 0010 to 0017 ran before the role existed in this harness, so apply their grants now.
+  for (const name of ["0010_intelligence_workspace.sql", "0011_intelligence_security_media.sql", "0012_intelligence_platform_admin.sql", "0013_intelligence_reauth.sql", "0014_intelligence_rate_limits.sql", "0015_intelligence_read_model.sql", "0016_intelligence_entitlements.sql", "0017_intelligence_automations.sql"]) {
     const migration = await readFile(`infra/database/migrations/${name}`, "utf8");
     await db.exec(migration.slice(migration.indexOf("DO $$ DECLARE r text")).replace(/COMMIT;\s*$/, ""));
   }

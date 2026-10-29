@@ -12,6 +12,7 @@ import { invalidateAlerts } from "./alerts-model";
 import { enquiryContext } from "./read-queries";
 import { needsOf, scopedState } from "./scoped-state";
 import { readEntitlements } from "./entitlement-store";
+import { automate, recordRuns } from "./automation-store";
 import { COMMAND_FEATURE } from "../entitlements";
 import type { Alert, Lead, Sale, Vehicle } from "../domain";
 
@@ -81,33 +82,37 @@ export async function runCommandsIn(c: SqlClient, principal: Principal, commands
   const outcome = executeCommands(before, actor, commands, reauthenticated);
   lap("execute");
   if (!outcome.ok) return { ...outcome, state: asShell(before) };
+  // Follow-up rules turn new leads and stage moves into tasks; they run in this transaction so the tasks are saved with the command.
+  const automated = entitlements.features.automations.enabled ? await automate(c, principal.tenantId, before, outcome.state) : { state: outcome.state, runs: [] };
+  const next = automated.state;
   const effects: Effects = { inviteLinks: [], sessionsRevoked: false };
   // Invitations become one-time links; the browser never creates accounts or tokens itself.
   const known = new Set(before.team.map((m) => m.id));
-  for (const member of outcome.state.team) {
+  for (const member of next.team) {
     if (known.has(member.id) || member.status !== "Invited") continue;
     const issued = await issueInviteWith(c, principal, { email: member.email, name: member.email.split("@")[0], role: member.role, locationIds: member.branchIds, dealershipIds: principal.dealershipIds });
     if (!issued.ok) throw new Error(issued.message);
     effects.inviteLinks.push({ email: member.email, token: issued.token, expiresAt: issued.expiresAt });
   }
-  if (outcome.state.sessionsRevoked > before.sessionsRevoked) { await c.query("SELECT intelligence_revoke_sessions($1)", [principal.userId]); effects.sessionsRevoked = true; }
-  await persist(c, principal, before, outcome.state, new Date().toISOString());
+  if (next.sessionsRevoked > before.sessionsRevoked) { await c.query("SELECT intelligence_revoke_sessions($1)", [principal.userId]); effects.sessionsRevoked = true; }
+  await persist(c, principal, before, next, new Date().toISOString());
+  await recordRuns(c, principal.tenantId, automated.runs);
   lap("persist");
   // Invited team rows were created by the action as placeholders; the database read below is the truth.
   await syncReadModel(c, principal.tenantId, { force: true });
   lap("sync");
   invalidateAlerts(principal.tenantId);
-  const changedVehicles = [...changedIds(before.vehicles, outcome.state.vehicles)];
-  const changedLeads = [...changedIds(before.leads, outcome.state.leads)];
-  const changedSales = [...changedIds(before.sales, outcome.state.sales)];
-  const changedAlertIds = changedIds(before.alerts, outcome.state.alerts);
+  const changedVehicles = [...changedIds(before.vehicles, next.vehicles)];
+  const changedLeads = [...changedIds(before.leads, next.leads)];
+  const changedSales = [...changedIds(before.sales, next.sales)];
+  const changedAlertIds = changedIds(before.alerts, next.alerts);
   const ctx = changedVehicles.length ? await enquiryContext(c, principal.tenantId) : null;
   const rows = async (table: string, key: string, ids: string[]) => (ids.length ? (await c.query(`SELECT data FROM ${table} WHERE tenant_id = $1 AND ${key} = ANY($2::text[])`, [principal.tenantId, ids])).rows.map((r) => r.data) : []);
   const changes: Changes = {
     vehicles: (await rows("intelligence_vehicle_index", "stock_id", changedVehicles) as Vehicle[]).map((v) => ({ ...v, enquiries14d: ctx?.byStock.get(v.id) ?? 0, cohortMedianEnquiries: ctx?.median ?? 0 })),
     leads: await rows("intelligence_lead_index", "lead_id", changedLeads) as Lead[],
     sales: await rows("intelligence_sale_index", "sale_id", changedSales) as Sale[],
-    alerts: outcome.state.alerts.filter((a) => changedAlertIds.has(a.id)),
+    alerts: next.alerts.filter((a) => changedAlertIds.has(a.id)),
   };
   lap("changes");
   return { ok: true as const, state: await readState(c, principal.tenantId, { shell: true }).then((x) => asShell(x)), changes, effects };
