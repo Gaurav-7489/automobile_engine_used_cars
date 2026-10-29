@@ -12,6 +12,13 @@ CREATE TABLE IF NOT EXISTS dealer_commerce (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK (jsonb_typeof(payload) = 'object')
 );
+ALTER TABLE dealer_commerce ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dealer_commerce FORCE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'dealer_commerce' AND policyname = 'tenant_isolation') THEN
+    CREATE POLICY tenant_isolation ON dealer_commerce USING (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid) WITH CHECK (tenant_id = nullif(current_setting('app.tenant_id', true), '')::uuid);
+  END IF;
+END $$;
 
 CREATE FUNCTION intelligence_admin_commerce(p_admin uuid, p_tenant uuid)
 RETURNS TABLE (subscription jsonb, features jsonb, usage jsonb, sources jsonb, version bigint)

@@ -99,14 +99,13 @@ CREATE INDEX IF NOT EXISTS leads_tenant_updated_idx ON leads (tenant_id, updated
 CREATE INDEX IF NOT EXISTS vehicles_tenant_updated_idx ON vehicles (tenant_id, updated_at);
 CREATE INDEX IF NOT EXISTS intelligence_documents_tenant_collection_idx ON intelligence_documents (tenant_id, collection, updated_at DESC);
 
-DO $$ DECLARE r text; t text; BEGIN
-  FOREACH r IN ARRAY ARRAY['vandlabs_app', 'vandlabs_runtime'] LOOP
-    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
-      FOREACH t IN ARRAY ARRAY['intelligence_vehicle_index', 'intelligence_lead_index', 'intelligence_sale_index'] LOOP
-        EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I TO %I', t, r);
-      END LOOP;
-    END IF;
-  END LOOP;
+-- Row-level security protects these tables, so only the non-bypass runtime role may touch them.
+DO $$ DECLARE r text := 'vandlabs_runtime'; t text; BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+    FOREACH t IN ARRAY ARRAY['intelligence_vehicle_index', 'intelligence_lead_index', 'intelligence_sale_index'] LOOP
+      EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I TO %I', t, r);
+    END LOOP;
+  END IF;
 END $$;
 
 COMMIT;
