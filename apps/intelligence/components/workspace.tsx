@@ -136,7 +136,7 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
         if (body?.ok && body.effects) window.dispatchEvent(new CustomEvent("vl:effects", { detail: body.effects }));
         if (!body?.ok) window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: body?.error?.message ?? "The change could not be saved. It has been undone." } }));
       } catch {
-        window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: "We could not reach the server. Your last change was not saved." } }));
+        window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: "We could not reach the server. Your last change was not saved.", retry: () => send(commands, { vehicles: [], leads: [], sales: [] }) } }));
         // Nothing was saved, so records this device created optimistically are removed again.
         const cur = stateRef.current;
         const gone = { vehicles: new Set(created.vehicles), leads: new Set(created.leads), sales: new Set(created.sales) };

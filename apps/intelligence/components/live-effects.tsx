@@ -16,7 +16,7 @@ export function LiveEffects() {
       const detail = (event as CustomEvent<{ inviteLinks?: Link[] }>).detail;
       if (detail?.inviteLinks?.length) setLinks(detail.inviteLinks);
     };
-    const onError = (event: Event) => toast((event as CustomEvent<{ message: string }>).detail.message, "error");
+    const onError = (event: Event) => { const d = (event as CustomEvent<{ message: string; retry?: () => void }>).detail; toast(d.message, "error", d.retry ? { action: { label: "Retry", onClick: d.retry } } : undefined); };
     window.addEventListener("vl:effects", onEffects);
     window.addEventListener("vl:sync-error", onError);
     return () => { window.removeEventListener("vl:effects", onEffects); window.removeEventListener("vl:sync-error", onError); };

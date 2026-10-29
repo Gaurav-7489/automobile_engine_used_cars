@@ -1,5 +1,6 @@
 "use client";
 
+import { ThemeSwitch } from "../theme";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
@@ -86,7 +87,7 @@ export function LoginExperience({ providers }: Props) {
             <p className="meta">Organisation access is assigned by your administrator. MFA may be required.</p>
           </div>
         </form>
-        <footer className="login-links"><Link href="/info/privacy">Privacy</Link><span aria-hidden="true">/</span><Link href="/info/terms">Terms</Link><span aria-hidden="true">/</span><Link href="/info/support">Support</Link></footer>
+        <footer className="login-links"><Link href="/info/privacy">Privacy</Link><span aria-hidden="true">/</span><Link href="/info/terms">Terms</Link><span aria-hidden="true">/</span><Link href="/info/support">Support</Link><ThemeSwitch /></footer>
       </main>
       <ForgotDialog open={forgotOpen} onClose={() => setForgotOpen(false)} />
       <AccessDialog open={accessOpen} onClose={() => setAccessOpen(false)} />

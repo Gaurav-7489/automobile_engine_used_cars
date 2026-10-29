@@ -27,7 +27,7 @@ export function GroupedBars({ title, unit, data, series, onSelect, format = (v) 
         <span className="legend" role="list" aria-label="Legend">
           {series.map((s) => <span key={s.name} role="listitem"><span className="swatch" style={{ background: s.color }} />{s.name}</span>)}
         </span>
-        <Button size="sm" variant="ghost" aria-pressed={showTable} aria-controls={tableId} onClick={() => setShowTable((v) => !v)}>{showTable ? "View chart" : "View data"}</Button>
+        <Button size="sm" variant="ghost" aria-pressed={showTable} aria-controls={showTable ? tableId : undefined} onClick={() => setShowTable((v) => !v)}>{showTable ? "View chart" : "View data"}</Button>
       </div>
       {showTable ? (
         <div id={tableId} className="table-wrap fit"><table className="chart-data-table"><caption className="sr-only">{title}, {unit}</caption>

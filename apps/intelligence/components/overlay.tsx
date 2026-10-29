@@ -32,10 +32,17 @@ function useModal(open: boolean, onClose: () => void, dirty: boolean | undefined
     triggerRef.current = document.activeElement as HTMLElement | null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const panel = panelRef.current;
-    const target = (initialFocus && panel?.querySelector<HTMLElement>(initialFocus)) || panel?.querySelector<HTMLElement>("[data-autofocus]") || panel?.querySelector<HTMLElement>(FOCUSABLE.replace("a[href], ", ""));
-    window.setTimeout(() => (target ?? panel)?.focus(), 0);
+    // The panel is portalled and mounts a moment after `open` changes, so focus is placed once it exists (a few frames at most).
+    let frames = 0, frame = 0;
+    const place = () => {
+      const panel = panelRef.current;
+      if (!panel) { if (frames++ < 20) frame = window.requestAnimationFrame(place); return; }
+      const target = (initialFocus && panel.querySelector<HTMLElement>(initialFocus)) || panel.querySelector<HTMLElement>("[data-autofocus]") || panel.querySelector<HTMLElement>(FOCUSABLE.replace("a[href], ", ""));
+      (target ?? panel).focus();
+    };
+    frame = window.requestAnimationFrame(place);
     return () => {
+      window.cancelAnimationFrame(frame);
       document.body.style.overflow = previousOverflow;
       const trigger = triggerRef.current;
       if (trigger && document.contains(trigger)) window.setTimeout(() => trigger.focus(), 0);

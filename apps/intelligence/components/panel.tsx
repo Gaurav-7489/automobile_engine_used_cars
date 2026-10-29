@@ -43,7 +43,7 @@ export function RemotePanel<T>({ title, remote, rows = 3, children }: { title: s
     return <ErrorPanel title={`${title} could not load`} onRetry={demoState === "error" ? () => url.set({ demo_state: null }) : remote.reload} />;
   }
   return (
-    <div aria-busy={remote.status === "refreshing"} style={{ opacity: remote.status === "refreshing" ? 0.72 : 1, transition: "opacity 120ms ease" }}>
+    <div className="page" aria-busy={remote.status === "refreshing"} style={{ opacity: remote.status === "refreshing" ? 0.72 : 1, transition: "opacity 120ms ease" }}>
       {remote.status === "error" ? <div className="notice danger" role="alert" style={{ marginBottom: 12 }}>{remote.error} <button className="link-btn" onClick={remote.reload}>Retry</button></div> : null}
       {children}
     </div>

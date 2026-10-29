@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { Icon } from "./icons";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -173,6 +173,21 @@ export function PanelSkeleton({ rows = 3, title = "Loading" }: { rows?: number; 
   );
 }
 
+/** A table's worth of rows while the first page loads. Announced once as a status; the bars themselves are decorative. */
+export function TableSkeleton({ rows = 6, columns = 5, title = "Loading rows" }: { rows?: number; columns?: number; title?: string }) {
+  return (
+    <div className="table-wrap" role="status" aria-label={`${title}…`} aria-busy="true">
+      <div className="skeleton-table" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        {Array.from({ length: rows * columns }, (_, i) => <Skeleton key={i} h={i < columns ? 12 : 16} w={`${60 + ((i * 17) % 35)}%`} />)}
+      </div>
+    </div>
+  );
+}
+
+export function KpiSkeleton({ count = 4 }: { count?: number }) {
+  return <div className="kpi-grid" role="status" aria-label="Loading figures…" aria-busy="true">{Array.from({ length: count }, (_, i) => <div key={i} className="kpi" style={{ padding: 20, gap: 12 }}><Skeleton h={14} w="55%" /><Skeleton h={28} w="40%" /><Skeleton h={12} w="70%" /></div>)}</div>;
+}
+
 export function EmptyState({ title, children, actions, center }: { title: string; children?: ReactNode; actions?: ReactNode; center?: boolean }) {
   return (
     <div className={`state-box ${center ? "center" : ""}`}>
@@ -185,7 +200,7 @@ export function EmptyState({ title, children, actions, center }: { title: string
 
 export function ErrorPanel({ title = "This panel could not load", message, onRetry, partial }: { title?: string; message?: string; onRetry?: () => void; partial?: boolean }) {
   return (
-    <div className="state-box" role="alert" style={{ borderColor: "rgba(255,138,128,0.5)" }}>
+    <div className="state-box" role="alert" style={{ borderColor: "color-mix(in srgb, var(--danger) 50%, transparent)" }}>
       <div className="row-flex">{partial ? <Badge tone="warn">Incomplete</Badge> : null}<h3 className="h3">{title}</h3></div>
       <p className="muted">{message ?? "Other panels on this page are still showing their last successful data. Totals that depend on this panel are marked Incomplete and never shown as zero."}</p>
       {onRetry ? <div className="actions"><Button onClick={onRetry}><Icon name="refresh" size={16} />Retry</Button></div> : null}
@@ -195,9 +210,13 @@ export function ErrorPanel({ title = "This panel could not load", message, onRet
 
 export function FormSummary({ errors, label = "Fix these to continue:" }: { errors: Record<string, string>; label?: string }) {
   const entries = Object.entries(errors);
+  const ref = useRef<HTMLDivElement>(null);
+  const signature = entries.map(([k, m]) => `${k}:${m}`).join("|");
+  // A new set of problems moves focus to the summary, so keyboard and screen-reader users land on what needs fixing.
+  useEffect(() => { if (signature) ref.current?.focus({ preventScroll: false }); }, [signature]);
   if (!entries.length) return null;
   return (
-    <div className="form-summary" role="alert">
+    <div className="form-summary" role="alert" tabIndex={-1} ref={ref}>
       <strong>{label}</strong>
       <ul>{entries.map(([key, message]) => <li key={key}>{message}</li>)}</ul>
     </div>
@@ -209,7 +228,7 @@ export function InfoTip({ label, children }: { label: string; children: ReactNod
   const id = useId();
   return (
     <span style={{ position: "relative", display: "inline-flex" }}>
-      <button type="button" className="btn-ghost" aria-label={label} aria-expanded={open} aria-controls={id} onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }} onBlur={() => setOpen(false)} style={{ background: "none", border: 0, color: "var(--muted)", padding: 0, width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+      <button type="button" className="btn-ghost" aria-label={label} aria-expanded={open} aria-controls={open ? id : undefined} onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }} onBlur={() => setOpen(false)} style={{ background: "none", border: 0, color: "var(--muted)", padding: 0, width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
         <Icon name="info" size={16} />
       </button>
       {open ? <span id={id} role="tooltip" className="chart-tooltip" style={{ right: 0, top: "100%", whiteSpace: "normal", width: 260 }}>{children}</span> : null}

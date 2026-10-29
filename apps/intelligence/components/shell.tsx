@@ -15,6 +15,7 @@ import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./wor
 import { initials } from "@/lib/format";
 import { NAV, ROLE_LABEL, visibleNav } from "@/lib/permissions";
 import { entitled } from "@/lib/entitlements";
+import { ThemeMenuItems, ThemeSwitch } from "./theme";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { sumAlertCounts } from "@/lib/selectors";
 
@@ -77,7 +78,7 @@ function MoreSheet({ open, onClose, platformAdmin }: { open: boolean; onClose: (
         </select>
       </div>
       <Link href="/app/settings/security" className="btn" onClick={onClose}>Account and security</Link>
-      <a href="/" className="btn">Public showroom</a>
+      <div className="field"><span className="label">Theme</span><ThemeSwitch /></div>
       <Link href="/install" className="btn" onClick={onClose}>Install app</Link>
       {platformAdmin ? <Link href="/admin" className="btn" onClick={onClose}><Icon name="shield" size={18} />VandLabs admin console</Link> : null}
       <Button onClick={signOut}><Icon name="logout" size={18} />Sign out</Button>
@@ -132,7 +133,6 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
             ))}
           </nav>
           <div className="rail-foot">
-            <a href="/" className="btn btn-block">Public showroom</a>
             <Link href="/install" className="btn btn-block">Install app</Link>
             <div className="who"><strong>{state.tenant.name}</strong><span>{ROLE_LABEL[session.role]}{demoState === "empty" ? " / Empty-state preview" : ""}</span></div>
             {platformAdmin ? <Link href="/admin" className="btn btn-block"><Icon name="shield" size={18} /><span className="label">VandLabs admin</span></Link> : null}
@@ -153,6 +153,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
                 <>
                   <div className="menu-label" role="presentation">{session.name}<br />{session.email} / {ROLE_LABEL[session.role]}</div><hr />
                   <Link role="menuitem" href={href("/app/settings/security")} onClick={close}>Account and security</Link>
+                  <ThemeMenuItems onChoose={close} />
                   {platformAdmin ? <Link role="menuitem" href="/admin" onClick={close}>VandLabs admin console</Link> : null}
                   <button role="menuitem" onClick={signOut}><Icon name="logout" size={18} />Sign out</button>
                 </>
