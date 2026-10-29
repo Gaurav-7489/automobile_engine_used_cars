@@ -67,6 +67,24 @@ export async function signIn(emailInput: string, password: string, code?: string
   return { ok: true, userId: user.id, name: user.display_name, tenantId: usable[0].tenant_id };
 }
 
+export type Reauth = { ok: true } | { ok: false; code: "invalid" | "locked" };
+
+/**
+ * Password confirmation for a user who is already signed in. It checks the supplied password against that one user's
+ * stored hash and nothing else: no workspace is selected, the sign-in lockout is untouched, and a disabled account is
+ * indistinguishable from a wrong password. Repeated wrong passwords pause confirmation (not sign-in) for ten minutes.
+ */
+export async function reauthenticate(userId: string, password: string): Promise<Reauth> {
+  if (!isUuid(userId) || !password || password.length > 200) { await burnPasswordCheck(password || "x"); return { ok: false, code: "invalid" }; }
+  const row = (await plain((c) => c.query("SELECT * FROM intelligence_reauth_state($1)", [userId]))).rows[0] as { password_hash: string; disabled: boolean; locked: boolean } | undefined;
+  if (!row) { await burnPasswordCheck(password); return { ok: false, code: "invalid" }; }
+  if (row.locked) { await burnPasswordCheck(password); return { ok: false, code: "locked" }; }
+  const valid = await verifyPassword(password, row.password_hash);
+  if (row.disabled) return { ok: false, code: "invalid" };
+  await plain((c) => c.query("SELECT intelligence_record_reauth($1, $2)", [userId, valid]));
+  return valid ? { ok: true } : { ok: false, code: "invalid" };
+}
+
 /** Validates a session against the database on every request, so revocation and role changes apply immediately. */
 export async function resolvePrincipal(userId: string, tenantId: string, issuedAtSeconds: number): Promise<Principal | null> {
   if (!isUuid(userId) || !isUuid(tenantId)) return null;

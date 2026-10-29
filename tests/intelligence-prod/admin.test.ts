@@ -82,3 +82,52 @@ test("one sign-in: platform administrators manage every dealership through check
     await h.close();
   }
 });
+
+test("password confirmation is separate from sign-in: no workspace choice, own lockout, sign-in untouched", async () => {
+  const { reauthenticate } = await import("../../apps/intelligence/lib/server/identity");
+  const h = await harness();
+  try {
+    const home = await provisionWorkspace(await h.admin.connect(), spec("Reauth", "boss@reauth.example"));
+    assert.ok((await redeemToken(home.ownerToken, "correct horse battery 7")).ok);
+    const user = await signIn("boss@reauth.example", "correct horse battery 7");
+    assert.ok(user.ok);
+    if (!user.ok) return;
+    const row = async () => (await h.db.query<{ failed_attempts: number; locked_until: string | null; reauth_failed_attempts: number; reauth_locked_until: string | null }>(
+      "SELECT failed_attempts, locked_until, reauth_failed_attempts, reauth_locked_until FROM intelligence_users WHERE id = $1", [user.userId])).rows[0];
+
+    assert.deepEqual(await reauthenticate(user.userId, "correct horse battery 7"), { ok: true });
+    // Wrong, empty, oversize and malformed ids are all the same refusal.
+    assert.deepEqual(await reauthenticate(user.userId, "wrong password here"), { ok: false, code: "invalid" });
+    assert.deepEqual(await reauthenticate(user.userId, ""), { ok: false, code: "invalid" });
+    assert.deepEqual(await reauthenticate(user.userId, "x".repeat(300)), { ok: false, code: "invalid" });
+    assert.deepEqual(await reauthenticate("not-a-uuid", "correct horse battery 7"), { ok: false, code: "invalid" });
+    assert.deepEqual(await reauthenticate("00000000-0000-4000-8000-000000000000", "correct horse battery 7"), { ok: false, code: "invalid" });
+    // Another person's password does not confirm this user.
+    const other = await provisionWorkspace(await h.admin.connect(), spec("Other2", "owner@other2.example"));
+    assert.ok((await redeemToken(other.ownerToken, "another horse battery 8")).ok);
+    assert.deepEqual(await reauthenticate(user.userId, "another horse battery 8"), { ok: false, code: "invalid" });
+
+    // Failures counted on the confirmation counter only; sign-in lockout is not advanced.
+    assert.equal((await row()).failed_attempts, 0);
+    assert.equal((await row()).reauth_failed_attempts, 2);
+    for (let i = 0; i < 3; i++) assert.deepEqual(await reauthenticate(user.userId, "wrong password here"), { ok: false, code: "invalid" });
+    assert.ok((await row()).reauth_locked_until);
+    assert.deepEqual(await reauthenticate(user.userId, "correct horse battery 7"), { ok: false, code: "locked" });
+    assert.equal((await row()).locked_until, null);
+    assert.equal((await signIn("boss@reauth.example", "correct horse battery 7")).ok, true);
+
+    // Pause ends: the right password confirms again and clears the counter.
+    await h.db.query("UPDATE intelligence_users SET reauth_locked_until = now() - interval '1 second' WHERE id = $1", [user.userId]);
+    assert.deepEqual(await reauthenticate(user.userId, "correct horse battery 7"), { ok: true });
+    assert.equal((await row()).reauth_failed_attempts, 0);
+
+    // A sign-in lockout also blocks confirmation; a disabled account looks like a wrong password.
+    await h.db.query("UPDATE intelligence_users SET locked_until = now() + interval '5 minutes' WHERE id = $1", [user.userId]);
+    assert.deepEqual(await reauthenticate(user.userId, "correct horse battery 7"), { ok: false, code: "locked" });
+    await h.db.query("UPDATE intelligence_users SET locked_until = NULL, disabled = true WHERE id = $1", [user.userId]);
+    assert.deepEqual(await reauthenticate(user.userId, "correct horse battery 7"), { ok: false, code: "invalid" });
+
+    // The runtime role reaches the hash only through the one-user function.
+    await assert.rejects(h.app.connect().then((c) => c.query("SELECT password_hash FROM intelligence_users")), /permission denied/);
+  } finally { await h.close(); }
+});

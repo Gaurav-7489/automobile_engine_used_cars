@@ -11,7 +11,7 @@ import { Badge, Button, EmptyState, FormSummary, Kpi, Notice, PasswordField, Tex
 
 type Workspace = { tenantId: string; organization: string; dealership: string; createdAt: string; locations: number; vehicles: number; published: number; leads: number; members: number; owners: string; pendingInvites: number };
 type Member = { userId: string; email: string; name: string; role: string; enabled: boolean; suspended: boolean; twoFactor: boolean; platformAdmin: boolean; createdAt: string };
-type Problem = { error?: { message?: string; fields?: Record<string, string> } };
+type Problem = { error?: { code?: string; message?: string; fields?: Record<string, string> } };
 
 async function call<T>(url: string, init?: RequestInit): Promise<{ ok: boolean; data: T & Problem }> {
   try {
@@ -22,9 +22,25 @@ async function call<T>(url: string, init?: RequestInit): Promise<{ ok: boolean; 
   }
 }
 
-async function reauth(password: string): Promise<string | null> {
-  const r = await call<object>("/api/auth/reauth", { method: "POST", body: JSON.stringify({ password }) });
-  return r.ok ? null : r.data.error?.message ?? "That password is not correct.";
+/** Password confirmation shared by every sensitive dialog: the field only appears when no valid confirmation is held. */
+function useReauth() {
+  const [needsPassword, setNeedsPassword] = useState(true);
+  useEffect(() => {
+    let live = true;
+    void call<{ valid?: boolean }>("/api/auth/reauth").then((r) => { if (live && r.ok && r.data.valid) setNeedsPassword(false); });
+    return () => { live = false; };
+  }, []);
+  /** Returns an error message, or null once the account is confirmed. */
+  const confirm = async (password: string): Promise<string | null> => {
+    if (!needsPassword) return null;
+    if (!password) return "Enter your password to continue.";
+    const r = await call<object>("/api/auth/reauth", { method: "POST", body: JSON.stringify({ password }) });
+    if (r.ok) { setNeedsPassword(false); return null; }
+    return r.data.error?.message ?? "We could not confirm your password. Try again.";
+  };
+  /** Call when the server says the confirmation lapsed between the check and the change. */
+  const expired = () => setNeedsPassword(true);
+  return { needsPassword, confirm, expired };
 }
 
 export function AdminConsole({ name, email }: { name: string; email: string }) {
@@ -144,20 +160,22 @@ function SuspendDialog({ member, onClose, onDone }: { member: Member; onClose: (
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const auth = useReauth();
   return (
     <Dialog open onClose={onClose} title={`${suspend ? "Suspend" : "Restore"} ${member.name}?`} description={suspend ? "They are signed out everywhere at once and cannot sign in to any dealership until restored." : "They can sign in again with their existing password."}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant={suspend ? "danger" : "primary"} loading={busy} loadingLabel="Saving" onClick={async () => {
         setBusy(true); setErrors({});
-        const failed = await reauth(password);
+        const failed = await auth.confirm(password);
         if (failed) { setBusy(false); setErrors({ password: failed }); return; }
         const r = await call<object>(`/api/admin/users/${member.userId}`, { method: "POST", body: JSON.stringify({ suspended: suspend, reason }) });
         setBusy(false);
+        if (r.data.error?.code === "reauth_required") auth.expired();
         if (r.ok) onDone(); else setErrors(r.data.error?.fields ?? { form: r.data.error?.message ?? "Nothing was changed." });
       }}>{suspend ? "Suspend account" : "Restore account"}</Button></>}>
       <div className="stack">
         <FormSummary errors={errors.form ? { form: errors.form } : {}} />
         <TextField label={suspend ? "Reason (kept in the audit log)" : "Note (optional)"} value={reason} onChange={(e) => setReason(e.target.value)} error={errors.reason} />
-        <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} />
+        {auth.needsPassword ? <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} /> : <Notice>Your identity was confirmed a moment ago.</Notice>}
       </div>
     </Dialog>
   );
@@ -171,16 +189,18 @@ function CreateDealership({ onClose, onCreated }: { onClose: () => void; onCreat
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const auth = useReauth();
   const dirty = Object.values(form).some(Boolean);
   const setBranch = (i: number, patch: Partial<Branch>) => setBranches((list) => list.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   return (
     <Dialog open onClose={onClose} dirty={dirty} size="w640" title="Add dealership" description="Creates the dealership's private workspace and a one-time setup link for its owner. The owner chooses their own password."
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating" onClick={async () => {
         setBusy(true); setErrors({});
-        const failed = await reauth(password);
+        const failed = await auth.confirm(password);
         if (failed) { setBusy(false); setErrors({ password: failed }); return; }
         const r = await call<{ setupPath: string; expiresAt: string }>("/api/admin/workspaces", { method: "POST", body: JSON.stringify({ ...form, locations: branches }) });
         setBusy(false);
+        if (r.data.error?.code === "reauth_required") auth.expired();
         if (r.ok) onCreated(r.data.setupPath, r.data.expiresAt);
         else setErrors({ ...(r.data.error?.fields ?? {}), form: r.data.error?.message ?? "Nothing was created." });
       }}>Create dealership</Button></>}>
@@ -206,7 +226,7 @@ function CreateDealership({ onClose, onCreated }: { onClose: () => void; onCreat
           </div>
         ))}
         <div><Button size="sm" onClick={() => setBranches([...branches, { name: "", city: "", state: "", phone: "" }])}><Icon name="plus" size={16} />Add another branch</Button></div>
-        <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} />
+        {auth.needsPassword ? <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} /> : <Notice>Your identity was confirmed a moment ago.</Notice>}
       </div>
     </Dialog>
   );
@@ -218,21 +238,23 @@ function ReissueInvite({ workspace, onClose, onDone }: { workspace: Workspace; o
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const auth = useReauth();
   return (
     <Dialog open onClose={onClose} title={`New setup link for ${workspace.dealership}`} description="Use this when the first link expired or went to the wrong address. Any earlier unused link stops working."
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating" onClick={async () => {
         setBusy(true); setErrors({});
-        const failed = await reauth(password);
+        const failed = await auth.confirm(password);
         if (failed) { setBusy(false); setErrors({ password: failed }); return; }
         const r = await call<{ setupPath: string; expiresAt: string }>(`/api/admin/workspaces/${workspace.tenantId}/owner-invite`, { method: "POST", body: JSON.stringify({ ownerName, ownerEmail }) });
         setBusy(false);
+        if (r.data.error?.code === "reauth_required") auth.expired();
         if (r.ok) onDone(r.data.setupPath, r.data.expiresAt); else setErrors({ ...(r.data.error?.fields ?? {}), form: r.data.error?.message ?? "Nothing was changed." });
       }}>Create link</Button></>}>
       <div className="stack">
         <FormSummary errors={errors.form ? { form: errors.form } : {}} />
         <TextField label="Owner's name" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
         <TextField label="Owner's email" type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} error={errors.ownerEmail} />
-        <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} />
+        {auth.needsPassword ? <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} /> : <Notice>Your identity was confirmed a moment ago.</Notice>}
       </div>
     </Dialog>
   );
