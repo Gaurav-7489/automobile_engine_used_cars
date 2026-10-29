@@ -37,6 +37,7 @@ type Ctx = {
   epoch: number;
 };
 
+type Created = { vehicles: string[]; leads: string[]; sales: string[] };
 type Mergeable = "vehicles" | "leads" | "sales" | "alerts";
 const upsert = <T extends { id: string }>(current: T[], incoming: T[]): T[] => {
   if (!incoming.length) return current;
@@ -107,7 +108,7 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
     return () => { window.clearInterval(interval); window.removeEventListener("focus", onFocus); };
   }, [refresh]);
 
-  const send = useCallback((commands: Command[]) => {
+  const send = useCallback((commands: Command[], created: Created) => {
     pending.current += 1;
     setSaving(true);
     chain.current = chain.current.then(async () => {
@@ -121,13 +122,23 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
           const merged: WorkspaceState = body.state.partial
             ? { ...body.state, vehicles: upsert(cached.vehicles, body.changes?.vehicles ?? []), leads: upsert(cached.leads, body.changes?.leads ?? []), sales: upsert(cached.sales, body.changes?.sales ?? []), alerts: upsert(cached.alerts, body.changes?.alerts ?? []) }
             : body.state;
-          stateRef.current = merged; setState(merged);
+          // Records this device created optimistically are confirmed by the server's copy (same id) or dropped (a different id was issued, or the change was refused).
+          const confirmed = { vehicles: new Set((body.changes?.vehicles ?? []).map((x) => x.id)), leads: new Set((body.changes?.leads ?? []).map((x) => x.id)), sales: new Set((body.changes?.sales ?? []).map((x) => x.id)) };
+          const dropped = (key: keyof Created) => new Set(created[key].filter((id) => !confirmed[key].has(id)));
+          const dv = dropped("vehicles"), dl = dropped("leads"), ds = dropped("sales");
+          const cleaned: WorkspaceState = body.state.partial ? { ...merged, vehicles: merged.vehicles.filter((x) => !dv.has(x.id)), leads: merged.leads.filter((x) => !dl.has(x.id)), sales: merged.sales.filter((x) => !ds.has(x.id)) } : merged;
+          stateRef.current = cleaned; setState(cleaned);
           setEpoch((n) => n + 1);
         }
         if (body?.ok && body.effects) window.dispatchEvent(new CustomEvent("vl:effects", { detail: body.effects }));
         if (!body?.ok) window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: body?.error?.message ?? "The change could not be saved. It has been undone." } }));
       } catch {
         window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: "We could not reach the server. Your last change was not saved." } }));
+        // Nothing was saved, so records this device created optimistically are removed again.
+        const cur = stateRef.current;
+        const gone = { vehicles: new Set(created.vehicles), leads: new Set(created.leads), sales: new Set(created.sales) };
+        const undone: WorkspaceState = { ...cur, vehicles: cur.vehicles.filter((x) => !gone.vehicles.has(x.id)), leads: cur.leads.filter((x) => !gone.leads.has(x.id)), sales: cur.sales.filter((x) => !gone.sales.has(x.id)) };
+        stateRef.current = undone; setState(undone);
         void refresh();
       } finally {
         pending.current -= 1;
@@ -137,11 +148,13 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
   }, [router, refresh]);
 
   const run = useCallback(<R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => R): R => {
-    const { value: result, commands } = recordCommands(() => fn(stateRef.current, actor));
+    const before = stateRef.current;
+    const { value: result, commands } = recordCommands(() => fn(before, actor));
     if (result.ok) {
       stateRef.current = result.state;
       setState(result.state);
-      if (commands.length && demoRef.current === "normal") send(commands);
+      const fresh = <T extends { id: string }>(a: T[], b: T[]) => { const known = new Set(b.map((x) => x.id)); return a.filter((x) => !known.has(x.id)).map((x) => x.id); };
+      if (commands.length && demoRef.current === "normal") send(commands, { vehicles: fresh(result.state.vehicles, before.vehicles), leads: fresh(result.state.leads, before.leads), sales: fresh(result.state.sales, before.sales) });
     }
     return result;
   }, [actor, send]);

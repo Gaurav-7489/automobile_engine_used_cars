@@ -23,7 +23,7 @@ export function addLead(state: WorkspaceState, actor: Actor, input: LeadInput): 
   if (!trim(input.consentEvidence)) fields.consentEvidence = "Record how consent was captured, for example Walk-in form.";
   if (Object.keys(fields).length) return fail(422, "invalid", "Fix the highlighted fields to add this lead.", { fields });
   const stamp = now();
-  const id = nextId("L", state.leads.map((l) => l.id), seq(state, 226));
+  const id = nextId("L", state.leads.map((l) => l.id), seq(state, 226), state.idFloor?.L);
   const vehicle = input.vehicleId === "unspecified" ? null : input.vehicleId;
   const duplicate = trim(input.contact) ? state.leads.find((l) => l.contactFull.replace(/\D/g, "") === input.contact.replace(/\D/g, "") && l.stage !== "Lost") : undefined;
   const lead: Lead = {

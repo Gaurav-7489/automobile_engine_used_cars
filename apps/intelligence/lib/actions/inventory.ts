@@ -109,7 +109,7 @@ export function addVehicle(state: WorkspaceState, actor: Actor, input: VehicleIn
     acquisition: toPaise(input.costs.acquisition) ?? 0, transport: toPaise(input.costs.transport) ?? 0, inspection: toPaise(input.costs.inspection) ?? 0,
     refurbishment: toPaise(input.costs.refurbishment) ?? 0, fees: toPaise(input.costs.fees) ?? 0,
   };
-  const id = nextId("V", state.vehicles.map((v) => v.id), seq(state, 1050));
+  const id = nextId("V", state.vehicles.map((v) => v.id), seq(state, 1050), state.idFloor?.V);
   const duplicate = state.vehicles.find((v) => v.registration === trim(input.registration) && trim(input.registration) !== "" && v.status !== "archived");
   if (duplicate) return fail(409, "conflict", `A stock record with this registration already exists (${duplicate.id}).`, { latest: { id: duplicate.id } });
   const vehicle: Vehicle = {
@@ -173,7 +173,7 @@ export function transitionVehicle(state: WorkspaceState, actor: Actor, id: strin
     if (!/^\d{4}-\d{2}-\d{2}$/.test(transition.sale?.closedOn ?? "")) fields.closedOn = "Choose the sale-close date.";
     if (!Object.keys(fields).length && price !== null && !Number.isNaN(price)) {
       sale = {
-        id: nextId("S", state.sales.map((s) => s.id), seq(state, 392)), vehicleId: id, branchId: current.branchId, label: `${current.make} ${current.model}`, closedAt: ist(...((transition.sale!.closedOn).split("-").map(Number) as [number, number, number]), 12),
+        id: nextId("S", state.sales.map((s) => s.id), seq(state, 392), state.idFloor?.S), vehicleId: id, branchId: current.branchId, label: `${current.make} ${current.model}`, closedAt: ist(...((transition.sale!.closedOn).split("-").map(Number) as [number, number, number]), 12),
         salePrice: price, landed: landedCost(current.costs), directCosts: direct, state: "Completed", note: "Recorded at transition",
       };
     }

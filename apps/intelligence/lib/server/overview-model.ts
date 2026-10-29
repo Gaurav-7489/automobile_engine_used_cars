@@ -16,7 +16,9 @@ export async function overviewData(c: SqlClient, tenantId: string, branchIds: st
   const [metrics, movement, alerts] = await Promise.all([stockMetricsSql(c, tenantId, branchIds), movementSql(c, tenantId, branchIds, getMonths()), scopedAlerts(c, tenantId, branchIds)]);
   const hasStock = Number((await c.query("SELECT count(*)::int AS n FROM intelligence_vehicle_index WHERE tenant_id = $1 AND branch_id = ANY($2::uuid[])", [tenantId, branchIds])).rows[0]?.n ?? 0) > 0;
   const queue = sortAlerts(alerts.filter((a) => a.status === "Open" && !a.waiting && a.severity !== "Info"));
-  const shown = queue.slice(0, 200);
+  // The queue shows a handful of rows per category, so the response carries the most urgent few of each rather than every alert.
+  const top = (rows: Alert[]) => rows.slice(0, 15);
+  const shown = [...new Map([...top(queue), ...top(queue.filter((a) => a.type === "Pricing")), ...top(queue.filter((a) => a.type === "Leads")), ...top(queue.filter((a) => a.type === "Integration"))].map((a) => [a.id, a])).values()];
   // The records the queue refers to, so each row can be labelled without the browser holding every vehicle and lead.
   const vehicleRefs = shown.filter((a) => a.recordKind === "vehicle").map((a) => a.recordRef);
   const leadRefs = shown.filter((a) => a.recordKind === "lead").map((a) => a.recordRef);

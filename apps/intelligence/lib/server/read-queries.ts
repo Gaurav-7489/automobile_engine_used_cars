@@ -169,9 +169,9 @@ export async function listLeads(c: SqlClient, tenantId: string, branchIds: strin
   const rows = (await c.query(
     `SELECT l.data, count(*) OVER () AS total FROM intelligence_lead_index l WHERE ${where.join(" AND ")} ORDER BY ${f.order === "recent" ? "l.last_touch_at DESC, " : ""}l.lead_id COLLATE "C" LIMIT ${add(size)} OFFSET ${add((Math.max(1, f.page) - 1) * size)}`, values)).rows as { data: Lead; total: string }[];
   const facets = (await c.query(
-    `SELECT COALESCE(array_agg(DISTINCT owner ORDER BY owner), '{}') AS owners, COALESCE(array_agg(DISTINCT vehicle_stock_id ORDER BY vehicle_stock_id) FILTER (WHERE vehicle_stock_id IS NOT NULL), '{}') AS vehicles, count(*)::int AS total
-     FROM intelligence_lead_index WHERE tenant_id = $1 AND branch_id = ANY($2::uuid[])`, [tenantId, branchIds])).rows[0] as { owners: string[]; vehicles: string[]; total: number };
-  return { leads: rows.map((r) => r.data), total: rows.length ? Number(rows[0].total) : 0, page: f.page, size, owners: facets.owners, vehicleFacets: facets.vehicles, anyLeads: Number(facets.total) > 0 };
+    `SELECT COALESCE(array_agg(DISTINCT owner ORDER BY owner), '{}') AS owners, count(*)::int AS total
+     FROM intelligence_lead_index WHERE tenant_id = $1 AND branch_id = ANY($2::uuid[])`, [tenantId, branchIds])).rows[0] as { owners: string[]; total: number };
+  return { leads: rows.map((r) => r.data), total: rows.length ? Number(rows[0].total) : 0, page: f.page, size, owners: facets.owners, anyLeads: Number(facets.total) > 0 };
 }
 
 export async function stageCounts(c: SqlClient, tenantId: string, branchIds: string[]): Promise<Record<LeadStage | string, number>> {
@@ -193,4 +193,20 @@ export async function funnelSql(c: SqlClient, tenantId: string, branchIds: strin
     { stage: "Enquiries", count: Number(r.enquiries) }, { stage: "Qualified", count: Number(r.qualified) }, { stage: "Appointments", count: Number(r.appointments) },
     { stage: "Attended", count: Number(r.attended) }, { stage: "Sales linked", count: Number(r.sales_linked) },
   ];
+}
+
+/** The highest stock, lead and sale numbers issued so far (V-n, L-n, S-n), from the read model. */
+export async function idFloors(c: SqlClient, tenantId: string): Promise<{ V: number; L: number; S: number }> {
+  const r = (await c.query(
+    `SELECT (SELECT COALESCE(max(substring(stock_id from 3)::int), 0) FROM intelligence_vehicle_index WHERE tenant_id = $1 AND stock_id ~ '^V-[0-9]{1,6}$') AS v,
+            (SELECT COALESCE(max(substring(lead_id from 3)::int), 0) FROM intelligence_lead_index WHERE tenant_id = $1 AND lead_id ~ '^L-[0-9]{1,6}$') AS l,
+            (SELECT COALESCE(max(substring(sale_id from 3)::int), 0) FROM intelligence_sale_index WHERE tenant_id = $1 AND sale_id ~ '^S-[0-9]{1,6}$') AS s`, [tenantId])).rows[0] as { v: number; l: number; s: number };
+  return { V: Number(r.v), L: Number(r.l), S: Number(r.s) };
+}
+
+/** Sales by id with the fields that follow the vehicle resolved, as in the lists. */
+export async function salesByIds(c: SqlClient, tenantId: string, ids: string[]): Promise<Sale[]> {
+  if (!ids.length) return [];
+  const rows = await q(c, `SELECT s.* FROM (${SALES_EFFECTIVE}) s WHERE s.sale_id = ANY($2::text[])`, [tenantId, ids]);
+  return rows.map(toSale);
 }

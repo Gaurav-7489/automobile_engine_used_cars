@@ -48,6 +48,8 @@ export type WorkspaceState = {
    * the visible pages have fetched, and `events` is not used. Open-alert counts per permitted branch come from the server.
    */
   partial?: boolean;
+  /** Highest stock, lead and sale numbers already issued, so new ids stay unique while only some records are loaded. */
+  idFloor?: { V: number; L: number; S: number };
   alertCounts?: Record<string, { critical: number; dueToday: number; overdue: number; waiting: number; open: number }>;
 };
 

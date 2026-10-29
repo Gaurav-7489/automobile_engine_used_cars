@@ -48,7 +48,8 @@ export function leadIndexRow(l: Lead, sharedUpdatedAt: unknown, docUpdatedAt: un
   return {
     lead_id: l.id, branch_id: l.branchId, stage: l.stage, owner: l.owner, source: l.source, vehicle_stock_id: l.vehicleId, created_at: iso(l.createdAt), last_touch_at: iso(l.lastTouchAt),
     next_due_at: open[0] ? iso(open[0]) : null, has_sale: Boolean(l.saleId), has_appointment: l.appointment !== undefined, marketing_consent: l.consent.marketing,
-    overdue_flag: l.nextActionTone === "warning" && l.nextAction === "Overdue",
+    overdue_flag: l.nextActionTone === "warning" && l.nextAction === "Overdue", contact_digits: l.contactFull.replace(/\D/g, ""),
+    appointment_at: l.appointment?.status === "Scheduled" ? iso(l.appointment.at) : null,
     search: `${l.id} ${l.name} ${l.vehicleId ?? ""} ${l.source}`.toLowerCase(), data: l,
     shared_updated_at: String(sharedUpdatedAt), doc_updated_at: docUpdatedAt ? String(docUpdatedAt) : null,
   };
@@ -65,6 +66,8 @@ export function saleIndexRow(s: Sale, sourceUpdatedAt: unknown, fromLedger: bool
 export async function syncReadModel(c: SqlClient, tenantId: string, options: { force?: boolean } = {}): Promise<number> {
   const now = Date.now();
   if (!options.force && now - (lastSync.get(tenantId) ?? 0) < FRESH_MS) return 0;
+  // One rebuild at a time per tenant: a second request waits for the first instead of repeating its work.
+  await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 5))", [tenantId]);
   lastSync.set(tenantId, now);
   const firstBranch = String(((await c.query("SELECT id FROM locations WHERE tenant_id = $1 ORDER BY name LIMIT 1", [tenantId])).rows[0] as Row | undefined)?.id ?? "");
   let refreshed = 0;

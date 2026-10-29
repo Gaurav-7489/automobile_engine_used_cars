@@ -36,6 +36,7 @@ CREATE TABLE intelligence_vehicle_index (
 CREATE INDEX intelligence_vehicle_index_branch_status ON intelligence_vehicle_index (tenant_id, branch_id, status);
 CREATE INDEX intelligence_vehicle_index_acquired ON intelligence_vehicle_index (tenant_id, status, acquired_day);
 CREATE INDEX intelligence_vehicle_index_make ON intelligence_vehicle_index (tenant_id, make);
+CREATE INDEX intelligence_vehicle_index_registration ON intelligence_vehicle_index (tenant_id, registration);
 
 CREATE TABLE intelligence_lead_index (
   tenant_id uuid NOT NULL,
@@ -51,6 +52,8 @@ CREATE TABLE intelligence_lead_index (
   has_sale boolean NOT NULL,
   has_appointment boolean NOT NULL,
   overdue_flag boolean NOT NULL,
+  contact_digits text NOT NULL DEFAULT '',
+  appointment_at timestamptz,          -- the scheduled appointment, if any (used to detect double-booking)
   marketing_consent boolean NOT NULL,
   search text NOT NULL,
   data jsonb NOT NULL,
@@ -61,6 +64,8 @@ CREATE TABLE intelligence_lead_index (
 CREATE INDEX intelligence_lead_index_branch_stage ON intelligence_lead_index (tenant_id, branch_id, stage);
 CREATE INDEX intelligence_lead_index_created ON intelligence_lead_index (tenant_id, created_at DESC);
 CREATE INDEX intelligence_lead_index_vehicle ON intelligence_lead_index (tenant_id, vehicle_stock_id);
+CREATE INDEX intelligence_lead_index_contact ON intelligence_lead_index (tenant_id, contact_digits) WHERE contact_digits <> '';
+CREATE INDEX intelligence_lead_index_appointment ON intelligence_lead_index (tenant_id, appointment_at) WHERE appointment_at IS NOT NULL;
 
 CREATE TABLE intelligence_sale_index (
   tenant_id uuid NOT NULL,

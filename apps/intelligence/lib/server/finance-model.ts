@@ -9,8 +9,8 @@ export async function capitalData(c: SqlClient, tenantId: string, branchIds: str
   const [metrics, summary, completed, excluded] = await Promise.all([
     stockMetricsSql(c, tenantId, branchIds, todayIst(), cost),
     salesSummarySql(c, tenantId, branchIds, from, to),
-    listSales(c, tenantId, branchIds, from, to, 1, 200, "Completed"),
-    listSales(c, tenantId, branchIds, from, to, 1, 200, "NotCompleted"),
+    listSales(c, tenantId, branchIds, from, to, 1, 60, "Completed"),
+    listSales(c, tenantId, branchIds, from, to, 1, 60, "NotCompleted"),
   ]);
   const done = summary.filter((r) => r.state === "Completed");
   const realized = { count: done.reduce((a, r) => a + r.count, 0), profit: done.reduce((a, r) => a + r.profit, 0), medianDaysToSale: medianOf(done.flatMap((r) => r.days)), excluded: summary.filter((r) => r.state !== "Completed").reduce((a, r) => a + r.count, 0) };

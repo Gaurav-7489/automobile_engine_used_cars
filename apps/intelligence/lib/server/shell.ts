@@ -5,6 +5,7 @@ import { deriveTenantAlerts } from "./alerts-model";
 import { tenantTx } from "./db";
 import type { Principal } from "./identity";
 import { syncReadModel } from "./read-model";
+import { idFloors } from "./read-queries";
 import { redactFor } from "./redact";
 import { enterLive } from "./workspace";
 import { readState } from "./workspace-store";
@@ -21,7 +22,7 @@ export async function buildShell(principal: Principal, session: Pick<Session, "r
     const alerts = await deriveTenantAlerts(c, principal.tenantId, base);
     const counts: NonNullable<WorkspaceState["alertCounts"]> = {};
     for (const b of base.branches) counts[b.id] = alertCounts(alerts.filter((a) => a.branchId === b.id));
-    return { ...base, audit: [], partial: true, alertCounts: counts } satisfies WorkspaceState;
+    return { ...base, audit: [], partial: true, alertCounts: counts, idFloor: await idFloors(c, principal.tenantId) } satisfies WorkspaceState;
   });
   return redactFor(shell, session);
 }

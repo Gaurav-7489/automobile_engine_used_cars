@@ -17,7 +17,7 @@ import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 const MAIN_STAGES: LeadStage[] = ["New", "Contacted", "Qualified", "Appointment"];
 const MORE_STAGES: LeadStage[] = ["Visited", "Test drive", "Negotiation", "Won", "Lost", "Nurture"];
 
-type LeadPageData = { leads: Lead[]; vehicles: Vehicle[]; total: number; page: number; size: number; owners: string[]; vehicleFacets: string[]; anyLeads: boolean; stages: Record<string, number> };
+type LeadPageData = { leads: Lead[]; vehicles: Vehicle[]; total: number; page: number; size: number; owners: string[]; anyLeads: boolean; stages: Record<string, number> };
 
 export function LeadsPage({ leadId }: { leadId?: string }) {
   const { state, scope, can, session, run, mergeRecords } = useWorkspace();
@@ -51,7 +51,6 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
   const rows = useMemo(() => (remote.data?.leads ?? []).map((l) => cachedLeads.get(l.id) ?? l), [remote.data, cachedLeads]);
   const cachedVehicles = useMemo(() => new Map(state.vehicles.map((v) => [v.id, v])), [state.vehicles]);
   const owners = remote.data?.owners ?? [];
-  const vehicles = remote.data?.vehicleFacets ?? [];
   const total = remote.data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / size));
   const currentPage = remote.data?.page ?? 1;
@@ -95,7 +94,7 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
       <div className="lead-filters only-desktop" role="group" aria-label="Filters">
         <SelectField label="Owner" aria-label="Owner" value={owner} onChange={(e) => url.set({ owner: e.target.value || null })} options={owners} placeholder="All owners" />
         <SelectField label="Source" aria-label="Source" value={source} onChange={(e) => url.set({ source: e.target.value || null })} options={[...LEAD_SOURCES]} placeholder="All sources" />
-        <SelectField label="Vehicle" aria-label="Vehicle" value={vehicle} onChange={(e) => url.set({ vehicle: e.target.value || null })} options={[...vehicles.map((v) => ({ value: v, label: v })), { value: "unspecified", label: "Unspecified interest" }]} placeholder="All vehicles" />
+        <TextField label="Vehicle (stock ID)" aria-label="Vehicle stock ID" value={vehicle} onChange={(e) => url.set({ vehicle: e.target.value.trim() || null, page: null })} placeholder="e.g. V-1001 or unspecified" />
         <SelectField label="Created" aria-label="Created" value={created} onChange={(e) => url.set({ created: e.target.value === "30" ? null : e.target.value })} options={[{ value: "7", label: "Created: 7 days" }, { value: "30", label: "Created: 30 days" }, { value: "all", label: "Created: any time" }]} />
         <Button aria-pressed={overdue} variant={overdue ? "primary" : "secondary"} onClick={() => url.set({ overdue: overdue ? null : "1" })}>Overdue only</Button>
       </div>
@@ -154,7 +153,7 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
       </div>
 
       <AddLead open={addOpen} onClose={() => setAddOpen(false)} />
-      <FilterSheet open={filterOpen} onClose={() => setFilterOpen(false)} owners={owners} vehicles={vehicles} />
+      <FilterSheet open={filterOpen} onClose={() => setFilterOpen(false)} owners={owners} />
       {selected ? <LeadDrawer key={selected.id} lead={selected} onClose={() => url.set({ lead: null })} /> : null}
       <StageDialog pending={pending} onClose={() => setPending(null)} />
     </div>
@@ -208,14 +207,14 @@ function StageDialog({ pending, onClose }: { pending: { lead: Lead; stage: LeadS
   );
 }
 
-function FilterSheet({ open, onClose, owners, vehicles }: { open: boolean; onClose: () => void; owners: string[]; vehicles: string[] }) {
+function FilterSheet({ open, onClose, owners }: { open: boolean; onClose: () => void; owners: string[] }) {
   const url = useUrlState();
   return (
     <Dialog open={open} onClose={onClose} title="Filters" footer={<><Button onClick={() => { url.set({ owner: null, source: null, vehicle: null, created: null, overdue: null, stage: null }); onClose(); }}>Clear all</Button><Button variant="primary" onClick={onClose}>Done</Button></>}>
       <SelectField label="Stage" value={url.get("stage")} onChange={(e) => url.set({ stage: e.target.value || null })} options={[...LEAD_STAGES]} placeholder="All stages" />
       <SelectField label="Owner" value={url.get("owner")} onChange={(e) => url.set({ owner: e.target.value || null })} options={owners} placeholder="All owners" />
       <SelectField label="Source" value={url.get("source")} onChange={(e) => url.set({ source: e.target.value || null })} options={[...LEAD_SOURCES]} placeholder="All sources" />
-      <SelectField label="Vehicle" value={url.get("vehicle")} onChange={(e) => url.set({ vehicle: e.target.value || null })} options={vehicles} placeholder="All vehicles" />
+      <TextField label="Vehicle (stock ID)" value={url.get("vehicle")} onChange={(e) => url.set({ vehicle: e.target.value.trim() || null, page: null })} />
       <Check label="Overdue only" checked={url.get("overdue") === "1"} onChange={(v) => url.set({ overdue: v ? "1" : null })} />
     </Dialog>
   );

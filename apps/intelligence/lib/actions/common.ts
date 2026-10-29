@@ -47,9 +47,11 @@ export function pseudoUuid(seed: string): string {
 /** Live workspaces number from 1001; sample fixtures keep their illustrative offsets. */
 export const seq = (state: WorkspaceState, sample: number): number => (state.live ? 1001 : sample);
 
-export function nextId(prefix: string, existing: readonly string[], start: number): string {
-  const numbers = existing.filter((id) => id.startsWith(`${prefix}-`)).map((id) => Number(id.slice(prefix.length + 1))).filter((n) => Number.isFinite(n));
-  return `${prefix}-${Math.max(start - 1, ...numbers) + 1}`;
+/** `floor` is the highest number already issued when only some records are loaded (live workspaces load pages, not everything). */
+export function nextId(prefix: string, existing: readonly string[], start: number, floor = 0): string {
+  // Only plain sequence numbers count. Public enquiries get ids derived from a UUID (eight hex characters, e.g. L-3253e259) which must never be read as a number.
+  const numbers = existing.filter((id) => id.startsWith(`${prefix}-`) && /^\d{1,6}$/.test(id.slice(prefix.length + 1))).map((id) => Number(id.slice(prefix.length + 1)));
+  return `${prefix}-${Math.max(start - 1, floor, ...numbers) + 1}`;
 }
 
 export function withAudit(state: WorkspaceState, actor: Actor, action: string, target: string, detail: string): WorkspaceState {
