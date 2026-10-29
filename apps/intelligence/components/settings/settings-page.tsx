@@ -8,6 +8,7 @@ import type { AuditEvent, Integration, IntegrationState, Role } from "@/lib/doma
 import { formatDateTime, formatShortDateTime } from "@/lib/format";
 import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions";
 import { downloadCsv } from "@/lib/export";
+import { FEATURES } from "@/lib/entitlements";
 import { Dialog, Drawer } from "../overlay";
 import { Panel } from "../panel";
 import { useToast } from "../toast";
@@ -17,7 +18,7 @@ import { useScopedHref, useWorkspace } from "../workspace";
 
 export const SECTIONS = [
   { key: "business", label: "Business" }, { key: "branches", label: "Branches" }, { key: "team", label: "Team & roles" }, { key: "security", label: "Security" }, { key: "integrations", label: "Integrations" },
-  { key: "billing", label: "Billing" }, { key: "api", label: "API access" }, { key: "notifications", label: "Notifications" }, { key: "audit", label: "Audit" },
+  { key: "billing", label: "Plan and access" }, { key: "api", label: "API access" }, { key: "notifications", label: "Notifications" }, { key: "audit", label: "Audit" },
 ] as const;
 type SectionKey = (typeof SECTIONS)[number]["key"];
 
@@ -378,10 +379,25 @@ function TwoFactor() {
 /* Billing ------------------------------------------------------------------------ */
 
 function Billing() {
+  const { state } = useWorkspace();
+  const e = state.entitlements;
+  if (!e) return <section className="card"><h2 className="h2">Plan and access</h2><Notice role="status">Plan details are not available.</Notice></section>;
+  const sub = e.subscription;
   return (
     <section className="card stack" aria-labelledby="bill-h">
-      <h2 className="h2" id="bill-h">Billing</h2>
-      <Notice tone="accent" role="status">Billing is handled directly by VandLabs for this workspace. No plan, usage or invoice data is connected here, so nothing is shown rather than estimating it.</Notice>
+      <h2 className="h2" id="bill-h">Plan and access</h2>
+      {sub ? (
+        <dl className="kv">
+          <dt>Subscription</dt><dd><Badge tone={e.state === "active" ? "accent" : "warn"}>{e.state === "active" ? "Active" : e.state}</Badge> {e.limits?.name}</dd>
+          <dt>Valid until</dt><dd>{formatDateTime(sub.expiresAt)}</dd>
+          <dt>Reference</dt><dd>{sub.reference || "—"}</dd>
+          {e.limits ? <><dt>Included use</dt><dd>{e.limits.monthlyRequests.toLocaleString("en-IN")} requests a month, {e.limits.maxKeys} API key{e.limits.maxKeys > 1 ? "s" : ""}, {e.limits.maxCars} car{e.limits.maxCars > 1 ? "s" : ""} in research</dd></> : null}
+        </dl>
+      ) : <Notice role="status">No subscription is recorded for this dealership. Acquisition research and the business API need one. Billing is handled directly by VandLabs; no payment is taken here.</Notice>}
+      <h3 className="h3">Features</h3>
+      <ul className="list-plain">{FEATURES.map((f) => (
+        <li key={f.key} className="row-flex between"><span><strong>{f.label}</strong><span className="meta"> {f.description}</span></span>{e.features[f.key].enabled ? <Badge tone="accent">Included</Badge> : <span title={e.features[f.key].reason}><Badge tone="warn">Not available</Badge></span>}</li>))}</ul>
+      <p className="meta">Plan and feature changes are made by VandLabs and are recorded in the platform audit log.</p>
     </section>
   );
 }

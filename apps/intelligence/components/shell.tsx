@@ -14,10 +14,21 @@ import { Button } from "./ui";
 import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./workspace";
 import { initials } from "@/lib/format";
 import { NAV, ROLE_LABEL, visibleNav } from "@/lib/permissions";
+import { entitled } from "@/lib/entitlements";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { sumAlertCounts } from "@/lib/selectors";
 
 const SHORTCUTS: [string, string][] = [["Ctrl / ⌘ + K", "Open global search"], ["/", "Open global search (outside fields)"], ["↑ ↓ then Enter", "Select and open a search result"], ["Esc", "Close a dialog, drawer or menu"], ["← → Home End", "Move between tabs"], ["Tab / Shift + Tab", "Move through controls; focus is always visible"]];
+
+/** A feature the dealership does not have: an explanation instead of a page that would only fail to load. */
+function FeatureOff({ label, reason }: { label: string; reason: string }) {
+  return (
+    <div className="page"><div className="state-box" role="status">
+      <h1 className="h2" id="page-title" tabIndex={-1}>{label} is not available</h1>
+      <p className="muted">{reason}</p>
+    </div></div>
+  );
+}
 
 function activeKey(pathname: string): string {
   const segment = pathname.split("/")[2];
@@ -83,6 +94,8 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
   const [helpOpen, setHelpOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const key = activeKey(pathname);
+  const navItem = NAV.find((n) => n.key === key);
+  const gate = navItem?.feature && !entitled(state.entitlements, navItem.feature) ? navItem : null;
   const counts = sumAlertCounts(state.alertCounts, scope.ids);
   const urgent = counts.critical + counts.overdue;
 
@@ -151,7 +164,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
         <main className="main" id="content" tabIndex={-1}>
           <div className="main-inner">
             <div className="meta only-mobile" style={{ marginBottom: 8 }}>{scope.label}</div>
-            {children}
+            {gate ? <FeatureOff label={gate.label} reason={state.entitlements!.features[gate.feature!].reason} /> : children}
           </div>
         </main>
         <nav className="bottom-nav" aria-label="Primary mobile">
