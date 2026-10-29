@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { cache } from "react";
 import type { Session } from "../domain";
 import { REAUTH_COOKIE, REAUTH_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS, signPayload, signSession, verifyPayload, verifySession } from "../session";
@@ -10,7 +10,9 @@ export function principalSession(principal: Principal, issuedAt: number, exp: nu
 
 /** Every request re-validates the signed cookie against the database: disabled accounts, revoked sessions and role changes apply at once. */
 export const getPrincipal = cache(async (): Promise<{ principal: Principal; session: Session } | null> => {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  // Browsers present the session cookie. The desktop application presents the same signed session as a bearer token (it has no cookie jar),
+  // so both are validated identically: against the database, on every request.
+  const token = (await cookies()).get(SESSION_COOKIE)?.value ?? /^Bearer ([\w.-]{20,2000})$/.exec((await headers()).get("authorization") ?? "")?.[1];
   const signed = await verifySession(token);
   if (!signed?.tid || signed.iat === undefined) return null;
   const principal = await resolvePrincipal(signed.sub, signed.tid, signed.iat);

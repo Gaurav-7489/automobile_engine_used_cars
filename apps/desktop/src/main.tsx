@@ -1,42 +1,144 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { invoke } from "@tauri-apps/api/core";
-import type { Lead, Task, Vehicle, LeadStage, AuthenticatedPrincipal, Appointment, Sale, StockCost } from "@vandlabs/contracts";
 import "./style.css";
-import { DesktopCostRecord } from "./cost-record";
-interface Config { apiOrigin:string; cognitoDomain:string; clientId:string; authorizeUrl?:string; tokenUrl?:string; revokeUrl?:string; audience?:string; resource?:string }
-interface Dashboard { data:{leads:Lead[];tasks:Task[];vehicles:Vehicle[];appointments:Appointment[];sales:Sale[];costs?:StockCost[]};principal:AuthenticatedPrincipal;metrics:{available:number;leads:number;wins:number} }
-const stages:LeadStage[]=["new","contacted","qualified","appointment","visited","test_drive","negotiation","won","lost","nurture"];
-function App(){
- const [config,setConfig]=useState<Config>(()=>{try{const value=JSON.parse(localStorage.getItem("engine.connection")||"null");return value && [value.apiOrigin,value.cognitoDomain,value.clientId].every(item=>typeof item==="string")?value:{apiOrigin:"",cognitoDomain:"",clientId:""};}catch{return {apiOrigin:"",cognitoDomain:"",clientId:""};}});
- const [dashboard,setDashboard]=useState<Dashboard|null>(null),[section,setSection]=useState("Today"),[busy,setBusy]=useState(false),[error,setError]=useState(""),[selected,setSelected]=useState<Lead|null>(null);
- async function load(){const result=await invoke<Dashboard>("api_request",{config,path:"/snapshot",method:"GET",body:null});setDashboard(result);setSelected(l=>result.data.leads.find(x=>x.id===l?.id)||null);}
- async function perform(action:()=>Promise<unknown>){setBusy(true);setError("");try{await action();}catch(e){setError(String(e));}finally{setBusy(false);}}
- const initialConfig=useRef(config);
- useEffect(()=>{const c=initialConfig.current;if(!c.apiOrigin||!c.clientId||!c.cognitoDomain)return;let mounted=true;
-  setBusy(true);invoke("restore_session",{config:c}).then(()=>invoke<Dashboard>("api_request",{config:c,path:"/snapshot",method:"GET",body:null})).then(result=>{if(mounted)setDashboard(result);}).catch(e=>{if(mounted)setError(String(e));}).finally(()=>{if(mounted)setBusy(false);});
-  return()=>{mounted=false;};
- },[]);
 
- async function discover(){const result=await invoke<Config>("discover_connection",{origin:config.apiOrigin});setConfig(result);localStorage.setItem("engine.connection",JSON.stringify(result));}
- async function login(){localStorage.setItem("engine.connection",JSON.stringify(config));await invoke("login",{config});await load();}
- async function mutate(path:string,body:unknown,method="PATCH"){await invoke("api_request",{config,path,method,body});await load();}
- const selectedSale=dashboard?.data.sales?.find(s=>s.leadId===selected?.id);
- const todayTasks=dashboard?.data.tasks.filter(t=>!t.completed)||[];
- return <div className="shell"><aside><div className="brand">VANDLABS<span>Automobile Engine</span></div><nav>{["Today","Inventory","Leads","Follow-ups","Capital"].map(s=><button className={section===s?"active":""} key={s} onClick={()=>{setSection(s);setSelected(null);}}>{s}</button>)}</nav><small>One dealership. Every surface.</small></aside><main><header><div><p className="eyebrow">DEALER WORKSPACE</p><h1>{section}</h1></div>{dashboard&&<div className="actions"><button disabled={busy} onClick={()=>void perform(load)}>Refresh</button><button disabled={busy} onClick={()=>void perform(async()=>{await invoke("logout",{config});setDashboard(null);})}>Sign out</button></div>}</header>
- {error&&<p role="alert" className="error">{error}</p>}{busy&&<p role="status">Working…</p>}
- {!dashboard?<section className="panel connect"><h2>Your next opportunity starts here.</h2><p>Enter your dealership workspace URL. We’ll find the connection settings, then open secure sign-in in your system browser.</p><label>Workspace URL<input type="url" placeholder="https://operations.example.com" value={config.apiOrigin} onChange={e=>setConfig({apiOrigin:e.target.value,cognitoDomain:"",clientId:""})}/></label><div className="actions"><button disabled={busy||!config.apiOrigin} onClick={()=>void perform(discover)}>Connect workspace</button><button className="primary" disabled={busy||!config.apiOrigin||!config.cognitoDomain||!config.clientId} onClick={()=>void perform(login)}>Sign in securely</button></div><details><summary>Advanced connection settings</summary><label>Sign-in domain<input type="url" placeholder="https://your-domain.auth.region.amazoncognito.com" value={config.cognitoDomain} onChange={e=>setConfig({...config,cognitoDomain:e.target.value})}/></label><label>Desktop client ID<input value={config.clientId} onChange={e=>setConfig({...config,clientId:e.target.value})}/></label></details><small>Credentials stay in your operating system’s secure credential store.</small></section>:<>
- {section==="Today"&&<><div className="metrics">{[["Available vehicles",dashboard.metrics.available],["Captured leads",dashboard.metrics.leads],["Open follow-ups",todayTasks.length],["Recorded wins",dashboard.metrics.wins]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div><section className="panel"><h2>Move the next opportunity forward.</h2>{dashboard.data.leads.slice(0,6).map(l=><button className="row" key={l.id} onClick={()=>{setSection("Leads");setSelected(l);}}><span><strong>{l.name}</strong><small>{l.phone}</small></span><span>{l.stage.replaceAll("_"," ")}</span></button>)}{!dashboard.data.leads.length&&<p>No leads yet. Website enquiries appear here automatically.</p>}</section></>}
- {section==="Inventory"&&<div className="cards">{dashboard.data.vehicles.map(v=><article className="panel" key={v.id}><p className="eyebrow">{v.stockId} · {v.year}</p><h2>{v.make} {v.model}</h2><p>{v.variant} · {v.mileage.toLocaleString()} km</p><strong className="price">₹{v.price.toLocaleString("en-IN")}</strong><p>{v.availabilityStatus} · {v.publishStatus}</p>{dashboard.principal.capabilities.includes("inventory:write")&&<button disabled={busy} onClick={()=>void perform(()=>mutate(`/vehicles/${v.id}`,{price:v.price,availabilityStatus:v.availabilityStatus==="sold"?"available":"sold",publishStatus:v.publishStatus,expectedVersion:v.version??0}))}>{v.availabilityStatus==="sold"?"Mark available":"Mark sold"}</button>}</article>)}</div>}
- {section==="Capital"&&(dashboard.principal.capabilities.includes("capital:read")?<><p>Verified recorded costs only. Asking spreads and recorded sale contributions are available in Command Center; unrecorded costs and daily holding assumptions remain unknown.</p><div className="cards">{dashboard.data.vehicles.map(v=>{const cost=dashboard.data.costs?.find(c=>c.vehicleId===v.id);return <article className="panel" key={v.id}><h2>{v.make} {v.model}</h2><p>{v.stockId}</p>{cost?<p>Acquired: {cost.acquiredOn}<br/>Recorded purchase: ₹{cost.purchasePrice.toLocaleString("en-IN")}<br/>{cost.reference} · v{cost.version}</p>:<p>No acquisition cost recorded.</p>}{dashboard.principal.capabilities.includes("capital:write")&&<DesktopCostRecord record={cost} busy={busy} onSave={record=>void perform(()=>mutate(`/vehicles/${v.id}/costs`,{record,expectedVersion:cost?.version??0},"PUT"))}/>}</article>;})}</div></>:<p>Your account needs capital-read permission.</p>)}
- {section==="Leads"&&!selected&&<section className="panel">{dashboard.data.leads.map(l=><button className="row" key={l.id} onClick={()=>setSelected(l)}><span><strong>{l.name}</strong><small>{l.phone} · {l.source}</small></span><span>{l.stage}</span></button>)}</section>}
- {section==="Leads"&&selected&&<section className="panel"><button onClick={()=>setSelected(null)}>Back to leads</button><h2>{selected.name}</h2><p>{selected.phone} · {selected.intent}</p><label>Pipeline stage<select value={selected.stage} disabled={busy||!dashboard.principal.capabilities.includes("lead:write")} onChange={e=>void perform(()=>mutate(`/leads/${selected.id}`,{stage:e.target.value,expectedVersion:selected.version??0}))}>{stages.map(s=><option key={s} value={s}>{s.replaceAll("_"," ")}</option>)}</select></label><p>{selected.notes||"No internal note yet."}</p>
- {dashboard.principal.capabilities.includes("lead:write")&&dashboard.principal.capabilities.includes("task:write")&&<form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void perform(()=>mutate(`/leads/${selected.id}/appointments`,{type:f.get("type"),scheduledAt:new Date(String(f.get("time"))).toISOString()},"POST"));}}><h3>Schedule confirmed visit</h3><label>Visit type<select name="type"><option value="appointment">Showroom visit</option><option value="test_drive">Test drive</option></select></label><label>Confirmed time<input name="time" type="datetime-local" required/></label><button disabled={busy}>Schedule appointment</button></form>}
- {dashboard.data.appointments.filter(a=>a.leadId===selected.id).map(a=><label key={a.id}>{a.type} · {new Date(a.scheduledAt).toLocaleString()}<select disabled={busy||!dashboard.principal.capabilities.includes("lead:write")} value={a.status} onChange={e=>void perform(()=>mutate(`/appointments/${a.id}`,{status:e.target.value}))}>{["scheduled","completed","cancelled","no_show"].map(s=><option key={s} value={s}>{s.replaceAll("_"," ")}</option>)}</select></label>)}
- {selectedSale?<p>Confirmed sale: ₹{selectedSale.amount.toLocaleString("en-IN")} · sale proceeds, not profit</p>:selected.vehicleId&&dashboard.principal.capabilities.includes("inventory:write")&&dashboard.principal.capabilities.includes("lead:write")&&<form onSubmit={e=>{e.preventDefault();const f=new FormData(e.currentTarget);void perform(()=>mutate(`/leads/${selected.id}/sales`,{amount:Number(f.get("amount")),soldAt:new Date(String(f.get("time"))).toISOString()},"POST"));}}><h3>Record verified sale</h3><label>Sale price (INR)<input name="amount" type="number" min="0.01" step="0.01" required/></label><label>Actual sale time<input name="time" type="datetime-local" required/></label><label><input type="checkbox" required/> I verified this sale and am authorized to record it.</label><p>Withdraws inventory and closes open follow-ups.</p><button disabled={busy}>Confirm sale</button></form>}
-{dashboard.principal.capabilities.includes("task:write")&&<form onSubmit={e=>{e.preventDefault();const form=new FormData(e.currentTarget);void perform(()=>mutate(`/leads/${selected.id}/tasks`,{title:form.get("title"),owner:form.get("owner"),dueAt:new Date(String(form.get("due"))).toISOString(),priority:"normal"},"POST"));}}><h3>Schedule follow-up</h3><label>Action<input name="title" required maxLength={160}/></label><label>Owner<input name="owner" required maxLength={100} defaultValue={selected.assignedTo}/></label><label>Due<input type="datetime-local" name="due" required/></label><button disabled={busy}>Schedule</button></form>}</section>}
- {section==="Follow-ups"&&<section className="panel">{dashboard.data.tasks.map(t=><div className="row" key={t.id}><span><strong>{t.title}</strong><small>{t.owner} · {new Date(t.dueAt).toLocaleString()}</small></span><button disabled={busy||!!t.closedBySaleId||!dashboard.principal.capabilities.includes("task:write")} onClick={()=>void perform(()=>mutate(`/tasks/${t.id}`,{completed:!t.completed,expectedVersion:t.version??0}))}>{t.closedBySaleId?"Closed by sale":t.completed?"Reopen":"Complete"}</button></div>)}</section>}
- </>}
- </main></div>;
+// The desktop application is a second front end to the same private platform: the same accounts, roles, branch scope, entitlements and APIs
+// as the web application. It reads the platform's own page APIs (server-paged) and sends the same workspace commands the web sends.
+interface Config { apiOrigin: string; authorizeUrl: string; tokenUrl: string }
+interface Shell { tenant: { name: string }; alertCounts?: Record<string, { critical: number; overdue: number }>; entitlements?: { features: Record<string, { enabled: boolean }> } }
+interface Vehicle { id: string; make: string; model: string; variant: string; year: number; km: number; status: string; asking: number | null; branchId: string }
+interface Lead { id: string; name: string; contactMasked: string; stage: string; source: string; owner: string; version: number; nextAction: string }
+interface VehiclePage { vehicles: Vehicle[]; total: number; counts: Record<string, number> }
+interface LeadPage { leads: Lead[]; total: number; stages: Record<string, number> }
+interface StockPage { bands: { label: string; vehicles: number; capitalPaise: number | null }[]; rows: { stockId: string; label: string; ageDays: number; recommendations: { action: string; reason: string }[] }[]; total: number }
+const STAGES = ["New", "Contacted", "Qualified", "Appointment", "Visited", "Test drive", "Negotiation", "Won", "Lost", "Nurture"];
+const SECTIONS = ["Today", "Inventory", "Leads", "Stock ageing"] as const;
+type Section = (typeof SECTIONS)[number];
+const lakh = (paise: number | null) => (paise === null ? "—" : `₹${(paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`);
+
+function App() {
+  const [config, setConfig] = useState<Config>(() => { try { const v = JSON.parse(localStorage.getItem("engine.connection.v2") || "null"); return v && typeof v.apiOrigin === "string" && typeof v.authorizeUrl === "string" && typeof v.tokenUrl === "string" ? v : { apiOrigin: "", authorizeUrl: "", tokenUrl: "" }; } catch { return { apiOrigin: "", authorizeUrl: "", tokenUrl: "" }; } });
+  const [shell, setShell] = useState<Shell | null>(null);
+  const [section, setSection] = useState<Section>("Today");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState("");
+  const [vehicles, setVehicles] = useState<VehiclePage | null>(null);
+  const [leads, setLeads] = useState<LeadPage | null>(null);
+  const [stock, setStock] = useState<StockPage | null>(null);
+
+  const get = useCallback(<T,>(path: string) => invoke<T>("api_request", { config, path, method: "GET", body: null }), [config]);
+  const perform = useCallback(async (action: () => Promise<unknown>) => { setBusy(true); setError(""); try { await action(); } catch (e) { const text = String(e); setError(text); if (/expired|Sign in/i.test(text)) setShell(null); } finally { setBusy(false); } }, []);
+
+  const initial = useRef(config);
+  useEffect(() => {
+    const c = initial.current;
+    if (!c.apiOrigin || !c.tokenUrl) return;
+    let live = true;
+    void (async () => { setBusy(true); try { await invoke("restore_session", { config: c }); const s = await invoke<{ state: Shell }>("api_request", { config: c, path: "/api/workspace", method: "GET", body: null }); if (live) setShell(s.state); } catch (e) { if (live) setError(String(e)); } finally { if (live) setBusy(false); } })();
+    return () => { live = false; };
+  }, []);
+
+  // Each section loads only its own page of data, exactly as the web application does.
+  useEffect(() => {
+    if (!shell) return;
+    let live = true;
+    const run = async () => {
+      if (section === "Inventory") { const d = await get<VehiclePage>(`/api/inventory?tab=all&page=${page}&size=25${query ? `&q=${encodeURIComponent(query)}` : ""}`); if (live) setVehicles(d); }
+      else if (section === "Leads") { const d = await get<LeadPage>(`/api/leads?stage=all&created=all&page=${page}&size=25${query ? `&q=${encodeURIComponent(query)}` : ""}`); if (live) setLeads(d); }
+      else if (section === "Stock ageing") { const d = await get<StockPage>(`/api/stock-intelligence?page=${page}&size=25`); if (live) setStock(d); }
+      else { const [v, l] = await Promise.all([get<VehiclePage>("/api/inventory?tab=available&size=1"), get<LeadPage>("/api/leads?stage=all&created=all&size=1")]); if (live) { setVehicles(v); setLeads(l); } }
+    };
+    void perform(run);
+    return () => { live = false; };
+  }, [shell, section, page, query, get, perform]);
+
+  const discover = () => perform(async () => { const found = await invoke<Config>("discover_connection", { origin: config.apiOrigin }); setConfig(found); localStorage.setItem("engine.connection.v2", JSON.stringify(found)); setNotice("Workspace found. Sign in to continue."); });
+  const login = () => perform(async () => { await invoke("login", { config }); setShell((await get<{ state: Shell }>("/api/workspace")).state); setNotice(""); });
+  const logout = () => perform(async () => { await invoke("logout", { config }); setShell(null); setVehicles(null); setLeads(null); setStock(null); });
+  const changeStage = (lead: Lead, stage: string) => perform(async () => {
+    const r = await invoke<{ ok: boolean; error?: { message: string } }>("api_request", { config, path: "/api/workspace/commands", method: "POST", body: { commands: [{ name: "changeStage", args: [lead.id, lead.version, stage] }] } });
+    if (!r.ok) throw new Error(r.error?.message ?? "The change was not saved.");
+    setNotice(`${lead.name} moved to ${stage}.`);
+    setLeads(await get<LeadPage>(`/api/leads?stage=all&created=all&page=${page}&size=25${query ? `&q=${encodeURIComponent(query)}` : ""}`));
+  });
+  const feature = (key: string) => shell?.entitlements?.features[key]?.enabled !== false;
+  const go = (s: Section) => { setSection(s); setPage(1); setQuery(""); setNotice(""); };
+
+  return (
+    <div className="shell">
+      <aside>
+        <div className="brand">VANDLABS<span>Automobile Engine</span></div>
+        <nav aria-label="Primary">{SECTIONS.filter((s) => s !== "Stock ageing" || feature("stock_intelligence")).map((s) => <button key={s} className={section === s ? "active" : ""} aria-current={section === s ? "page" : undefined} onClick={() => go(s)}>{s}</button>)}</nav>
+        <small>Private dealership platform. Same account and permissions as the web.</small>
+      </aside>
+      <main>
+        <header>
+          <div><p className="eyebrow">{shell ? shell.tenant.name.toUpperCase() : "DEALER WORKSPACE"}</p><h1>{shell ? section : "Connect"}</h1></div>
+          {shell ? <div className="actions"><button disabled={busy} onClick={() => void perform(async () => setShell((await get<{ state: Shell }>("/api/workspace")).state))}>Refresh</button><button disabled={busy} onClick={() => void logout()}>Sign out</button></div> : null}
+        </header>
+        {error ? <p role="alert" className="error">{error}</p> : null}
+        {notice ? <p role="status">{notice}</p> : null}
+        {busy ? <p role="status">Working…</p> : null}
+        {!shell ? (
+          <section className="panel connect">
+            <h2>Your dealership workspace.</h2>
+            <p>Enter your workspace address. Sign-in opens in your browser, with the same password and verification as the web application.</p>
+            <label>Workspace URL<input type="url" placeholder="https://your-workspace.example" value={config.apiOrigin} onChange={(e) => setConfig({ apiOrigin: e.target.value, authorizeUrl: "", tokenUrl: "" })} /></label>
+            <div className="actions">
+              <button disabled={busy || !config.apiOrigin} onClick={() => void discover()}>Connect workspace</button>
+              <button className="primary" disabled={busy || !config.tokenUrl} onClick={() => void login()}>Sign in securely</button>
+            </div>
+            <small>Your session is kept in your operating system’s secure credential store and ends after 8 hours.</small>
+          </section>
+        ) : (
+          <>
+            {section === "Today" ? (
+              <div className="metrics">
+                {[["Available vehicles", vehicles?.counts.available], ["Leads", leads ? Object.values(leads.stages).reduce((a, b) => a + b, 0) : undefined], ["Open follow-up stages", leads ? (leads.stages["New"] ?? 0) + (leads.stages["Contacted"] ?? 0) : undefined], ["Won", leads?.stages["Won"]]].map(([label, value]) => <article key={String(label)}><span>{label}</span><strong>{value ?? "—"}</strong></article>)}
+              </div>
+            ) : null}
+            {section === "Inventory" || section === "Leads" ? <label className="search">Search<input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} /></label> : null}
+            {section === "Inventory" ? (
+              <section className="panel">
+                {vehicles?.vehicles.map((v) => <div className="row" key={v.id}><span><strong>{v.year} {v.make} {v.model}</strong><small>{v.id} · {v.variant} · {v.km.toLocaleString("en-IN")} km</small></span><span>{lakh(v.asking)} · {v.status}</span></div>)}
+                {vehicles && !vehicles.vehicles.length ? <p>No vehicles match.</p> : null}
+                <Pager page={page} total={vehicles?.total ?? 0} size={25} onPage={setPage} busy={busy} />
+              </section>
+            ) : null}
+            {section === "Leads" ? (
+              <section className="panel">
+                {leads?.leads.map((l) => (
+                  <div className="row" key={l.id}>
+                    <span><strong>{l.name}</strong><small>{l.contactMasked} · {l.source} · {l.owner}</small></span>
+                    <label>Stage<select value={l.stage} disabled={busy} onChange={(e) => void changeStage(l, e.target.value)}>{STAGES.map((s) => <option key={s}>{s}</option>)}</select></label>
+                  </div>))}
+                {leads && !leads.leads.length ? <p>No leads match.</p> : null}
+                <Pager page={page} total={leads?.total ?? 0} size={25} onPage={setPage} busy={busy} />
+              </section>
+            ) : null}
+            {section === "Stock ageing" ? (
+              <>
+                <div className="metrics">{stock?.bands.map((b) => <article key={b.label}><span>{b.label}</span><strong>{b.vehicles}</strong><small>{b.capitalPaise === null ? "" : `${lakh(b.capitalPaise)} locked`}</small></article>)}</div>
+                <section className="panel">
+                  {stock?.rows.map((r) => <div className="row" key={r.stockId}><span><strong>{r.label}</strong><small>{r.stockId} · {r.ageDays} days{r.recommendations.length ? ` · ${r.recommendations.map((x) => x.reason).join("; ")}` : ""}</small></span></div>)}
+                  <Pager page={page} total={stock?.total ?? 0} size={25} onPage={setPage} busy={busy} />
+                </section>
+              </>
+            ) : null}
+          </>
+        )}
+      </main>
+    </div>
+  );
 }
-createRoot(document.getElementById("root")!).render(<React.StrictMode><App/></React.StrictMode>);
+
+function Pager({ page, total, size, onPage, busy }: { page: number; total: number; size: number; onPage: (p: number) => void; busy: boolean }) {
+  if (total <= size) return null;
+  return <div className="actions"><button disabled={busy || page <= 1} onClick={() => onPage(page - 1)}>Previous</button><span>Page {page} of {Math.ceil(total / size)} · {total.toLocaleString("en-IN")} records</span><button disabled={busy || page * size >= total} onClick={() => onPage(page + 1)}>Next</button></div>;
+}
+
+createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
