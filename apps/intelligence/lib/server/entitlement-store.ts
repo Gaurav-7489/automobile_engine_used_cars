@@ -32,7 +32,7 @@ export async function readEntitlements(c: SqlClient, tenantId: string): Promise<
   return value;
 }
 
-export type AdminCommerce = { entitlements: Entitlements; features: Partial<Record<FeatureKey, boolean>>; usage: Record<string, unknown>; sources: { id: string; name: string; kind: string; enabled: boolean; expiresAt: string }[] };
+export type AdminCommerce = { entitlements: Entitlements; features: Partial<Record<FeatureKey, boolean>>; usage: Record<string, unknown>; sources: { id: string; name: string; kind: string; enabled: boolean; expiresAt: string; agreement?: string; dealerUse?: boolean; aiProcessing?: boolean; redistribute?: boolean }[] };
 
 export async function adminReadCommerce(adminId: string, tenantId: string): Promise<AdminCommerce | null> {
   const row = (await plain((c) => c.query("SELECT * FROM intelligence_admin_commerce($1, $2)", [adminId, tenantId]))).rows[0] as Row | undefined;
@@ -41,7 +41,7 @@ export async function adminReadCommerce(adminId: string, tenantId: string): Prom
   const features = asOverrides(row?.features);
   return {
     entitlements: resolveEntitlements(asSubscription(row?.subscription), features), features, usage: (row?.usage as Record<string, unknown>) ?? {},
-    sources: ((row?.sources as Row[]) ?? []).map((s) => ({ id: String(s.id), name: String(s.name), kind: String(s.kind), enabled: s.enabled === true, expiresAt: String(s.expiresAt) })),
+    sources: ((row?.sources as Row[]) ?? []).map((s) => ({ id: String(s.id), name: String(s.name), kind: String(s.kind), enabled: s.enabled === true, expiresAt: String(s.expiresAt), agreement: s.agreement ? String(s.agreement) : undefined, dealerUse: s.dealerUse === true, aiProcessing: s.aiProcessing === true, redistribute: s.redistribute === true })),
   };
 }
 
@@ -88,3 +88,24 @@ export async function adminAudit(adminId: string, filter: { tenantId?: string; a
 }
 
 export { FEATURE_KEYS };
+
+export type SourceInput = { id: string; name: string; kind: string; agreement: string; dealerUse: boolean; aiProcessing: boolean; redistribute: boolean; enabled: boolean; expiresOn: string };
+
+export function validateSourceInput(input: Partial<SourceInput>, now = new Date()): { fields: Record<string, string> } | { source: Record<string, unknown> } {
+  const fields: Record<string, string> = {};
+  if (!/^[a-z0-9_-]{2,64}$/.test(String(input.id ?? ""))) fields.id = "Use 2 to 64 lowercase letters, digits, dashes or underscores.";
+  const name = String(input.name ?? "").trim(), agreement = String(input.agreement ?? "").trim();
+  if (name.length < 2 || name.length > 120) fields.name = "Name the source (2 to 120 characters).";
+  if (!["dealer", "licensed_api"].includes(String(input.kind))) fields.kind = "Choose the source type.";
+  if (agreement.length < 3 || agreement.length > 250) fields.agreement = "Record the agreement or licence reference (3 to 250 characters).";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(input.expiresOn ?? "")) || Number.isNaN(Date.parse(`${input.expiresOn}T23:59:59Z`))) fields.expiresOn = "Enter the agreement's last day.";
+  else if (input.enabled && Date.parse(`${input.expiresOn}T23:59:59Z`) <= now.getTime()) fields.expiresOn = "An enabled source must end in the future.";
+  for (const k of ["dealerUse", "aiProcessing", "redistribute", "enabled"] as const) if (typeof input[k] !== "boolean") fields[k] = "Choose yes or no.";
+  if (Object.keys(fields).length) return { fields };
+  return { source: { id: input.id, name, kind: input.kind, agreement, dealerUse: input.dealerUse, aiProcessing: input.aiProcessing, redistribute: input.redistribute, enabled: input.enabled, expiresAt: `${input.expiresOn}T23:59:59.000Z` } };
+}
+
+export async function adminSetSource(adminId: string, tenantId: string, source: Record<string, unknown>): Promise<boolean> {
+  const ok = (await plain((c) => c.query("SELECT intelligence_admin_set_source($1, $2, $3::jsonb) AS ok", [adminId, tenantId, JSON.stringify(source)]))).rows[0]?.ok === true;
+  return ok;
+}

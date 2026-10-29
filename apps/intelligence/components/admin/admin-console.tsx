@@ -8,7 +8,7 @@ import { Brand } from "../brand";
 import { Icon } from "../icons";
 import { Dialog } from "../overlay";
 import { Badge, Button, EmptyState, FormSummary, Kpi, Notice, PasswordField, Tabs, TextField } from "../ui";
-import { call, useReauth, type Problem } from "./shared";
+import { call, useReauth } from "./shared";
 import { EntitlementsDialog } from "./entitlements-dialog";
 import { PlatformAudit } from "./platform-audit";
 

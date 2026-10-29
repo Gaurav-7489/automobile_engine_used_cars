@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { bulkArchive, bulkAssignBranch, importCommit, importPreview, IMPORT_COLUMNS, publishVehicles, transitionVehicle, type ImportRow, type PublishResult, type Transition } from "@/lib/actions";
 import type { Lifecycle, Vehicle } from "@/lib/domain";
-import { ageBucket, landedCost, needsPriceReview, stockAgeDays } from "@/lib/finance";
+import { landedCost, needsPriceReview, stockAgeDays } from "@/lib/finance";
 import { downloadCsv } from "@/lib/export";
 import { formatKm, formatMoney, formatCount, MISSING } from "@/lib/format";
 import { SNAPSHOT_AT } from "@/lib/time";

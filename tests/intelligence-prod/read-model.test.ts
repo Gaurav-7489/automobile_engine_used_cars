@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { harness, runFull } from "./harness";
 import { provisionWorkspace } from "../../apps/intelligence/lib/server/provision";
 import { redeemToken, resolvePrincipal } from "../../apps/intelligence/lib/server/identity";
-import { loadWorkspace, runCommands } from "../../apps/intelligence/lib/server/workspace";
+import { loadWorkspace } from "../../apps/intelligence/lib/server/workspace";
 import { tenantTx } from "../../apps/intelligence/lib/server/db";
 import { readState } from "../../apps/intelligence/lib/server/workspace-store";
 import { deriveTenantAlerts } from "../../apps/intelligence/lib/server/alerts-model";

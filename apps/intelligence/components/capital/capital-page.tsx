@@ -6,7 +6,7 @@ import type { Sale, Vehicle } from "@/lib/domain";
 import { downloadBlob, downloadCsv, makePdf } from "@/lib/export";
 import { AGE_BUCKETS, isRealized, landedCost, realizedProfit, saleGross, stockAgeDays, type StockMetrics } from "@/lib/finance";
 
-import { formatDate, formatExact, formatLakh2, formatLakhPlain, formatMoney, MISSING, monthKey, monthLabel, monthName } from "@/lib/format";
+import { formatDate, formatExact, formatLakh2, formatLakhPlain, formatMoney, MISSING, monthLabel, monthName } from "@/lib/format";
 import { getMonths, REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
 import { HBars, SimpleBars } from "../charts";
 import { Dialog, Drawer, Menu } from "../overlay";

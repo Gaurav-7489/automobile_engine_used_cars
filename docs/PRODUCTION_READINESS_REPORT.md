@@ -12,6 +12,7 @@ Nothing here has been deployed or run against production. All measurements are f
 | Stock / ageing intelligence | `stock-intelligence.test.ts` |
 | Subscriptions, feature entitlements, platform audit viewer | `entitlements.test.ts` (3) |
 | Acquisition planner (metered) | `acquisition.test.ts` |
+| Business API, supplier ingest, source approval, owner key management | `business-api.test.ts` (keys, scopes, metering, ingest restriction, revocation, tenant isolation, feature switch) |
 | Desktop sign-in (PKCE, bearer sessions) and client | `desktop.test.ts` (2); Rust rule tests (4, run in an isolated crate because the Tauri GUI libraries are not installable here) |
 | Private platform: root redirect, no public surface, route aliases | `tests/unified/ecosystem.spec.ts` (desktop project passes), `tests/product-ui` |
 | Shared rate limiting | `rate-limit.test.ts` |
@@ -32,16 +33,15 @@ Suites run on this branch: lint (0 errors, 27 pre-existing-style unused-import w
 
 ## Incomplete capabilities
 
-- Business API `/api/v1/vehicles|fuel-prices|recommendations|ingest` and supplier ingest/data-source management (legacy apps still own them).
 - AI commentary on acquisition results.
 - Plan-to-feature tiering (a product decision): features are switched per dealership, plans carry usage limits only.
-- Scheduled jobs (reindex, cleanup) and Queues are not built; the read model backfills on first request (4.2 s at 10,000 vehicles).
+- Scheduled jobs and Queues are not built. `scripts/ops/warm-read-model.ts` builds every dealership's read model ahead of time (run it after deploy); otherwise the first request backfills (4.2 s at 10,000 vehicles).
 - Desktop: no refresh token (re-approve every 8 h), no offline mode, covers Today, Inventory, Leads and Stock ageing only.
 - Legacy apps are not retired (see `LEGACY_APPLICATION_RETIREMENT.md`). Next.js 15.5.27 is rejected by the Cloudflare adapter without an override flag.
 
 ## Deploy (when approved)
 
-1. Apply migrations `0013` to `0017` with the migration role (`pnpm db:migrate`). All are additive; grants target the non-bypass `vandlabs_runtime` role.
+1. Apply migrations `0013` to `0018` with the migration role (`pnpm db:migrate`). All are additive; grants target the non-bypass `vandlabs_runtime` role.
 2. Deploy to staging first (Vercel preview or the Cloudflare Worker); no new required environment variables for Vercel. `APP_ORIGIN` must be the final HTTPS origin for desktop sign-in.
 3. Smoke test: `/api/health`, admin sign-in with authenticator code, Add dealership, `/api/desktop/config`.
 4. Warm each dealership's read model once.

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { metricsFor } from "@/lib/actions";
 import { downloadBlob, makePdf, toCsv } from "@/lib/export";
-import { AGE_BUCKETS, realizedProfit, isRealized, stockMetrics } from "@/lib/finance";
+import { AGE_BUCKETS, realizedProfit } from "@/lib/finance";
 
-import { formatDate, formatDateTime, formatMoney, formatRupees, MISSING, monthKey, monthLabel, monthName, lakh } from "@/lib/format";
-import { REPORT_FORMULA, funnelFor, inScope } from "@/lib/selectors";
+import { formatDate, formatDateTime, formatMoney, formatRupees, MISSING, monthLabel, monthName, lakh } from "@/lib/format";
+import { REPORT_FORMULA } from "@/lib/selectors";
 import { getMonths, REPORT_SNAPSHOT_ID, SNAPSHOT_AT } from "@/lib/time";
 import { GroupedBars, HBars, SimpleBars } from "../charts";
 import { Dialog, Drawer, Menu } from "../overlay";
@@ -30,7 +30,7 @@ export function ReportsPage() {
 }
 
 function Reports() {
-  const { state, scope, can, demoState, session } = useWorkspace();
+  const { scope, can, demoState, session } = useWorkspace();
   const url = useUrlState();
   const toast = useToast();
   const tabParam = url.get("tab", "overview") as TabKey;

@@ -20,7 +20,7 @@ const MORE_STAGES: LeadStage[] = ["Visited", "Test drive", "Negotiation", "Won",
 type LeadPageData = { leads: Lead[]; vehicles: Vehicle[]; total: number; page: number; size: number; owners: string[]; anyLeads: boolean; stages: Record<string, number> };
 
 export function LeadsPage({ leadId }: { leadId?: string }) {
-  const { state, scope, can, session, run, mergeRecords } = useWorkspace();
+  const { state, scope, can, run, mergeRecords } = useWorkspace();
   const url = useUrlState();
   const href = useScopedHref();
   const toast = useToast();

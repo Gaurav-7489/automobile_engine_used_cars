@@ -62,8 +62,8 @@ export async function automate(c: SqlClient, tenantId: string, before: Workspace
     for (const run of result.runs) if (run.outcome === "created") created.add(`${run.ruleId}|${run.leadId}|${run.trigger}`);
     runs.push(...result.runs);
     if (!result.runs.length) continue;
-    const notes = result.runs.map((r, i) => ({ id: `i-${lead.id}-auto-${r.id}`, at: at.toISOString(), type: "System" as const, actor: "Automation", detail: `${r.ruleName}: ${r.detail}`, outcome: undefined, order: i }));
-    updated.set(lead.id, { ...current, tasks: [...result.tasks, ...current.tasks], interactions: [...notes.map(({ order: _order, ...n }) => n), ...current.interactions] });
+    const notes = result.runs.map((r) => ({ id: `i-${lead.id}-auto-${r.id}`, at: at.toISOString(), type: "System" as const, actor: "Automation", detail: `${r.ruleName}: ${r.detail}` }));
+    updated.set(lead.id, { ...current, tasks: [...result.tasks, ...current.tasks], interactions: [...notes, ...current.interactions] });
   }
   return { state: { ...after, leads: after.leads.map((l) => updated.get(l.id) ?? l) }, runs };
 }

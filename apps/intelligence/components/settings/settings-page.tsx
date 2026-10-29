@@ -2,13 +2,14 @@
 
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { changeRole, connectIntegration, disconnectIntegration, inviteMember, removeMember, revokeSessions, saveBranch, saveBusiness, scopeText, setNotification, setPolicy, testConnection } from "@/lib/actions";
 import type { AuditEvent, Integration, IntegrationState, Role } from "@/lib/domain";
 import { formatDateTime, formatShortDateTime } from "@/lib/format";
 import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions";
 import { downloadCsv } from "@/lib/export";
 import { FEATURES } from "@/lib/entitlements";
+import { BusinessKeys } from "./business-keys";
 import { Dialog, Drawer } from "../overlay";
 import { Panel } from "../panel";
 import { useToast } from "../toast";
@@ -58,7 +59,7 @@ function Settings({ section }: { section: SectionKey }) {
           {section === "security" ? <Security /> : null}
           {section === "integrations" ? <Integrations /> : null}
           {section === "billing" ? <Billing /> : null}
-          {section === "api" ? <ApiAccess /> : null}
+          {section === "api" ? <><ApiAccess /><BusinessKeys /></> : null}
           {section === "notifications" ? <Notifications /> : null}
           {section === "audit" ? <Audit /> : null}
         </div>

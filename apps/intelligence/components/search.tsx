@@ -15,7 +15,7 @@ const GROUPS: Result["group"][] = ["Vehicles", "Market listings", "Leads", "Acti
 
 /** Ctrl/Cmd+K dialog. 300 ms debounce, two-character minimum; results respect the signed-in role and branch scope. */
 export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state, can, scope, session } = useWorkspace();
+  const { can, scope, session } = useWorkspace();
   const router = useRouter();
   const href = useScopedHref();
   const [raw, setRaw] = useState("");

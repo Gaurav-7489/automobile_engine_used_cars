@@ -8,7 +8,7 @@ import { formatDateTime, formatShortDateTime, formatTime, MISSING } from "@/lib/
 import type { AlertCounts } from "@/lib/selectors";
 import { SNAPSHOT_AT } from "@/lib/time";
 import { Dialog, Drawer } from "../overlay";
-import { Panel, RemotePanel } from "../panel";
+import { RemotePanel } from "../panel";
 import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
 import { Button, Check, EmptyState, ErrorPanel, FormSummary, Kpi, Notice, PageHead, SelectField, Tabs, TextArea, TextField } from "../ui";

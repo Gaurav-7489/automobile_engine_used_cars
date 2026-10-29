@@ -16,8 +16,8 @@ Status words: **Migrated** = implemented in Intelligence and covered by an autom
 | **Dead-stock / ageing intelligence** | **Migrated** | `/app/stock-intelligence`, `lib/server/stock-model.ts`; differential test against a plain computation. Different: view counts and publish status are not used (no public showroom), so "promote" and "publish" prompts no longer exist |
 | **Acquisition planner** | **Migrated** | `/app/acquisition`; metered against the plan; `acquisition.test.ts`. Not migrated: AI commentary (the `dealer-ai` worker) |
 | **Desktop configuration and sign-in** | **Migrated** | `/api/desktop/{config,authorize,token}`, `/desktop/authorize`, rewritten `apps/desktop`; `desktop.test.ts` and Rust rule tests |
-| Business API `/api/v1/vehicles`, `fuel-prices`, `recommendations`, `ingest` | **Open** | Intelligence has only `/api/v1/inventory` and `/api/v1/leads`. Live consumers of the old contract must be inventoried first |
-| Data-source management and sourcing ingest (supplier keys, `sourcing:write`) | **Open** | Admins can see approved sources read-only; adding sources and ingesting records is still only in the legacy apps |
+| **Business API** `/api/v1/vehicles`, `fuel-prices`, `recommendations`, `ingest` | **Migrated** | `app/api/v1/[resource]`, `lib/server/business-api.ts`, owner key management in Settings → API access, `business-api.test.ts`. Same key format (`vand_…`) and the same commerce record, so keys issued by the legacy platform keep working; same request and response shapes (`data`, `usage`, `version`). Different: calls to the legacy host must be repointed to this app; the response envelope for errors is the platform's standard `{ error: { code, message } }` |
+| **Data-source approval and supplier ingest** | **Migrated** | Admin "Plan and access" → Sourcing data sources (migration `0018`, password-confirmed, audited); supplier keys are restricted to one approved source |
 | Notifications outbox, readiness page | Partial | `/app/alerts`, `/api/health` |
 | Authentication | Different | One sign-in with TOTP; legacy OIDC is not copied |
 
@@ -28,14 +28,14 @@ Status words: **Migrated** = implemented in Intelligence and covered by an autom
 | Dealerships, onboarding, owner invite | Migrated earlier | admin console |
 | **Platform audit viewer** | **Migrated** | admin "Platform audit" tab, `/api/admin/audit` (SECURITY DEFINER, platform admins only) |
 | **Feature entitlements** | **Migrated** | per-feature switches stored in `dealer_commerce.payload.features`; navigation, pages, APIs and commands all honour them |
-| Commerce: sources, keys, usage | **Open** (see above) | |
+| **Commerce: sources, keys, usage** | **Migrated** | see above |
 | Staff management | Partial | members and suspension exist; role editing for staff lives in dealer settings |
 | Platform health | Partial | `/api/health` only |
 
 ## Before retirement (not done)
 
 1. Inventory live consumers of command-center / platform URLs and of the legacy `/api/v1/*` contract (Vercel access logs, supplier keys). Not possible from this environment.
-2. Port or consciously drop the two **Open** rows.
+2. Tell every live consumer of the legacy Business API (suppliers, integrations) to switch host; the keys do not change.
 3. Cloudflare staging passes the acceptance list in `CLOUDFLARE_MIGRATION_AND_ROLLBACK.md`.
 4. Repoint `scripts/cloudflare/*`, `cloudflare.yml`, `playwright.roles.config.ts`, `playwright.auth.config.ts` and `tests/cloudflare/staging.test.ts`, which still build and test the legacy apps.
 5. Remove the apps on a branch with a one-step revert. Never delete databases, tenant data or Vercel projects as part of this.

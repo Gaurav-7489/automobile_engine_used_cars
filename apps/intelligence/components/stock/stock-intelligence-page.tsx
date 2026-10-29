@@ -4,7 +4,7 @@ import Link from "next/link";
 import { formatLakh2, formatMoney, MISSING } from "@/lib/format";
 import type { StockReport } from "@/lib/server/stock-model";
 import { RemotePanel } from "../panel";
-import { Badge, Button, EmptyState, Kpi, Notice, PageHead, SelectField, Tabs } from "../ui";
+import { Badge, Button, EmptyState, Kpi, Notice, PageHead, SelectField } from "../ui";
 import { useRemote } from "../use-remote";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 
