@@ -1,6 +1,6 @@
 # Legacy application retirement and parity matrix
 
-**Conclusion: nothing is deleted or switched in this change.** The six capabilities that were still missing from `apps/intelligence` are now implemented and tested there. `apps/command-center` and `apps/platform` stay in the repository, and their Vercel projects stay up, until the "Before retirement" list below is done. `apps/web` (the public showroom) is out of the target architecture: the platform is private, so none of its public features were migrated.
+**Conclusion: retired (30 Oct 2026).** Every feature of `apps/command-center`, `apps/platform` and `apps/web` now lives in `apps/intelligence` (tables below). The three apps, their test suites, the multi-app Cloudflare gateway, admission and notification Workers, and the unused `packages/design-system` were removed from the repository. Their Vercel projects were paused and set to skip builds first; nothing in the database was touched. Revert the retirement commit to restore the code.
 
 Status words: **Migrated** = implemented in Intelligence and covered by an automated test. **Different** = a deliberate change from the legacy behaviour. **Open** = not done.
 
@@ -45,7 +45,11 @@ Status words: **Migrated** = implemented in Intelligence and covered by an autom
 
 Every user-facing feature of the three legacy apps now has a place in Intelligence. The apps themselves stay in the repository only because the Cloudflare deploy tooling still builds them (see below).
 
-## Before retirement (not done)
+## Retirement checklist (as carried out)
+
+Items 1 and 2 could not be verified from the development environment: anyone still calling the old hosts (for example a supplier using the legacy Business API address) must move to the Intelligence host; their keys keep working there. Items 3 and 4 were replaced by the single-Worker Cloudflare setup. Item 5 was done as described.
+
+### Original list
 
 1. Inventory live consumers of command-center / platform URLs and of the legacy `/api/v1/*` contract (Vercel access logs, supplier keys). Not possible from this environment.
 2. Tell every live consumer of the legacy Business API (suppliers, integrations) to switch host; the keys do not change.

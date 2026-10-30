@@ -35,9 +35,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Demo launcher preflight
-        run: node scripts/start-demo.mjs --check
-
       - name: Lint
         run: pnpm lint
 
@@ -71,15 +68,6 @@ jobs:
       - name: Private platform sign-in, boundary and installation browser checks
         run: pnpm exec playwright test --config playwright.unified.config.ts
 
-      - name: End-to-end smoke tests
-        run: pnpm test:e2e
-
-      - name: Staff HTTP access regression tests
-        run: pnpm test:auth:e2e
-
-      - name: Signed staff role browser and HTTP regressions
-        run: pnpm test:roles:e2e
-
       - name: Cloudflare admission and runtime regressions
         run: pnpm test:cloudflare
 
@@ -90,6 +78,4 @@ jobs:
           name: browser-test-evidence
           path: |
             test-results/
-            auth-test-results/
-            role-test-results/
           if-no-files-found: ignore
