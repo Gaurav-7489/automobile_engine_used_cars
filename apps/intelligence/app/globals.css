@@ -271,7 +271,7 @@ table { border-collapse: collapse; width: 100%; }
 .chart-bar { cursor: pointer; transition: opacity 150ms ease; }
 .chart-bar:hover, .chart-bar:focus-visible { opacity: 0.8; }
 .hbars { display: grid; gap: 16px; }
-.hbar { display: grid; grid-template-columns: 96px 1fr 72px; gap: 12px; align-items: center; font-size: 14px; }
+.hbar { display: grid; grid-template-columns: 96px minmax(0, 1fr) max-content; gap: 12px; align-items: center; font-size: 14px; }
 .hbar .track { height: 16px; background: var(--raised); border-radius: 6px; overflow: hidden; }
 .hbar .fill { display: block; height: 100%; border-radius: 6px; background: var(--accent); min-width: 2px; }
 .hbar .fill.warn { background: var(--warning); }
@@ -347,10 +347,10 @@ dl.kv { margin: 0; }
   .rail { padding: 16px 12px; align-items: center; }
   .rail .brand { padding: 0; }
   .rail .brand-name, .rail .brand-sub, .rail-foot .who, .rail-foot .btn .label { display: none; }
-  .nav-link { width: 48px; justify-content: center; padding: 0; }
-  .nav-link .nav-label { position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); background: var(--raised); border: 1px solid var(--field-border); padding: 6px 10px; border-radius: 6px; white-space: nowrap; font-size: 12px; opacity: 0; pointer-events: none; z-index: 70; color: var(--text); }
-  .nav-link:hover .nav-label, .nav-link:focus-visible .nav-label { opacity: 1; }
-  .nav-badge { position: absolute; top: 2px; right: 0; margin: 0; min-width: 16px; height: 16px; font-size: 10px; padding: 0 4px; }
+  .rail .nav-link { width: 48px; justify-content: center; padding: 0; }
+  .rail .nav-link .nav-label { position: absolute; left: calc(100% + 8px); top: 50%; transform: translateY(-50%); background: var(--raised); border: 1px solid var(--field-border); padding: 6px 10px; border-radius: 6px; white-space: nowrap; font-size: 12px; opacity: 0; pointer-events: none; z-index: 70; color: var(--text); }
+  .rail .nav-link:hover .nav-label, .rail .nav-link:focus-visible .nav-label { opacity: 1; }
+  .rail .nav-badge { position: absolute; top: 2px; right: 0; margin: 0; min-width: 16px; height: 16px; font-size: 10px; padding: 0 4px; }
   .topbar { padding: 0 24px; }
   .main { padding: 24px; }
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -378,7 +378,7 @@ dl.kv { margin: 0; }
   .overlay { padding: 0; align-items: stretch; }
   .overlay .dialog { border-radius: 0; max-height: 100dvh; height: 100dvh; }
   .overlay.sheet-wrap { padding-top: 0; }
-  .hbar { grid-template-columns: 76px 1fr 56px; gap: 8px; }
+  .hbar { grid-template-columns: 76px minmax(0, 1fr) max-content; gap: 8px; }
   .toasts { bottom: calc(76px + env(safe-area-inset-bottom)); left: 16px; right: 16px; max-width: none; }
   .page-head .btn.primary-cta { width: 100%; }
   .only-desktop { display: none !important; }
@@ -390,7 +390,7 @@ dl.kv { margin: 0; }
 }
 
 /* Login */
-.login-shell { min-height: 100dvh; display: grid; grid-template-columns: 720px minmax(0, 1fr); background: var(--canvas); }
+.login-shell { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 720px) minmax(440px, 1fr); background: var(--canvas); }
 .login-brand { display: flex; flex-direction: column; justify-content: space-between; gap: 48px; padding: 64px 64px 64px; background: var(--brand-panel); border-right: 1px solid var(--border); }
 .login-copy { display: grid; gap: 32px; max-width: 560px; }
 .login-copy .display { font-size: 48px; line-height: 60px; }
@@ -975,3 +975,32 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 @media (max-width: 760px) { .sr-saved-row { grid-template-columns: 1fr 1fr; } }
 .sr-grow { flex: 1 1 280px; }
 .sr-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 12px 0; }
+
+/* Phone: dialogs and drawers fill the screen, so they are solid surfaces, not glass over the page. */
+@media (max-width: 767px) {
+  .overlay .dialog, .overlay .drawer { background: var(--surface) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+
+/* Responsive fixes found by tests/local-stack/responsive.spec.ts (320px to 1920px). */
+.dl-text { display: grid; gap: 2px; text-align: left; }
+.state-box { grid-template-columns: minmax(0, 1fr); }
+.btn { max-width: 100%; }
+.kpi .kpi-value, .kpi-value, .hbar .value { white-space: nowrap; }
+.card-head { flex-wrap: wrap; }
+.card-head > :first-child { min-width: min(100%, 180px); }
+@media (max-width: 1279px) and (min-width: 1024px) { .login-form-wrap { padding: 48px; } .login-brand { padding: 48px 40px; } }
+@media (max-width: 767px) { .period-pair { grid-column: 1 / -1; } }
+@media (max-width: 560px) {
+  .sr-nav { overflow-x: auto; scrollbar-width: none; }
+  .sr-nav a { padding: 8px 10px; white-space: nowrap; }
+}
+@media (max-width: 480px) {
+  .state-box .btn { white-space: normal; }
+  .report-filters { grid-template-columns: minmax(0, 1fr); }
+  /* Bar rows: label and value on top, the bar full width underneath. */
+  .hbar { grid-template-columns: minmax(0, 1fr) max-content; grid-template-areas: "label value" "track track"; row-gap: 4px; }
+  .hbar > :first-child { grid-area: label; }
+  .hbar .track { grid-area: track; }
+  .hbar .value { grid-area: value; }
+}
+@media (max-width: 379px) { .kpi-grid { grid-template-columns: minmax(0, 1fr); } }

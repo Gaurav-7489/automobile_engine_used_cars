@@ -37,7 +37,7 @@ export function DesktopDownloads() {
             <div className="spread"><h3 className="h3">{p.name}{p.os === mine ? <span className="badge accent" style={{ marginLeft: 8 }}>Your computer</span> : null}</h3><span className="meta">{p.blurb}</span></div>
             <div className="row-flex" style={{ flexWrap: "wrap" }}>
               {p.files.map((f, i) => (
-                <a key={f.file} className={`btn ${i === 0 && p.os === mine ? "btn-primary" : ""}`} href={`${BASE}/${f.file}`} download style={{ whiteSpace: "normal", height: "auto", paddingBlock: 10, textAlign: "left", maxWidth: "100%" }}><Icon name="download" size={18} />{f.label}{f.note ? <span className="meta" style={{ marginLeft: 6 }}>{f.note}</span> : null}</a>
+                <a key={f.file} className={`btn ${i === 0 && p.os === mine ? "btn-primary" : ""}`} href={`${BASE}/${f.file}`} download style={{ whiteSpace: "normal", height: "auto", paddingBlock: 10, textAlign: "left", maxWidth: "100%" }}><Icon name="download" size={18} /><span className="dl-text"><span>{f.label}</span>{f.note ? <span className="meta">{f.note}</span> : null}</span></a>
               ))}
             </div>
             <ol className="meta" style={{ margin: 0, paddingLeft: 18 }}>{p.steps.map((s) => <li key={s}>{s}</li>)}</ol>
