@@ -116,3 +116,17 @@ test("install page lists installers for Windows, macOS and Linux", async ({ page
   const hrefs = await page.locator('a[download]').evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).href.split("/").pop()));
   expect(hrefs.sort()).toEqual(["Automobile-Engine-Linux-x64.AppImage", "Automobile-Engine-Linux-x64.deb", "Automobile-Engine-Linux-x64.rpm", "Automobile-Engine-Windows-x64.exe", "Automobile-Engine-Windows-x64.msi", "Automobile-Engine-macOS-universal.dmg"]);
 });
+
+test("showroom: save two cars, pick them and compare side by side", async ({ page }) => {
+  await page.goto("/showroom/vehicles/toyota-fortuner-4x4-2022");
+  await page.getByRole("button", { name: /^Save/ }).click();
+  await expect(page.getByRole("button", { name: /^Saved/ })).toHaveAttribute("aria-pressed", "true");
+  await page.goto("/showroom/vehicles/skoda-kodiaq-lk-2023");
+  await page.getByRole("button", { name: /^Save/ }).click();
+  await page.goto("/showroom/saved");
+  await page.getByRole("checkbox", { name: /Fortuner/ }).check();
+  await page.getByRole("checkbox", { name: /Kodiaq/ }).check();
+  await page.getByRole("link", { name: "Compare 2 cars" }).click();
+  await expect(page.getByRole("table")).toContainText("Fortuner");
+  await expect(page.getByRole("table")).toContainText("Kodiaq");
+});

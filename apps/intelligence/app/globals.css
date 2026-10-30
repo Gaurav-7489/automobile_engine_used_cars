@@ -965,3 +965,11 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
   .sr-footer { flex-direction: column; }
 }
 .sr-card-media .vehicle-art, .sr-detail-media .vehicle-art { height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; }
+.sr-saved { list-style: none; padding: 0; display: grid; gap: 8px; }
+.sr-saved-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr) auto auto auto; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.sr-saved-row label { font-weight: 600; display: flex; gap: 8px; align-items: center; }
+.sr-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+.sr-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+.sr-table th, .sr-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); text-transform: capitalize; }
+.sr-table thead th { background: var(--raised); }
+@media (max-width: 760px) { .sr-saved-row { grid-template-columns: 1fr 1fr; } }

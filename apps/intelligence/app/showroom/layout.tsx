@@ -15,6 +15,7 @@ export default function ShowroomLayout({ children }: { children: React.ReactNode
         <nav aria-label="Showroom" className="sr-nav">
           <Link href="/showroom">Home</Link>
           <Link href="/showroom/inventory">Inventory</Link>
+          <Link href="/showroom/saved">Saved</Link>
         </nav>
         <ThemeToggle />
         <Link href="/login" className="btn btn-primary">Dealer sign in</Link>

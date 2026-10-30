@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { CarImage } from "@/components/showroom/car-image";
+import { SaveButton } from "@/components/showroom/saved";
 import { km, money, sampleLocation, sampleVehicle } from "@/lib/showroom";
 
 type Params = Promise<{ slug: string }>;
@@ -33,7 +34,7 @@ export default async function VehiclePage({ params }: { params: Params }) {
           <p className="meta">{v.variant}</p>
           <p className="sr-price">{money(v.price)}</p>
           <p className="meta">Enquiries are handled by the dealership team. This sample catalogue does not take requests.</p>
-          <Link href="/login" className="btn btn-primary">Dealer sign in</Link>
+          <div className="sr-actions"><SaveButton slug={v.slug} label={`${v.make} ${v.model}`} /><Link href="/login" className="btn btn-primary">Dealer sign in</Link></div>
         </div>
       </div>
       <h2>Specification</h2>
