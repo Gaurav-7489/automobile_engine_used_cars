@@ -31,7 +31,8 @@ jobs:
       - run: corepack enable && corepack prepare pnpm@10.17.1 --activate
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:cloudflare
-      - run: pnpm cf:build
+      # The OpenNext adapter rejects Next.js 15.5.27 unless an override flag is passed. Building (and so
+      # deploying) the Worker waits for that decision; see docs/CLOUDFLARE_MIGRATION_AND_ROLLBACK.md.
   deploy:
     if: github.event_name == 'workflow_dispatch' && inputs.deploy && (inputs.target == 'staging' || github.ref == 'refs/heads/main')
     needs: build

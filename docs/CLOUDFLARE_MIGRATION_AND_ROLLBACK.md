@@ -44,3 +44,10 @@ Rollback: repoint DNS to Vercel (TTL minutes). No data migration is involved, so
 ## Reindexing the read model
 
 The first request after migration backfills a dealership's read model (4.2 s at 10,000 vehicles locally). Run `pnpm exec tsx scripts/perf/bench-sync.ts` against a staging copy to measure, and schedule a warm-up call per tenant before cutover.
+
+
+## Single-Worker setup (30 Oct 2026)
+
+The multi-app gateway, admission and notification Workers were removed with the legacy apps. Cloudflare now hosts one Worker, `vandlabs-app` (`apps/intelligence/wrangler.jsonc`). `pnpm cf:deploy` runs a read-only preflight (`scripts/cloudflare/preflight.mjs`: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `APP_ORIGIN`, secrets `DATABASE_URL` and `SESSION_SECRET`), builds, deploys, and uploads the secrets with `wrangler secret bulk`.
+
+**Blocked on a decision:** `@opennextjs/cloudflare` refuses Next.js 15.5.27 without its unsupported-version override flag. Either approve that override for staging or move to a Next.js version the adapter supports. Until then `pnpm cf:build` fails and the Cloudflare workflow only runs the configuration tests. Vercel is unaffected.
