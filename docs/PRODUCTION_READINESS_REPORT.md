@@ -22,6 +22,12 @@ Nothing here has been deployed or run against production. All measurements are f
 
 Suites run on this branch: lint (0 errors, 27 pre-existing-style unused-import warnings), typecheck, security 39/39, database 35/35, intelligence 30/30, product 11/11, intelligence-prod 19/19, cloudflare 25/25.
 
+## Status on 30 Oct 2026
+
+- Production deployments of the glass UI (`0578d8b`) and the Settings skeleton (`df8c559`) are READY; `/api/health` reports the database ok.
+- Production `schema_migrations` now holds all 18 migrations. `0007` to `0009` (dealer commerce) had never been recorded there; they were checked first (one organization, no duplicate tenant ids, no commerce rows, only the non-bypass `vandlabs_runtime` role exists) and applied, so `pnpm db:migrate` is safe to run again. Backup branches: `pre-0013-backup-20261029`, `pre-0018-backup-20261029`.
+- Design references: 21st.dev and skiper-ui.com could not be fetched from this environment (DNS blocked), so their licences are still unread; nothing was copied from either.
+
 ## Not verified (needs live environments)
 
 - Anything on Vercel or Cloudflare: no deployment was made or measured. Hosted latency, Lighthouse, INP, memory.
