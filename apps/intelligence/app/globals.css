@@ -973,3 +973,5 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .sr-table th, .sr-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); text-transform: capitalize; }
 .sr-table thead th { background: var(--raised); }
 @media (max-width: 760px) { .sr-saved-row { grid-template-columns: 1fr 1fr; } }
+.sr-grow { flex: 1 1 280px; }
+.sr-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 12px 0; }

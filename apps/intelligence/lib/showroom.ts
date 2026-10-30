@@ -6,6 +6,7 @@ export const SAMPLE_NOTICE = "Sample catalogue for demonstration. Real dealershi
 
 export const sampleVehicles = (): Vehicle[] => vehicles.filter(v => v.publishStatus === "published");
 export const sampleVehicle = (slug: string) => sampleVehicles().find(v => v.slug === slug) ?? null;
+export const showroomLocations = tenantConfig.organization.dealerships.flatMap(d => d.locations.map(l => ({ id: l.id, name: l.name, city: l.city })));
 export const sampleLocation = (id: string) => locationName(id);
 export const dealerName = tenantConfig.organization.dealerships[0]?.brandName ?? "VandLabs";
 

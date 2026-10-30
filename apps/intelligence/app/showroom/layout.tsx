@@ -14,6 +14,7 @@ export default function ShowroomLayout({ children }: { children: React.ReactNode
         <Link href="/showroom" className="sr-brand" aria-label="VandLabs showroom home"><Brand sub={false} /></Link>
         <nav aria-label="Showroom" className="sr-nav">
           <Link href="/showroom">Home</Link>
+          <Link href="/showroom/discover">Discover</Link>
           <Link href="/showroom/inventory">Inventory</Link>
           <Link href="/showroom/saved">Saved</Link>
         </nav>
@@ -24,7 +25,7 @@ export default function ShowroomLayout({ children }: { children: React.ReactNode
       <main id="content" tabIndex={-1} className="sr-main">{children}</main>
       <footer className="sr-footer">
         <span className="meta">VandLabs Automotive Intelligence</span>
-        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <Link href="/info/support">Support</Link></span>
+        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <Link href="/showroom/contact">Contact</Link> / <Link href="/info/support">Support</Link></span>
       </footer>
     </div>
   );

@@ -32,6 +32,19 @@ Status words: **Migrated** = implemented in Intelligence and covered by an autom
 | Staff management | Partial | members and suspension exist; role editing for staff lives in dealer settings |
 | Platform health | Partial | `/api/health` only |
 
+## web → intelligence `/showroom`
+
+| Capability | Status | Where |
+|---|---|---|
+| Home, inventory with filters, vehicle detail | **Migrated** | `/showroom`, `/showroom/inventory`, `/showroom/vehicles/[slug]` |
+| Discover (plain-language search) | **Migrated** | `/showroom/discover`, same deterministic engine (`@vandlabs/data/discovery`). Different: the optional AI summary worker is not called |
+| Saved cars, compare | **Migrated** | `/showroom/saved`, `/showroom/compare` (per-browser, nothing sent to a server) |
+| Contact | **Different** | `/showroom/contact` explains that enquiries are handled inside dealership workspaces; no public lead form (private-platform decision) |
+| Desktop download | **Migrated** | `/install` (Windows, macOS, Linux) |
+| Data source | **Different** | sample catalogue only; live tenant stock stays private |
+
+Every user-facing feature of the three legacy apps now has a place in Intelligence. The apps themselves stay in the repository only because the Cloudflare deploy tooling still builds them (see below).
+
 ## Before retirement (not done)
 
 1. Inventory live consumers of command-center / platform URLs and of the legacy `/api/v1/*` contract (Vercel access logs, supplier keys). Not possible from this environment.
