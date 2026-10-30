@@ -36,7 +36,7 @@ async function signIn(page: Page) {
   await page.waitForURL(/\/app\//);
 }
 
-const PUBLIC = ["/login", "/info/privacy", "/install"];
+const PUBLIC = ["/login", "/info/privacy", "/install", "/showroom", "/showroom/inventory", "/showroom/vehicles/toyota-fortuner-4x4-2022"];
 const PRIVATE = ["/app/overview", "/app/inventory", "/app/leads", "/app/capital", "/app/alerts", "/app/reports", "/app/stock-intelligence", "/app/automations", "/app/settings/billing", "/app/settings/team", "/app/settings/api", "/app/settings/audit"];
 
 for (const theme of THEMES) for (const [vp, size] of Object.entries(VIEWPORTS)) {

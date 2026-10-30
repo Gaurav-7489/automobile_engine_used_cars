@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
     ];
   },
   // The shared data package is TypeScript source in this monorepo.
-  transpilePackages: ["@vandlabs/data", "@vandlabs/contracts"],
+  transpilePackages: ["@vandlabs/data", "@vandlabs/contracts", "@vandlabs/demo-data"],
   serverExternalPackages: ["pg", "@aws-sdk/client-secrets-manager"],
   async headers() {
     return [

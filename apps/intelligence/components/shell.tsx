@@ -157,6 +157,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
                 <>
                   <div className="menu-label" role="presentation">{session.name}<br />{session.email} / {ROLE_LABEL[session.role]}</div><hr />
                   <Link role="menuitem" href={href("/app/settings/security")} onClick={close}>Account and security</Link>
+                  <Link role="menuitem" href="/showroom" onClick={close}>Public showroom</Link>
                   <ThemeMenuItems onChoose={close} />
                   {platformAdmin ? <Link role="menuitem" href="/admin" onClick={close}>VandLabs admin console</Link> : null}
                   <button role="menuitem" onClick={signOut}><Icon name="logout" size={18} />Sign out</button>

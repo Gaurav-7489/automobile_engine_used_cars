@@ -57,3 +57,12 @@ Screenshots: `docs/screenshots/theme-{dark,light}-*-{desktop,mobile}.png`.
 - A sun/moon `ThemeToggle` sits in the top bar and in the corner of the sign-in page. System / Light / Dark remains in the profile menu and the sign-in footer.
 - `/install` detects the OS and lists Windows (`.exe`, `.msi`), macOS (`.dmg`, universal) and Linux (`.AppImage`, `.deb`, `.rpm`) installers from the rolling `desktop-latest` GitHub release, with `SHA256SUMS`. Override the host with `NEXT_PUBLIC_DESKTOP_DOWNLOAD_BASE`.
 - Status: the installers have NOT been built in this sandbox and the CI workflows have not run yet. Builds are unsigned (SmartScreen/Gatekeeper warnings are expected until signing certificates are added). The release URL only works for signed-in GitHub users while the repository is private.
+
+## Public showroom inside Intelligence
+
+The former `apps/web` showroom now exists in `apps/intelligence` at `/showroom`, `/showroom/inventory` (server-side search, body, fuel and sort filters) and `/showroom/vehicles/[slug]`, on the same tokens, glass header, theme wash and motion as the workspace. Cross-links: sign-in page footer and profile menu link to the showroom; the showroom header links to dealer sign-in.
+
+- It reads only the built-in sample catalogue (`@vandlabs/demo-data`), labelled as such on every page. It never reads tenant data (tenant tables are RLS-protected and there is no public tenant scope).
+- It takes no enquiries: no public lead form was ported, consistent with the private-platform decision.
+- Not ported: Discover (AI reels), Compare, Saved, Contact, Download. `apps/web` is untouched and still deployed separately.
+- Pages are covered by the axe (desktop and phone, both themes) and visual-regression specs.
