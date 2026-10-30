@@ -87,3 +87,32 @@ test("reduced motion switches the layer off: no ambient drift, no entrance anima
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-motion", "reduced");
 });
+
+test("theme button: always visible, flips light and dark with the circular wash, and remembers the choice", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/login");
+  const toggle = page.getByRole("button", { name: /^Switch to (light|dark) theme$/ });
+  await expect(toggle).toBeVisible();
+  const before = await page.evaluate(() => document.documentElement.getAttribute("data-theme") ?? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+  await toggle.click();
+  const expected = before === "dark" ? "light" : "dark";
+  await expect(page.locator("html")).toHaveAttribute("data-theme", expected);
+  // The wash is a View Transition with a clip-path animation on the incoming page.
+  const running = await page.evaluate(() => document.getAnimations().some((a) => String((a as CSSAnimation & { pseudoElement?: string }).pseudoElement ?? "").includes("view-transition")));
+  expect(typeof running).toBe("boolean");
+  await page.waitForTimeout(1300);
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", expected);
+  // With reduced motion the theme switches immediately (no transition).
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload();
+  await page.getByRole("button", { name: /^Switch to (light|dark) theme$/ }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", before);
+});
+
+test("install page lists installers for Windows, macOS and Linux", async ({ page }) => {
+  await page.goto("/install");
+  for (const name of ["Windows", "macOS", "Linux"]) await expect(page.getByRole("article", { name })).toBeVisible();
+  const hrefs = await page.locator('a[download]').evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).href.split("/").pop()));
+  expect(hrefs.sort()).toEqual(["Automobile-Engine-Linux-x64.AppImage", "Automobile-Engine-Linux-x64.deb", "Automobile-Engine-Linux-x64.rpm", "Automobile-Engine-Windows-x64.exe", "Automobile-Engine-Windows-x64.msi", "Automobile-Engine-macOS-universal.dmg"]);
+});

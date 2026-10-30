@@ -15,7 +15,7 @@ import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./wor
 import { initials } from "@/lib/format";
 import { NAV, ROLE_LABEL, visibleNav } from "@/lib/permissions";
 import { entitled } from "@/lib/entitlements";
-import { ThemeMenuItems, ThemeSwitch, MotionSwitch } from "./theme";
+import { ThemeMenuItems, ThemeSwitch, ThemeToggle, MotionSwitch } from "./theme";
 import { RouteLoader } from "./motion/route-loader";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { sumAlertCounts } from "@/lib/selectors";
@@ -148,6 +148,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
           <span className="spacer" />
           <button type="button" className="icon-btn only-mobile" aria-label="Search" onClick={() => setSearchOpen(true)}><Icon name="search" /></button>
           <div className="hide-mobile"><BranchSelect /></div>
+          <ThemeToggle />
           <Link href={href("/app/alerts")} className="icon-btn hide-mobile" aria-label={urgent ? `Alerts: ${urgent} urgent` : "Alerts"}><Icon name="bell" />{urgent ? <span className="dot" aria-hidden="true" /> : null}</Link>
           <button type="button" className="icon-btn hide-mobile" aria-label="Help and keyboard shortcuts" onClick={() => setHelpOpen(true)}><Icon name="help" /></button>
           <div className="hide-mobile">

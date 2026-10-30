@@ -20,6 +20,8 @@ jobs:
             target: x86_64-pc-windows-msvc
           - os: macos-latest
             target: universal-apple-darwin
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -37,7 +39,12 @@ jobs:
           targets: x86_64-apple-darwin,aarch64-apple-darwin
         if: runner.os == 'macOS'
       - uses: dtolnay/rust-toolchain@stable
-        if: runner.os == 'Windows'
+        if: runner.os != 'macOS'
+      - name: Linux build libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev libxdo-dev patchelf rpm file
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @vandlabs/desktop typecheck
       - name: Native regressions
@@ -52,7 +59,11 @@ jobs:
           if-no-files-found: error
           path: |
             apps/desktop/src-tauri/target/**/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/**/bundle/msi/*.msi
             apps/desktop/src-tauri/target/**/bundle/dmg/*.dmg
+            apps/desktop/src-tauri/target/**/bundle/appimage/*.AppImage
+            apps/desktop/src-tauri/target/**/bundle/deb/*.deb
+            apps/desktop/src-tauri/target/**/bundle/rpm/*.rpm
   publish:
     needs: installers
     runs-on: ubuntu-latest
@@ -73,19 +84,22 @@ jobs:
           set -euo pipefail
           [[ "$TESTED_SHA" =~ ^[a-f0-9]{40}$ ]]
           tag="desktop-${TESTED_SHA:0:12}"
-          mapfile -t windows < <(find installers -name '*.exe')
-          mapfile -t mac < <(find installers -name '*.dmg')
-          test "${#windows[@]}" = 1
-          test "${#mac[@]}" = 1
-          cp "${windows[0]}" Automobile-Engine-Windows-x64.exe
-          cp "${mac[0]}" Automobile-Engine-macOS-universal.dmg
-          sha256sum Automobile-Engine-Windows-x64.exe Automobile-Engine-macOS-universal.dmg > SHA256SUMS.txt
+          one() { mapfile -t f < <(find installers -name "$1"); test "${#f[@]}" = 1; cp "${f[0]}" "$2"; }
+          one '*.exe' Automobile-Engine-Windows-x64.exe
+          one '*.msi' Automobile-Engine-Windows-x64.msi
+          one '*.dmg' Automobile-Engine-macOS-universal.dmg
+          one '*.AppImage' Automobile-Engine-Linux-x64.AppImage
+          one '*.deb' Automobile-Engine-Linux-x64.deb
+          one '*.rpm' Automobile-Engine-Linux-x64.rpm
+          chmod +x Automobile-Engine-Linux-x64.AppImage
+          ASSETS=(Automobile-Engine-Windows-x64.exe Automobile-Engine-Windows-x64.msi Automobile-Engine-macOS-universal.dmg Automobile-Engine-Linux-x64.AppImage Automobile-Engine-Linux-x64.deb Automobile-Engine-Linux-x64.rpm)
+          sha256sum "${ASSETS[@]}" > SHA256SUMS.txt
           cat > release-notes.md <<EOF
           Automated development distribution from tested source $TESTED_SHA.
 
           Quality Gate: $QUALITY_URL
 
-          Windows x64 and universal macOS installers. Unsigned development builds: signing, notarization and installed HTTPS/Cognito acceptance remain pending. An activated dealership backend is required. These are installers, not a provisioned backend or a production-certified release.
+          Windows x64 (.exe installer and .msi), universal macOS (.dmg for Apple silicon and Intel) and Linux x64 (.AppImage, .deb, .rpm) installers. Unsigned development builds: signing, notarization and installed HTTPS/Cognito acceptance remain pending. An activated dealership backend is required. These are installers, not a provisioned backend or a production-certified release.
 
           Verify SHA-256 against the attached SHA256SUMS.txt before installation.
           EOF
@@ -93,4 +107,11 @@ jobs:
             echo 'Release already published; keeping immutable assets.'
             exit 0
           fi
-          gh release create "$tag" --target "$TESTED_SHA" --title "Automobile Engine development ${TESTED_SHA:0:12}" --prerelease --notes-file release-notes.md Automobile-Engine-Windows-x64.exe Automobile-Engine-macOS-universal.dmg SHA256SUMS.txt
+          gh release create "$tag" --target "$TESTED_SHA" --title "Automobile Engine development ${TESTED_SHA:0:12}" --prerelease --notes-file release-notes.md "${ASSETS[@]}" SHA256SUMS.txt
+          # A rolling release with fixed file names, so the download links on the install page never change.
+          if gh release view desktop-latest >/dev/null 2>&1; then
+            gh release upload desktop-latest --clobber "${ASSETS[@]}" SHA256SUMS.txt
+            gh release edit desktop-latest --notes-file release-notes.md --prerelease
+          else
+            gh release create desktop-latest --target "$TESTED_SHA" --title "Automobile Engine: latest development build" --prerelease --notes-file release-notes.md "${ASSETS[@]}" SHA256SUMS.txt
+          fi

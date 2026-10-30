@@ -907,3 +907,12 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 :root[data-motion="reduced"] .skeleton::after, :root[data-motion="reduced"] .goo-field i { animation: none !important; }
 :root[data-motion="reduced"] .goo-trail .liquid-pill { transition-duration: 1ms !important; }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .goo-field { display: none; } }
+
+/* Theme change: the new theme spreads from the pressed control in a slow circle (components/theme.tsx drives the clip-path). */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+::view-transition-old(root) { z-index: 1; }
+::view-transition-new(root) { z-index: 2; }
+.login-theme { position: fixed; top: 16px; right: 16px; z-index: 20; }
+.icon-btn .icon, .icon-btn svg { transition: transform 600ms var(--spring); }
+.icon-btn:hover svg { transform: rotate(18deg); }
+@media (prefers-reduced-motion: reduce) { ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation-duration: 1ms !important; } }

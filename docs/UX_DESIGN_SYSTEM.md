@@ -50,3 +50,10 @@ Intelligence already had: tokens in `app/globals.css`, a `Button` with `loading`
 `tests/local-stack/accessibility.spec.ts` (run against a local production build): axe-core 4.13 with tags wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa on 3 public pages and 10 signed-in pages, in dark and light, at 1366 px and 390 px, plus the search sheet, profile menu and a form dialog; horizontal-overflow check at both widths; 8 visual-regression baselines (login and privacy page, both themes and widths; Linux Chromium only); theme persistence. 24 of 24 passed. Automated checks catch a subset of problems: keyboard and screen-reader walkthroughs, zoom and forced-colours review remain manual and were not done. The WebKit mobile project in `playwright.unified.config.ts` could not run here (browser not installed).
 
 Screenshots: `docs/screenshots/theme-{dark,light}-*-{desktop,mobile}.png`.
+
+## Theme change and desktop installers
+
+- Theme changes run a 1100 ms circular wash (View Transitions API) that grows from the control that was pressed and covers the whole page. When the browser lacks the API, or motion is reduced, the theme switches immediately.
+- A sun/moon `ThemeToggle` sits in the top bar and in the corner of the sign-in page. System / Light / Dark remains in the profile menu and the sign-in footer.
+- `/install` detects the OS and lists Windows (`.exe`, `.msi`), macOS (`.dmg`, universal) and Linux (`.AppImage`, `.deb`, `.rpm`) installers from the rolling `desktop-latest` GitHub release, with `SHA256SUMS`. Override the host with `NEXT_PUBLIC_DESKTOP_DOWNLOAD_BASE`.
+- Status: the installers have NOT been built in this sandbox and the CI workflows have not run yet. Builds are unsigned (SmartScreen/Gatekeeper warnings are expected until signing certificates are added). The release URL only works for signed-in GitHub users while the repository is private.

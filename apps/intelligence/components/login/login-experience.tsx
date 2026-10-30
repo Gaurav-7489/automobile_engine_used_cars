@@ -1,6 +1,6 @@
 "use client";
 
-import { ThemeSwitch } from "../theme";
+import { ThemeSwitch, ThemeToggle } from "../theme";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
@@ -59,6 +59,7 @@ export function LoginExperience({ providers }: Props) {
         </div>
         <div className="login-art"><VehicleArt ratio="21 / 9" /></div>
       </aside>
+      <div className="login-theme"><ThemeToggle className="icon-btn" /></div>
       <main className="login-form-wrap" id="content" tabIndex={-1}>
         <div className="login-mobile-brand"><Brand sub={false} /></div>
         <form className="login-form" onSubmit={submit} noValidate aria-describedby="login-status">
