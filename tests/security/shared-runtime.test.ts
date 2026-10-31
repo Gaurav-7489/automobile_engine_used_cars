@@ -7,7 +7,7 @@ import { createPrincipalResolver, AuthenticationError } from "../../packages/ser
 
 test("database URLs cannot weaken verified TLS or override the explicit CA",()=>{
   const options=databaseOptions({DATABASE_URL:"postgresql://test:test@db.example/app?sslmode=no-verify&sslrootcert=ignored&ssl=false",DATABASE_SSL_CA:"trusted-ca",NODE_ENV:"production",VERCEL:"1"});
-  assert.deepEqual(options.ssl,{rejectUnauthorized:true,ca:"trusted-ca"});assert.equal(options.max,2);
+  assert.deepEqual(options.ssl,{rejectUnauthorized:true,ca:"trusted-ca"});assert.equal(options.max,5);assert.equal(options.connectionTimeoutMillis,15000);
   assert.ok(!options.connectionString?.includes("ssl"));
   assert.throws(()=>databaseOptions({DATABASE_URL:"postgresql://db/app",DATABASE_TLS:"off",NODE_ENV:"production"}),/TLS/);
   assert.throws(()=>databaseOptions({DATABASE_URL:"postgresql://db/app",DATABASE_POOL_MAX:"0"}),/DATABASE_POOL_MAX/);

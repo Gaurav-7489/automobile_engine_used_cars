@@ -6,8 +6,12 @@ D=${LOCAL_PG_DIR:-/var/lib/postgresql/vl}; PORT=${LOCAL_PG_PORT:-5544}; BIN=/usr
 mkdir -p "$D" && chown postgres "$D"
 if [ ! -d "$D/data" ]; then
   su postgres -c "$BIN/initdb -D $D/data -A trust >/dev/null"
-  openssl req -x509 -newkey rsa:2048 -nodes -keyout "$D/server.key" -out "$D/server.crt" -days 30 -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1" 2>/dev/null
+fi
+# A self-signed local certificate; renewed when it is missing or expires within a day.
+if [ ! -f "$D/server.crt" ] || ! openssl x509 -in "$D/server.crt" -noout -checkend 86400 >/dev/null 2>&1; then
+  openssl req -x509 -newkey rsa:2048 -nodes -keyout "$D/server.key" -out "$D/server.crt" -days 365 -subj "/CN=127.0.0.1" -addext "subjectAltName=IP:127.0.0.1" 2>/dev/null
   chown postgres "$D/server.key" "$D/server.crt"; chmod 600 "$D/server.key"
+  if su postgres -c "$BIN/pg_ctl -D $D/data status" >/dev/null 2>&1; then su postgres -c "$BIN/pg_ctl -D $D/data reload" >/dev/null; echo "renewed the local certificate"; exit 0; fi
 fi
 rm -f "$D/data/postmaster.pid"
 su postgres -c "$BIN/pg_ctl -D $D/data -o '-p $PORT -k /tmp -c ssl=on -c ssl_cert_file=$D/server.crt -c ssl_key_file=$D/server.key' -l $D/log -w start" >/dev/null

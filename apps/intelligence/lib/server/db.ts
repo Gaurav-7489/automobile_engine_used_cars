@@ -1,4 +1,4 @@
-import { databasePool, tenantTransaction, type SqlClient, type SqlPool } from "@vandlabs/data/postgres";
+import { connectClient, databasePool, tenantTransaction, type SqlClient, type SqlPool } from "@vandlabs/data/postgres";
 
 export type { SqlClient, SqlPool };
 
@@ -23,7 +23,7 @@ export async function tenantTx<T>(tenantId: string, action: (client: SqlClient) 
 
 /** Pre-tenant operations (sign-in, token redemption) call SECURITY DEFINER functions only. */
 export async function plain<T>(action: (client: SqlClient) => Promise<T>): Promise<T> {
-  const client = await (await pool()).connect();
+  const client = await connectClient(await pool());
   try {
     return await action(client);
   } finally {

@@ -5,9 +5,27 @@ import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-sec
 
 export interface SqlClient {
   query(sql: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
-  release(): void;
+  /** Passing an error discards the connection instead of returning it to the pool. */
+  release(error?: Error | boolean): void;
 }
 export interface SqlPool { connect(): Promise<SqlClient> }
+
+/** Failures to reach the server (a serverless database waking up, a dropped socket), as opposed to errors from a statement. */
+export function isTransientConnectionError(error: unknown): boolean {
+  const e = error as { message?: unknown; code?: unknown } | null;
+  const code = typeof e?.code === "string" ? e.code : "";
+  const message = typeof e?.message === "string" ? e.message : "";
+  return ["08000", "08001", "08003", "08006", "08P01", "57P01", "57P03", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EPIPE"].includes(code)
+    || /timeout exceeded when trying to connect|connection terminated|server conn crashed|connection timeout|terminating connection/i.test(message);
+}
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Opens a connection, retrying briefly while the server is unreachable. Nothing has run on it yet, so a retry can never repeat a write. */
+export async function connectClient(pool: SqlPool, attempts = 3): Promise<SqlClient> {
+  for (let attempt = 1; ; attempt++) {
+    try { return await pool.connect(); }
+    catch (error) { if (attempt >= attempts || !isTransientConnectionError(error)) throw error; await pause(400 * attempt); }
+  }
+}
 export async function databaseSecret(arn:string):Promise<Record<string,string>> {
   const result = await new SecretsManagerClient({}).send(new GetSecretValueCommand({SecretId:arn}));
   if(!result.SecretString)throw new Error("Database credentials unavailable.");return JSON.parse(result.SecretString);
@@ -25,12 +43,12 @@ export function databaseOptions(env:Record<string,string|undefined>=process.env,
     connectionString=url.toString();
   }
   if(!connectionString&&!credentials.password)throw new Error("Database connection is not configured.");
-  const max=Number(env.DATABASE_POOL_MAX??(env.VERCEL==="1"||env.HOSTING_PROVIDER==="cloudflare"?"2":"10"));
+  const max=Number(env.DATABASE_POOL_MAX??(env.VERCEL==="1"||env.HOSTING_PROVIDER==="cloudflare"?"5":"10"));
   if(!Number.isInteger(max)||max<1||max>50)throw new Error("DATABASE_POOL_MAX must be between 1 and 50.");
   return {connectionString,host:env.DATABASE_HOST||credentials.host,database:env.DATABASE_NAME||credentials.dbname,
     user:credentials.username,password:credentials.password,port:Number(env.DATABASE_PORT||credentials.port||5432),
     ssl:tls?{rejectUnauthorized:true,ca:env.DATABASE_SSL_CA|| (env.DATABASE_SSL_CA_FILE?readFileSync(env.DATABASE_SSL_CA_FILE,"utf8"):undefined)}:false,
-    max,connectionTimeoutMillis:5000,idleTimeoutMillis:30000,statement_timeout:15000,application_name:"vandlabs-automobile-engine"};
+    max,connectionTimeoutMillis:Number(env.DATABASE_CONNECT_TIMEOUT_MS??15000),idleTimeoutMillis:30000,statement_timeout:15000,application_name:"vandlabs-automobile-engine"};
 }
 export function databasePool(): Promise<SqlPool> {
   if (process.env.HOSTING_PROVIDER === "cloudflare") {
@@ -69,9 +87,14 @@ export function migrationPool() {
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function tenantTransaction<T>(pool: SqlPool, tenantId: string, action: (client: SqlClient) => Promise<T>): Promise<T> {
   if (!uuid.test(tenantId)) throw new Error("Invalid tenant identifier.");
-  const client = await pool.connect();
+  // BEGIN is safe to repeat: a pooled connection that died while idle is discarded and a fresh one opened.
+  let client: SqlClient;
+  for (let attempt = 1; ; attempt++) {
+    client = await connectClient(pool);
+    try { await client.query("BEGIN"); break; }
+    catch (error) { client.release(error as Error); if (attempt >= 2 || !isTransientConnectionError(error)) throw error; }
+  }
   try {
-    await client.query("BEGIN");
     // One statement sets the tenant and reads the role's flags: a round trip saved on every request.
     const role = (await client.query("SELECT set_config('app.tenant_id', $1, true) AS tenant, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user", [tenantId])).rows[0];
     if (!role || role.rolsuper || role.rolbypassrls) throw new Error("Application database role must not bypass RLS.");
