@@ -59,6 +59,12 @@ export function useWorkspace(): Ctx {
 /** The reload counter, or 0 outside a workspace (the admin console reads data without one). */
 export function useWorkspaceEpoch(): number { return useContext(WorkspaceContext)?.epoch ?? 0; }
 
+/** Who and which workspace this tab is signed in as, or "" outside a workspace. Keys anything remembered per member. */
+export function useWorkspaceIdentity(): string {
+  const session = useContext(WorkspaceContext)?.session;
+  return session?.sub && session.tid ? `${session.sub}:${session.tid}` : "";
+}
+
 const defaultBranchOf = (state: Pick<WorkspaceState, "branches">): string => (state.branches.find((b) => b.isDefault) ?? state.branches[0])?.id ?? "";
 export { defaultBranchOf };
 
