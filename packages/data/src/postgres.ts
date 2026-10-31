@@ -48,7 +48,10 @@ export function databaseOptions(env:Record<string,string|undefined>=process.env,
   return {connectionString,host:env.DATABASE_HOST||credentials.host,database:env.DATABASE_NAME||credentials.dbname,
     user:credentials.username,password:credentials.password,port:Number(env.DATABASE_PORT||credentials.port||5432),
     ssl:tls?{rejectUnauthorized:true,ca:env.DATABASE_SSL_CA|| (env.DATABASE_SSL_CA_FILE?readFileSync(env.DATABASE_SSL_CA_FILE,"utf8"):undefined)}:false,
-    max,connectionTimeoutMillis:Number(env.DATABASE_CONNECT_TIMEOUT_MS??15000),idleTimeoutMillis:30000,statement_timeout:15000,application_name:"vandlabs-automobile-engine"};
+    // Serverless instances sleep between requests and sockets can die silently while they do. A short connect timeout lets
+    // connectClient's retries replace a stuck attempt in seconds (3 x 5 s still covers a database waking up) instead of
+    // waiting 15 s per attempt; keep-alive and a short idle window stop dead sockets lingering in the pool.
+    max,connectionTimeoutMillis:Number(env.DATABASE_CONNECT_TIMEOUT_MS??5000),idleTimeoutMillis:10000,keepAlive:true,statement_timeout:15000,application_name:"vandlabs-automobile-engine"};
 }
 export function databasePool(): Promise<SqlPool> {
   if (process.env.HOSTING_PROVIDER === "cloudflare") {
