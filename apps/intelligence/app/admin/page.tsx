@@ -4,6 +4,7 @@ import Link from "next/link";
 import { adminAccess } from "@/lib/server/admin-gate";
 import { AdminConsole } from "@/components/admin/admin-console";
 import { Brand } from "@/components/brand";
+import { AdminTwoFactorGate } from "@/components/admin/two-factor-gate";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin console | VandLabs", robots: { index: false, follow: false } };
@@ -18,9 +19,10 @@ export default async function AdminPage() {
       <main className="login-form-wrap" id="content" tabIndex={-1}>
         <div className="login-form stack">
           <Brand sub={false} />
-          <h1 className="h1">Turn on two-factor login first</h1>
-          <p className="muted">The admin console can see and change every dealership, so it needs two-factor login on your account. It takes about a minute with an authenticator app.</p>
-          <div className="row-flex"><Link className="btn btn-primary" href="/app/settings/security">Open Security settings</Link><Link className="btn" href="/app/overview">Back to my workspace</Link></div>
+          <h1 className="h1">One step before the admin console</h1>
+          <p className="muted">The admin console can change every dealership, so your account needs two-factor login. Set it up here with any authenticator app; the console opens as soon as it is on. You only do this once.</p>
+          <AdminTwoFactorGate />
+          <div><Link className="btn btn-ghost" href="/app/overview">Back to my workspace</Link></div>
         </div>
       </main>
     );
