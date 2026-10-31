@@ -19,6 +19,10 @@ import { ThemeMenuItems, ThemeSwitch, ThemeToggle, MotionSwitch } from "./theme"
 import { RouteLoader } from "./motion/route-loader";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { sumAlertCounts } from "@/lib/selectors";
+import { clearRemoteCache, warm } from "@/lib/remote-cache";
+
+/** Pointer, focus or touch on a destination starts loading its data, so it is usually ready before the click lands. */
+const warmOn = (path: string) => ({ onPointerEnter: () => warm(path), onFocus: () => warm(path), onTouchStart: () => warm(path) });
 
 const SHORTCUTS: [string, string][] = [["Ctrl / ⌘ + K", "Open global search"], ["/", "Open global search (outside fields)"], ["↑ ↓ then Enter", "Select and open a search result"], ["Esc", "Close a dialog, drawer or menu"], ["← → Home End", "Move between tabs"], ["Tab / Shift + Tab", "Move through controls; focus is always visible"]];
 
@@ -65,11 +69,11 @@ function MoreSheet({ open, onClose, platformAdmin }: { open: boolean; onClose: (
   const router = useRouter();
   const url = useUrlState();
   const permitted = state.branches.filter((b) => session.branchIds.includes(b.id));
-  const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); router.refresh(); };
+  const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); clearRemoteCache(); router.push("/login"); router.refresh(); };
   return (
     <Dialog open={open} onClose={onClose} title="Menu" size="w480">
       <nav aria-label="All destinations" className="stack-sm">
-        {visibleNav(session.role, state.entitlements).map((item) => <Link key={item.key} href={href(item.href)} className="nav-link" onClick={onClose} style={{ fontSize: 15 }}><Icon name={item.icon} />{item.label}</Link>)}
+        {visibleNav(session.role, state.entitlements).map((item) => <Link key={item.key} href={href(item.href)} prefetch className="nav-link" onClick={onClose} style={{ fontSize: 15 }} {...warmOn(item.href)}><Icon name={item.icon} />{item.label}</Link>)}
       </nav>
       <hr className="divider" />
       <div className="field"><label htmlFor="mobile-branch">Branch scope</label>
@@ -116,7 +120,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
   // Route changes restore useful focus: the new page heading.
   useEffect(() => { const handle = window.setTimeout(() => document.getElementById("page-title")?.focus({ preventScroll: true }), 50); return () => window.clearTimeout(handle); }, [pathname]);
 
-  const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); router.refresh(); };
+  const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); clearRemoteCache(); router.push("/login"); router.refresh(); };
   const allowedNav = visibleNav(session.role, state.entitlements);
   const bottom = allowedNav.filter((n) => ["overview", "market", "inventory", "leads"].includes(n.key));
 
@@ -129,7 +133,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
           <Link href={href("/app/overview")} className="brand" aria-label="VandLabs Command Centre"><Brand sub /></Link>
           <nav aria-label="Primary">
             {allowedNav.map((item) => (
-              <Link key={item.key} href={href(item.href)} className="nav-link" aria-current={key === item.key ? "page" : undefined} aria-label={item.label}>
+              <Link key={item.key} href={href(item.href)} prefetch className="nav-link" aria-current={key === item.key ? "page" : undefined} aria-label={item.label} {...warmOn(item.href)}>
                 <Icon name={item.icon} /><span className="nav-label label-text">{item.label}</span>
                 {item.key === "alerts" && urgent > 0 ? <span className="nav-badge" aria-label={`${urgent} urgent`}>{urgent}</span> : null}
               </Link>
@@ -174,7 +178,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
           </div>
         </main>
         <nav className="bottom-nav" aria-label="Primary mobile">
-          {bottom.map((item) => <Link key={item.key} href={href(item.href)} aria-current={key === item.key ? "page" : undefined}><Icon name={item.icon} /><span>{item.short}</span></Link>)}
+          {bottom.map((item) => <Link key={item.key} href={href(item.href)} prefetch aria-current={key === item.key ? "page" : undefined} {...warmOn(item.href)}><Icon name={item.icon} /><span>{item.short}</span></Link>)}
           <button type="button" onClick={() => setMoreOpen(true)} aria-haspopup="dialog" aria-current={["pricing", "advertising", "capital", "alerts", "reports", "settings"].includes(key) ? "page" : undefined}><Icon name="menu" /><span>More</span></button>
         </nav>
       </div>

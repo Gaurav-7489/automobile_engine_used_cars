@@ -1,9 +1,10 @@
 "use client";
+import { clearRemoteCache } from "@/lib/remote-cache";
 
 import { ThemeSwitch, ThemeToggle } from "../theme";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Brand } from "../brand";
 import { Dialog } from "../overlay";
 import { Button, Check, FormSummary, Notice, PasswordField, TextField } from "../ui";
@@ -14,6 +15,8 @@ type Props = { providers: { id: "google" | "microsoft"; label: string }[] };
 
 export function LoginExperience({ providers }: Props) {
   const router = useRouter();
+  // A new sign-in never sees data cached for whoever used this tab before.
+  useEffect(() => { clearRemoteCache(); }, []);
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

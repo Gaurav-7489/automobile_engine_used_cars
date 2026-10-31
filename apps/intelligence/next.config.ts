@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Keep visited and prefetched pages in the client router cache, so moving between workspace pages does not wait for the server.
+  // Page data itself is fetched by the page (lib/remote-cache), so a cached page shell never shows stale records.
+  experimental: { staleTimes: { dynamic: 300, static: 600 } },
   // Short names for the destinations the platform's navigation groups differently.
   async redirects() {
     return [

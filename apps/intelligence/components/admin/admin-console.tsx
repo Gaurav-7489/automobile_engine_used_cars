@@ -1,4 +1,5 @@
 "use client";
+import { clearRemoteCache } from "@/lib/remote-cache";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,7 +32,7 @@ export function AdminConsole({ name, email }: { name: string; email: string }) {
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); router.refresh(); };
+  const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); clearRemoteCache(); router.push("/login"); router.refresh(); };
   const total = (key: keyof Workspace) => (workspaces ?? []).reduce((sum, w) => sum + Number(w[key]), 0);
   const showLink = (title: string, path: string, expiresAt: string) => setLink({ title, url: `${window.location.origin}${path}`, expiresAt });
 

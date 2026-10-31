@@ -78,15 +78,18 @@ export function parseLakhInput(text: string): number | null {
   return Math.round(Number(cleaned) * PAISE_PER_LAKH);
 }
 
-const IST = "Asia/Kolkata";
 const monthShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/**
+ * Calendar parts in India Standard Time. IST is a fixed UTC+05:30 with no daylight saving, so plain arithmetic gives the same
+ * answer as Intl with the Asia/Kolkata zone, without building a formatter for every date on screen (that cost ~0.1 s per table).
+ */
+const IST_OFFSET_MS = 330 * 60_000;
 function istParts(iso: string): { y: number; m: number; d: number; hh: number; mm: number } {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: IST, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
-  }).formatToParts(new Date(iso));
-  const pick = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? 0);
-  return { y: pick("year"), m: pick("month"), d: pick("day"), hh: pick("hour") % 24, mm: pick("minute") };
+  const time = new Date(iso).getTime();
+  if (Number.isNaN(time)) throw new RangeError("Invalid time value");
+  const t = new Date(time + IST_OFFSET_MS);
+  return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate(), hh: t.getUTCHours(), mm: t.getUTCMinutes() };
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");

@@ -28,7 +28,7 @@ export function PlatformAudit({ dealerships }: { dealerships: { tenantId: string
       {remote.status === "error" && !remote.data ? <ErrorPanel title="The audit trail could not load" onRetry={remote.reload} /> : null}
       {remote.data && !remote.data.rows.length ? <EmptyState title="No audit events match">Nothing has been recorded for this search yet.</EmptyState> : null}
       {remote.data?.rows.length ? (
-        <div className="table-wrap" aria-busy={remote.status === "refreshing"}>
+        <div className="table-wrap" aria-busy={remote.status === "refreshing" && !remote.background}>
           <table className="data-table dense"><caption className="sr-only">Platform audit events</caption>
             <thead><tr><th>Time</th><th>Dealership</th><th>Actor</th><th>Action</th><th>Subject</th><th>Detail</th></tr></thead>
             <tbody>{remote.data.rows.map((r) => <tr key={r.id}><td style={{ whiteSpace: "nowrap" }}>{formatDateTime(r.at)}</td><td>{r.organization}</td><td>{r.actorName || r.actor}</td><td>{r.action}</td><td>{r.subject}</td><td className="meta" style={{ maxWidth: 280, overflowWrap: "anywhere" }}>{r.detail}</td></tr>)}</tbody>
