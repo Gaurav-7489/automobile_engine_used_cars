@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cache } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme";
+import { EnquiryForm } from "@/components/listing/enquiry-form";
 import { readPublicListing, type PublicListing } from "@/lib/server/public-listing";
 import { normalisePhone, ordinalOwner, postPrice } from "@/lib/social-post";
 
@@ -70,6 +71,7 @@ export default async function ListingPage({ params }: { params: Params }) {
                   {phone ? <a className="btn" href={`https://wa.me/${phone.replace("+", "")}?text=${encodeURIComponent(`Hi, I'm interested in the ${titleOf(v)} (Ref ${v.stockId}).`)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a> : null}
                   {v.branch.city ? <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${v.dealer} ${v.branch.name} ${v.branch.city} ${v.branch.state}`)}`} target="_blank" rel="noopener noreferrer">Directions</a> : null}
                 </div>
+                <EnquiryForm tenant={tenant} stock={v.stockId} title={titleOf(v)} dealer={v.dealer} />
               </div>
             </div>
             <h2>Specification</h2>

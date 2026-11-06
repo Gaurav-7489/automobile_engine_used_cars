@@ -1043,3 +1043,6 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .pl-listing h1 { margin: 12px 0 4px; line-height: 1.15; }
 .pl-listing h2 { margin: 40px 0 16px; }
 .pl-listing .sr-facts dd { text-transform: none; }
+.pl-enquiry { margin-top: 24px; }
+.pl-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.pl-listing .pl-enquiry h2 { margin: 0 0 4px; }
