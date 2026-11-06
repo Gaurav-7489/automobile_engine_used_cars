@@ -30,7 +30,7 @@ export function ReportsPage() {
 }
 
 function Reports() {
-  const { scope, can, demoState, session } = useWorkspace();
+  const { scope, can, demoState, session, state: workspace } = useWorkspace();
   const url = useUrlState();
   const toast = useToast();
   const tabParam = url.get("tab", "overview") as TabKey;
@@ -99,7 +99,7 @@ function Reports() {
         <SelectField label="Comparison" value={draft.compare} onChange={(e) => setDraft({ ...draft, compare: e.target.value })} options={[{ value: "previous", label: "Comparison: previous period" }, { value: "yoy", label: "Comparison: same period last year" }, { value: "none", label: "No comparison" }]} />
         <TextField label="Branch" value={scope.label} readOnly help="Set in the header" />
         <Button variant="primary" type="submit">Apply</Button>
-        <Button onClick={() => setScheduleOpen(true)} disabled={!can("reports.schedule")} reason={!can("reports.schedule") ? "Scheduling needs Owner, Manager or Finance access." : undefined}>Schedule</Button>
+        <Button onClick={() => setScheduleOpen(true)} disabled={!can("reports.schedule") || Boolean(workspace.live)} reason={workspace.live ? "Scheduled email delivery is not switched on yet. Use Export to share this report." : !can("reports.schedule") ? "Scheduling needs Owner, Manager or Finance access." : undefined}>Schedule</Button>
       </form>
       <p className="meta">Period {periodLabel} / one applied scope across all panels. {dirtyFilters ? <Badge tone="warn">Changes not applied</Badge> : null}</p>
       <p className="meta">Dates used: acquired stock by acquisition date, sales by sale-close date, leads by the date the lead was created. Stock age and landed capital are as of today, whatever the period. Records dated before {monthLabel(getMonths()[0])} fall outside every selectable period.</p>
