@@ -53,7 +53,7 @@ export function AcquisitionPage() {
   const o = remote.data;
   return (
     <div className="page">
-      <PageHead title="Acquisition research" lead="Which cars to buy next, from your approved sourcing data, within your capital and reserve. Missing facts stay unknown; confirm condition and quotations before buying." />
+      <PageHead title="Buying" lead="Which cars to buy next, from your approved sourcing data and within your budget. Unknown facts stay unknown: check condition and quotes before you buy." />
       <RemotePanel title="Acquisition research" remote={remote} rows={4}>
         {o ? (
           <>
@@ -81,7 +81,7 @@ export function AcquisitionPage() {
                   <article key={option.cars.map((c) => c.id).join("+")} className="card stack-sm">
                     <p className="meta">{i === 0 ? "Top fit for your objective" : `Alternative ${i}`}{report.demo ? " (fictional example)" : ""}</p>
                     <h3 className="h3">{option.cars.map((c) => `${c.year} ${c.make} ${c.model}`).join(" + ")}</h3>
-                    {option.cars.map((car) => <p key={car.id} className="meta">{car.city}, {car.state} / {car.distanceKm.toFixed(0)} km straight-line / {car.fuel} / {car.odometerKm.toLocaleString("en-IN")} km. Purchase {money(car.purchasePrice)}, preparation {money(car.preparationCost)}, transfer {money(car.transferFees)}, transport {money(car.transportEstimate)}. Customer annual fuel {money(car.annualFuelEstimate)}. Source {car.sourceId}, observed {car.observedAt.slice(0, 10)}.</p>)}
+                    {option.cars.map((car) => <p key={car.id} className="meta">{car.city}, {car.state} · {car.distanceKm.toFixed(0)} km straight-line / {car.fuel} · {car.odometerKm.toLocaleString("en-IN")} km. Purchase {money(car.purchasePrice)}, preparation {money(car.preparationCost)}, transfer {money(car.transferFees)}, transport {money(car.transportEstimate)}. Customer annual fuel {money(car.annualFuelEstimate)}. Source {car.sourceId}, observed {car.observedAt.slice(0, 10)}.</p>)}
                     <dl className="kv">
                       <dt>Landed plus holding</dt><dd>{money(option.landedCost)}</dd>
                       <dt>Gross contribution range</dt><dd>{money(option.marginLow)} to {money(option.marginHigh)}</dd>

@@ -112,7 +112,7 @@ export function formatDay(iso: string | null | undefined): string {
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return MISSING;
   const p = istParts(iso);
-  return `${pad(p.d)} ${monthShort[p.m - 1]} ${p.y} / ${pad(p.hh)}:${pad(p.mm)} IST`;
+  return `${pad(p.d)} ${monthShort[p.m - 1]} ${p.y}, ${pad(p.hh)}:${pad(p.mm)} IST`;
 }
 
 /** DD MMM, HH:mm IST (current year implied) */

@@ -107,7 +107,7 @@ export function MarketPage() {
     if (!can("market.export")) return;
     const lines = [["listing_id", "make", "model", "variant", "year", "km", "owners", "city", "asking_rupees", "estimate_rupees", "difference_pct", "source", "observed_at", "evidence_tier", "matched_n"],
       ...rows.filter((r) => !selectMode || !selected.length || selected.includes(r.id)).map((r) => [r.id, r.make, r.model, r.variant, String(r.year), String(r.km), String(r.owners), r.city, String(r.asking / 100), r.estimate === null ? "" : String(r.estimate / 100), r.difference === null ? "" : r.difference.toFixed(1), r.source, r.observedAt, r.tier, String(r.matched)])];
-    downloadCsv(`market-listings-${SNAPSHOT_ID}.csv`, lines, [`# Source attribution: licensed feeds as named per row; asking prices, not transactions`, `# Snapshot ${SNAPSHOT_ID} / rule ${OPPORTUNITY_RULE_VERSION} / filters ${queryString}`]);
+    downloadCsv(`market-listings-${SNAPSHOT_ID}.csv`, lines, [`# Source attribution: licensed feeds as named per row; asking prices, not transactions`, `# Snapshot ${SNAPSHOT_ID} · rule ${OPPORTUNITY_RULE_VERSION} · filters ${queryString}`]);
     toast("Export ready: permitted rows and source attribution only.");
   };
 
@@ -117,7 +117,7 @@ export function MarketPage() {
 
   return (
     <div className="page">
-      <PageHead title="Market Opportunity Radar" lead="Licensed listings, visible evidence and explainable comparisons." />
+      <PageHead title="Market Radar" lead="Asking prices from licensed listings, with the evidence behind every comparison." />
       <form className="search-row" role="search" aria-label="Market search" onSubmit={(e) => { e.preventDefault(); patch({ q: qDraft.trim() || null, cleared: qDraft.trim() ? null : "1" }); }}>
         <TextField label="Search make, model or variant" className="search-q" value={qDraft} onChange={(e) => setQDraft(e.target.value)} placeholder="BMW 520d Luxury Line" enterKeyHint="search" aria-label="Search make, model or variant" />
         <Button variant="primary" type="submit">Search</Button>
@@ -185,13 +185,13 @@ export function MarketPage() {
               <table className="data-table" aria-label="Market listings">
                 <thead><tr>
                   {selectMode ? <th className="sel"><span className="sr-only">Select</span></th> : null}
-                  <th className={selectMode ? "pin-col" : ""} style={{ width: 232 }}>Vehicle / evidence</th><th className="num" style={{ width: 70 }}>Year</th><th style={{ width: 140 }}>City</th><th className="num" style={{ width: 112 }}>km</th><th className="num" style={{ width: 80 }}>Owners</th><th className="num" style={{ width: 150 }}>Asking</th><th className="num" style={{ width: 190 }}>Est. market</th><th className="num" style={{ width: 186 }}>Difference</th><th><span className="sr-only">Actions</span></th>
+                  <th className={selectMode ? "pin-col" : ""} style={{ width: 232 }}>Car and evidence</th><th className="num" style={{ width: 70 }}>Year</th><th style={{ width: 140 }}>City</th><th className="num" style={{ width: 112 }}>km</th><th className="num" style={{ width: 80 }}>Owners</th><th className="num" style={{ width: 150 }}>Asking</th><th className="num" style={{ width: 190 }}>Est. market</th><th className="num" style={{ width: 186 }}>Difference</th><th><span className="sr-only">Actions</span></th>
                 </tr></thead>
                 <tbody>
                   {shown.map((r) => (
                     <tr key={r.id}>
                       {selectMode ? <td className="sel"><input type="checkbox" aria-label={`Select ${r.make} ${r.model} ${r.city}`} checked={selected.includes(r.id)} onChange={(e) => setSelected((s) => (e.target.checked ? (s.length >= 4 ? s : [...s, r.id]) : s.filter((x) => x !== r.id)))} disabled={!selected.includes(r.id) && selected.length >= 4} /></td> : null}
-                      <td className={selectMode ? "pin-col" : ""}><Link className="row-title" href={href(`/app/market/${r.id}`)}>{r.make} {r.model}</Link><span className="sub">{r.variant} / {r.source.replace("Authorised feed", "Feed")}</span></td>
+                      <td className={selectMode ? "pin-col" : ""}><Link className="row-title" href={href(`/app/market/${r.id}`)}>{r.make} {r.model}</Link><span className="sub">{r.variant} · {r.source.replace("Authorised feed", "Feed")}</span></td>
                       <td className="num">{r.year}</td><td>{r.city}</td><td className="num">{formatKm(r.km)}</td><td className="num">{r.owners}</td>
                       <td className="num">{formatMoney(r.asking)}</td><td className="num">{r.estimate === null ? <>{MISSING}<span className="sub">Insufficient evidence</span></> : formatMoney(r.estimate)}</td>
                       <td className="num"><DifferenceCell value={r.difference} /></td>
@@ -208,10 +208,10 @@ export function MarketPage() {
                 <li key={r.id} className="card tight listing-card">
                   {selectMode ? <Check label={`Select ${r.make} ${r.model} ${r.city}`} checked={selected.includes(r.id)} onChange={(v) => setSelected((s) => (v ? (s.length >= 4 ? s : [...s, r.id]) : s.filter((x) => x !== r.id)))} /> : null}
                   <Link href={href(`/app/market/${r.id}`)} className="h3">{r.make} {r.model} {r.variant}</Link>
-                  <span className="meta">{r.city} / {r.year} / {formatKm(r.km)} km</span>
+                  <span className="meta">{r.city} · {r.year} · {formatKm(r.km)} km</span>
                   <span className="listing-price">{formatMoney(r.asking)} asking</span>
                   <span className="tone-accent meta">{r.estimate === null ? "Estimate unavailable: insufficient evidence" : `${formatMoney(r.estimate)} estimated market`} / <DifferenceCell value={r.difference} /></span>
-                  <span className="meta">{r.tier === "Insufficient" ? "Insufficient evidence" : `${r.tier}`} / observed {formatShortDateTime(r.observedAt)}</span>
+                  <span className="meta">{r.tier === "Insufficient" ? "Insufficient evidence" : `${r.tier}`} · observed {formatShortDateTime(r.observedAt)}</span>
                   <div className="row-flex"><Button size="sm" onClick={() => toggle(r.id)} aria-pressed={watching(r.id)}>{watching(r.id) ? "Watching" : "Watch"}</Button><Link href={href(`/app/market/${r.id}`)} className="btn btn-sm">Open</Link><Button size="sm" variant="ghost" onClick={() => setQuick(r)}>Quick view</Button></div>
                 </li>
               ))}
@@ -219,7 +219,7 @@ export function MarketPage() {
           ) : null}
           {rows.length > 0 ? (
             <div className="pager">
-              <span className="meta">{cursor + 1}-{cursorEnd} of {total} / Source age and evidence in Quick view</span>
+              <span className="meta">{cursor + 1}-{cursorEnd} of {total} · Source age and evidence in Quick view</span>
               <div className="row-flex"><Button disabled={cursor === 0} onClick={() => url.set({ cursor: Math.max(0, cursor - 25) || null }, { push: true })}>Previous</Button><Button disabled={result?.next_cursor == null} onClick={() => url.set({ cursor: result?.next_cursor }, { push: true })}>Next</Button></div>
             </div>
           ) : null}
@@ -296,7 +296,7 @@ function SavedSearches({ open, onClose }: { open: boolean; onClose: () => void }
                   <div className="row-flex"><Button variant="primary" onClick={() => { run((st) => renameSearch(st, s.id, name, s.cadence)); setEditing(null); toast("Saved search renamed."); }}>Save</Button><Button onClick={() => setEditing(null)}>Cancel</Button></div></div>
               ) : (
                 <div className="spread" style={{ flexWrap: "wrap" }}>
-                  <div><strong>{s.name}</strong><div className="meta">Alerts: {s.cadence} / saved {formatShortDateTime(s.createdAt)}</div></div>
+                  <div><strong>{s.name}</strong><div className="meta">Alerts: {s.cadence} · saved {formatShortDateTime(s.createdAt)}</div></div>
                   <div className="row-flex">
                     <Button size="sm" variant="primary" onClick={() => { onClose(); const qs = new URLSearchParams(s.query); qs.set("cleared", "1"); url.set(Object.fromEntries(qs.entries()), { push: true }); }}>Run</Button>
                     <Button size="sm" onClick={() => { setEditing(s.id); setName(s.name); }}>Rename</Button>
@@ -322,7 +322,7 @@ function QuickView({ listing, onClose, watching, onToggle }: { listing: ListingR
       footer={<><Button onClick={onToggle} aria-pressed={watching}>{watching ? "Watching" : "Watch"}</Button><Link href={href(`/app/market/${listing.id}`)} className="btn btn-primary">Open detail</Link></>}>
       <dl className="kv">
         <div><dt>Asking price</dt><dd>{formatMoney(listing.asking)}</dd></div>
-        <div><dt>Estimated market value</dt><dd>{listing.estimate === null ? `${MISSING} / insufficient evidence` : formatMoney(listing.estimate)}</dd></div>
+        <div><dt>Estimated market value</dt><dd>{listing.estimate === null ? `${MISSING} · insufficient evidence` : formatMoney(listing.estimate)}</dd></div>
         <div><dt>Difference</dt><dd><DifferenceCell value={listing.difference} /></dd></div>
         <div><dt>Source</dt><dd>{listing.source}</dd></div>
         <div><dt>Observed</dt><dd>{formatDateTime(listing.observedAt)}</dd></div>
@@ -343,7 +343,7 @@ function CompareSheet({ open, onClose, rows }: { open: boolean; onClose: () => v
   const fields: { label: string; get: (r: ListingRow) => string }[] = [
     { label: "Variant", get: (r) => `${r.model} ${r.variant}` }, { label: "Year", get: (r) => String(r.year) }, { label: "km", get: (r) => formatKm(r.km) }, { label: "Owners", get: (r) => String(r.owners) },
     { label: "Asking", get: (r) => formatMoney(r.asking) }, { label: "Estimated market", get: (r) => (r.estimate === null ? MISSING : formatMoney(r.estimate)) }, { label: "Location", get: (r) => `${r.city}, ${r.state}` },
-    { label: "Evidence", get: (r) => `${r.tier} / n=${r.matched}` }, { label: "Landed scenario to Kochi (asking + transport + fees)", get: (r) => formatMoney(r.asking + r.landedAdjust) },
+    { label: "Evidence", get: (r) => `${r.tier} · n=${r.matched}` }, { label: "Landed scenario to Kochi (asking + transport + fees)", get: (r) => formatMoney(r.asking + r.landedAdjust) },
   ];
   const visible = fields.filter((fld) => !diffOnly || new Set(rows.map(fld.get)).size > 1);
   return (

@@ -47,7 +47,7 @@ export function AutomationsPage() {
 
   return (
     <div className="page">
-      <PageHead title="Automations" lead="Follow-up rules that turn new leads and stage moves into tasks. Every evaluation is recorded; nothing is sent to customers." actions={manage ? <Button variant="primary" onClick={() => setEditing(blank())}>New rule</Button> : undefined} />
+      <PageHead title="Automations" lead="Rules that turn new leads and stage changes into follow-up tasks. Every run is recorded; nothing is sent to customers." actions={manage ? <Button variant="primary" onClick={() => setEditing(blank())}>New rule</Button> : undefined} />
       <RemotePanel title="Automations" remote={remote} rows={5}>
         {remote.data ? (
           <>
@@ -58,7 +58,7 @@ export function AutomationsPage() {
                   <li key={r.id} className="row-flex between">
                     <div>
                       <strong>{r.name}</strong> <Badge tone={r.enabled ? "accent" : "neutral"}>{r.enabled ? "On" : "Off"}</Badge>
-                      <div className="meta">{TRIGGER_LABEL[r.trigger]}{r.stages.length ? `: ${r.stages.join(", ")}` : ""} / {r.channel === "whatsapp" ? "WhatsApp (held until a provider is connected)" : `Task “${r.taskTitle}” due after ${r.delayMinutes} min`}{r.priority === "high" ? " / high priority" : ""}</div>
+                      <div className="meta">{TRIGGER_LABEL[r.trigger]}{r.stages.length ? `: ${r.stages.join(", ")}` : ""} · {r.channel === "whatsapp" ? "WhatsApp (held until a provider is connected)" : `Task “${r.taskTitle}” due after ${r.delayMinutes} min`}{r.priority === "high" ? " / high priority" : ""}</div>
                     </div>
                     {manage ? <div className="row-flex">
                       <Button size="sm" loading={busyId === r.id} loadingLabel="Saving…" onClick={() => toggle(r)}>{r.enabled ? "Turn off" : "Turn on"}</Button>
@@ -77,7 +77,7 @@ export function AutomationsPage() {
                   <thead><tr><th>When</th><th>Rule</th><th>Lead</th><th>Outcome</th><th>Detail</th></tr></thead>
                   <tbody>{remote.data.runs.map((r) => <tr key={r.id}><td style={{ whiteSpace: "nowrap" }}>{formatShortDateTime(r.occurredAt)}</td><td>{r.ruleName}</td><td><Link href={href(`/app/leads?lead=${encodeURIComponent(r.leadId)}`)}>{r.leadId}</Link></td><td><Badge tone={r.outcome === "created" ? "accent" : "neutral"}>{OUTCOME_LABEL[r.outcome as RunOutcome]}</Badge></td><td className="meta">{r.detail}</td></tr>)}</tbody></table></div>
               )}
-              {remote.data.total > 25 ? <div className="pager"><span className="meta">Page {page} of {Math.ceil(remote.data.total / 25)} / {remote.data.total} runs</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => url.set({ page: page - 1 })}>Previous</Button><Button disabled={page * 25 >= remote.data.total} onClick={() => url.set({ page: page + 1 })}>Next</Button></div></div> : null}
+              {remote.data.total > 25 ? <div className="pager"><span className="meta">Page {page} of {Math.ceil(remote.data.total / 25)} · {remote.data.total} runs</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => url.set({ page: page - 1 })}>Previous</Button><Button disabled={page * 25 >= remote.data.total} onClick={() => url.set({ page: page + 1 })}>Next</Button></div></div> : null}
             </section>
           </>
         ) : null}

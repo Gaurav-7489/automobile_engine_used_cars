@@ -35,7 +35,7 @@ export function PlatformAudit({ dealerships }: { dealerships: { tenantId: string
           </table>
         </div>
       ) : null}
-      {total > 50 ? <div className="pager"><span className="meta">Page {page} of {Math.ceil(total / 50)} / {total} events</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><Button disabled={page * 50 >= total} onClick={() => setPage(page + 1)}>Next</Button></div></div> : null}
+      {total > 50 ? <div className="pager"><span className="meta">Page {page} of {Math.ceil(total / 50)} · {total} events</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><Button disabled={page * 50 >= total} onClick={() => setPage(page + 1)}>Next</Button></div></div> : null}
     </section>
   );
 }

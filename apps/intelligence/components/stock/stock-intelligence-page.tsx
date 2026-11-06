@@ -20,7 +20,7 @@ export function StockIntelligencePage() {
   const totalVehicles = r?.bands.reduce((s, b) => s + b.vehicles, 0) ?? 0;
   return (
     <div className="page">
-      <PageHead title="Stock intelligence" lead="How long stock has been held, what it ties up, and what to review. Prompts only: nothing here changes a price or a record." />
+      <PageHead title="Stock ageing" lead="How long each car has been in stock and the money it ties up. Suggestions only: nothing changes on its own." />
       <RemotePanel title="Stock ageing" remote={remote} rows={6}>
         {r ? (
           <>
@@ -53,7 +53,7 @@ export function StockIntelligencePage() {
                     </table>
                   </div>
                 )}
-                {r.total > r.size ? <div className="pager"><span className="meta">Page {r.page} of {Math.ceil(r.total / r.size)} / {r.total} vehicles</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => url.set({ page: page - 1 })}>Previous</Button><Button disabled={page * r.size >= r.total} onClick={() => url.set({ page: page + 1 })}>Next</Button></div></div> : null}
+                {r.total > r.size ? <div className="pager"><span className="meta">Page {r.page} of {Math.ceil(r.total / r.size)} · {r.total} vehicles</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => url.set({ page: page - 1 })}>Previous</Button><Button disabled={page * r.size >= r.total} onClick={() => url.set({ page: page + 1 })}>Next</Button></div></div> : null}
               </section>
             )}
             <Notice><strong>How this is worked out.</strong> {r.assumptions.join(" ")} {r.unavailable.join(" ")}</Notice>

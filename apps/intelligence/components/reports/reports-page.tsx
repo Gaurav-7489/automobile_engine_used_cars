@@ -75,22 +75,22 @@ function Reports() {
   const drillRows = () => {
     const rowsIn = drillRemote.data?.rows ?? [];
     const shown = `Showing ${rowsIn.length} of ${drillRemote.data?.total ?? 0}.`;
-    if (drill === "acquired") return { title: "Acquired stock / inventory event cohort", rows: rowsIn.map((e) => [String(e.ref), String(e.label), formatDate(String(e.at))]), head: ["Record", "Vehicle", "Date"], note: shown };
-    if (drill === "sold") return { title: "Completed sales / sale-close cohort", rows: (rowsIn as unknown as Sale[]).map((s) => [s.id, s.label, formatDate(s.closedAt)]), head: ["Record", "Vehicle", "Closed"], note: shown };
-    if (drill === "profit") return { title: "Realized profit / reconciled sales", rows: (rowsIn as unknown as Sale[]).map((s) => [s.id, s.label, formatMoney(realizedProfit(s), { dp: 2 })]), head: ["Record", "Vehicle", "Realized profit"], note: shown };
-    return { title: "Qualified leads / lead-created cohort", rows: rowsIn.map((l) => [String(l.ref), String(l.label), String(l.stage)]), head: ["Record", "Lead", "Stage"], note: `Leads created in the selected period that currently sit at Qualified or beyond. ${shown}` };
+    if (drill === "acquired") return { title: "Cars bought in this period", rows: rowsIn.map((e) => [String(e.ref), String(e.label), formatDate(String(e.at))]), head: ["Record", "Vehicle", "Date"], note: shown };
+    if (drill === "sold") return { title: "Cars sold in this period", rows: (rowsIn as unknown as Sale[]).map((s) => [s.id, s.label, formatDate(s.closedAt)]), head: ["Record", "Vehicle", "Closed"], note: shown };
+    if (drill === "profit") return { title: "Profit from reconciled sales", rows: (rowsIn as unknown as Sale[]).map((s) => [s.id, s.label, formatMoney(realizedProfit(s), { dp: 2 })]), head: ["Record", "Vehicle", "Realized profit"], note: shown };
+    return { title: "Qualified leads created in this period", rows: rowsIn.map((l) => [String(l.ref), String(l.label), String(l.stage)]), head: ["Record", "Lead", "Stage"], note: `Leads created in the selected period that currently sit at Qualified or beyond. ${shown}` };
   };
   const dr = drill ? drillRows() : null;
 
   const mobileCharts = [
-    { title: "Inventory events / vehicle counts", node: <GroupedBars title="Inventory events" unit="vehicles" data={rows.map((r) => ({ label: monthName(r.month), values: [r.acquired, r.sold] }))} series={[{ name: "Acquired", color: "var(--accent)" }, { name: "Sold", color: "var(--info)" }]} onSelect={(_, s) => setDrill(s === 0 ? "acquired" : "sold")} /> },
-    { title: "Realized profit / ₹L", node: <SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => (Math.abs(v) < 1 && v !== 0 ? v.toFixed(2) : String(Math.round(v * 10) / 10))} onSelect={() => setDrill("profit")} /> },
+    { title: "Cars bought and sold", node: <GroupedBars title="Inventory events" unit="vehicles" data={rows.map((r) => ({ label: monthName(r.month), values: [r.acquired, r.sold] }))} series={[{ name: "Acquired", color: "var(--accent)" }, { name: "Sold", color: "var(--info)" }]} onSelect={(_, s) => setDrill(s === 0 ? "acquired" : "sold")} /> },
+    { title: "Profit (₹ lakh)", node: <SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => (Math.abs(v) < 1 && v !== 0 ? v.toFixed(2) : String(Math.round(v * 10) / 10))} onSelect={() => setDrill("profit")} /> },
     { title: "Unique lead cohort funnel", node: <Funnel data={funnel} /> },
   ];
 
   return (
     <div className="page">
-      <PageHead title="Reports and analytics" lead="Reproducible snapshots with reconciled definitions." actions={<><Menu label="Saved views" buttonClass="btn" text="Saved views" align="right">{(close) => <><button role="menuitem" onClick={() => { setViewsOpen(true); close(); }}>Manage saved views</button></>}</Menu><Button variant="primary" className="primary-cta" onClick={() => setExportOpen(true)} disabled={!can("reports.export")} reason={!can("reports.export") ? "Export needs Owner, Manager, Marketing or Finance access." : undefined}>Export</Button></>} />
+      <PageHead title="Reports" lead="Stock, sales and leads for any period, counted the same way every time." actions={<><Menu label="Saved views" buttonClass="btn" text="Saved views" align="right">{(close) => <><button role="menuitem" onClick={() => { setViewsOpen(true); close(); }}>Manage saved views</button></>}</Menu><Button variant="primary" className="primary-cta" onClick={() => setExportOpen(true)} disabled={!can("reports.export")} reason={!can("reports.export") ? "Export needs Owner, Manager, Marketing or Finance access." : undefined}>Export</Button></>} />
       <Tabs label="Report" value={tab} onChange={(v) => { url.set({ tab: v === "overview" ? null : v }); if (v === "finance" && !financeAllowed) toast("Finance reports need Owner or Finance access.", "error"); }} idPrefix="rp" tabs={[{ value: "overview", label: "Overview" }, { value: "inventory", label: "Inventory" }, { value: "leads", label: "Leads" }, { value: "marketing", label: "Marketing" }, { value: "finance", label: "Finance" }]} />
 
       <form className="report-filters" onSubmit={(e) => { e.preventDefault(); apply(); }} role="group" aria-label="Report filters">
@@ -103,7 +103,7 @@ function Reports() {
         <Button variant="primary" type="submit">Apply</Button>
         <Button onClick={() => setScheduleOpen(true)} disabled={!can("reports.schedule")} reason={!can("reports.schedule") ? "Scheduling needs Owner, Manager or Finance access." : undefined}>Schedule</Button>
       </form>
-      <p className="meta">Period {periodLabel} / one applied scope across all panels. {dirtyFilters ? <Badge tone="warn">Changes not applied</Badge> : null}</p>
+      <p className="meta">Period {periodLabel} · one applied scope across all panels. {dirtyFilters ? <Badge tone="warn">Changes not applied</Badge> : null}</p>
       <p className="meta">Dates used: acquired stock by acquisition date, sales by sale-close date, leads by the date the lead was created. Stock age and landed capital are as of today, whatever the period. Records dated before {monthLabel(getMonths()[0])} fall outside every selectable period.</p>
 
       {tab === "finance" && !financeAllowed ? (
@@ -126,13 +126,13 @@ function Reports() {
 
           {tab === "overview" || tab === "inventory" ? (
             <div className="report-charts only-desktop">
-              <section className="card" aria-labelledby="rc1"><h2 className="h3" id="rc1">Inventory events / vehicle counts</h2><Panel title="Inventory events" rows={5} partialFail><div className="mt-4">{mobileCharts[0].node}</div></Panel></section>
+              <section className="card" aria-labelledby="rc1"><h2 className="h3" id="rc1">Cars bought and sold</h2><Panel title="Inventory events" rows={5} partialFail><div className="mt-4">{mobileCharts[0].node}</div></Panel></section>
               <section className="card" aria-labelledby="rc2"><h2 className="h3" id="rc2">Unique lead cohort funnel</h2><p className="meta">Event-entry counts for the selected cohort. Percentages name their denominator: the previous stage.</p><Panel title="Lead funnel" rows={5} partialFail><div className="mt-4"><Funnel data={funnel} /></div></Panel></section>
             </div>
           ) : null}
           {tab === "finance" ? (
             <div className="report-charts only-desktop">
-              <section className="card"><h2 className="h3">Realized profit series / ₹L</h2><div className="mt-4"><SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => (Math.abs(v) < 1 && v !== 0 ? v.toFixed(2) : String(Math.round(v * 10) / 10))} onSelect={() => setDrill("profit")} /></div></section>
+              <section className="card"><h2 className="h3">Profit by month (₹ lakh)</h2><div className="mt-4"><SimpleBars title="Realized profit" unit="₹L" data={rows.map((r) => ({ label: monthName(r.month), value: r.profit / lakh(1) }))} format={(v) => (Math.abs(v) < 1 && v !== 0 ? v.toFixed(2) : String(Math.round(v * 10) / 10))} onSelect={() => setDrill("profit")} /></div></section>
               <section className="card"><h2 className="h3">Financial definitions</h2><dl className="kv mt-2"><div><dt>Realized profit</dt><dd style={{ maxWidth: 300 }}>Completed, non-void, reconciled sale proceeds minus landed and posted direct costs. Excludes tax and allocated overhead.</dd></div><div><dt>Unrealized estimates</dt><dd style={{ maxWidth: 300 }}>Never included.</dd></div><div><dt>Stock landed capital</dt><dd>{formatMoney(metrics.landedCapital)}</dd></div></dl></section>
             </div>
           ) : null}
@@ -150,13 +150,13 @@ function Reports() {
               <table className="data-table" aria-label="Underlying records"><thead><tr><th style={{ width: 230 }}>Month</th><th className="num" style={{ width: 186 }}>Acquired</th><th className="num" style={{ width: 186 }}>Completed sales</th><th className="num" style={{ width: 186 }}>Realized profit</th><th style={{ width: 186 }}>Snapshot</th><th style={{ width: 186 }}>Cost basis</th></tr></thead>
                 <tbody>{rows.map((r) => <tr key={r.month}><td><span className="row-title">{monthLabel(r.month)}</span></td><td className="num">{r.acquired}</td><td className="num">{r.sold}</td><td className="num">{formatMoney(r.profit)}</td><td>{REPORT_SNAPSHOT_ID}</td><td>Complete</td></tr>)}</tbody></table>
             </div>
-            <ul className="card-list only-mobile" aria-label="Months">{rows.map((r) => <li key={r.month} className="card tight listing-card"><strong>{monthLabel(r.month)}</strong><span className="meta">{r.acquired} acquired / {r.sold} sales / {formatMoney(r.profit)} realized</span><span className="meta">{REPORT_SNAPSHOT_ID} / Complete</span></li>)}</ul>
+            <ul className="card-list only-mobile" aria-label="Months">{rows.map((r) => <li key={r.month} className="card tight listing-card"><strong>{monthLabel(r.month)}</strong><span className="meta">{r.acquired} acquired / {r.sold} sales / {formatMoney(r.profit)} realized</span><span className="meta">{REPORT_SNAPSHOT_ID} · Complete</span></li>)}</ul>
           </Panel>
         </>
       )}
       {incomplete ? <Notice tone="warn" role="status"><Badge tone="warn">Incomplete report</Badge> A panel failed. Exports include a failure notice or are blocked for complete-only mode.</Notice> : null}
       {demoState === "error" ? <ErrorPanel title="Report snapshot failed" message="The previous snapshot stays labelled until a new one is ready. Retry rebuilds it." onRetry={() => url.set({ demo_state: null })} /> : null}
-      <p className="meta">Generated {formatDateTime(SNAPSHOT_AT)} / Snapshot {REPORT_SNAPSHOT_ID} / Formula {REPORT_FORMULA} / Record cutoff {formatDate(SNAPSHOT_AT)}. Backfilled data may change newer snapshots; previous exports remain reproducible.</p>
+      <p className="meta">Generated {formatDateTime(SNAPSHOT_AT)} · Snapshot {REPORT_SNAPSHOT_ID} · Formula {REPORT_FORMULA} · Record cutoff {formatDate(SNAPSHOT_AT)}. Backfilled data may change newer snapshots; previous exports remain reproducible.</p>
 
       <Drawer open={Boolean(dr)} onClose={() => setDrill(null)} size="w560" title={dr?.title ?? ""} description={`${dr?.rows.length ?? 0} underlying records / identical cohort and filters / ${periodLabel}`} footer={<Button variant="primary" onClick={() => setDrill(null)}>Close</Button>}>
         {dr && "note" in dr && dr.note ? <Notice tone="warn">{dr.note}</Notice> : null}
@@ -184,8 +184,8 @@ function Marketing() {
   return (
     <section className="card only-desktop"><h2 className="h3">Campaign performance</h2>
       {withMetrics.length === 0 ? <p className="muted mt-2">Metrics unavailable: no campaign has returned data. Unavailable is not zero.</p> : (
-        <div className="table-wrap fit mt-4"><table className="data-table"><thead><tr><th>Campaign</th><th className="num">Spend</th><th className="num">Leads</th><th className="num">Qualified</th><th className="num">CPL</th><th className="num">Cost / qualified</th></tr></thead>
-          <tbody>{withMetrics.map((c) => { const m = metricsFor(c)!; return <tr key={c.id}><td><span className="row-title">{c.id}</span><span className="sub">{c.name} / click {c.clickWindowDays}d, view {c.viewWindowDays}d</span></td><td className="num">{formatRupees(m.spend)}</td><td className="num">{m.leads}</td><td className="num">{m.qualified}</td><td className="num">{formatRupees(m.cpl)}</td><td className="num">{formatRupees(m.costPerQualified)}</td></tr>; })}</tbody></table></div>
+        <div className="table-wrap fit mt-4"><table className="data-table"><thead><tr><th>Campaign</th><th className="num">Spend</th><th className="num">Leads</th><th className="num">Qualified</th><th className="num">CPL</th><th className="num">Cost per qualified lead</th></tr></thead>
+          <tbody>{withMetrics.map((c) => { const m = metricsFor(c)!; return <tr key={c.id}><td><span className="row-title">{c.id}</span><span className="sub">{c.name} · click {c.clickWindowDays}d, view {c.viewWindowDays}d</span></td><td className="num">{formatRupees(m.spend)}</td><td className="num">{m.leads}</td><td className="num">{m.qualified}</td><td className="num">{formatRupees(m.cpl)}</td><td className="num">{formatRupees(m.costPerQualified)}</td></tr>; })}</tbody></table></div>
       )}
       <p className="meta mt-4">No fabricated reach estimate or sale attribution.</p>
     </section>
@@ -204,11 +204,11 @@ function ExportDialog({ open, onClose, rows, totals, qualified, periodLabel, sco
   useEffect(() => { if (open) { setStatus("idle"); setProgress(0); } return () => { if (timer.current) window.clearInterval(timer.current); }; }, [open]);
   const build = () => {
     const label = basis === "provisional" || incomplete ? "PROVISIONAL" : "COMPLETE";
-    const head = [`# ${label} / snapshot ${REPORT_SNAPSHOT_ID} / formula ${REPORT_FORMULA} / scope ${scopeLabel} / period ${periodLabel} / generated for ${actorName}`, "# Units: vehicles; rupees. Realized profit excludes tax and allocated overhead."];
+    const head = [`# ${label} · snapshot ${REPORT_SNAPSHOT_ID} · formula ${REPORT_FORMULA} · scope ${scopeLabel} · period ${periodLabel} · generated for ${actorName}`, "# Units: vehicles; rupees. Realized profit excludes tax and allocated overhead."];
     const cols = ["month", ...(fields.acquired ? ["acquired"] : []), ...(fields.sold ? ["completed_sales"] : []), ...(fields.profit ? ["realized_profit_rupees"] : []), ...(fields.snapshot ? ["snapshot"] : [])];
     const body = rows.map((r) => [monthLabel(r.month), ...(fields.acquired ? [String(r.acquired)] : []), ...(fields.sold ? [String(r.sold)] : []), ...(fields.profit ? [String(r.profit / 100)] : []), ...(fields.snapshot ? [REPORT_SNAPSHOT_ID] : [])]);
     if (format === "csv") return { name: `report-${label.toLowerCase()}-${REPORT_SNAPSHOT_ID}.csv`, blob: new Blob([toCsv([cols, ...body], head)], { type: "text/csv;charset=utf-8" }) };
-    return { name: `report-${label.toLowerCase()}-${REPORT_SNAPSHOT_ID}.pdf`, blob: makePdf("Reports and analytics", [...head.map((h) => h.replace("# ", "")), "", `Acquired ${totals.acquired} / Completed sales ${totals.sold} / Realized profit ${formatMoney(totals.profit)} / Qualified leads ${qualified}`, "", cols.join(" | "), ...body.map((b) => b.join(" | "))]) };
+    return { name: `report-${label.toLowerCase()}-${REPORT_SNAPSHOT_ID}.pdf`, blob: makePdf("Reports and analytics", [...head.map((h) => h.replace("# ", "")), "", `Acquired ${totals.acquired} · Completed sales ${totals.sold} · Realized profit ${formatMoney(totals.profit)} · Qualified leads ${qualified}`, "", cols.join(" | "), ...body.map((b) => b.join(" | "))]) };
   };
   const start = () => {
     setStatus("queued"); setProgress(0); onTrack("export_requested");
@@ -264,7 +264,7 @@ function ScheduleDialog({ open, onClose, scopeLabel, scopeIds }: { open: boolean
             {state.reportSchedules.map((s) => (
               <li key={s.id} className="card tight stack-sm">
                 <div className="spread"><strong>{s.cadence} {REPORT_LABEL[s.report] ?? s.report}</strong><Button size="sm" variant="danger" onClick={() => setConfirm(s.id)} disabled={!can("reports.schedule")}>Delete</Button></div>
-                <p className="meta">To {(s.recipients ?? []).map(personName).join(", ")} / {(s.branchIds ?? []).map(branchName).join(", ")}</p>
+                <p className="meta">To {(s.recipients ?? []).map(personName).join(", ")} · {(s.branchIds ?? []).map(branchName).join(", ")}</p>
                 <p className="meta">{Date.parse(s.nextRunAt) <= Date.now() ? "Next email: due now, sent with the next daily run" : `Next email ${formatDate(s.nextRunAt)}, about 7:30 am IST`}{s.lastSentAt ? ` / last sent ${formatDateTime(s.lastSentAt)}` : ""}{s.lastResult ? ` / ${s.lastResult}` : ""}</p>
                 {confirm === s.id ? <Notice tone="danger" role="alert">Delete this schedule? No further emails are sent. <Button size="sm" variant="danger" onClick={() => { const r = run((st, a) => deleteReportSchedule(st, a, s.id)); if (!r.ok) { toast(r.message, "error"); return; } setConfirm(null); toast("Schedule deleted."); }}>Delete schedule</Button> <Button size="sm" onClick={() => setConfirm(null)}>Keep</Button></Notice> : null}
               </li>

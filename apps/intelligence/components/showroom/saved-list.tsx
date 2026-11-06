@@ -18,7 +18,7 @@ export function SavedList({ cars }: { cars: SavedCar[] }) {
         {mine.map(c => (
           <li key={c.slug} className="sr-saved-row">
             <label><input type="checkbox" checked={picked.includes(c.slug)} onChange={() => pick(c.slug)} disabled={!picked.includes(c.slug) && picked.length >= MAX_COMPARE} /> <span className="sr-only">Compare </span>{c.title}</label>
-            <span className="meta">{c.variant} / {c.meta}</span>
+            <span className="meta">{c.variant} · {c.meta}</span>
             <strong>{c.price}</strong>
             <Link href={`/showroom/vehicles/${c.slug}`} className="btn">View</Link>
             <button type="button" className="btn btn-ghost" onClick={() => toggle(c.slug)}>Remove<span className="sr-only"> {c.title}</span></button>

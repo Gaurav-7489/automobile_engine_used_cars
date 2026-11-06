@@ -47,7 +47,7 @@ export function StockDetail({ id }: { id: string }) {
         {state.live && vehicle.channels.includes("Owned site") && (vehicle.status === "available" || vehicle.status === "reserved") ? <a className="btn" href={`/l/${state.tenant.id}/${encodeURIComponent(vehicle.id.toLowerCase())}`} target="_blank" rel="noopener noreferrer">Public page</a> : null}
         {vehicle.status === "available" && can("price.view") ? <Link className="btn btn-primary" href={href("/app/pricing", { vehicle: vehicle.id })}>Review price</Link> : null}
       </>}>
-        <p className="lead"><Link className="accent-text" href={href("/app/inventory")}>Inventory</Link> &gt; {vehicle.id} / {vehicle.year} / {vehicle.fuel} / {vehicle.transmission}</p>
+        <p className="lead"><Link className="accent-text" href={href("/app/inventory")}>Inventory</Link> &gt; {vehicle.id} · {vehicle.year} · {vehicle.fuel} · {vehicle.transmission}</p>
       </PageHead>
       <div className="detail-hero">
         {(vehicle.photos ?? []).length ? <StockGallery photos={vehicle.photos ?? []} title={`${vehicle.year} ${vehicle.make} ${vehicle.model}`} /> : (
@@ -59,7 +59,7 @@ export function StockDetail({ id }: { id: string }) {
         <section className="card facts" aria-labelledby="stock-facts">
           <div className="spread"><h2 className="h3" id="stock-facts">Stock record / {state.branches.find((b) => b.id === vehicle.branchId)?.name}</h2><div className="row-flex"><Badge tone="accent">{LABEL[vehicle.status]}</Badge>{needsPriceReview(vehicle) ? <Badge tone="warn">Price review</Badge> : null}</div></div>
           <div className="price-pair"><div><div className="price-big" title={formatExact(vehicle.asking)}>{formatMoney(vehicle.asking)}</div><div className="meta">Asking price</div></div><div><div className="price-big" title={formatExact(landed)}>{formatMoney(landed)}</div><div className="meta">Landed cost</div></div></div>
-          <p className="muted">{formatKm(vehicle.km)} km / {vehicle.owners} owner{vehicle.owners > 1 ? "s" : ""} / registration {vehicle.registration} / acquired {formatDate(vehicle.acquiredAt)} ({stockAgeDays(vehicle, SNAPSHOT_AT)} days) / version {vehicle.version}</p>
+          <p className="muted">{formatKm(vehicle.km)} km / {vehicle.owners} owner{vehicle.owners > 1 ? "s" : ""} · registration {vehicle.registration} · acquired {formatDate(vehicle.acquiredAt)} ({stockAgeDays(vehicle, SNAPSHOT_AT)} days) / version {vehicle.version}</p>
           {!vehicle.costComplete || !vehicle.hasImages ? <p className="warn-text">Attention: {[!vehicle.costComplete ? "cost evidence incomplete" : "", !vehicle.hasImages ? "no photo" : ""].filter(Boolean).join(", ")}.</p> : null}
         </section>
       </div>
@@ -68,11 +68,11 @@ export function StockDetail({ id }: { id: string }) {
           <section className="card" aria-labelledby="mi">
             <h2 className="h3" id="mi">Market intelligence</h2>
             <dl className="kv mt-4">
-              <div><dt>Estimated market value</dt><dd>{valuation.estimate === null ? `${MISSING} / insufficient evidence` : formatMoney(valuation.estimate)}</dd></div>
+              <div><dt>Estimated market value</dt><dd>{valuation.estimate === null ? `${MISSING} · insufficient evidence` : formatMoney(valuation.estimate)}</dd></div>
               <div><dt>Comparable range</dt><dd>{valuation.low === null ? MISSING : `${formatMoney(valuation.low)}-${formatMoney(valuation.high).replace("₹", "")}`}</dd></div>
               <div><dt>Asking vs estimate</dt><dd>{diff === null ? "Unknown" : formatPercent(diff, { signed: true })}</dd></div>
-              <div><dt>Evidence</dt><dd><EvidenceBadge tier={valuation.tier} /> n = {valuation.n} / {valuation.methodVersion}</dd></div>
-              <div><dt>Enquiries (14 days)</dt><dd>{vehicle.enquiries14d} / cohort median {vehicle.cohortMedianEnquiries}</dd></div>
+              <div><dt>Evidence</dt><dd><EvidenceBadge tier={valuation.tier} /> n = {valuation.n} · {valuation.methodVersion}</dd></div>
+              <div><dt>Enquiries (14 days)</dt><dd>{vehicle.enquiries14d} · cohort median {vehicle.cohortMedianEnquiries}</dd></div>
             </dl>
           </section>
         </Panel>

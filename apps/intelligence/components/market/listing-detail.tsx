@@ -79,7 +79,7 @@ function Detail({ listing }: { listing: (typeof LISTINGS)[number] }) {
           <Button aria-pressed={watching} onClick={() => { run((s) => ({ ok: true as const, state: toggleWatch(s, listing.id) })); toast(watching ? "Removed from watchlist." : "Added to watchlist."); }}><Icon name="heart" size={18} />{watching ? "Watching" : "Watch"}</Button>
           <Button onClick={share}><Icon name="share" size={18} />Share internal link</Button>
         </>}>
-          <p className="lead breadcrumb"><Link className="accent-text" href={href("/app/market", {})}>Radar</Link> &gt; Listing {listing.id} / {listing.year} / {listing.fuel} / {listing.transmission}</p>
+          <p className="lead breadcrumb"><Link className="accent-text" href={href("/app/market", {})}>Radar</Link> &gt; Listing {listing.id} · {listing.year} · {listing.fuel} · {listing.transmission}</p>
         </PageHead>
       </div>
 
@@ -97,7 +97,7 @@ function Detail({ listing }: { listing: (typeof LISTINGS)[number] }) {
               <div><div className="price-big" title={formatExact(listing.asking)}>{formatMoney(listing.asking)}</div><div className="meta">Asking price</div></div>
               <div><div className="price-big tone-accent" title={formatExact(listing.estimate)}>{listing.estimate === null ? MISSING : formatMoney(listing.estimate)}</div><div className="meta">Est. market value</div></div>
             </div>
-            <p className="muted">{formatKm(listing.km)} km / {listing.owners} owner{listing.owners > 1 ? "s" : ""} / {listing.city}, {listing.state}. Observed {formatDateTime(listing.observedAt)} / {valuation.tier === "Insufficient" ? "Insufficient evidence" : `${valuation.tier} evidence`}</p>
+            <p className="muted">{formatKm(listing.km)} km / {listing.owners} owner{listing.owners > 1 ? "s" : ""} · {listing.city}, {listing.state}. Observed {formatDateTime(listing.observedAt)} · {valuation.tier === "Insufficient" ? "Insufficient evidence" : `${valuation.tier} evidence`}</p>
             <div className="row-flex facts-actions">
               <Button variant="primary" onClick={() => setContactOpen(true)} disabled={!can("acquisition.review")} reason={!can("acquisition.review") ? "Contacting a source needs Owner, Manager or Inventory access." : undefined}>Contact source</Button>
               <Button onClick={() => setReviewOpen(true)} disabled={!can("acquisition.review")} reason={!can("acquisition.review") ? "Acquisition review needs Owner, Manager or Inventory access." : undefined}>{hasDraft ? "Acquisition review (draft)" : "Acquisition review"}</Button>
@@ -114,12 +114,12 @@ function Detail({ listing }: { listing: (typeof LISTINGS)[number] }) {
         <div className="analysis" role="tabpanel" aria-labelledby="lst-overview">
           <Panel title="Market evidence" rows={4} partialFail>
             <section className="card" aria-labelledby="ev-title">
-              <h2 className="h3" id="ev-title">Market evidence / listing asks</h2>
+              <h2 className="h3" id="ev-title">Asking prices in the market</h2>
               <p className="h3" style={{ marginTop: 16 }}>{rangeText}</p>
               <RangeStrip low={low} high={high} estimate={valuation.estimate} asking={listing.asking} />
               <div className="stat-line mt-4"><div><strong>{valuation.n}</strong><span className="meta">Matched listings</span></div><div><strong>{valuation.windowDays} days</strong><span className="meta">Observation window</span></div><div><strong>{valuation.tier === "Insufficient" ? "Insufficient" : valuation.tier}</strong><span className="meta">Evidence tier</span></div></div>
               <p className="muted mt-4">Matched by variant, year, fuel, transmission and km band. These are asking prices, not completed-sale prices.</p>
-              <div className="row-flex mt-4"><Button onClick={() => setEvidenceOpen(true)}>Inspect evidence</Button><span className="meta">Method {valuation.methodVersion} / {tierExplanation[valuation.tier]}</span></div>
+              <div className="row-flex mt-4"><Button onClick={() => setEvidenceOpen(true)}>Inspect evidence</Button><span className="meta">Method {valuation.methodVersion} · {tierExplanation[valuation.tier]}</span></div>
             </section>
           </Panel>
           <section className="card" aria-labelledby="sc-title">
@@ -225,7 +225,7 @@ function Evidence({ open, onClose, listing, comps, exclusions, focusId, valuatio
       </div>
       {changed ? <Notice tone="accent" role="status">Local cohort (not the model estimate): n = {filtered.length}, median {formatMoney(median(asks))}, {tier === "Insufficient" ? "Insufficient evidence, descriptive only" : `${tier} evidence`}.</Notice> : <Notice role="status">Model cohort. Evidence tier: {valuationTier}.</Notice>}
       <div className="table-wrap fit"><table className="data-table dense"><thead><tr><th>Listing</th><th className="num">Asking</th><th>Attributes</th><th>Observed</th></tr></thead>
-        <tbody>{filtered.map((c) => <tr key={c.id} aria-current={focusId === c.id ? "true" : undefined} style={focusId === c.id ? { outline: "2px solid var(--accent)" } : undefined}><td><span className="row-title">{c.id}</span><span className="sub">{c.source}</span></td><td className="num">{formatMoney(c.asking)}</td><td><span className="sub">{c.year} / {formatKm(c.km)} km / {c.owners} owner(s)</span><span className="sub">Matched: {c.matchedAttributes.join(", ")}</span></td><td>{formatShortDateTime(c.observedAt)}<span className="sub">{daysBetween(c.observedAt, SNAPSHOT_AT)} d ago</span></td></tr>)}</tbody></table></div>
+        <tbody>{filtered.map((c) => <tr key={c.id} aria-current={focusId === c.id ? "true" : undefined} style={focusId === c.id ? { outline: "2px solid var(--accent)" } : undefined}><td><span className="row-title">{c.id}</span><span className="sub">{c.source}</span></td><td className="num">{formatMoney(c.asking)}</td><td><span className="sub">{c.year} · {formatKm(c.km)} km / {c.owners} owner(s)</span><span className="sub">Matched: {c.matchedAttributes.join(", ")}</span></td><td>{formatShortDateTime(c.observedAt)}<span className="sub">{daysBetween(c.observedAt, SNAPSHOT_AT)} d ago</span></td></tr>)}</tbody></table></div>
       <div className="card tight"><h3 className="h3">Exclusions ({exclusions.length})</h3><ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>{exclusions.length ? exclusions.map((e) => <li key={e.id}>{e.id}: {e.reason}</li>) : <li>None</li>}</ul></div>
       <p className="meta">Asking prices are listing asks, not transactions. Tier rule: {tierExplanation[tier]}.</p>
     </Drawer>

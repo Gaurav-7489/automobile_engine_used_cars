@@ -71,9 +71,9 @@ export function OverviewPage() {
   };
   const recordLabel = (a: Alert) => {
     const v = state.vehicles.find((x) => x.id === a.recordRef);
-    if (v) return { title: `${v.id} / ${v.model}`, sub: `${v.year} / ${v.status === "preparation" ? "In preparation" : v.status[0].toUpperCase() + v.status.slice(1)}` };
+    if (v) return { title: `${v.year} ${v.make} ${v.model}`, sub: `${v.id} · ${v.status === "preparation" ? "In preparation" : v.status[0].toUpperCase() + v.status.slice(1)}` };
     const l = state.leads.find((x) => x.id === a.recordRef);
-    if (l) return { title: `${l.id} / ${l.name}`, sub: `${l.vehicleId ?? "Unspecified"} / ${l.source}` };
+    if (l) return { title: l.name, sub: `${l.id} · ${l.vehicleId ?? "No car chosen"} · ${l.source}` };
     return { title: a.recordRef, sub: a.type };
   };
 
@@ -81,7 +81,7 @@ export function OverviewPage() {
 
   return (
     <div className="page overview">
-      <PageHead title="Dealer Command Centre" lead="Your branch, your stock and today’s priorities."
+      <PageHead title="Overview" lead="Your stock, leads and what needs doing today."
         actions={<>
           <Menu label={`Date range: ${rangeLabel}`} buttonClass="btn" align="right" text={<><span>{rangeLabel}</span></>}>
             {(close) => (
@@ -114,7 +114,7 @@ export function OverviewPage() {
             <Kpi label="Available stock" value={m.available} note="Available vehicles" href={invHref({ tab: "available" })} />
             <Kpi label="Landed capital" value={formatMoney(m.landedCapital)} note={`Stock as of ${formatDate(SNAPSHOT_AT).slice(0, 6)}`} href={href("/app/capital", branchParam)} />
             <Kpi label="Ageing >45 days" value={m.ageing} note="Needs review" tone="warn" href={invHref({ tab: "available", age: ">45" })} />
-            <Kpi label="Est. gross at asking" value={formatMoney(m.estimatedGross)} note="Estimate / not realized" href={href("/app/capital", { ...branchParam, definition: "gross" })}
+            <Kpi label="Est. gross at asking" value={formatMoney(m.estimatedGross)} note="Estimate, not yet earned" href={href("/app/capital", { ...branchParam, definition: "gross" })}
               info={<InfoTip label="About estimated gross at asking">Asking price minus landed cost for cost-complete, priced, available vehicles. {m.grossExcluded} record(s) excluded for missing cost. Not a realized result.</InfoTip>} />
           </div>
         </RemotePanel>
@@ -130,7 +130,7 @@ export function OverviewPage() {
           </RemotePanel>
         </section>
         <section className="card order-age" aria-labelledby="age-title">
-          <div className="card-head"><h2 className="h3" id="age-title">Stock age / {m.available} available</h2></div>
+          <div className="card-head"><h2 className="h3" id="age-title">Stock age · {m.available} on sale</h2></div>
           <RemotePanel title="Stock age" remote={remote} rows={4}>
             <HBars max={Math.max(...days.map((d) => d.count), 1) * 1.15} data={days.map((d) => ({ label: d.label.replace(" days", "d"), value: d.count, display: String(d.count), tone: d.key === ">45" ? "warn" : "accent", onSelect: () => router.push(invHref({ tab: "available", age: d.key })), ariaLabel: `${d.label}: ${d.count} available. Open age-filtered stock.` }))} />
             <p className="meta mt-4">Age buckets sum to available stock ({days.reduce((a, d) => a + d.count, 0)}). Reserved and in-preparation records are in landed capital, not in this count.</p>
@@ -154,10 +154,10 @@ export function OverviewPage() {
                     const act = actionFor(a);
                     return (
                       <tr key={a.id}>
-                        <td><strong>{a.severity}</strong></td>
+                        <td><Badge tone={a.severity === "Critical" ? "danger" : a.severity === "Warning" ? "warn" : "neutral"}>{a.severity}</Badge></td>
                         <td><span className="row-title">{rec.title}</span><span className="sub">{rec.sub}</span></td>
                         <td>{a.trigger}</td>
-                        <td>{a.dueLabel === "Now" || a.dueLabel === "Today" || a.dueLabel === "Overdue" ? a.dueLabel : `${formatTime(a.dueAt)} IST`}</td>
+                        <td>{a.dueLabel === "Now" || a.dueLabel === "Today" || a.dueLabel === "Overdue" ? a.dueLabel : a.dueAt ? `${formatTime(a.dueAt)} IST` : <span className="muted">No date</span>}</td>
                         <td>{a.owner}</td>
                         <td><Link href={act.to} className={a.severity === "Warning" ? "warn-text" : "accent-text"} style={{ fontWeight: 600 }}>{act.label}</Link></td>
                       </tr>
@@ -171,7 +171,7 @@ export function OverviewPage() {
       </section>
 
       <footer className="meta order-foot">
-        Snapshot {formatDateTime(SNAPSHOT_AT)} / {state.tenant.timezone === "Asia/Kolkata" ? "Asia/Kolkata" : state.tenant.timezone} / Calculated from your workspace records {demoState === "partial" ? <Badge tone="warn">Incomplete: partial data</Badge> : null}
+        Snapshot {formatDateTime(SNAPSHOT_AT)} · {state.tenant.timezone === "Asia/Kolkata" ? "Asia/Kolkata" : state.tenant.timezone} · Calculated from your workspace records {demoState === "partial" ? <Badge tone="warn">Incomplete: partial data</Badge> : null}
         {scope.value === ALL_BRANCHES ? " / Totals span all permitted branches" : ""}
       </footer>
 

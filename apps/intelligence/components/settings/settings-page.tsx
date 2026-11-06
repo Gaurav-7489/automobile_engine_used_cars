@@ -47,10 +47,7 @@ function Settings({ section }: { section: SectionKey }) {
   const current = SECTIONS.find((s) => s.key === section)!;
   return (
     <div className="page">
-      <div className="goo-field" aria-hidden="true"><i /><i /><i /></div>
-      <PageHead title={section === "integrations" ? "Settings / Integrations" : `Settings / ${current.label}`} lead="Access, configuration and connection health are permissioned.">
-        <p className="meta" style={{ marginTop: 4 }}>Settings &gt; {current.label}</p>
-      </PageHead>
+      <PageHead title={section === "integrations" ? "Settings · Integrations" : `Settings · ${current.label}`} lead="Your business, team, security and connections." />
       <div className="settings-grid">
         <SettingsNav section={section} />
         <div className="settings-tabs only-mobile"><SelectField label="Section" value={section} onChange={(e) => router.push(href(`/app/settings/${e.target.value}`))} options={SECTIONS.map((s) => ({ value: s.key, label: s.label }))} /></div>
@@ -128,8 +125,8 @@ function Integrations() {
 
         <section className="card" aria-labelledby="sel-title">
           <h2 className="h3" id="sel-title">Selected integration / {selected.name.replace("Licensed feed", "Feed")}</h2>
-          <p className="muted mt-4">Permitted branch: {selected.branchScope} / Cadence: {selected.cadence} / Freshness SLA: {selected.freshnessSla}</p>
-          <p className="mt-4">{selected.received} received / {selected.rejected} rejected / Job {selected.lastJob} / {selected.state === "Not configured" ? "Not connected" : selected.state}</p>
+          <p className="muted mt-4">Permitted branch: {selected.branchScope} · Cadence: {selected.cadence} · Freshness SLA: {selected.freshnessSla}</p>
+          <p className="mt-4">{selected.received} received / {selected.rejected} rejected / Job {selected.lastJob} · {selected.state === "Not configured" ? "Not connected" : selected.state}</p>
           {health ? <div className="mt-4"><Notice tone={health.ok ? "accent" : "warn"} role="status">{health.message}</Notice></div> : null}
           <p className="meta mt-2">Connected is allowed only after a successful server-side test. Stale health becomes Unknown or Degraded.</p>
           <div className="row-flex mt-4 int-actions">
@@ -140,8 +137,8 @@ function Integrations() {
         </section>
 
         <div className="table-wrap">
-          <table className="data-table" aria-label="Sync log"><thead><tr><th style={{ width: 200 }}>Time / IST</th><th style={{ width: 150 }}>Job</th><th className="num" style={{ width: 150 }}>Received</th><th className="num" style={{ width: 156 }}>Rejected</th><th>Status</th></tr></thead>
-            <tbody>{selected.logs.length ? selected.logs.map((l) => <tr key={l.id} style={{ height: 56 }}><td><span className="row-title">{formatShortDateTime(l.at)}</span></td><td>{l.job}</td><td className="num">{l.received}</td><td className="num">{l.rejected}</td><td><button type="button" className="link-btn" style={{ color: "var(--text)" }} onClick={() => setRows({ ...selected, logs: [l] })}>{l.status === "Partial" ? "Partial / inspect" : l.status === "Failed" ? "Failed / inspect" : "Success"}</button></td></tr>) : <tr><td colSpan={5} className="muted">No sync jobs yet.</td></tr>}</tbody></table>
+          <table className="data-table" aria-label="Sync log"><thead><tr><th style={{ width: 200 }}>Time (IST)</th><th style={{ width: 150 }}>Job</th><th className="num" style={{ width: 150 }}>Received</th><th className="num" style={{ width: 156 }}>Rejected</th><th>Status</th></tr></thead>
+            <tbody>{selected.logs.length ? selected.logs.map((l) => <tr key={l.id} style={{ height: 56 }}><td><span className="row-title">{formatShortDateTime(l.at)}</span></td><td>{l.job}</td><td className="num">{l.received}</td><td className="num">{l.rejected}</td><td><button type="button" className="link-btn" style={{ color: "var(--text)" }} onClick={() => setRows({ ...selected, logs: [l] })}>{l.status === "Partial" ? "Partly failed: check" : l.status === "Failed" ? "Failed: check" : "Success"}</button></td></tr>) : <tr><td colSpan={5} className="muted">No sync jobs yet.</td></tr>}</tbody></table>
         </div>
         <p className="footnote">Credentials are masked. Only providers with real credentials and a passing health check show as Connected.</p>
       </div>
@@ -310,7 +307,7 @@ function Security() {
     <section className="card stack" aria-labelledby="sec-h">
       <h2 className="h2" id="sec-h">Security</h2>
       <dl className="kv">
-        <div><dt>Signed in as</dt><dd>{session.name} / {session.email}</dd></div><div><dt>Role</dt><dd>{ROLE_LABEL[session.role]}</dd></div>
+        <div><dt>Signed in as</dt><dd>{session.name} · {session.email}</dd></div><div><dt>Role</dt><dd>{ROLE_LABEL[session.role]}</dd></div>
         <div><dt>Branches</dt><dd>{session.branchIds.map((b) => state.branches.find((x) => x.id === b)?.city ?? b).join(", ")}</dd></div>
         <div><dt>Session</dt><dd>Secure HttpOnly cookie, 8 hours. No tokens in local storage.</dd></div>
       </dl>
@@ -465,7 +462,7 @@ function Audit() {
       {remote.status === "loading" ? <ListSkeleton rows={5} title="Loading audit events" /> : null}
       {remote.status === "error" && !remote.data ? <ErrorPanel title="The audit trail could not load" onRetry={remote.reload} /> : null}
       {remote.data && rows.length === 0 ? <p className="muted">No audit events match.</p> : null}
-      {total > 50 ? <div className="pager"><span className="meta">Page {page} of {Math.ceil(total / 50)} / {total} events</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><Button disabled={page * 50 >= total} onClick={() => setPage(page + 1)}>Next</Button></div></div> : null}
+      {total > 50 ? <div className="pager"><span className="meta">Page {page} of {Math.ceil(total / 50)} · {total} events</span><div className="row-flex"><Button disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</Button><Button disabled={page * 50 >= total} onClick={() => setPage(page + 1)}>Next</Button></div></div> : null}
     </section>
   );
 }

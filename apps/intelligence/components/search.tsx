@@ -65,7 +65,7 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
     const q = query.toLowerCase();
     const vehicles = can("inventory.view")
       ? hits.vehicles.map((v) => ({
-          id: v.id, group: "Vehicles" as const, title: `${v.make} ${v.model} ${v.variant}`, sub: `${v.id} / ${v.year} / ${v.status === "preparation" ? "In preparation" : v.status[0].toUpperCase() + v.status.slice(1)} / landed ${formatMoney(landedCost(v.costs))}`, href: href(`/app/inventory/${v.id}`),
+          id: v.id, group: "Vehicles" as const, title: `${v.make} ${v.model} ${v.variant}`, sub: `${v.id} / ${v.year} / ${v.status === "preparation" ? "In preparation" : v.status[0].toUpperCase() + v.status.slice(1)} · landed ${formatMoney(landedCost(v.costs))}`, href: href(`/app/inventory/${v.id}`),
         }))
       : [];
     const leads = can("leads.view")

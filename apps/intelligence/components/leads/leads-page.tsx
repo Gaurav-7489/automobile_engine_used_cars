@@ -74,7 +74,7 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
 
   return (
     <div className="page">
-      <PageHead title="Leads and customers" lead="Vehicle context, responsible follow-up and a traceable pipeline."
+      <PageHead title="Leads & customers" lead="Every enquiry, who is following it up, and what happens next."
         actions={<>
           {can("leads.export") ? <Button onClick={() => { downloadCsv("leads-export.csv", leadsForExport(rows), ["# Contact fields minimised: masked or omitted"]); toast("Exported without contact numbers."); }}>Export</Button> : null}
           <Button variant="primary" className="primary-cta" onClick={() => setAddOpen(true)} disabled={!can("leads.edit")} reason={!can("leads.edit") ? "Requires Owner, Manager or Sales access." : undefined}>Add lead</Button>
@@ -114,7 +114,7 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
                     const v = cachedVehicles.get(l.vehicleId ?? "");
                     return (
                       <tr key={l.id}>
-                        <td><button type="button" className="row-title" onClick={() => url.set({ lead: l.id })}>{l.name}</button><span className="sub">{l.id} / masked contact</span></td>
+                        <td><button type="button" className="row-title" onClick={() => url.set({ lead: l.id })}>{l.name}</button><span className="sub">{l.id}</span></td>
                         <td>{l.vehicleId ? `${v ? (/^5\d\dd$/.test(v.model) ? v.make : v.model) : ""} / ${l.vehicleId}`.replace(/^ \/ /, "") : "Unspecified"}</td><td>{l.source}</td><td>{l.stage}</td><td>{l.owner}</td><td>{relativeAge(l.lastTouchAt, SNAPSHOT_AT)}</td>
                         <td><button type="button" className={`link-btn ${reasonFor(l)}`} style={{ color: l.nextActionTone === "warning" ? "var(--warning)" : "var(--text)" }} onClick={() => url.set({ lead: l.id })}>{l.nextAction}</button></td>
                       </tr>
@@ -125,10 +125,10 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
               <ul className="card-list only-mobile" aria-label="Leads">
                 {rows.map((l) => (
                   <li key={l.id} className="card tight listing-card">
-                    <button type="button" className="h3 link-btn" style={{ color: "var(--text)" }} onClick={() => url.set({ lead: l.id })}>{l.name} / {l.stage}</button>
-                    <span className="meta">{l.vehicleId ?? "Unspecified"} / {l.source}</span>
+                    <button type="button" className="h3 link-btn" style={{ color: "var(--text)" }} onClick={() => url.set({ lead: l.id })}>{l.name} · {l.stage}</button>
+                    <span className="meta">{l.vehicleId ?? "Unspecified"} · {l.source}</span>
                     <span className={l.nextActionTone === "warning" ? "warn-text meta" : "tone-accent meta"}>{l.nextAction}{l.nextActionTone === "warning" ? " ⚠ overdue or review" : ""}</span>
-                    <span className="meta">{l.owner} / {relativeAge(l.lastTouchAt, SNAPSHOT_AT)}</span>
+                    <span className="meta">{l.owner} · {relativeAge(l.lastTouchAt, SNAPSHOT_AT)}</span>
                   </li>
                 ))}
               </ul>
@@ -176,7 +176,7 @@ function Pipeline({ leads, counts, onOpen, onStage }: { leads: Lead[]; counts: R
             {items.map((l) => (
               <div key={l.id} className="card tight pipe-card" draggable onDragStart={() => setDrag(l.id)}>
                 <button className="link-btn" style={{ color: "var(--text)", fontWeight: 600 }} onClick={() => onOpen(l.id)}>{l.name}</button>
-                <span className="meta">{l.id} / {l.vehicleId ?? "Unspecified"}</span>
+                <span className="meta">{l.id} · {l.vehicleId ?? "Unspecified"}</span>
                 <label className="sr-only" htmlFor={`stage-${l.id}`}>Move {l.id} to stage</label>
                 <select id={`stage-${l.id}`} className="select" style={{ minHeight: 36, padding: "4px 8px" }} value={l.stage} onChange={(e) => onStage(l, e.target.value as LeadStage)}>{LEAD_STAGES.map((st) => <option key={st}>{st}</option>)}</select>
               </div>
@@ -273,16 +273,16 @@ function LeadDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) {
   const campaign = state.campaigns.find((c) => c.id === lead.campaignId);
 
   return (
-    <Drawer open onClose={onClose} size="w560" title={`${lead.name} / ${lead.id}`} description={`${lead.stage} / owner ${lead.owner} / created ${formatShortDateTime(lead.createdAt)}`}
+    <Drawer open onClose={onClose} size="w560" title={`${lead.name} / ${lead.id}`} description={`${lead.stage} · owner ${lead.owner} · created ${formatShortDateTime(lead.createdAt)}`}
       footer={<><Button onClick={onClose}>Close</Button><a className={`btn ${!canSee ? "btn-disabled" : ""}`} aria-disabled={!canSee} href={canSee ? `tel:${lead.contactFull.replace(/\s/g, "")}` : undefined} onClick={(e) => { if (!canSee) { e.preventDefault(); return; } setOutcomeOpen("Call"); }}>Call</a><Button onClick={() => setMessageOpen(true)} disabled={!canSee} reason={!canSee ? "Messaging needs Owner, Manager or Sales access." : undefined}>Message</Button><Button variant="primary" onClick={() => setOutcomeOpen("Call")} disabled={!canSee}>Log outcome</Button></>}>
       <section className="card tight" aria-label="Contact and consent">
         <div className="spread"><div><div className="meta">Contact</div><strong>{contact}</strong></div>{canSee ? <Button size="sm" onClick={() => setReveal((v) => !v)} aria-pressed={reveal}>{reveal ? "Mask" : "Reveal"}</Button> : <Badge>Masked by role</Badge>}</div>
-        <p className="meta mt-2">Consent: {lead.consent.marketing ? "marketing + service" : "service-response only"} / {lead.consent.evidence} / captured {formatShortDateTime(lead.consent.capturedAt)}</p>
+        <p className="meta mt-2">Consent: {lead.consent.marketing ? "marketing + service" : "service-response only"} · {lead.consent.evidence} · captured {formatShortDateTime(lead.consent.capturedAt)}</p>
         {!lead.consent.marketing ? <p className="meta">Missing marketing consent blocks marketing messages. A service response follows configured policy.</p> : null}
       </section>
       {duplicate ? <Notice tone="warn" role="status">Possible duplicate of {duplicate.id} ({duplicate.name}). <button className="link-btn" onClick={() => setMergeOpen(true)}>Review merge</button></Notice> : null}
       <dl className="kv">
-        <div><dt>Vehicle</dt><dd>{vehicle ? <Link className="accent-text" href={href(`/app/inventory/${vehicle.id}`)}>{vehicle.make} {vehicle.model} / {vehicle.id}</Link> : lead.vehicleId ?? "Unspecified interest"}</dd></div>
+        <div><dt>Vehicle</dt><dd>{vehicle ? <Link className="accent-text" href={href(`/app/inventory/${vehicle.id}`)}>{vehicle.make} {vehicle.model} · {vehicle.id}</Link> : lead.vehicleId ?? "Unspecified interest"}</dd></div>
         <div><dt>Source</dt><dd>{lead.source}{campaign ? ` / ${campaign.id}` : ""}</dd></div>
         <div><dt>Stage</dt><dd><StageSelect lead={lead} /></dd></div>
         <div><dt>Owner</dt><dd><OwnerSelect lead={lead} /></dd></div>
@@ -296,15 +296,15 @@ function LeadDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) {
       </section>
 
       <section aria-labelledby="appt-h"><div className="spread"><h3 className="h3" id="appt-h">Appointment</h3><Button size="sm" onClick={() => setApptOpen(true)} disabled={!can("leads.edit")}>{lead.appointment && lead.appointment.status !== "Cancelled" ? "Reschedule" : "Schedule"}</Button></div>
-        {lead.appointment ? <><p className="mt-2">{lead.appointment.kind} / {formatDateTime(lead.appointment.at)} / {lead.appointment.staff} / <strong>{lead.appointment.status}</strong>{lead.appointment.previousAt ? ` (previous slot ${formatShortDateTime(lead.appointment.previousAt)})` : ""}{lead.appointment.cancelReason ? ` / ${lead.appointment.cancelReason}` : ""}</p>
+        {lead.appointment ? <><p className="mt-2">{lead.appointment.kind} · {formatDateTime(lead.appointment.at)} · {lead.appointment.staff} / <strong>{lead.appointment.status}</strong>{lead.appointment.previousAt ? ` (previous slot ${formatShortDateTime(lead.appointment.previousAt)})` : ""}{lead.appointment.cancelReason ? ` / ${lead.appointment.cancelReason}` : ""}</p>
           {lead.appointment.status !== "Cancelled" ? <div className="row-flex mt-2"><TextField label="Cancel reason" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} /><Button variant="danger" size="sm" onClick={() => { const r = run((s, a) => cancelAppointment(s, a, lead.id, cancelReason)); if (r.ok) { toast("Appointment cancelled."); setCancelReason(""); } else toast(r.fields?.reason ?? r.message, "error"); }}>Cancel appointment</Button></div> : null}</> : <p className="muted mt-2">No appointment. Times use the branch timezone (Asia/Kolkata).</p>}
       </section>
 
-      {linked.length ? <section><h3 className="h3">Customer / linked leads</h3><ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>{linked.map((l) => <li key={l.id}>{l.id} / {l.stage} / {l.vehicleId ?? "Unspecified"}</li>)}</ul><p className="meta">Linked, never merged silently.</p></section> : null}
+      {linked.length ? <section><h3 className="h3">Customer and their other leads</h3><ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>{linked.map((l) => <li key={l.id}>{l.id} · {l.stage} · {l.vehicleId ?? "Unspecified"}</li>)}</ul><p className="meta">Linked, never merged silently.</p></section> : null}
 
       <section aria-labelledby="chron-h"><h3 className="h3" id="chron-h">Chronology</h3>
         <ul className="timeline mt-2">{lead.interactions.map((i) => (
-          <li key={i.id}><strong>{i.type}{i.outcome ? ` / ${i.outcome}` : ""}{i.delivery ? ` / ${i.delivery === "Queued" ? "Queued: delivery not acknowledged" : i.delivery}` : ""}</strong><span>{i.detail}</span><span className="meta">{i.actor} / {formatShortDateTime(i.at)}</span>
+          <li key={i.id}><strong>{i.type}{i.outcome ? ` / ${i.outcome}` : ""}{i.delivery ? ` / ${i.delivery === "Queued" ? "Queued: delivery not acknowledged" : i.delivery}` : ""}</strong><span>{i.detail}</span><span className="meta">{i.actor} · {formatShortDateTime(i.at)}</span>
             {i.delivery === "Failed" ? <Button size="sm" onClick={() => run((s, a) => retryMessage(s, a, lead.id, i.id))}>Retry</Button> : null}</li>
         ))}{lead.interactions.length === 0 ? <li className="muted">No interactions yet.</li> : null}</ul>
       </section>

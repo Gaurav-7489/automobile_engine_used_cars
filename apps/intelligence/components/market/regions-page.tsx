@@ -82,7 +82,7 @@ export function RegionsPage() {
 
   const exportCsv = () => {
     downloadCsv(`regional-comparison-${SNAPSHOT_ID}.csv`, [["region", "n", "median_ask_rupees", "q1_rupees", "q3_rupees", "delta_to_base_pct", "evidence_tier", "observed_at"], ...regions.map((r) => [r.region, String(r.n), r.median === null ? "" : String(r.median / 100), r.q1 === null ? "" : String(r.q1 / 100), r.q3 === null ? "" : String(r.q3 / 100), delta(r) === null ? "" : delta(r)!.toFixed(1), tierOf(r), r.observedAt ?? ""])],
-      [`# Asking-price comparison, not transaction prices. Units: rupees. Base region: ${base}`, `# Cohort: ${cohort.make} ${cohort.model} ${cohort.variant} ${cohort.fuel} ${cohort.transmission} ${cohortLine}`, `# Observation window ${cohort.windowDays} days / unknown-match exclusions ${data?.data.excluded_unknown_match_fields ?? 0} / method valuation-v1.0 / snapshot ${SNAPSHOT_ID}`]);
+      [`# Asking-price comparison, not transaction prices. Units: rupees. Base region: ${base}`, `# Cohort: ${cohort.make} ${cohort.model} ${cohort.variant} ${cohort.fuel} ${cohort.transmission} ${cohortLine}`, `# Observation window ${cohort.windowDays} days / unknown-match exclusions ${data?.data.excluded_unknown_match_fields ?? 0} · method valuation-v1.0 / snapshot ${SNAPSHOT_ID}`]);
     toast("Export includes n, observation window, exclusions, units and method version.");
   };
 
@@ -95,11 +95,11 @@ export function RegionsPage() {
 
   return (
     <div className="page">
-      <PageHead title="Regional price comparison" lead="Like-for-like asking-price cohorts with transport-adjusted scenarios." actions={<Button onClick={exportCsv} disabled={status !== "ready" || !can("market.export")} reason={status !== "ready" ? "Export is available once the matching snapshot is ready." : !can("market.export") ? "Export needs Owner, Manager or Marketing access." : undefined}>Export</Button>} />
+      <PageHead title="Prices by region" lead="Like-for-like asking prices across cities, including the cost of moving the car." actions={<Button onClick={exportCsv} disabled={status !== "ready" || !can("market.export")} reason={status !== "ready" ? "Export is available once the matching snapshot is ready." : !can("market.export") ? "Export needs Owner, Manager or Marketing access." : undefined}>Export</Button>} />
 
       <section className="card cohort-card" aria-labelledby="cohort-title">
         <button type="button" className="cohort-open" onClick={() => setEditOpen(true)} aria-label="Edit cohort">
-          <h2 className="h3" id="cohort-title">{cohort.make} {cohort.model} {cohort.variant} / {cohort.fuel} / {cohort.transmission}</h2>
+          <h2 className="h3" id="cohort-title">{cohort.make} {cohort.model} {cohort.variant} · {cohort.fuel} · {cohort.transmission}</h2>
           <span className="muted">{cohortLine}</span>
         </button>
         <div className="row-flex"><Button variant="primary" onClick={() => setAttempt((a) => a + 1)}>Apply</Button><Button onClick={() => url.set({ make: null, model: null, variant: null, fuel: null, transmission: null, yearFrom: null, yearTo: null, kmMin: null, kmMax: null, owners: null, window: null })}>Reset</Button></div>
@@ -107,7 +107,7 @@ export function RegionsPage() {
 
       <div className="row-flex">
         <button type="button" className="chip accent" onClick={() => setEditOpen(true)} aria-label={`Base region ${base}. Change base region`}>Base region: {base}</button>
-        <span className="muted">Regional medians of listing asks / not transaction prices</span>
+        <span className="muted">Typical asking price by region (not sale prices)</span>
       </div>
 
       {status === "error" ? <ErrorPanel title="Regional evidence could not load" message="Partial regions show unavailable badges, never zero bars. A failed route quote permits a clearly marked manual transport estimate." onRetry={() => { url.set({ demo_state: null }); setAttempt((a) => a + 1); }} /> : null}
@@ -126,7 +126,7 @@ export function RegionsPage() {
                   <ul className="region-cards only-mobile" aria-label="Regions">
                     {regions.map((r) => (
                       <li key={r.region}><button type="button" className="card tight region-card" onClick={() => { select(r.region); setSheetOpen(true); }} disabled={r.status === "unavailable"} aria-label={`${r.region}, n ${r.n}, ${formatMoney(r.median)} median asking`}>
-                        <span className="spread"><strong>{r.region} / n{r.n}</strong><span aria-hidden="true">&gt;</span></span>
+                        <span className="spread"><strong>{r.region} · n{r.n}</strong><span aria-hidden="true">&gt;</span></span>
                         <span className="tone-accent">{r.status === "ok" ? `${formatMoney(r.median)} median asking` : "Unavailable"}</span>
                         <span className="meta">{r.status === "ok" ? `IQR ${formatMoney(r.q1)}-${formatMoney(r.q3).replace("₹", "")}${r.n < 10 ? " / Insufficient evidence" : ""}` : "No qualifying listings"}</span>
                       </button></li>
@@ -180,7 +180,7 @@ function Scenario({ region, base, scenario, transport, setTransport, fees, setFe
   if (!region || region.status === "unavailable" || !scenario) return <EmptyState title="Choose a region">Select a region with qualifying listings to see a transport-adjusted scenario.</EmptyState>;
   return (
     <div className="stack">
-      {!compact ? <h2 className="h3" id="sc-title">{region.region} &gt; {base} / scenario</h2> : null}
+      {!compact ? <h2 className="h3" id="sc-title">{region.region} &gt; {base} · scenario</h2> : null}
       <dl className="kv">
         <div><dt>Regional median ask</dt><dd>{formatMoney(scenario.median)}</dd></div>
         <div><dt>Transport estimate{manual ? " (manual)" : ""}</dt><dd>{formatLakh2(scenario.transport)}</dd></div>

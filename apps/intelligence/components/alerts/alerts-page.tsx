@@ -66,7 +66,7 @@ export function AlertsPage() {
 
   return (
     <div className="page">
-      <PageHead title="Alerts and actions" lead="Every alert has a reason, an owner and a next step."
+      <PageHead title="Alerts & actions" lead="Every alert has a reason, an owner and a next step."
         actions={<>
           <div className="seg" role="group" aria-label="Scope"><Button aria-pressed={mine} onClick={() => url.set({ scope: "mine" })}>My actions</Button><Button aria-pressed={!mine} onClick={() => url.set({ scope: null, mine: null })}>All permitted</Button></div>
           <Button variant="primary" className="primary-cta" onClick={() => setRulesOpen(true)} disabled={!can("alerts.rules")} reason={!can("alerts.rules") ? "Rule settings are for administrators." : undefined}>Rule settings</Button>
@@ -123,12 +123,12 @@ export function AlertsPage() {
                 </table>
               </div>
               <ul className="card-list only-mobile" aria-label="Alerts">{rows.map((a) => { const act = action(a); return (
-                <li key={a.id} className="card tight listing-card"><button type="button" className="h3 link-btn" style={{ color: "var(--text)" }} onClick={() => url.set({ alert: a.id })}>{a.title}</button><span className="meta">{a.recordRef} / {a.trigger}</span><span className="meta">{a.severity} / due {a.dueLabel} / {a.assignee}</span><Link className="accent-text" href={act.to}>{act.label} &gt;</Link></li>
+                <li key={a.id} className="card tight listing-card"><button type="button" className="h3 link-btn" style={{ color: "var(--text)" }} onClick={() => url.set({ alert: a.id })}>{a.title}</button><span className="meta">{a.recordRef} · {a.trigger}</span><span className="meta">{a.severity} · due {a.dueLabel} · {a.assignee}</span><Link className="accent-text" href={act.to}>{act.label} &gt;</Link></li>
               ); })}</ul>
             </>
           )}
           {total > (remote.data?.size ?? 50) ? (
-            <div className="pager"><span className="meta">Page {currentPage} of {pages} / {total} alerts</span><div className="row-flex">
+            <div className="pager"><span className="meta">Page {currentPage} of {pages} · {total} alerts</span><div className="row-flex">
               <Button disabled={currentPage <= 1} onClick={() => url.set({ page: currentPage - 1 === 1 ? null : currentPage - 1 }, { push: true })}>Previous</Button>
               <Button disabled={currentPage >= pages} onClick={() => url.set({ page: currentPage + 1 }, { push: true })}>Next</Button></div></div>
           ) : null}
@@ -166,7 +166,7 @@ function AlertDrawer({ alert, onClose, onDialog, action }: { alert: Alert; onClo
         {alert.resolution ? <div><dt>Resolution</dt><dd style={{ maxWidth: 260 }}>{alert.resolution.code}: {alert.resolution.note}</dd></div> : null}
       </dl>
       <Notice role="status">Pricing alerts reference evidence but never change a price. Acknowledge records who saw it; it does not resolve.</Notice>
-      <section><h3 className="h3">History</h3><ul className="timeline mt-2">{[...alert.history].reverse().map((h, i) => <li key={i}><strong>{h.action}</strong><span className="meta">{h.actor} / {formatShortDateTime(h.at)}</span></li>)}</ul></section>
+      <section><h3 className="h3">History</h3><ul className="timeline mt-2">{[...alert.history].reverse().map((h, i) => <li key={i}><strong>{h.action}</strong><span className="meta">{h.actor} · {formatShortDateTime(h.at)}</span></li>)}</ul></section>
     </Drawer>
   );
 }

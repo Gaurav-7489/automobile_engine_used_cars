@@ -115,7 +115,7 @@ export function Onboarding() {
                   <TextField label="City" required value={draft.branch.city} onChange={(e) => set({ branch: { ...draft.branch, city: e.target.value } })} error={errors.branchCity} />
                   <TextField label="State" required value={draft.branch.state} onChange={(e) => set({ branch: { ...draft.branch, state: e.target.value } })} error={errors.branchState} />
                   <TextField label="Timezone" required value={draft.branch.timezone} onChange={(e) => set({ branch: { ...draft.branch, timezone: e.target.value } })} error={errors.branchTimezone} />
-                  <TextField label="Branch address / optional" className="span-2" value={draft.branch.address} onChange={(e) => set({ branch: { ...draft.branch, address: e.target.value } })} placeholder="Address (optional)" />
+                  <TextField label="Branch address (optional)" className="span-2" value={draft.branch.address} onChange={(e) => set({ branch: { ...draft.branch, address: e.target.value } })} placeholder="Address (optional)" />
                 </div>
                 <Check label="Set as default branch for this workspace" checked={draft.branch.isDefault} onChange={(v) => set({ branch: { ...draft.branch, isDefault: v } })} />
                 <p className="muted">Staff will receive access only to the branches assigned by an administrator. You can add other branches later in Settings.</p>
@@ -144,9 +144,9 @@ export function Onboarding() {
             {step === 5 ? (
               <div className="stack mt-4">
                 <dl className="kv">
-                  <div><dt>Business</dt><dd>{draft.business.displayName} / {draft.business.legalName}</dd></div>
-                  <div><dt>Location</dt><dd>{draft.business.city}, {draft.business.state} / {draft.business.timezone}</dd></div>
-                  <div><dt>First branch</dt><dd>{draft.branch.name} / {draft.branch.city}, {draft.branch.state}{draft.branch.isDefault ? " / default" : ""}</dd></div>
+                  <div><dt>Business</dt><dd>{draft.business.displayName} · {draft.business.legalName}</dd></div>
+                  <div><dt>Location</dt><dd>{draft.business.city}, {draft.business.state} · {draft.business.timezone}</dd></div>
+                  <div><dt>First branch</dt><dd>{draft.branch.name} · {draft.branch.city}, {draft.branch.state}{draft.branch.isDefault ? " / default" : ""}</dd></div>
                   <div><dt>Team invitations</dt><dd>{draft.invites.length ? draft.invites.map((i) => `${i.email} (${ROLE_LABEL[i.role as Role] ?? i.role})`).join(", ") : "None now"}</dd></div>
                   <div><dt>Source permissions</dt><dd>{draft.data === "import" ? "CSV import after activation" : draft.data === "later" ? "Connect a licensed source later" : "Skipped: empty Command Centre"}</dd></div>
                 </dl>

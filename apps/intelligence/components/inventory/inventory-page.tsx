@@ -94,7 +94,7 @@ export function InventoryPage() {
   );
 
   const exportRows = (rows: Vehicle[]) => {
-    downloadCsv("inventory-export.csv", [["stock_id", "make", "model", "variant", "year", "km", "landed_rupees", "asking_rupees", "age_days", "lifecycle", "price_review_flag"], ...rows.map((v) => [v.id, v.make, v.model, v.variant, String(v.year), String(v.km), String(landedCost(v.costs) / 100), v.asking === null ? "" : String(v.asking / 100), String(stockAgeDays(v, SNAPSHOT_AT)), LIFECYCLE_LABEL[v.status], needsPriceReview(v) ? "Review" : ""])], [`# Inventory export / scope ${scope.label} / snapshot ${SNAPSHOT_AT} / units: rupees`]);
+    downloadCsv("inventory-export.csv", [["stock_id", "make", "model", "variant", "year", "km", "landed_rupees", "asking_rupees", "age_days", "lifecycle", "price_review_flag"], ...rows.map((v) => [v.id, v.make, v.model, v.variant, String(v.year), String(v.km), String(landedCost(v.costs) / 100), v.asking === null ? "" : String(v.asking / 100), String(stockAgeDays(v, SNAPSHOT_AT)), LIFECYCLE_LABEL[v.status], needsPriceReview(v) ? "Review" : ""])], [`# Inventory export / scope ${scope.label} · snapshot ${SNAPSHOT_AT} · units: rupees`]);
     toast(`Exported ${rows.length} record(s). Registration numbers are excluded.`);
   };
 
@@ -271,7 +271,7 @@ function TransitionDialog({ vehicle, onClose, onDone }: { vehicle: Vehicle | nul
     <Dialog open onClose={onClose} dirty={Boolean(to)} title={`Change state of ${vehicle.id}`} description={`${vehicle.make} ${vehicle.model} is ${LIFECYCLE_LABEL[vehicle.status]}. Transitions are explicit and audited.`} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={submit}>Confirm change</Button></>}>
       <FormSummary errors={errors} />
       <SelectField label="New state" required value={to} onChange={(e) => setTo(e.target.value as Lifecycle)} options={options.map((o) => ({ value: o, label: LIFECYCLE_LABEL[o] }))} placeholder="Choose state" error={errors.to} data-autofocus />
-      {to === "reserved" ? <TextField label="Reserved for / booking reference" required value={note} onChange={(e) => setNote(e.target.value)} error={errors.note} /> : null}
+      {to === "reserved" ? <TextField label="Reserved for (booking reference)" required value={note} onChange={(e) => setNote(e.target.value)} error={errors.note} /> : null}
       {to === "sold" ? <>
         <Notice tone="warn">Sold requires a reconciled sale record. This creates sale entry with landed cost {formatMoney(landedCost(vehicle.costs))}.</Notice>
         <TextField label="Sale price (₹)" required inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} error={errors.salePrice} placeholder="29,50,000" />

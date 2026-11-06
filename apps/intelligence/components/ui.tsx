@@ -158,7 +158,7 @@ export function PageHead({ title, lead, actions, children }: { title: string; le
         {lead ? <p className="lead">{lead}</p> : null}
         {children}
       </div>
-      {actions ? <div className="row-flex">{actions}</div> : null}
+      {actions ? <div className="row-flex page-actions">{actions}</div> : null}
     </div>
   );
 }

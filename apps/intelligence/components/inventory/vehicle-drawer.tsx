@@ -95,7 +95,7 @@ function EditVehicleDrawer({ open, onClose, vehicle, defaultBranch }: { open: bo
   }
 
   return (
-    <Drawer open={open} onClose={onClose} dirty={dirty} size="w560" title={editing ? `Edit ${vehicle!.id}` : "Add vehicle"} description={editing ? `${vehicle!.make} ${vehicle!.model} / version ${vehicle!.version}` : "Save a draft with incomplete media, or make it Available once required fields are complete."}
+    <Drawer open={open} onClose={onClose} dirty={dirty} size="w560" title={editing ? `Edit ${vehicle!.id}` : "Add vehicle"} description={editing ? `${vehicle!.make} ${vehicle!.model} · version ${vehicle!.version}` : "Save a draft with incomplete media, or make it Available once required fields are complete."}
       footer={allowed ? (
         <>
           <Button onClick={onClose}>Cancel</Button>

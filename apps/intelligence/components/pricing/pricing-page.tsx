@@ -56,7 +56,7 @@ export function PricingPage({ requestId }: { requestId?: string }) {
 
   return (
     <div className="page">
-      <PageHead title="Pricing intelligence and approval" lead="Evidence-led asking-price decisions with explicit human approval." />
+      <PageHead title="Pricing" lead="Price changes backed by evidence and approved by a person." />
       <Tabs label="Request queue" value={tab} onChange={(v) => url.set({ tab: v === "review" ? null : v, request: null, vehicle: null })} idPrefix="prc"
         tabs={[{ value: "review", label: "Needs review", count: reviewVehicles.length }, { value: "pending", label: "Pending", count: pending.length }, { value: "approved", label: "Approved", count: approved.length }, { value: "rejected", label: "Rejected", count: rejected.length }]} />
 
@@ -68,7 +68,7 @@ export function PricingPage({ requestId }: { requestId?: string }) {
             <div className="selector-row">
               <SelectField label="Vehicle" value={selectedVehicle?.id ?? ""} onChange={(e) => url.set({ vehicle: e.target.value || null })} options={[
                 ...reviewVehicles.map((v) => ({ value: v.id, label: `${v.id} / ${v.make} ${v.model} / ${activeDraft(drafts, v.id) ? "Draft" : "Needs review"}` })),
-                ...manualOptions.map((v) => ({ value: v.id, label: `${v.id} / ${v.make} ${v.model} / manual request` })),
+                ...manualOptions.map((v) => ({ value: v.id, label: `${v.id} / ${v.make} ${v.model} · manual request` })),
               ]} />
               <span className="meta">{reviewVehicles.length ? `${reviewVehicles.length} vehicle${reviewVehicles.length > 1 ? "s" : ""} flagged by the review policy (${state.policy.reviewThresholdDays}-day threshold). Last scan ${formatDateTime(SNAPSHOT_AT)}.` : "No vehicle is flagged. You can still raise an authorised manual request with an explicit reason."}</span>
             </div>
@@ -155,8 +155,8 @@ function Workbench({ vehicle, draft, mode }: { vehicle: Vehicle; draft?: PriceRe
       {conflict ? <Notice tone="danger" role="alert"><strong>Approval blocked.</strong> {conflict} Refresh the evidence and resubmit; the audit keeps the old request.{" "}{draft && mode !== "draft" ? <Link className="accent-text" href={href("/app/pricing", { vehicle: vehicle.id })}>Open a fresh review</Link> : null}</Notice> : null}
       <section className="card summary-card" aria-labelledby="sum-title">
         <div className="spread" style={{ flexWrap: "wrap" }}>
-          <h2 className="h3" id="sum-title">{vehicle.id} / {vehicle.make} {vehicle.model} / {vehicle.year}</h2>
-          {draft ? <div className="row-flex"><Badge tone={draft.status === "Rejected" ? "danger" : draft.status === "PartiallySynced" || draft.status === "Failed" ? "warn" : "accent"}>{STATUS_LABEL[draft.status]}</Badge><span className="meta">{draft.id} / version {vehicle.version}</span></div> : <Badge>Draft not saved</Badge>}
+          <h2 className="h3" id="sum-title">{vehicle.id} · {vehicle.make} {vehicle.model} · {vehicle.year}</h2>
+          {draft ? <div className="row-flex"><Badge tone={draft.status === "Rejected" ? "danger" : draft.status === "PartiallySynced" || draft.status === "Failed" ? "warn" : "accent"}>{STATUS_LABEL[draft.status]}</Badge><span className="meta">{draft.id} · version {vehicle.version}</span></div> : <Badge>Draft not saved</Badge>}
         </div>
         <div className="summary-grid">
           <div><span className="meta">Current asking</span><strong className="price-med" title={formatExact(currentAsking)}>{formatMoney(currentAsking)}</strong></div>
@@ -178,7 +178,7 @@ function Workbench({ vehicle, draft, mode }: { vehicle: Vehicle; draft?: PriceRe
             {tier === "Insufficient" || estimate === null || low === null || high === null ? (
               <Notice tone="warn" role="status">Insufficient evidence blocks an automated proposal. An authorised manual request needs an explicit reason. Descriptive evidence only.</Notice>
             ) : <PriceStrip low={low} estimate={estimate} high={high} proposed={proposedPaise} />}
-            <div className="row-flex mt-4"><span className="accent-text">Method {valuation.methodVersion} / Evidence: {tier === "Insufficient" ? "Insufficient" : tier}</span><button type="button" className="link-btn" onClick={() => setEvidenceOpen(true)}>Inspect evidence &gt;</button></div>
+            <div className="row-flex mt-4"><span className="accent-text">Method {valuation.methodVersion} · Evidence: {tier === "Insufficient" ? "Insufficient" : tier}</span><button type="button" className="link-btn" onClick={() => setEvidenceOpen(true)}>Inspect evidence &gt;</button></div>
             <p className="meta mt-2">Evidence observed {formatDateTime(evidenceAt)}. {expired ? <span className="warn-text">Evidence expired after {state.policy.evidenceExpiryDays} days: revalidate before approval.</span> : `Expires after ${state.policy.evidenceExpiryDays} days.`}</p>
           </section>
         </Panel>
@@ -186,7 +186,7 @@ function Workbench({ vehicle, draft, mode }: { vehicle: Vehicle; draft?: PriceRe
           <section className="card" aria-labelledby="fi-title">
             <h2 className="h3" id="fi-title">Estimated financial impact</h2>
             <dl className="kv mt-4">
-              <div><dt>Ask reduction</dt><dd>{formatLakh2(impact.reduction)} / {formatPercent(impact.reductionPct, { dp: 1 })}</dd></div>
+              <div><dt>Ask reduction</dt><dd>{formatLakh2(impact.reduction)} · {formatPercent(impact.reductionPct, { dp: 1 })}</dd></div>
               <div><dt>Current gross at ask</dt><dd>{formatMoney(impact.currentGross)}</dd></div>
               <div><dt>Proposed gross</dt><dd>{formatMoney(impact.proposedGross)}</dd></div>
               <div><dt>Holding/selling estimate</dt><dd>{formatLakh2(holding)}</dd></div>
@@ -199,7 +199,7 @@ function Workbench({ vehicle, draft, mode }: { vehicle: Vehicle; draft?: PriceRe
 
       {mode === "draft" ? (
         <section className="card" aria-labelledby="form-title">
-          <h2 className="h3" id="form-title">Draft request / changes require approval</h2>
+          <h2 className="h3" id="form-title">Request a price change</h2>
           <FormSummary errors={errors} />
           <div className="approval-form mt-4">
             <RupeeField label="Proposed asking" required value={proposed} onChange={(raw) => { setProposed(raw); setErrors({}); }} error={errors.proposedAsking} help={proposedPaise ? formatExact(proposedPaise) : undefined} placeholder="₹25,90,000" />
@@ -214,7 +214,7 @@ function Workbench({ vehicle, draft, mode }: { vehicle: Vehicle; draft?: PriceRe
       {mode === "decision" && draft ? (
         <section className="card" aria-labelledby="dec-title">
           <h2 className="h3" id="dec-title">Decision</h2>
-          <dl className="kv"><div><dt>Requested by</dt><dd>{draft.requestedByName} / {formatShortDateTime(draft.requestedAt)}</dd></div><div><dt>Reason</dt><dd style={{ maxWidth: 520 }}>{draft.reason}</dd></div><div><dt>Proposal</dt><dd>{draft.userEdited ? "User-edited" : "Model proposal"}</dd></div>{draft.belowFloor ? <div><dt>Below floor</dt><dd>{draft.floorRationale ?? "Owner exception review required"}</dd></div> : null}</dl>
+          <dl className="kv"><div><dt>Requested by</dt><dd>{draft.requestedByName} · {formatShortDateTime(draft.requestedAt)}</dd></div><div><dt>Reason</dt><dd style={{ maxWidth: 520 }}>{draft.reason}</dd></div><div><dt>Proposal</dt><dd>{draft.userEdited ? "User-edited" : "Model proposal"}</dd></div>{draft.belowFloor ? <div><dt>Below floor</dt><dd>{draft.floorRationale ?? "Owner exception review required"}</dd></div> : null}</dl>
           <div className="row-flex mt-4">
             <Button variant="primary" onClick={() => setConfirmOpen(true)} disabled={!can("price.approve") || selfBlocked} reason={selfBlocked ? "Self-approval is prohibited under the default approval policy. Ask a distinct approver." : !can("price.approve") ? "Requires Owner or Manager access. You can request only." : undefined}>Approve</Button>
             <Button variant="danger" onClick={() => setRejectOpen(true)} disabled={!can("price.approve") || selfBlocked}>Reject</Button>
@@ -257,10 +257,10 @@ function RecordPanel({ request }: { request: PriceRequest }) {
       <h2 className="h3" id="rec-title">Request record</h2>
       <ol className="flow" aria-label="Request state">{stages.map((s) => <li key={s} aria-current={s === current ? "step" : undefined} className={s === current ? "on" : ""}>{STATUS_LABEL[s as PriceRequestStatus]}</li>)}</ol>
       <dl className="kv">
-        <div><dt>Requester</dt><dd>{request.requestedByName} / {formatDateTime(request.requestedAt)}</dd></div>
-        {request.approverName ? <div><dt>{request.status === "Rejected" ? "Rejected by" : "Approver"}</dt><dd>{request.approverName} / {formatDateTime(request.decidedAt)}</dd></div> : null}
+        <div><dt>Requester</dt><dd>{request.requestedByName} · {formatDateTime(request.requestedAt)}</dd></div>
+        {request.approverName ? <div><dt>{request.status === "Rejected" ? "Rejected by" : "Approver"}</dt><dd>{request.approverName} · {formatDateTime(request.decidedAt)}</dd></div> : null}
         {request.rejectReason ? <div><dt>Rejection reason</dt><dd style={{ maxWidth: 520 }}>{request.rejectReason}</dd></div> : null}
-        <div><dt>Evidence snapshot</dt><dd>n = {request.evidenceN} / {request.evidenceTier} / {request.methodVersion} / {formatDateTime(request.evidenceAt)}</dd></div>
+        <div><dt>Evidence snapshot</dt><dd>n = {request.evidenceN} · {request.evidenceTier} · {request.methodVersion} · {formatDateTime(request.evidenceAt)}</dd></div>
         <div><dt>Price</dt><dd>{formatExact(request.currentAsking)} → {formatExact(request.proposedAsking)}</dd></div>
       </dl>
       {request.syncs.length ? (
@@ -272,7 +272,7 @@ function RecordPanel({ request }: { request: PriceRequest }) {
         </>
       ) : null}
       <h3 className="h3">History</h3>
-      <ul className="timeline">{[...request.history].reverse().map((h, i) => <li key={i}><strong>{h.action}</strong><span className="meta">{h.actor} / {formatShortDateTime(h.at)}{h.detail ? ` / ${h.detail}` : ""}</span></li>)}</ul>
+      <ul className="timeline">{[...request.history].reverse().map((h, i) => <li key={i}><strong>{h.action}</strong><span className="meta">{h.actor} · {formatShortDateTime(h.at)}{h.detail ? ` / ${h.detail}` : ""}</span></li>)}</ul>
     </section>
   );
 }
@@ -295,7 +295,7 @@ function Evidence({ open, onClose, vehicle, tier, method }: { open: boolean; onC
     <Drawer open={open} onClose={onClose} size="w560" title="Comparable evidence" description={`${vehicle.id} / ${comps.length} comparable listing asks / method ${method}`} footer={<Button variant="primary" onClick={onClose}>Close</Button>}>
       <p className="muted">Evidence tier <EvidenceBadge tier={tier} />: {tierExplanation[tier]}. These are asking prices, not completed sales.</p>
       <div className="table-wrap fit"><table className="data-table dense"><thead><tr><th>Listing</th><th className="num">Asking</th><th>Attributes</th><th>Observed</th></tr></thead>
-        <tbody>{comps.map((c) => <tr key={c.id}><td><span className="row-title">{c.id}</span><span className="sub">{c.source}</span></td><td className="num">{formatMoney(c.asking)}</td><td><span className="sub">{c.year} / {formatKm(c.km)} km / {c.owners} owner(s)</span><span className="sub">Matched: {c.matchedAttributes.join(", ")}</span></td><td>{formatShortDateTime(c.observedAt)}</td></tr>)}</tbody></table></div>
+        <tbody>{comps.map((c) => <tr key={c.id}><td><span className="row-title">{c.id}</span><span className="sub">{c.source}</span></td><td className="num">{formatMoney(c.asking)}</td><td><span className="sub">{c.year} · {formatKm(c.km)} km / {c.owners} owner(s)</span><span className="sub">Matched: {c.matchedAttributes.join(", ")}</span></td><td>{formatShortDateTime(c.observedAt)}</td></tr>)}</tbody></table></div>
       <p className="meta">Exclusions are counted in the market radar evidence drawer. Opening the source needs licence permission.</p>
     </Drawer>
   );
