@@ -9,6 +9,7 @@ import * as leads from "./leads";
 import * as market from "./market";
 import * as pricing from "./pricing";
 import * as settings from "./settings";
+import * as reports from "./reports";
 import type { Command } from "./recorder";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -22,6 +23,7 @@ const pick = <T extends object>(source: unknown, keys: readonly string[]): Parti
 
 const POLICY_KEYS = ["distinctApprover", "reviewThresholdDays", "ageingDays", "staleFeedHours", "leadResponseMinutes", "evidenceExpiryDays", "priceFloorPercent"] as const;
 const VEHICLE_PATCH_KEYS = ["variant", "km", "owners", "documents", "costs", "branchId"] as const;
+const SCHEDULE_KEYS = ["report", "cadence", "startDate", "recipients", "branchIds"] as const;
 const CAMPAIGN_PATCH_KEYS = ["name", "objective", "region", "radiusKm", "startDate", "endDate", "channels", "totalCap30d", "dailyCap", "headline", "body", "creativeApproved", "clickWindowDays", "viewWindowDays", "note", "step"] as const;
 
 const bare = (fn: (state: WorkspaceState, ...a: any[]) => any): Entry["run"] => (state, _actor, args) => {
@@ -91,6 +93,8 @@ export const COMMANDS: Record<string, Entry> = {
   revokeApiKey: { run: withActor(settings.revokeApiKey), reauth: 1 },
   revokeSessions: { run: withActor(settings.revokeSessions) },
   setPolicy: { run: (s, a, [patch]) => settings.setPolicy(s, a, pick(patch, POLICY_KEYS)) },
+  saveReportSchedule: { run: (s, a, [input]) => reports.saveReportSchedule(s, a, pick(input, SCHEDULE_KEYS) as reports.ScheduleInput) },
+  deleteReportSchedule: { run: withActor(reports.deleteReportSchedule) },
 };
 
 export const MAX_COMMANDS = 10;

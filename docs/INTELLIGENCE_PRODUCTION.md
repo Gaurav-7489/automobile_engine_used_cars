@@ -51,6 +51,7 @@ The command refuses to touch an existing organization and never prints or stores
 | `RESEND_API_KEY` | optional; Resend API key. With `NOTIFICATION_FROM` it turns on new-enquiry emails to each branch's owners and managers. Without it, enquiries still become leads and emails wait in `notification_outbox` (up to 3 days) |
 | `NOTIFICATION_FROM` | optional; verified Resend sender, e.g. `VandLabs <alerts@yourdomain.in>` |
 | `NOTIFICATION_TO` | optional; comma-separated fallback recipients when a branch has no owner or manager with an email |
+| `CRON_SECRET` | 16+ random characters. Protects the daily scheduled-report job (`/api/cron/report-emails`, Vercel Cron at 02:05 UTC, about 07:35 IST). Without it, or without Resend, Reports shows "Setup required" for report emails; schedules are still saved |
 | `PHOTO_HOSTS` | optional; extra photo hosts (comma-separated) the Social post studio may load besides Vercel Blob |
 
 Do not set `MIGRATION_DATABASE_URL` on the web deployment.

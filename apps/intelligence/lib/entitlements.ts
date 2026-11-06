@@ -63,6 +63,7 @@ export const COMMAND_FEATURE: Record<string, FeatureKey> = {
   createPriceRequest: "pricing", submitPriceRequest: "pricing", approvePriceRequest: "pricing", rejectPriceRequest: "pricing", withdrawPriceRequest: "pricing", retryFailedChannels: "pricing",
   createCampaign: "advertising", updateCampaign: "advertising", changeVehicle: "advertising", submitCampaign: "advertising", approveCampaign: "advertising", publishCampaign: "advertising", pauseCampaign: "advertising", resumeCampaign: "advertising", discardCampaign: "advertising",
   proposeCorrection: "capital", acknowledge: "alerts", assignAlerts: "alerts", snooze: "alerts", resolve: "alerts", updateRules: "alerts",
+  saveReportSchedule: "reports", deleteReportSchedule: "reports",
   toggleWatch: "market", saveSearch: "market", renameSearch: "market", deleteSearch: "market", logContactIntent: "market", saveScenario: "market",
 };
 

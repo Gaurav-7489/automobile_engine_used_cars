@@ -27,5 +27,7 @@ export function redactFor(state: WorkspaceState, session: Pick<Session, "role" |
     apiKeys: can(session.role, "settings.keys") ? state.apiKeys : [],
     audit: can(session.role, "settings.audit") ? state.audit : [],
     corrections: can(session.role, "capital.view") ? state.corrections : [],
+    // Schedules are shown only to people who can view reports, and only when they can access every branch a schedule covers.
+    reportSchedules: can(session.role, "reports.view") ? state.reportSchedules.filter((s) => (s.branchIds ?? []).every((b) => allowed.has(b))).map((s) => { const shown = { ...s }; delete shown.attempts; delete shown.claimedUntil; return shown; }) : [],
   };
 }

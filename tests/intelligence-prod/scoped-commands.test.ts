@@ -146,6 +146,8 @@ test("scoped command execution gives exactly the same results as running against
       ["saveBusiness", [{ name: "saveBusiness", args: [{ displayName: "Scoped Motors Kochi", legalName: "Scoped Motors Pvt Ltd", gstin: "", timezone: "Asia/Kolkata" }] }]],
       ["setNotification", [{ name: "setNotification", args: ["reports.ready", true] }]],
       ["inviteMember", [{ name: "inviteMember", args: [{ email: "new@scoped.example", role: "sales", branchIds: [north] }] }]],
+      ["saveReportSchedule", [{ name: "saveReportSchedule", args: [{ report: "leads", cadence: "Weekly", startDate: today(), recipients: [manager.userId], branchIds: [north] }] }]],
+      ["deleteReportSchedule (missing)", [{ name: "deleteReportSchedule", args: ["RS-404"] }]],
       ["two commands in one batch", [{ name: "assignLead", args: [leadB.id, "Owner"] }, { name: "changeStage", args: [leadB.id, leadB.version + 1, "Contacted"] }]],
       ["unknown command", [{ name: "doesNotExist", args: [] }]],
     ];

@@ -3,6 +3,7 @@ import { BRANCHES, TENANT } from "./fixtures/branches";
 import { ARCHIVED_STOCK, EVENTS, KOCHI_STOCK, KOZHIKODE_STOCK, SALES, THRISSUR_STOCK, soldVehicles } from "./fixtures/inventory";
 import { ALERTS, API_KEYS, AUDIT, CAMPAIGNS, INTEGRATIONS, LEADS, PRICE_REQUESTS, TEAM } from "./fixtures/workspace";
 import type { Entitlements } from "./entitlements";
+import type { ReportSchedule } from "./report-schedule";
 import { lakh } from "./format";
 
 export type Policy = {
@@ -42,7 +43,7 @@ export type WorkspaceState = {
   policy: Policy;
   notifications: Record<string, boolean>;
   sessionsRevoked: number;
-  reportSchedules: { id: string; report: string; recipients: string[]; cadence: string; timezone: string; startDate: string }[];
+  reportSchedules: ReportSchedule[];
   savedViews: { id: string; name: string; query: string }[];
   /**
    * Live workspaces load only the small collections up front. `vehicles`, `leads`, `sales` and `alerts` then hold just the records
@@ -56,6 +57,8 @@ export type WorkspaceState = {
   recordBranches?: Record<string, string>;
   /** What this dealership may use (subscription and feature switches). Absent in sample workspaces, where everything is available. */
   entitlements?: Entitlements;
+  /** Live workspaces only: whether scheduled report emails can be delivered (email service and daily job configured). */
+  reportDelivery?: "ready" | "setup_required";
   /** Highest stock, lead and sale numbers already issued, so new ids stay unique while only some records are loaded. */
   idFloor?: { V: number; L: number; S: number };
   alertCounts?: Record<string, { critical: number; dueToday: number; overdue: number; waiting: number; open: number }>;

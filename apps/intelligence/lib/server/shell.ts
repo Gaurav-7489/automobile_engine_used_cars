@@ -10,6 +10,7 @@ import { readEntitlements } from "./entitlement-store";
 import { redactFor } from "./redact";
 import { enterLive } from "./workspace";
 import { readState } from "./workspace-store";
+import { reportDeliveryStatus } from "./report-delivery";
 
 /**
  * What a page needs before it asks for records: tenant, branches, team, policy, integrations, small document collections and
@@ -23,7 +24,7 @@ export async function buildShell(principal: Principal, session: Pick<Session, "r
     const alerts = await deriveTenantAlerts(c, principal.tenantId, base);
     const counts: NonNullable<WorkspaceState["alertCounts"]> = {};
     for (const b of base.branches) counts[b.id] = alertCounts(alerts.filter((a) => a.branchId === b.id));
-    return { ...base, audit: [], partial: true, alertCounts: counts, idFloor: await idFloors(c, principal.tenantId), entitlements: await readEntitlements(c, principal.tenantId) } satisfies WorkspaceState;
+    return { ...base, audit: [], partial: true, alertCounts: counts, idFloor: await idFloors(c, principal.tenantId), entitlements: await readEntitlements(c, principal.tenantId), reportDelivery: reportDeliveryStatus() } satisfies WorkspaceState;
   });
   return redactFor(shell, session);
 }

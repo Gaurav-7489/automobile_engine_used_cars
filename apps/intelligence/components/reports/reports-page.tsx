@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { metricsFor } from "@/lib/actions";
+import { deleteReportSchedule, metricsFor, saveReportSchedule } from "@/lib/actions";
+import { CADENCES, mayReceive, REPORT_KEYS, REPORT_LABEL, type Cadence, type ReportKey } from "@/lib/report-schedule";
+import { ROLE_LABEL } from "@/lib/permissions";
 import { downloadBlob, makePdf, toCsv } from "@/lib/export";
 import { AGE_BUCKETS, realizedProfit } from "@/lib/finance";
 
@@ -30,7 +32,7 @@ export function ReportsPage() {
 }
 
 function Reports() {
-  const { scope, can, demoState, session, state: workspace } = useWorkspace();
+  const { scope, can, demoState, session } = useWorkspace();
   const url = useUrlState();
   const toast = useToast();
   const tabParam = url.get("tab", "overview") as TabKey;
@@ -99,7 +101,7 @@ function Reports() {
         <SelectField label="Comparison" value={draft.compare} onChange={(e) => setDraft({ ...draft, compare: e.target.value })} options={[{ value: "previous", label: "Comparison: previous period" }, { value: "yoy", label: "Comparison: same period last year" }, { value: "none", label: "No comparison" }]} />
         <TextField label="Branch" value={scope.label} readOnly help="Set in the header" />
         <Button variant="primary" type="submit">Apply</Button>
-        <Button onClick={() => setScheduleOpen(true)} disabled={!can("reports.schedule") || Boolean(workspace.live)} reason={workspace.live ? "Scheduled email delivery is not switched on yet. Use Export to share this report." : !can("reports.schedule") ? "Scheduling needs Owner, Manager or Finance access." : undefined}>Schedule</Button>
+        <Button onClick={() => setScheduleOpen(true)} disabled={!can("reports.schedule")} reason={!can("reports.schedule") ? "Scheduling needs Owner, Manager or Finance access." : undefined}>Schedule</Button>
       </form>
       <p className="meta">Period {periodLabel} / one applied scope across all panels. {dirtyFilters ? <Badge tone="warn">Changes not applied</Badge> : null}</p>
       <p className="meta">Dates used: acquired stock by acquisition date, sales by sale-close date, leads by the date the lead was created. Stock age and landed capital are as of today, whatever the period. Records dated before {monthLabel(getMonths()[0])} fall outside every selectable period.</p>
@@ -161,7 +163,7 @@ function Reports() {
         <div className="table-wrap fit"><table className="data-table dense"><caption className="sr-only">{dr?.title}</caption><thead><tr>{dr?.head.map((h) => <th key={h}>{h}</th>)}</tr></thead><tbody>{dr?.rows.map((r) => <tr key={r[0]}>{r.map((c, i) => <td key={i}>{c}</td>)}</tr>)}</tbody></table></div>
       </Drawer>
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} rows={rows} totals={totals} qualified={qualified} periodLabel={periodLabel} scopeLabel={scope.label} incomplete={incomplete} onTrack={track} actorName={session.name} />
-      <ScheduleDialog open={scheduleOpen} onClose={() => setScheduleOpen(false)} scopeLabel={scope.label} periodLabel={periodLabel} />
+      <ScheduleDialog open={scheduleOpen} onClose={() => setScheduleOpen(false)} scopeLabel={scope.label} scopeIds={scope.ids} />
       <ViewsDialog open={viewsOpen} onClose={() => setViewsOpen(false)} />
     </div>
   );
@@ -226,30 +228,50 @@ function ExportDialog({ open, onClose, rows, totals, qualified, periodLabel, sco
   );
 }
 
-function ScheduleDialog({ open, onClose, scopeLabel, periodLabel }: { open: boolean; onClose: () => void; scopeLabel: string; periodLabel: string }) {
-  const { state, run } = useWorkspace();
+function ScheduleDialog({ open, onClose, scopeLabel, scopeIds }: { open: boolean; onClose: () => void; scopeLabel: string; scopeIds: string[] }) {
+  const { state, run, can } = useWorkspace();
   const toast = useToast();
-  const [report, setReport] = useState("Overview");
+  const [report, setReport] = useState<ReportKey>("overview");
   const [recipients, setRecipients] = useState<string[]>([]);
-  const [cadence, setCadence] = useState("Weekly");
+  const [cadence, setCadence] = useState<Cadence>("Weekly");
   const [start, setStart] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  useEffect(() => { if (open) { setReport("Overview"); setRecipients([]); setCadence("Weekly"); setStart(""); setErrors({}); } }, [open]);
-  const people = state.team.filter((t) => t.status === "Active" && ["owner", "manager", "marketing", "finance"].includes(t.role));
+  const [confirm, setConfirm] = useState<string | null>(null);
+  useEffect(() => { if (open) { setReport("overview"); setRecipients([]); setCadence("Weekly"); setStart(""); setErrors({}); setConfirm(null); } }, [open]);
+  const people = state.team.filter((t) => mayReceive(t, report, scopeIds));
+  useEffect(() => { setRecipients((r) => r.filter((id) => people.some((p) => p.id === id))); }, [report, scopeIds.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const reports = REPORT_KEYS.filter((k) => k !== "finance" || can("reports.finance")).map((k) => ({ value: k, label: REPORT_LABEL[k] }));
+  const branchName = (id: string) => state.branches.find((b) => b.id === id)?.name ?? "Branch";
+  const personName = (id: string) => state.team.find((t) => t.id === id)?.name ?? "Former member";
+  const save = () => {
+    const r = run((s, a) => saveReportSchedule(s, a, { report, cadence, startDate: start, recipients, branchIds: scopeIds }));
+    if (!r.ok) { setErrors(r.fields ?? { form: r.message }); toast(r.message, "error"); return; }
+    toast(state.live ? "Schedule saved. Each email is a link; access is checked again at every send." : "Sample schedule saved in this browser only. No email is sent.");
+    setRecipients([]); setStart(""); setErrors({});
+  };
   return (
-    <Dialog open={open} onClose={onClose} title="Schedule report" description="Recipients must still hold permission at delivery. Messages carry a link with access checks, not personal data." size="w640" footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={() => {
-      const next: Record<string, string> = {};
-      if (!recipients.length) next.recipients = "Choose at least one permitted recipient.";
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) next.start = "Choose a start date.";
-      if (Object.keys(next).length) { setErrors(next); return; }
-      run((s) => ({ ok: true as const, state: { ...s, reportSchedules: [...s.reportSchedules, { id: `RS-${s.reportSchedules.length + 1}`, report, recipients, cadence, timezone: "Asia/Kolkata", startDate: start }] } }));
-      toast("Schedule saved. Recipient access is checked at each delivery."); onClose();
-    }}>Save schedule</Button></>}>
-      <div className="form-grid"><SelectField label="Report" value={report} onChange={(e) => setReport(e.target.value)} options={["Overview", "Inventory", "Leads", "Marketing", "Finance"]} /><SelectField label="Cadence" value={cadence} onChange={(e) => setCadence(e.target.value)} options={["Weekly", "Monthly"]} />
-        <TextField label="Start date" type="date" value={start} onChange={(e) => setStart(e.target.value)} error={errors.start} /><TextField label="Timezone" value="Asia/Kolkata" readOnly /></div>
-      <fieldset className="radio-group"><legend className="label">Recipients (permitted users)</legend>{people.map((p) => <Check key={p.id} label={`${p.name} / ${p.role}`} checked={recipients.includes(p.id)} onChange={(v) => setRecipients((r) => (v ? [...r, p.id] : r.filter((x) => x !== p.id)))} />)}{errors.recipients ? <div className="field-error" role="alert">{errors.recipients}</div> : null}</fieldset>
-      <Notice role="status">Included scope: {scopeLabel}, {periodLabel}.</Notice>
-      {state.reportSchedules.length ? <p className="meta">{state.reportSchedules.length} schedule(s) saved.</p> : null}
+    <Dialog open={open} onClose={onClose} title="Schedule report emails" description="Each email carries a link to the report, never figures or customer details. Recipients must still have access when it is sent." size="w640" footer={<><Button onClick={onClose}>Close</Button><Button variant="primary" onClick={save}>Save schedule</Button></>}>
+      {state.live && state.reportDelivery !== "ready" ? <Notice tone="warn" role="status">Setup required: report email delivery is not switched on for this deployment yet. Schedules are saved and start sending once it is.</Notice> : null}
+      {!state.live ? <Notice role="status">Sample workspace: schedules stay in this browser and no email is sent.</Notice> : null}
+      <div className="form-grid"><SelectField label="Report" value={report} onChange={(e) => setReport(e.target.value as ReportKey)} options={reports} error={errors.report} /><SelectField label="Cadence" value={cadence} onChange={(e) => setCadence(e.target.value as Cadence)} options={CADENCES.map((c) => ({ value: c, label: c === "Weekly" ? "Weekly (month to date)" : "Monthly (previous month)" }))} error={errors.cadence} />
+        <TextField label="First email on" type="date" value={start} onChange={(e) => setStart(e.target.value)} error={errors.start} help="Sent at about 7:30 am India time" /><TextField label="Branches" value={scopeLabel} readOnly help="Set in the header" error={errors.branches} /></div>
+      <fieldset className="radio-group"><legend className="label">Recipients (colleagues who can view this report)</legend>{people.length ? people.map((p) => <Check key={p.id} label={`${p.name} / ${ROLE_LABEL[p.role]}`} checked={recipients.includes(p.id)} onChange={(v) => setRecipients((r) => (v ? [...r, p.id] : r.filter((x) => x !== p.id)))} />) : <p className="muted">Nobody on the team can view this report for these branches.</p>}{errors.recipients ? <div className="field-error" role="alert">{errors.recipients}</div> : null}</fieldset>
+      {errors.form ? <Notice tone="danger" role="alert">{errors.form}</Notice> : null}
+      <section aria-labelledby="sched-h" className="stack-sm">
+        <h3 className="h3" id="sched-h">Saved schedules</h3>
+        {state.reportSchedules.length === 0 ? <p className="muted">No schedules yet.</p> : (
+          <ul className="stack-sm" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {state.reportSchedules.map((s) => (
+              <li key={s.id} className="card tight stack-sm">
+                <div className="spread"><strong>{s.cadence} {REPORT_LABEL[s.report] ?? s.report}</strong><Button size="sm" variant="danger" onClick={() => setConfirm(s.id)} disabled={!can("reports.schedule")}>Delete</Button></div>
+                <p className="meta">To {(s.recipients ?? []).map(personName).join(", ")} / {(s.branchIds ?? []).map(branchName).join(", ")}</p>
+                <p className="meta">{Date.parse(s.nextRunAt) <= Date.now() ? "Next email: due now, sent with the next daily run" : `Next email ${formatDate(s.nextRunAt)}, about 7:30 am IST`}{s.lastSentAt ? ` / last sent ${formatDateTime(s.lastSentAt)}` : ""}{s.lastResult ? ` / ${s.lastResult}` : ""}</p>
+                {confirm === s.id ? <Notice tone="danger" role="alert">Delete this schedule? No further emails are sent. <Button size="sm" variant="danger" onClick={() => { const r = run((st, a) => deleteReportSchedule(st, a, s.id)); if (!r.ok) { toast(r.message, "error"); return; } setConfirm(null); toast("Schedule deleted."); }}>Delete schedule</Button> <Button size="sm" onClick={() => setConfirm(null)}>Keep</Button></Notice> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </Dialog>
   );
 }

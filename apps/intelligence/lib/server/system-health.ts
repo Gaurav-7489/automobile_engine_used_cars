@@ -1,6 +1,7 @@
 import { plain } from "./db";
 import { blobConfigured } from "./blob";
 import { mailConfig } from "./lead-notifications";
+import { cronSecret } from "./report-delivery";
 
 export type CheckStatus = "pass" | "warn" | "fail";
 export type Check = { key: string; group: "Runtime" | "Database" | "Security" | "Services"; label: string; status: CheckStatus; detail: string; ms?: number };
@@ -30,6 +31,7 @@ const MIGRATIONS: { name: string; kind: "table" | "function"; object: string }[]
   { name: "0016 Entitlements", kind: "function", object: "intelligence_admin_set_entitlements" },
   { name: "0017 Automations", kind: "table", object: "intelligence_automation_rules" },
   { name: "0018 Sourcing", kind: "function", object: "intelligence_admin_set_source" },
+  { name: "0019 Report schedules", kind: "function", object: "intelligence_due_report_tenants" },
 ];
 
 const env = (k: string) => (process.env[k] ?? "").trim();
@@ -71,6 +73,8 @@ export async function systemReport(): Promise<SystemReport> {
   checks.push({ key: "photos", group: "Services", label: "Photo storage", status: blobConfigured() ? "pass" : "warn", detail: blobConfigured() ? "Vercel Blob connected: photo upload and social posts work" : "Not connected: dealers cannot upload car photos" });
   const mail = mailConfig();
   checks.push({ key: "email", group: "Services", label: "Enquiry emails (Resend)", status: mail ? "pass" : "warn", detail: mail ? `Sending as ${mail.from}` : "Not configured: enquiries still become leads, emails wait up to 3 days" });
+  const cron = cronSecret();
+  checks.push({ key: "reports", group: "Services", label: "Scheduled report emails", status: mail && cron ? "pass" : "warn", detail: mail && cron ? "Daily job protected by CRON_SECRET; sends report links at about 07:30 IST" : !cron ? "Not configured: set CRON_SECRET (16+ characters) so the daily job can run" : "Waiting for email (Resend) to be configured" });
   checks.push({ key: "ads", group: "Services", label: "Advertising platforms", status: "warn", detail: "Google and Meta ad accounts are not connected (needs their developer approval)" });
   checks.push({ key: "market", group: "Services", label: "Licensed market data", status: "warn", detail: "No provider connected: Market Radar and valuations show Setup required" });
 
