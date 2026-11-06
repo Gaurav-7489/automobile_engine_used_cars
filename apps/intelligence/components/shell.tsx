@@ -64,6 +64,13 @@ function BranchSelect() {
   );
 }
 
+/** Menu items in their groups, in order, skipping empty groups. */
+function groupNav<T extends { group: string }>(items: T[]): [string, T[]][] {
+  const out = new Map<string, T[]>();
+  for (const item of items) out.set(item.group, [...(out.get(item.group) ?? []), item]);
+  return [...out.entries()];
+}
+
 function MoreSheet({ open, onClose, platformAdmin }: { open: boolean; onClose: () => void; platformAdmin: boolean }) {
   const href = useScopedHref();
   const { state, session, scope } = useWorkspace();
@@ -73,8 +80,13 @@ function MoreSheet({ open, onClose, platformAdmin }: { open: boolean; onClose: (
   const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); clearRemoteCache(); router.push("/login"); router.refresh(); };
   return (
     <Dialog open={open} onClose={onClose} title="Menu" size="w480">
-      <nav aria-label="All destinations" className="stack-sm">
-        {visibleNav(session.role, state.entitlements).map((item) => <Link key={item.key} href={href(item.href)} prefetch className="nav-link" onClick={onClose} style={{ fontSize: 15 }} {...warmOn(item.href)}><Icon name={item.icon} />{item.label}</Link>)}
+      <nav aria-label="All destinations" className="rail-nav sheet-nav">
+        {groupNav(visibleNav(session.role, state.entitlements)).map(([group, items]) => (
+          <div key={group} className="nav-group" role="group" aria-label={group}>
+            <span className="nav-group-label" aria-hidden="true">{group}</span>
+            {items.map((item) => <Link key={item.key} href={href(item.href)} prefetch className="nav-link" onClick={onClose} {...warmOn(item.href)}><Icon name={item.icon} size={18} />{item.label}</Link>)}
+          </div>
+        ))}
       </nav>
       <hr className="divider" />
       <div className="field"><label htmlFor="mobile-branch">Branch scope</label>
@@ -132,19 +144,21 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
       <div className="app">
         <aside className="rail" aria-label="Workspace">
           <Link href={href("/app/overview")} className="brand" aria-label="VandLabs Command Centre"><Brand sub /></Link>
-          <nav aria-label="Primary">
-            {allowedNav.map((item) => (
-              <Link key={item.key} href={href(item.href)} prefetch className="nav-link" aria-current={key === item.key ? "page" : undefined} aria-label={item.label} {...warmOn(item.href)}>
-                <Icon name={item.icon} /><span className="nav-label label-text">{item.label}</span>
-                {item.key === "alerts" && urgent > 0 ? <span className="nav-badge" aria-label={`${urgent} urgent`}>{urgent}</span> : null}
-              </Link>
+          <nav aria-label="Primary" className="rail-nav">
+            {groupNav(allowedNav).map(([group, items]) => (
+              <div key={group} className="nav-group" role="group" aria-label={group}>
+                <span className="nav-group-label" aria-hidden="true">{group}</span>
+                {items.map((item) => (
+                  <Link key={item.key} href={href(item.href)} prefetch className="nav-link" aria-current={key === item.key ? "page" : undefined} {...warmOn(item.href)}>
+                    <Icon name={item.icon} size={18} /><span className="nav-label label-text">{item.label}</span>
+                    {item.key === "alerts" && urgent > 0 ? <span className="nav-badge" aria-label={`${urgent} urgent`}>{urgent}</span> : null}
+                  </Link>
+                ))}
+              </div>
             ))}
           </nav>
           <div className="rail-foot">
-            <Link href="/install" className="btn btn-block">Install app</Link>
-            <div className="who"><strong>{state.tenant.name}</strong><span>{ROLE_LABEL[session.role]}{demoState === "empty" ? " / Empty-state preview" : ""}</span></div>
-            {platformAdmin ? <Link href="/admin" className="btn btn-block"><Icon name="shield" size={18} /><span className="label">VandLabs admin</span></Link> : null}
-            <Button onClick={() => setHelpOpen(true)} className="btn-block"><Icon name="help" size={18} /><span className="label">Help &amp; shortcuts</span></Button>
+            <div className="who"><span className="who-mark" aria-hidden="true">{initials(state.tenant.name || "VandLabs")}</span><span className="who-text"><strong>{state.tenant.name}</strong><span>{ROLE_LABEL[session.role]}{demoState === "empty" ? " · Empty-state preview" : ""}</span></span></div>
           </div>
         </aside>
         <header className="topbar">
@@ -160,10 +174,11 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
             <Menu label={`Profile menu for ${session.name}`} buttonClass="avatar" text={initials(session.name)}>
               {(close) => (
                 <>
-                  <div className="menu-label" role="presentation">{session.name}<br />{session.email} / {ROLE_LABEL[session.role]}</div><hr />
+                  <div className="menu-label" role="presentation">{session.name}<br />{session.email} · {ROLE_LABEL[session.role]}</div><hr />
                   <Link role="menuitem" href={href("/app/settings/security")} onClick={close}>Account and security</Link>
                   <Link role="menuitem" href="/showroom" onClick={close}>Public showroom</Link>
                   <ThemeMenuItems onChoose={close} />
+                  <Link role="menuitem" href="/install" onClick={close}>Install the app</Link>
                   {platformAdmin ? <Link role="menuitem" href="/admin" onClick={close}>VandLabs admin console</Link> : null}
                   <button role="menuitem" onClick={signOut}><Icon name="logout" size={18} />Sign out</button>
                 </>

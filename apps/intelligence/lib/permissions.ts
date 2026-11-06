@@ -55,21 +55,22 @@ export const ROLE_SUMMARY: Record<Role, string> = {
 export const ROLES = Object.keys(MATRIX) as Role[];
 
 /** Mobile bottom navigation and desktop rail order. */
-export const NAV: { key: string; label: string; short: string; href: string; icon: string; needs?: Capability; feature?: FeatureKey }[] = [
-  { key: "overview", label: "Command Centre", short: "Home", href: "/app/overview", icon: "grid" },
-  { key: "market", label: "Market Radar", short: "Radar", href: "/app/market", icon: "radar", needs: "market.view", feature: "market" },
-  { key: "inventory", label: "Inventory", short: "Stock", href: "/app/inventory", icon: "stock", needs: "inventory.view", feature: "inventory" },
-  { key: "pricing", label: "Pricing Intelligence", short: "Pricing", href: "/app/pricing", icon: "tag", needs: "price.view", feature: "pricing" },
-  { key: "advertising", label: "Advertising Studio", short: "Ads", href: "/app/advertising", icon: "megaphone", needs: "campaign.view", feature: "advertising" },
-  { key: "showroom", label: "Showroom", short: "Showroom", href: "/app/showroom", icon: "store", needs: "inventory.view", feature: "inventory" },
-  { key: "leads", label: "Leads & customers", short: "Leads", href: "/app/leads", icon: "users", needs: "leads.view", feature: "leads" },
-  { key: "capital", label: "Capital & profit", short: "Capital", href: "/app/capital", icon: "coins", needs: "capital.view", feature: "capital" },
-  { key: "alerts", label: "Alerts & actions", short: "Alerts", href: "/app/alerts", icon: "bell", needs: "alerts.view", feature: "alerts" },
-  { key: "reports", label: "Reports & analytics", short: "Reports", href: "/app/reports", icon: "chart", needs: "reports.view", feature: "reports" },
-  { key: "stock-intelligence", label: "Stock intelligence", short: "Aging", href: "/app/stock-intelligence", icon: "stock", needs: "inventory.view", feature: "stock_intelligence" },
-  { key: "acquisition", label: "Acquisition research", short: "Acquire", href: "/app/acquisition", icon: "radar", needs: "acquisition.review", feature: "acquisition" },
-  { key: "automations", label: "Automations", short: "Auto", href: "/app/automations", icon: "grid", needs: "automations.view", feature: "automations" },
-  { key: "settings", label: "Settings", short: "Settings", href: "/app/settings/business", icon: "gear", needs: "settings.view" },
+export type NavGroup = "Today" | "Stock" | "Sales" | "Business";
+export const NAV: { key: string; label: string; short: string; href: string; icon: string; group: NavGroup; needs?: Capability; feature?: FeatureKey }[] = [
+  { key: "overview", label: "Overview", short: "Home", href: "/app/overview", icon: "grid", group: "Today" },
+  { key: "alerts", label: "Alerts & actions", short: "Alerts", href: "/app/alerts", icon: "bell", group: "Today", needs: "alerts.view", feature: "alerts" },
+  { key: "inventory", label: "Inventory", short: "Stock", href: "/app/inventory", icon: "car", group: "Stock", needs: "inventory.view", feature: "inventory" },
+  { key: "stock-intelligence", label: "Stock ageing", short: "Ageing", href: "/app/stock-intelligence", icon: "clock", group: "Stock", needs: "inventory.view", feature: "stock_intelligence" },
+  { key: "pricing", label: "Pricing", short: "Pricing", href: "/app/pricing", icon: "tag", group: "Stock", needs: "price.view", feature: "pricing" },
+  { key: "market", label: "Market Radar", short: "Radar", href: "/app/market", icon: "radar", group: "Stock", needs: "market.view", feature: "market" },
+  { key: "acquisition", label: "Buying", short: "Buying", href: "/app/acquisition", icon: "map", group: "Stock", needs: "acquisition.review", feature: "acquisition" },
+  { key: "leads", label: "Leads & customers", short: "Leads", href: "/app/leads", icon: "users", group: "Sales", needs: "leads.view", feature: "leads" },
+  { key: "advertising", label: "Advertising", short: "Ads", href: "/app/advertising", icon: "megaphone", group: "Sales", needs: "campaign.view", feature: "advertising" },
+  { key: "showroom", label: "Showroom", short: "Showroom", href: "/app/showroom", icon: "store", group: "Sales", needs: "inventory.view", feature: "inventory" },
+  { key: "capital", label: "Capital & profit", short: "Capital", href: "/app/capital", icon: "coins", group: "Business", needs: "capital.view", feature: "capital" },
+  { key: "reports", label: "Reports", short: "Reports", href: "/app/reports", icon: "chart", group: "Business", needs: "reports.view", feature: "reports" },
+  { key: "automations", label: "Automations", short: "Auto", href: "/app/automations", icon: "zap", group: "Business", needs: "automations.view", feature: "automations" },
+  { key: "settings", label: "Settings", short: "Settings", href: "/app/settings/business", icon: "gear", group: "Business", needs: "settings.view" },
 ];
 
 /** Navigation the signed-in member may use: allowed by role and included in the dealership's entitlements. */

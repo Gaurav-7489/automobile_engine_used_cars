@@ -8,6 +8,7 @@ import { formatDateTime } from "@/lib/format";
 import { DEMO_ACTIVITY, DEMO_DEALERSHIPS, DEMO_PLANS, type DemoDealership } from "@/lib/admin-demo";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { Brand } from "../brand";
+import { ThemeToggle } from "../theme";
 import { Icon } from "../icons";
 import { Dialog } from "../overlay";
 import { TwoFactor } from "../settings/two-factor";
@@ -193,6 +194,7 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
             <p className="muted">Signed in as {email}. {view === "overview" ? "Everything on the platform, at a glance." : ""}</p>
           </div>
           <div className="adm-head-actions">
+            <ThemeToggle />
             <label className="adm-switch"><input type="checkbox" checked={demo} onChange={(e) => toggleDemo(e.target.checked)} /><span aria-hidden="true" /><span>Demo data</span></label>
             <Button variant="primary" onClick={() => (locked ? setTwoFactorOpen(true) : setCreating(true))}><Icon name="plus" size={18} />Add dealership</Button>
           </div>
