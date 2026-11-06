@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { json, problem, rateLimited } from "@/lib/api";
+import { deliverPendingLeadEmails } from "@/lib/server/lead-notifications";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { sameOrigin } from "@/lib/server/csrf";
 import { submitWebsiteEnquiry, validateEnquiry } from "@/lib/server/website-enquiry";
@@ -25,6 +27,8 @@ export async function POST(request: Request) {
   try {
     const result = await submitWebsiteEnquiry(tenant, stock, input);
     if (!result.ok) return problem(result.status, result.status === 404 ? "not_found" : result.status === 503 ? "unavailable" : "invalid", result.message, result.fields ? { fields: result.fields } : {});
+    // The email goes out after the customer has their answer; a failure is retried when the dealership next opens the app.
+    if (!result.duplicate) after(() => deliverPendingLeadEmails(tenant.toLowerCase()).then(() => undefined, (error: unknown) => console.error(JSON.stringify({ event: "lead_email_failure", message: error instanceof Error ? error.message : "unknown" }))));
     return json({ ok: true, reference: result.reference, duplicate: result.duplicate }, { status: result.duplicate ? 200 : 201 });
   } catch (error) {
     console.error(JSON.stringify({ event: "website_enquiry_failure", message: error instanceof Error ? error.message : "unknown" }));

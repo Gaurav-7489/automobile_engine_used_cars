@@ -1,6 +1,7 @@
 import { tenantTx } from "./db";
 import type { Principal } from "./identity";
 import { enterLive, runCommandsIn } from "./workspace";
+import { queueLeadEmail } from "./lead-notifications";
 
 type Row = Record<string, unknown>;
 
@@ -38,7 +39,7 @@ export function validateEnquiry(raw: Record<string, unknown>): { input: EnquiryI
   const intent = (Object.keys(INTENTS) as EnquiryInput["intent"][]).find((k) => k === raw.intent) ?? "call";
   if (Object.keys(fields).length) return { input: null, fields };
   return {
-    input: { name, phone: digits.length === 10 ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}` : `+${digits}`, message: clean(raw.message, 500), intent, consent: true, marketing: raw.marketing === true, utmSource: clean(raw.utmSource, 40).toLowerCase() || undefined, utmCampaign: clean(raw.utmCampaign, 80) || undefined },
+    input: { name, phone: digits.length === 10 ? `+91 ${digits.slice(0, 5)} ${digits.slice(5)}` : `+${digits}`, message: clean(raw.message, 500), intent, consent: true, marketing: raw.marketing === true, utmSource: /^[a-z0-9_.-]{1,30}$/.test(clean(raw.utmSource, 40).toLowerCase()) ? clean(raw.utmSource, 40).toLowerCase() : undefined, utmCampaign: clean(raw.utmCampaign, 80) || undefined },
     fields,
   };
 }
@@ -80,6 +81,7 @@ export async function submitWebsiteEnquiry(tenantId: string, stockId: string, in
     }], false);
     if (!outcome.ok) return { ok: false as const, status: outcome.status === 403 ? (503 as const) : (422 as const), message: outcome.status === 403 ? "Enquiries are not being accepted online right now. Please call the dealership." : outcome.message, fields: outcome.fields };
     const lead = outcome.changes.leads.find((l) => l.contactFull.replace(/\D/g, "") === digits) ?? outcome.changes.leads[0];
+    if (lead) await queueLeadEmail(c, tenant, lead.id);
     return { ok: true as const, reference: lead?.id ?? "received", duplicate: false };
   });
 }

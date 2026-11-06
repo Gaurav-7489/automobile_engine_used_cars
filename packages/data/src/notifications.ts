@@ -16,7 +16,7 @@ export async function dispatchNotifications(tenantId:string, options: {
   let sent=0;
   for(const row of rows) {
     try {
-      const response=await fetcher("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,"Content-Type":"application/json","Idempotency-Key":`lead-${row.id}`},body:JSON.stringify({from:env.NOTIFICATION_FROM,to:env.NOTIFICATION_TO.split(",").map(v=>v.trim()),subject:"New dealership enquiry",text:`A new enquiry is waiting in your secure workspace.\n${origin.origin}/command/leads\nReference: ${row.lead_id}`}),signal:AbortSignal.timeout(10000),redirect:"error"});
+      const response=await fetcher("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,"Content-Type":"application/json","Idempotency-Key":`lead-${row.id}`},body:JSON.stringify({from:env.NOTIFICATION_FROM,to:env.NOTIFICATION_TO.split(",").map(v=>v.trim()),subject:"New dealership enquiry",text:`A new enquiry is waiting in your secure workspace.\n${origin.origin}/app/leads\nReference: ${row.lead_id}`}),signal:AbortSignal.timeout(10000),redirect:"error"});
       if(!response.ok)throw new Error("Provider rejected delivery");
       await tenantTransaction(pool,tenantId,c=>c.query("UPDATE notification_outbox SET sent_at=now(),last_error=NULL WHERE tenant_id=$1 AND id=$2 AND sent_at IS NULL",[tenantId,row.id])); sent++;
     } catch {
