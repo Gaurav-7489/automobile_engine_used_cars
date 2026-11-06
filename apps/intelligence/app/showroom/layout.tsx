@@ -20,13 +20,13 @@ export default function ShowroomLayout({ children }: { children: React.ReactNode
           <Link href="/showroom/saved">Saved</Link>
         </nav>
         <ThemeToggle />
-        <Link href="/login" className="btn btn-primary">Dealer sign in</Link>
+        <Link href="/login" className="btn btn-primary btn-sm">Dealer sign in</Link>
       </header>
       <div role="note" className="sr-notice">{SAMPLE_NOTICE}</div>
       <main id="content" tabIndex={-1} className="sr-main">{children}</main>
       <footer className="sr-footer">
-        <span className="meta">VandLabs Automotive Intelligence</span>
-        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <Link href="/showroom/contact">Contact</Link> / <Link href="/info/support">Support</Link> / <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></span>
+        <span className="meta">Sample showroom · Listing by VandLabs</span>
+        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <Link href="/showroom/contact">Contact</Link> / <Link href="/info/support">Support</Link> / <a href={`mailto:${SUPPORT_EMAIL}?subject=Showroom%20feedback`}>Feedback</a></span>
       </footer>
     </div>
   );

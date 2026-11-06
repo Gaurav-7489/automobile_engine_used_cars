@@ -14,10 +14,10 @@ const rows: [string, (v: Vehicle) => string][] = [
 export default async function Compare({ searchParams }: { searchParams: Promise<{ cars?: string }> }) {
   const { cars = "" } = await searchParams;
   const list = [...new Set(cars.split(",").filter(Boolean))].slice(0, 3).map(sampleVehicle).filter((v): v is Vehicle => Boolean(v));
-  if (list.length < 2) return <section className="sr-section"><h1>Compare</h1><p>Pick at least two cars from <Link href="/showroom/saved" className="link-btn">Saved cars</Link> to compare them.</p></section>;
+  if (list.length < 2) return <section className="sr-section"><h1 className="pl-inv-title">Compare</h1><p>Pick at least two cars from <Link href="/showroom/saved" className="link-btn">Saved cars</Link> to compare them.</p></section>;
   return (
     <section className="sr-section">
-      <h1>Compare</h1>
+      <h1 className="pl-inv-title">Compare</h1>
       <div className="sr-table-wrap" role="region" aria-label="Comparison table" tabIndex={0}>
         <table className="sr-table">
           <thead><tr><th scope="col">Specification</th>{list.map(v => <th scope="col" key={v.id}><Link href={`/showroom/vehicles/${v.slug}`}>{v.year} {v.make} {v.model}</Link></th>)}</tr></thead>

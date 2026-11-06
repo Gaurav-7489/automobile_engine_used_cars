@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShowroomCard } from "@/components/showroom/vehicle-card";
+import { ShowroomGrid } from "@/components/showroom/vehicle-card";
 import { sampleVehicles } from "@/lib/showroom";
 
 export default function ShowroomHome() {
@@ -17,9 +17,9 @@ export default function ShowroomHome() {
         </div>
       </section>
       <section aria-labelledby="sr-latest" className="sr-section">
-        <h2 id="sr-latest">Ready to view</h2>
-        <div className="sr-grid">{available.slice(0, 6).map(v => <ShowroomCard key={v.id} vehicle={v} />)}</div>
-        <p><Link href="/showroom/inventory" className="link-btn">See every car</Link></p>
+        <h2 id="sr-latest" className="pl-inv-title">Ready to view</h2>
+        <ShowroomGrid vehicles={available.slice(0, 6)} />
+        <p className="pl-more"><Link href="/showroom/inventory" className="link-btn">See every car</Link></p>
       </section>
       <section aria-labelledby="sr-how" className="sr-section sr-how">
         <h2 id="sr-how">One platform, both sides</h2>

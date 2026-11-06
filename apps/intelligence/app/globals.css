@@ -931,20 +931,9 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .sr-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
 .sr-section { margin-top: 40px; }
 .sr-section h1, .sr-section h2 { letter-spacing: -0.01em; }
-.sr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-block: 16px; }
-.sr-card { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-card, 16px); background: var(--surface); overflow: hidden; transition: transform 200ms ease, border-color 150ms ease; }
-.sr-card:hover { transform: translateY(-3px); border-color: var(--accent); }
-.sr-card-media { position: relative; aspect-ratio: 16 / 10; background: var(--raised); }
-.sr-card-media img, .sr-detail-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.sr-card-body { display: grid; gap: 4px; padding: 14px 16px 16px; }
-.sr-card-body h3 { margin: 0; font-size: 18px; }
-.sr-card-body strong { font-size: 18px; margin-top: 6px; }
+.sr-detail-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .sr-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: capitalize; background: var(--accent-subtle); color: var(--accent-strong); border: 1px solid var(--accent); }
-.sr-card-media .sr-badge { position: absolute; top: 10px; left: 10px; background: var(--surface); }
 .sr-reserved, .sr-sold { border-color: var(--border); color: var(--text); background: var(--raised); }
-.sr-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 16px 0; }
-.sr-filters label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
-.sr-filters input, .sr-filters select { min-height: 44px; padding: 0 12px; border-radius: var(--radius-control); border: 1px solid var(--field-border); background: var(--surface); color: var(--text); }
 .sr-how ol { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; padding: 0; list-style: none; }
 .sr-how li { padding: 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
 .sr-detail-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 32px; align-items: start; }
@@ -964,7 +953,7 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
   .sr-header .btn-primary { white-space: normal; }
   .sr-footer { flex-direction: column; }
 }
-.sr-card-media .vehicle-art, .sr-detail-media .vehicle-art { height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; }
+.sr-detail-media .vehicle-art { height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; }
 .sr-saved { list-style: none; padding: 0; display: grid; gap: 8px; }
 .sr-saved-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr) auto auto auto; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .sr-saved-row label { font-weight: 600; display: flex; gap: 8px; align-items: center; }
@@ -973,7 +962,6 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .sr-table th, .sr-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); text-transform: capitalize; }
 .sr-table thead th { background: var(--raised); }
 @media (max-width: 760px) { .sr-saved-row { grid-template-columns: 1fr 1fr; } }
-.sr-grow { flex: 1 1 280px; }
 .sr-chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 12px 0; }
 
 /* Phone: dialogs and drawers fill the screen, so they are solid surfaces, not glass over the page. */
@@ -1067,6 +1055,18 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 .pl-pager { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; margin-top: 24px; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .pl-card { transition: none; } .pl-card:hover { transform: none; } }
 .pl-photo-missing { padding: 12px; }
+/* Sample showroom on the dealership-page layout: schematic fallbacks fill the frame, the variant sits quietly after the title. */
+.pl-card-media .vehicle-art, .pl-slide .vehicle-art { width: 100%; height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; }
+.pl-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pl-back { margin: 0 0 16px; }
+.pl-more { margin: 20px 0 0; }
+.pl-back .link-btn, .pl-more .link-btn { display: inline-block; min-height: 24px; padding-block: 4px; }
+/* A link inside a sentence must not rely on colour alone (WCAG 1.4.1). */
+.login-help a { text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 767px) {
+  .sr-saved-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .sr-saved-row label, .sr-saved-row .meta { grid-column: 1 / -1; }
+}
 @media (max-width: 640px) {
   .sr-section .pl-inv-title { font-size: 26px; }
   .pl-filters { gap: 8px; padding: 12px; margin: 14px 0 18px; }

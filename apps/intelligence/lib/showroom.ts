@@ -1,3 +1,4 @@
+import { postPrice } from "./social-post";
 import { vehicles, tenantConfig, locationName } from "@vandlabs/demo-data";
 import type { Vehicle } from "@vandlabs/contracts";
 
@@ -10,9 +11,11 @@ export const showroomLocations = tenantConfig.organization.dealerships.flatMap(d
 export const sampleLocation = (id: string) => locationName(id);
 export const dealerName = tenantConfig.organization.dealerships[0]?.brandName ?? "VandLabs";
 
-const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 const num = new Intl.NumberFormat("en-IN");
-export const money = (n: number) => inr.format(n);
+/** Same wording as a dealership's own pages (₹58.50 Lakh), from rupees. */
+export const money = (n: number) => postPrice(n * 100);
+/** Sample records store some values in lower case ("petrol"); dealership pages show them capitalised. */
+export const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 export const km = (n: number) => `${num.format(n)} km`;
 
 export type ShowroomQuery = { q?: string; body?: string; fuel?: string; sort?: string };
