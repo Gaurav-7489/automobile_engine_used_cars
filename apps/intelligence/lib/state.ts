@@ -49,6 +49,11 @@ export type WorkspaceState = {
    * the visible pages have fetched, and `events` is not used. Open-alert counts per permitted branch come from the server.
    */
   partial?: boolean;
+  /**
+   * Branch of each vehicle a campaign or price request refers to, so a shell without vehicle records can still be redacted
+   * to the member's branches without dropping those documents.
+   */
+  recordBranches?: Record<string, string>;
   /** What this dealership may use (subscription and feature switches). Absent in sample workspaces, where everything is available. */
   entitlements?: Entitlements;
   /** Highest stock, lead and sale numbers already issued, so new ids stay unique while only some records are loaded. */

@@ -8,6 +8,9 @@ export function redactFor(state: WorkspaceState, session: Pick<Session, "role" |
   const inBranch = <T extends { branchId: string }>(items: T[]) => items.filter((i) => allowed.has(i.branchId));
   const vehicles = inBranch(state.vehicles);
   const vehicleIds = new Set(vehicles.map((v) => v.id));
+  // A shell carries no vehicle records; documents that name a vehicle are kept when that vehicle's branch is permitted.
+  const recordBranches = Object.fromEntries(Object.entries(state.recordBranches ?? {}).filter(([, branch]) => allowed.has(branch)));
+  const visibleVehicle = (id: string) => vehicleIds.has(id) || Object.hasOwn(recordBranches, id);
   const canContact = can(session.role, "leads.contact");
   return {
     ...state,
@@ -17,8 +20,9 @@ export function redactFor(state: WorkspaceState, session: Pick<Session, "role" |
     events: inBranch(state.events),
     leads: inBranch(state.leads).map((l) => (canContact ? l : { ...l, contactFull: l.contactMasked, email: undefined })),
     alerts: inBranch(state.alerts),
-    priceRequests: state.priceRequests.filter((r) => vehicleIds.has(r.vehicleId)),
-    campaigns: state.campaigns.filter((c) => vehicleIds.has(c.vehicleId)),
+    recordBranches,
+    priceRequests: state.priceRequests.filter((r) => visibleVehicle(r.vehicleId)),
+    campaigns: state.campaigns.filter((c) => visibleVehicle(c.vehicleId)),
     team: can(session.role, "settings.team") ? state.team : state.team.map((m) => ({ ...m, email: "" })),
     apiKeys: can(session.role, "settings.keys") ? state.apiKeys : [],
     audit: can(session.role, "settings.audit") ? state.audit : [],

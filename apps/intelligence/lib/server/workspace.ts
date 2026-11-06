@@ -47,7 +47,7 @@ const changedIds = <T extends { id: string }>(before: readonly T[], after: reado
 };
 
 /** The shell is the small collections only; the caller's pages hold the records they fetched. */
-const asShell = (state: WorkspaceState): WorkspaceState => ({ ...state, vehicles: [], leads: [], sales: [], events: [], alerts: [], audit: [], partial: true });
+const asShell = (state: WorkspaceState): WorkspaceState => ({ ...state, recordBranches: { ...state.recordBranches, ...Object.fromEntries(state.vehicles.map((v) => [v.id, v.branchId])) }, vehicles: [], leads: [], sales: [], events: [], alerts: [], audit: [], partial: true });
 
 /**
  * Applies a batch of commands to the tenant's authoritative state inside one tenant-scoped transaction.

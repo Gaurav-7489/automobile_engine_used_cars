@@ -1004,3 +1004,39 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
   .hbar .value { grid-area: value; }
 }
 @media (max-width: 379px) { .kpi-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Public vehicle listing (/l/{tenant}/{stock}): the link every social post points to. */
+.pl-dealer { font-weight: 800; font-size: 18px; letter-spacing: -0.01em; }
+.pl-gallery { display: grid; gap: 8px; min-width: 0; }
+.pl-track { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; border-radius: 16px; outline-offset: 4px; }
+.pl-track img { flex: 0 0 100%; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; scroll-snap-align: start; border-radius: 16px; background: var(--raised); }
+.pl-nophoto { display: grid; place-items: center; }
+.pl-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.pl-note { margin-top: 24px; }
+.pl-missing { text-align: center; padding-block: 64px; }
+@media (max-width: 760px) { .sr-detail-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Social post studio (Advertising Studio). */
+.post-kit { margin-top: 24px; display: grid; gap: 16px; scroll-margin-top: 96px; }
+.post-kit-grid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.post-kit-controls fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.post-seg { flex-wrap: wrap; }
+.post-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.post-thumb { display: grid; gap: 2px; }
+.post-thumb > button:first-child { position: relative; padding: 0; border: 2px solid transparent; border-radius: 10px; overflow: hidden; background: var(--raised); aspect-ratio: 1; cursor: pointer; }
+.post-thumb.on > button:first-child { border-color: var(--accent); }
+.post-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.55; }
+.post-thumb.on img { opacity: 1; }
+.post-thumb-n { position: absolute; top: 4px; left: 4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.post-thumb-cover { font-size: 12px; }
+.post-swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+.post-swatch { width: 36px; height: 36px; border-radius: 999px; border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--border); cursor: pointer; padding: 0; }
+.post-swatch.on { box-shadow: 0 0 0 3px var(--text); }
+.post-previews { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; min-height: 120px; }
+.post-previews[aria-busy="true"] { opacity: 0.7; }
+.post-preview { margin: 0; flex: 0 0 auto; width: 240px; display: grid; gap: 6px; scroll-snap-align: start; }
+.post-previews.fmt-story .post-preview { width: 180px; }
+.post-previews.fmt-landscape .post-preview { width: min(100%, 520px); }
+.post-preview img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border); display: block; background: var(--raised); }
+.post-platforms { flex-wrap: wrap; }
+@media (max-width: 959px) { .post-kit-grid { grid-template-columns: minmax(0, 1fr); } }

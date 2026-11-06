@@ -14,6 +14,8 @@ import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
 import { Badge, Button, Check, EmptyState, ErrorPanel, FormSummary, Kpi, Notice, PageHead, PanelSkeleton, RupeeField, SelectField, TextArea, TextField } from "../ui";
 import { VehicleArt } from "../vehicle-art";
+import { SocialPostKit } from "./social-post-kit";
+import { listingPath } from "@/lib/social-post";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 
 const STEPS = ["Vehicle", "Audience", "Channels & budget", "Creative", "Review"] as const;
@@ -138,6 +140,7 @@ function Studio({ campaign, onList }: { campaign: Campaign; onList: () => void }
       <PageHead title="Advertising Studio" lead="A measurable campaign for one available vehicle."
         actions={<>
           <Button onClick={onList}>Campaigns ({state.campaigns.length})</Button>
+          <Button onClick={() => document.getElementById("social-posts")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Social posts</Button>
           {editable ? <Button variant="primary" className="primary-cta" disabled={!canEdit} reason={!can("campaign.edit") ? "Requires Owner, Manager or Marketing access." : undefined} onClick={() => { if (commit()) toast("Draft saved."); }}>Save draft</Button> : null}
         </>} />
       <div className="steps" role="tablist" aria-label="Campaign workflow">
@@ -157,7 +160,7 @@ function Studio({ campaign, onList }: { campaign: Campaign; onList: () => void }
             <div><div className="price-big" style={{ fontSize: 32 }}>{formatMoney(vehicle.asking)}</div><div className="meta">Asking / current version {vehicle.version}</div></div>
             <div><Badge tone={vehicle.status === "available" ? "accent" : "warn"}>{vehicle.status === "available" ? "Available" : vehicle.status}</Badge></div>
             <p className="muted">{campaign.note ?? `Reason: ${days} days in stock and ${vehicle.enquiries14d} enquiries in 14 days.`}</p>
-            <p className="meta">Landing URL: /vehicles/{vehicle.id.toLowerCase()}?cid={campaign.id.toLowerCase()} / vehicle_id preserved in every lead.</p>
+            <p className="meta">Landing URL: {listingPath(state.tenant.id, vehicle.id)}?utm_campaign={campaign.utm} / vehicle_id preserved in every lead.</p>
             {editable && canEdit ? <ChangeVehicle current={vehicle.id} onChange={(id) => act(() => run((s, a) => changeVehicle(s, a, campaign.id, id)), "Vehicle changed. Evidence and copy refreshed.")} /> : <span className="meta">Vehicle is locked after approval.</span>}
           </section>
         </Panel>
@@ -218,6 +221,7 @@ function Studio({ campaign, onList }: { campaign: Campaign; onList: () => void }
                     <TextField label="Headline" value={work.headline} onChange={(e) => patch({ headline: e.target.value })} disabled={!canEdit} maxLength={70} />
                     <TextArea label="Body" value={work.body} onChange={(e) => patch({ body: e.target.value })} disabled={!canEdit} error={errors.copy} help="Use verified stock facts only." />
                     {claimProblems.length ? <Notice tone="danger" role="alert">Blocked claim: {claimProblems.join(" ")} Remove it to continue.</Notice> : <Notice role="status">Copy uses stock facts only.</Notice>}
+                    <Notice role="status">Need posts for Instagram, Facebook, WhatsApp or LinkedIn? The <button type="button" className="link-btn" onClick={() => document.getElementById("social-posts")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Social post studio</button> below builds branded images and captions from this vehicle.</Notice>
                     <div><span className="label meta">Source chips</span><div className="chip-row mt-2">{facts.map((f) => <span className="chip" key={f.label}>{f.label} <span className="meta">· {f.source}</span></span>)}</div></div>
                   </div>
                 ) : null}
@@ -245,6 +249,7 @@ function Studio({ campaign, onList }: { campaign: Campaign; onList: () => void }
           <p className="meta">Budget summary: {formatRupees(total)} of {formatRupees(work.totalCap30d)} cap / {formatRupees(work.dailyCap)} per day. Measure: spend, unique enquiries, qualified leads, test-drive requests and CPL. Attribution: click {work.clickWindowDays} d / view {work.viewWindowDays} d; duplicates removed by tenant, contact and vehicle within the window.</p>
         </section>
       </div>
+      <SocialPostKit vehicle={vehicle} campaign={work} />
       <p className="footnote">Publish requires approved creative and budget, connected account, valid tracking and available stock.{account?.state !== "Connected" ? <> Advertising account is {account?.state.toLowerCase()}: <Link className="accent-text" href={href("/app/settings/integrations")}>connect it in Settings</Link>.</> : ""}</p>
     </>
   );

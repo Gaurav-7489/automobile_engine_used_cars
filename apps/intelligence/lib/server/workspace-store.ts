@@ -122,6 +122,16 @@ export async function readState(c: SqlClient, tenantId: string, options: { shell
     corrections: list<WorkspaceState["corrections"][number]>("corrections"), reportSchedules: list<WorkspaceState["reportSchedules"][number]>("reportSchedules"), savedViews: list<WorkspaceState["savedViews"][number]>("savedViews"),
     policy: { ...base.policy, ...(meta.policy ?? {}) }, notifications: { ...base.notifications, ...(meta.notifications ?? {}) }, sessionsRevoked: meta.sessionsRevoked ?? 0, watchlist: meta.watchlist ?? [], contactIntents: meta.contactIntents ?? [],
   };
+  // Campaigns and price requests name a vehicle; record its branch so a shell (no vehicle records) can still be redacted by branch.
+  const referenced = [...new Set([...state.priceRequests.map((r) => r.vehicleId), ...state.campaigns.map((x) => x.vehicleId)])];
+  const recordBranches: Record<string, string> = {};
+  if (options.shell) {
+    if (referenced.length) for (const r of (await c.query("SELECT stock_id, location_id FROM vehicles WHERE tenant_id = $1 AND stock_id = ANY($2::text[])", [tenantId, referenced])).rows) recordBranches[String(r.stock_id)] = String(r.location_id);
+  } else {
+    const wanted = new Set(referenced);
+    for (const v of outVehicles) if (wanted.has(v.id)) recordBranches[v.id] = v.branchId;
+  }
+  state.recordBranches = recordBranches;
   if (options.shell) return { ...state, alerts: [] };
   return reopenExpired({ ...state, alerts: deriveAlerts(state, new Date().toISOString()) });
 }
