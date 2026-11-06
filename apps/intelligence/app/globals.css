@@ -591,11 +591,10 @@ dl.kv { margin: 0; }
 .lead-tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border); gap: 0; }
 .lead-tabs .tabs { border-bottom: 0; flex: 0 1 auto; }
 .lead-tabs .tab[id$="-more"] { display: none; }
-.lead-filters { display: grid; grid-template-columns: repeat(5, minmax(0, 218px)); gap: 16px; align-items: end; }
+.lead-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto auto; gap: 12px; align-items: center; }
 .lead-filters .field label { display: none; }
 .pipeline { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 1fr); gap: 16px; overflow-x: auto; padding-bottom: 8px; }
 .pipe-col { display: grid; gap: 12px; align-content: start; min-height: 240px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
-.pipe-card { display: grid; gap: 6px; cursor: grab; }
 .btn-disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Capital */
@@ -605,7 +604,7 @@ dl.kv { margin: 0; }
 /* Alerts */
 .alert-filters { display: grid; grid-template-columns: repeat(5, minmax(0, 218px)); gap: 16px; align-items: end; }
 .alert-filters .field label { display: none; }
-@media (max-width: 1199px) { .alert-filters, .lead-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1199px) { .alert-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .lead-filters { grid-template-columns: repeat(2, minmax(0, 1fr)) auto auto; } }
 @media (max-width: 767px) { .alert-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 
 /* Reports */
@@ -1488,3 +1487,65 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .inv-gcard, .inv-gcard .inv-thumb img { transition: none; } .inv-gcard:hover { transform: none; } .inv-gcard:hover .inv-thumb img { transform: none; } }
 :root[data-motion="reduced"] .inv-gcard, :root[data-motion="reduced"] .inv-gcard .inv-thumb img { transition: none; }
 :root[data-motion="reduced"] .inv-gcard:hover, :root[data-motion="reduced"] .inv-gcard:hover .inv-thumb img { transform: none; }
+
+/* Figure cards: a small icon chip beside the label. */
+.kpi .kpi-label { justify-content: flex-start; align-items: center; gap: 10px; }
+.kpi-ico { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 8px; background: var(--accent-subtle); color: var(--accent); }
+.kpi-ico.warn { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+.kpi-ico.neutral { background: var(--raised); color: var(--muted); }
+
+/* Overview: priority actions as a readable list instead of a cramped table. */
+.pa-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pa-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--e1); }
+.pa-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--raised); color: var(--muted); }
+.pa-item.warn .pa-ico { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+.pa-item.danger .pa-ico { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.pa-body { display: grid; gap: 2px; min-width: 0; }
+.pa-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.pa-reason { margin: 2px 0 0; font-size: 14px; line-height: 20px; color: var(--text); }
+.pa-go { gap: 6px; white-space: nowrap; }
+@media (max-width: 640px) {
+  .pa-item { grid-template-columns: auto minmax(0, 1fr); align-items: start; padding: 14px; }
+  .pa-go { grid-column: 2; justify-self: start; }
+}
+
+/* Leads: initials, stage colours, next-action pills, and the view switch beside the filters. */
+.chip-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--field-border); background: var(--surface); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.chip-toggle:hover { border-color: var(--accent); }
+.chip-toggle.on { background: var(--accent-subtle); border-color: var(--accent); color: var(--accent); }
+.lead-view button { display: inline-flex; align-items: center; gap: 6px; }
+.lead-view.compact { flex-wrap: nowrap; flex: none; }
+.lead-view.compact button { padding: 0 10px; }
+.lead-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.lead-who > span:last-child { display: grid; min-width: 0; }
+.lead-av { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--accent-subtle); color: var(--accent); font-size: 13px; font-weight: 700; letter-spacing: 0.02em; }
+.row-title-sm { display: block; font-weight: 500; }
+.lead-next { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--raised); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; }
+.lead-next:hover { border-color: var(--accent); }
+.lead-next.warn { background: color-mix(in srgb, var(--warning) 14%, transparent); border-color: transparent; color: var(--warning); }
+.lead-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.lead-card { display: grid; gap: 10px; }
+.lead-card-top { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.lead-card-name { display: grid; min-width: 0; }
+.lead-card .lead-next { justify-self: start; }
+
+/* Pipeline: quiet columns, a coloured dot per stage, count pill, compact cards. */
+.pipeline { scroll-snap-type: x proximity; }
+.pipe-col { gap: 10px; background: color-mix(in srgb, var(--raised) 70%, transparent); box-shadow: none; scroll-snap-align: start; }
+.pipe-head { display: flex; align-items: center; gap: 8px; }
+.pipe-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.pipe-col.accent .pipe-dot { background: var(--accent); }
+.pipe-col.info .pipe-dot { background: var(--info); }
+.pipe-col.warn .pipe-dot { background: var(--warning); }
+.pipe-col.danger .pipe-dot { background: var(--danger); }
+.pipe-count { margin-left: auto; display: grid; place-items: center; min-width: 26px; height: 24px; padding: 0 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-size: 12px; font-weight: 600; }
+.pipe-empty { margin: 0; padding: 20px 8px; border: 1px dashed var(--border); border-radius: 12px; color: var(--muted); font-size: 13px; text-align: center; }
+.pipe-card { position: relative; display: grid; gap: 10px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--e1); cursor: grab; }
+.pipe-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pipe-select { min-height: 32px; width: auto; max-width: 62%; padding: 2px 8px; font-size: 13px; }
+
+/* Titles and sub-lines outside tables (priority actions, lead cards, pipeline cards). */
+.pa-body .row-title, .lead-who .row-title, .lead-card .row-title { font: inherit; font-weight: 600; color: var(--text); background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+.pa-body .row-title { cursor: default; }
+.lead-who button.row-title:hover, .lead-card button.row-title:hover { color: var(--accent); }
+.lead-who .sub, .lead-card .sub { display: block; font-size: 12px; line-height: 18px; color: var(--muted); }

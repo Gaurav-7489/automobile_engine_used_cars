@@ -115,10 +115,10 @@ export function Notice({ tone = "neutral", children, role }: { tone?: "neutral" 
   return <div className={`notice ${tone === "neutral" ? "" : tone}`} role={role}>{children}</div>;
 }
 
-export function Kpi({ label, value, note, tone = "accent", href, onClick, info }: { label: string; value: ReactNode; note?: ReactNode; tone?: "accent" | "warn" | "neutral"; href?: string; onClick?: () => void; info?: ReactNode }) {
+export function Kpi({ label, value, note, tone = "accent", href, onClick, info, icon }: { label: string; value: ReactNode; note?: ReactNode; tone?: "accent" | "warn" | "neutral"; href?: string; onClick?: () => void; info?: ReactNode; icon?: string }) {
   const body = (
     <>
-      <span className="kpi-label"><span>{label}</span></span>
+      <span className="kpi-label">{icon ? <span className={`kpi-ico ${tone}`} aria-hidden="true"><Icon name={icon} size={16} /></span> : null}<span>{label}</span></span>
       <span className="kpi-value"><CountUp value={value} /></span>
       {note ? <span className={`kpi-note ${tone === "warn" ? "warn" : tone === "neutral" ? "neutral" : ""}`}>{note}</span> : <span />}
     </>

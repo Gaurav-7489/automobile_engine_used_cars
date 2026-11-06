@@ -12,6 +12,7 @@ import { Drawer, Menu } from "../overlay";
 import { RemotePanel } from "../panel";
 import { useRemote } from "../use-remote";
 import { Badge, Button, EmptyState, InfoTip, Kpi, PageHead, Tabs, TextField } from "../ui";
+import { Icon } from "../icons";
 import { VehicleDrawer } from "../inventory/vehicle-drawer";
 import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "../workspace";
 import type { Alert, InventoryEvent, Lead, Vehicle } from "@/lib/domain";
@@ -111,14 +112,44 @@ export function OverviewPage() {
       <section aria-label="Key figures" className="order-kpi">
         <RemotePanel title="Key figures" remote={remote} rows={2}>
           <div className="kpi-grid">
-            <Kpi label="Available stock" value={m.available} note="Available vehicles" href={invHref({ tab: "available" })} />
-            <Kpi label="Landed capital" value={formatMoney(m.landedCapital)} note={`Stock as of ${formatDate(SNAPSHOT_AT).slice(0, 6)}`} href={href("/app/capital", branchParam)} />
-            <Kpi label="Ageing >45 days" value={m.ageing} note="Needs review" tone="warn" href={invHref({ tab: "available", age: ">45" })} />
-            <Kpi label="Est. gross at asking" value={formatMoney(m.estimatedGross)} note="Estimate, not yet earned" href={href("/app/capital", { ...branchParam, definition: "gross" })}
+            <Kpi icon="car" label="Available stock" value={m.available} note="Available vehicles" href={invHref({ tab: "available" })} />
+            <Kpi icon="coins" label="Landed capital" value={formatMoney(m.landedCapital)} note={`Stock as of ${formatDate(SNAPSHOT_AT).slice(0, 6)}`} href={href("/app/capital", branchParam)} />
+            <Kpi icon="clock" label="Ageing >45 days" value={m.ageing} note="Needs review" tone="warn" href={invHref({ tab: "available", age: ">45" })} />
+            <Kpi icon="chart" label="Est. gross at asking" value={formatMoney(m.estimatedGross)} note="Estimate, not yet earned" href={href("/app/capital", { ...branchParam, definition: "gross" })}
               info={<InfoTip label="About estimated gross at asking">Asking price minus landed cost for cost-complete, priced, available vehicles. {m.grossExcluded} record(s) excluded for missing cost. Not a realized result.</InfoTip>} />
           </div>
         </RemotePanel>
         <p className="meta mt-2">Key figures are stock as of {formatDate(SNAPSHOT_AT)}. The movement chart covers whole months; the range selector above applies to activity lists only.</p>
+      </section>
+
+      <section aria-labelledby="pa-title" className="order-actions stack">
+        <div className="section-title"><h2 className="h2" id="pa-title">Priority actions</h2><Link className="accent-text" href={href("/app/alerts", branchParam)}>View all &gt;</Link></div>
+        <Tabs label="Priority action categories" value={tab} onChange={(v) => url.set({ queue: v === "all" ? null : v })} tabs={[{ value: "all", label: "All" }, { value: "pricing", label: "Pricing" }, { value: "leads", label: "Leads" }, { value: "integrations", label: "Integrations" }]} idPrefix="queue" />
+        <RemotePanel title="Priority actions" remote={remote} rows={5}>
+          {filtered.length === 0 ? (
+            <EmptyState title="All caught up">No open actions in {rangeLabel.toLowerCase()} for {scope.label}. Charts above remain available.</EmptyState>
+          ) : (
+            <ul className="pa-list" aria-label="Priority actions">
+              {filtered.slice(0, 6).map((a) => {
+                const rec = recordLabel(a);
+                const act = actionFor(a);
+                const tone = a.severity === "Critical" ? "danger" : a.severity === "Warning" ? "warn" : "neutral";
+                const due = a.dueLabel === "Now" || a.dueLabel === "Today" || a.dueLabel === "Overdue" ? a.dueLabel : a.dueAt ? `${formatTime(a.dueAt)} IST` : "No date";
+                return (
+                  <li key={a.id} className={`pa-item ${tone}`}>
+                    <span className="pa-ico" aria-hidden="true"><Icon name={a.type === "Pricing" ? "tag" : a.type === "Leads" ? "users" : a.type === "Integration" ? "link" : "alert"} size={18} /></span>
+                    <div className="pa-body">
+                      <div className="pa-top"><span className="row-title">{rec.title}</span><Badge tone={tone}>{a.severity}</Badge></div>
+                      <p className="pa-reason">{a.trigger}</p>
+                      <span className="meta">{rec.sub} · {due === "No date" ? "No due date" : `Due ${due}`} · {a.owner}</span>
+                    </div>
+                    <Link href={act.to} className="btn btn-sm pa-go" aria-label={`${act.label}: ${rec.title}`}>{act.label}<Icon name="arrowRight" size={16} /></Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </RemotePanel>
       </section>
 
       <div className="split-60 order-charts" style={{ gridTemplateColumns: "minmax(0, 720fr) minmax(0, 416fr)" }}>
@@ -138,37 +169,6 @@ export function OverviewPage() {
         </section>
       </div>
 
-      <section aria-labelledby="pa-title" className="order-actions stack">
-        <div className="section-title"><h2 className="h2" id="pa-title">Priority actions</h2><Link className="accent-text" href={href("/app/alerts", branchParam)}>View all &gt;</Link></div>
-        <Tabs label="Priority action categories" value={tab} onChange={(v) => url.set({ queue: v === "all" ? null : v })} tabs={[{ value: "all", label: "All" }, { value: "pricing", label: "Pricing" }, { value: "leads", label: "Leads" }, { value: "integrations", label: "Integrations" }]} idPrefix="queue" />
-        <RemotePanel title="Priority actions" remote={remote} rows={5}>
-          {filtered.length === 0 ? (
-            <EmptyState title="All caught up">No open actions in {rangeLabel.toLowerCase()} for {scope.label}. Charts above remain available.</EmptyState>
-          ) : (
-            <div className="table-wrap">
-              <table className="data-table" aria-label="Priority actions">
-                <thead><tr><th style={{ width: 116 }}>Priority</th><th style={{ width: 260 }}>Record</th><th>Reason</th><th style={{ width: 130 }}>Due</th><th style={{ width: 160 }}>Owner</th><th style={{ width: 144 }}>Action</th></tr></thead>
-                <tbody>
-                  {filtered.slice(0, 6).map((a) => {
-                    const rec = recordLabel(a);
-                    const act = actionFor(a);
-                    return (
-                      <tr key={a.id}>
-                        <td><Badge tone={a.severity === "Critical" ? "danger" : a.severity === "Warning" ? "warn" : "neutral"}>{a.severity}</Badge></td>
-                        <td><span className="row-title">{rec.title}</span><span className="sub">{rec.sub}</span></td>
-                        <td>{a.trigger}</td>
-                        <td>{a.dueLabel === "Now" || a.dueLabel === "Today" || a.dueLabel === "Overdue" ? a.dueLabel : a.dueAt ? `${formatTime(a.dueAt)} IST` : <span className="muted">No date</span>}</td>
-                        <td>{a.owner}</td>
-                        <td><Link href={act.to} className={a.severity === "Warning" ? "warn-text" : "accent-text"} style={{ fontWeight: 600 }}>{act.label}</Link></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </RemotePanel>
-      </section>
 
       <footer className="meta order-foot">
         Snapshot {formatDateTime(SNAPSHOT_AT)} · {state.tenant.timezone === "Asia/Kolkata" ? "Asia/Kolkata" : state.tenant.timezone} · Calculated from your workspace records {demoState === "partial" ? <Badge tone="warn">Incomplete: partial data</Badge> : null}

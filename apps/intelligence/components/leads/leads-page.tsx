@@ -13,9 +13,16 @@ import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
 import { Badge, Button, Check, EmptyState, FormSummary, Notice, PageHead, SelectField, Tabs, TextArea, TextField } from "../ui";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
+import { Icon } from "../icons";
 
 const MAIN_STAGES: LeadStage[] = ["New", "Contacted", "Qualified", "Appointment"];
 const MORE_STAGES: LeadStage[] = ["Visited", "Test drive", "Negotiation", "Won", "Lost", "Nurture"];
+
+type Tone = "neutral" | "accent" | "warn" | "danger" | "info";
+const STAGE_TONE: Record<LeadStage, Tone> = { New: "info", Contacted: "neutral", Qualified: "accent", Appointment: "accent", Visited: "accent", "Test drive": "accent", Negotiation: "warn", Won: "accent", Lost: "danger", Nurture: "neutral" };
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+function Avatar({ name }: { name: string }) { return <span className="lead-av" aria-hidden="true">{initials(name)}</span>; }
+function OwnerName({ owner }: { owner: string }) { return owner === "Unassigned" ? <span className="muted">Unassigned</span> : <>{owner}</>; }
 
 type LeadPageData = { leads: Lead[]; vehicles: Vehicle[]; total: number; page: number; size: number; owners: string[]; anyLeads: boolean; stages: Record<string, number> };
 
@@ -64,7 +71,6 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
 
   const tabs = [{ value: "all", label: "All leads" }, ...MAIN_STAGES.map((s) => ({ value: s, label: s })), { value: MORE_STAGES.includes(stage as LeadStage) ? stage : "more", label: MORE_STAGES.includes(stage as LeadStage) ? stage : "More stages" }];
 
-  const reasonFor = (l: Lead) => (l.nextActionTone === "warning" ? "warn-text" : "");
   const handleStage = (lead: Lead, next: LeadStage) => {
     if (next === lead.stage) return;
     if (next === "Won" || next === "Lost") { setPending({ lead, stage: next }); return; }
@@ -89,6 +95,7 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
       <div className="only-mobile row-flex" style={{ position: "sticky", top: 56, zIndex: 20, background: "var(--canvas)", padding: "8px 0" }}>
         <Button className="btn-block" aria-pressed={mine} onClick={() => url.set({ mine: mine ? null : "1" })} style={{ flex: 1 }}>My leads</Button>
         <Button className="btn-block" onClick={() => setFilterOpen(true)} style={{ flex: 1 }}>Filters{filterCount ? ` (${filterCount})` : ""}</Button>
+        <ViewSwitch view={view} onChange={(v) => url.set({ view: v === "list" ? null : v })} compact />
       </div>
 
       <div className="lead-filters only-desktop" role="group" aria-label="Filters">
@@ -96,7 +103,8 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
         <SelectField label="Source" aria-label="Source" value={source} onChange={(e) => url.set({ source: e.target.value || null })} options={[...LEAD_SOURCES]} placeholder="All sources" />
         <TextField label="Vehicle (stock ID)" aria-label="Vehicle stock ID" value={vehicle} onChange={(e) => url.set({ vehicle: e.target.value.trim() || null, page: null })} placeholder="e.g. V-1001 or unspecified" />
         <SelectField label="Created" aria-label="Created" value={created} onChange={(e) => url.set({ created: e.target.value === "30" ? null : e.target.value })} options={[{ value: "7", label: "Created: 7 days" }, { value: "30", label: "Created: 30 days" }, { value: "all", label: "Created: any time" }]} />
-        <Button aria-pressed={overdue} variant={overdue ? "primary" : "secondary"} onClick={() => url.set({ overdue: overdue ? null : "1" })}>Overdue only</Button>
+        <button type="button" className={`chip-toggle ${overdue ? "on" : ""}`} aria-pressed={overdue} onClick={() => url.set({ overdue: overdue ? null : "1" })}><Icon name="clock" size={16} />Overdue only</button>
+        <ViewSwitch view={view} onChange={(v) => url.set({ view: v === "list" ? null : v })} />
       </div>
       {filterCount ? <div className="chip-row"><span className="meta" aria-live="polite">{filterCount} active filter{filterCount > 1 ? "s" : ""}</span><button className="link-btn" onClick={clearFilters}>Clear all</button></div> : null}
 
@@ -109,26 +117,30 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
             <>
               <div className="table-wrap only-desktop">
                 <table className="data-table" aria-label="Leads">
-                  <thead><tr><th style={{ width: 180 }}>Lead</th><th style={{ width: 204 }}>Vehicle</th><th style={{ width: 134 }}>Source</th><th style={{ width: 164 }}>Stage</th><th style={{ width: 120 }}>Owner</th><th style={{ width: 142 }}>Last touch</th><th style={{ width: 216 }}>Next action</th></tr></thead>
+                  <thead><tr><th style={{ width: 200 }}>Lead</th><th style={{ width: 204 }}>Vehicle</th><th style={{ width: 134 }}>Source</th><th style={{ width: 164 }}>Stage</th><th style={{ width: 120 }}>Owner</th><th style={{ width: 142 }}>Last touch</th><th style={{ width: 216 }}>Next action</th></tr></thead>
                   <tbody>{rows.map((l) => {
                     const v = cachedVehicles.get(l.vehicleId ?? "");
                     return (
                       <tr key={l.id}>
-                        <td><button type="button" className="row-title" onClick={() => url.set({ lead: l.id })}>{l.name}</button><span className="sub">{l.id}</span></td>
-                        <td>{l.vehicleId ? `${v ? (/^5\d\dd$/.test(v.model) ? v.make : v.model) : ""} / ${l.vehicleId}`.replace(/^ \/ /, "") : "Unspecified"}</td><td>{l.source}</td><td>{l.stage}</td><td>{l.owner}</td><td>{relativeAge(l.lastTouchAt, SNAPSHOT_AT)}</td>
-                        <td><button type="button" className={`link-btn ${reasonFor(l)}`} style={{ color: l.nextActionTone === "warning" ? "var(--warning)" : "var(--text)" }} onClick={() => url.set({ lead: l.id })}>{l.nextAction}</button></td>
+                        <td><div className="lead-who"><Avatar name={l.name} /><span><button type="button" className="row-title" onClick={() => url.set({ lead: l.id })}>{l.name}</button><span className="sub">{l.id}</span></span></div></td>
+                        <td>{l.vehicleId ? <><span className="row-title-sm">{v ? `${v.make} ${/^5\d\dd$/.test(v.model) ? "" : v.model}`.trim() : l.vehicleId}</span>{v ? <span className="sub">{l.vehicleId}</span> : null}</> : <span className="muted">Unspecified</span>}</td>
+                        <td>{l.source}</td><td><Badge tone={STAGE_TONE[l.stage]}>{l.stage}</Badge></td><td><OwnerName owner={l.owner} /></td><td>{relativeAge(l.lastTouchAt, SNAPSHOT_AT)}</td>
+                        <td><button type="button" className={`lead-next ${l.nextActionTone === "warning" ? "warn" : ""}`} onClick={() => url.set({ lead: l.id })}>{l.nextAction}</button></td>
                       </tr>
                     );
                   })}</tbody>
                 </table>
               </div>
-              <ul className="card-list only-mobile" aria-label="Leads">
+              <ul className="lead-cards only-mobile" aria-label="Leads">
                 {rows.map((l) => (
-                  <li key={l.id} className="card tight listing-card">
-                    <button type="button" className="h3 link-btn" style={{ color: "var(--text)" }} onClick={() => url.set({ lead: l.id })}>{l.name} · {l.stage}</button>
-                    <span className="meta">{l.vehicleId ?? "Unspecified"} · {l.source}</span>
-                    <span className={l.nextActionTone === "warning" ? "warn-text meta" : "tone-accent meta"}>{l.nextAction}{l.nextActionTone === "warning" ? " ⚠ overdue or review" : ""}</span>
-                    <span className="meta">{l.owner} · {relativeAge(l.lastTouchAt, SNAPSHOT_AT)}</span>
+                  <li key={l.id} className="card tight lead-card">
+                    <div className="lead-card-top">
+                      <Avatar name={l.name} />
+                      <span className="lead-card-name"><button type="button" className="row-title" onClick={() => url.set({ lead: l.id })}>{l.name}</button><span className="sub">{l.vehicleId ?? "Unspecified"} · {l.source}</span></span>
+                      <Badge tone={STAGE_TONE[l.stage]}>{l.stage}</Badge>
+                    </div>
+                    <button type="button" className={`lead-next ${l.nextActionTone === "warning" ? "warn" : ""}`} onClick={() => url.set({ lead: l.id })}>{l.nextAction}{l.nextActionTone === "warning" ? " · overdue or review" : ""}</button>
+                    <span className="meta"><OwnerName owner={l.owner} /> · {relativeAge(l.lastTouchAt, SNAPSHOT_AT)}</span>
                   </li>
                 ))}
               </ul>
@@ -147,10 +159,7 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
           )}
       </RemotePanel>
       {deep.status === "error" && open && !selected ? <div className="notice danger" role="alert">{deep.code === 404 ? "That lead does not exist or is not available to you." : deep.error} <button className="link-btn" onClick={() => url.set({ lead: null })}>Close</button></div> : null}
-      <div className="spread" style={{ flexWrap: "wrap" }}>
-        <p className="meta">Contacts are masked unless your role may contact leads / message delivery is not a contact outcome</p>
-        <div className="seg" role="group" aria-label="View"><Button variant={view !== "pipeline" ? "primary" : "secondary"} aria-pressed={view !== "pipeline"} onClick={() => url.set({ view: null })}>List</Button><Button variant={view === "pipeline" ? "primary" : "secondary"} aria-pressed={view === "pipeline"} onClick={() => url.set({ view: "pipeline" })}>Pipeline</Button></div>
-      </div>
+      <p className="meta">Contact numbers are masked unless your role may contact leads. A delivered message is not a contact outcome: log what happened.</p>
 
       <AddLead open={addOpen} onClose={() => setAddOpen(false)} />
       <FilterSheet open={filterOpen} onClose={() => setFilterOpen(false)} owners={owners} />
@@ -162,6 +171,19 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
 
 function Icon2() { return <span aria-hidden="true" style={{ marginLeft: 4 }}>▾</span>; }
 
+/** List or pipeline, beside the filters (the same switch as Cards / Table on Inventory). */
+function ViewSwitch({ view, onChange, compact }: { view: string; onChange: (v: "list" | "pipeline") => void; compact?: boolean }) {
+  return (
+    <div className={`pk-seg lead-view ${compact ? "compact" : ""}`} role="group" aria-label="View">
+      {([["list", "List", "list"], ["pipeline", "Pipeline", "columns"]] as const).map(([value, label, icon]) => (
+        <button key={value} type="button" className={(view === "pipeline") === (value === "pipeline") ? "on" : ""} aria-pressed={(view === "pipeline") === (value === "pipeline")} aria-label={compact ? label : undefined} onClick={() => onChange(value)}>
+          <Icon name={icon} size={16} />{compact ? null : label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Pipeline({ leads, counts, onOpen, onStage }: { leads: Lead[]; counts: Record<string, number>; onOpen: (id: string) => void; onStage: (lead: Lead, stage: LeadStage) => void }) {
   const [drag, setDrag] = useState<string | null>(null);
   return (
@@ -170,15 +192,22 @@ function Pipeline({ leads, counts, onOpen, onStage }: { leads: Lead[]; counts: R
         const items = leads.filter((l) => l.stage === s);
         const gross = items.reduce((a, l) => a + (l.expectedGross ?? 0), 0);
         return (
-          <section key={s} className="pipe-col" role="listitem" aria-label={`${s}: ${items.length} leads`} onDragOver={(e) => e.preventDefault()} onDrop={() => { const l = leads.find((x) => x.id === drag); if (l) onStage(l, s); setDrag(null); }}>
-            <h3 className="h3">{s} <span className="meta">({counts[s] ?? items.length}{(counts[s] ?? 0) > items.length ? `, showing ${items.length} most recent` : ""})</span></h3>
-            <p className="meta">{gross ? `Expected gross ${formatMoney(gross)}` : "Expected gross: not set"}</p>
+          <section key={s} className={`pipe-col ${STAGE_TONE[s]}`} role="listitem" aria-label={`${s}: ${items.length} leads`} onDragOver={(e) => e.preventDefault()} onDrop={() => { const l = leads.find((x) => x.id === drag); if (l) onStage(l, s); setDrag(null); }}>
+            <div className="pipe-head">
+              <span className="pipe-dot" aria-hidden="true" />
+              <h3 className="h3">{s}</h3>
+              <span className="pipe-count">{counts[s] ?? items.length}</span>
+            </div>
+            <p className="meta">{gross ? `Expected gross ${formatMoney(gross)}` : "Expected gross: not set"}{(counts[s] ?? 0) > items.length ? ` · showing ${items.length} most recent` : ""}</p>
+            {items.length === 0 ? <p className="pipe-empty">No leads</p> : null}
             {items.map((l) => (
-              <div key={l.id} className="card tight pipe-card" draggable onDragStart={() => setDrag(l.id)}>
-                <button className="link-btn" style={{ color: "var(--text)", fontWeight: 600 }} onClick={() => onOpen(l.id)}>{l.name}</button>
-                <span className="meta">{l.id} · {l.vehicleId ?? "Unspecified"}</span>
-                <label className="sr-only" htmlFor={`stage-${l.id}`}>Move {l.id} to stage</label>
-                <select id={`stage-${l.id}`} className="select" style={{ minHeight: 36, padding: "4px 8px" }} value={l.stage} onChange={(e) => onStage(l, e.target.value as LeadStage)}>{LEAD_STAGES.map((st) => <option key={st}>{st}</option>)}</select>
+              <div key={l.id} className="pipe-card" draggable onDragStart={() => setDrag(l.id)}>
+                <div className="lead-who"><Avatar name={l.name} /><span><button type="button" className="row-title" onClick={() => onOpen(l.id)}>{l.name}</button><span className="sub">{l.vehicleId ?? "Unspecified"} · {l.source}</span></span></div>
+                <div className="pipe-foot">
+                  <span className="meta">{relativeAge(l.lastTouchAt, SNAPSHOT_AT)}</span>
+                  <label className="sr-only" htmlFor={`stage-${l.id}`}>Move {l.id} to stage</label>
+                  <select id={`stage-${l.id}`} className="select pipe-select" value={l.stage} onChange={(e) => onStage(l, e.target.value as LeadStage)}>{LEAD_STAGES.map((st) => <option key={st}>{st}</option>)}</select>
+                </div>
               </div>
             ))}
           </section>
