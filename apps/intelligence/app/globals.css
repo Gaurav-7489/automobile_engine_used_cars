@@ -1040,3 +1040,6 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .post-preview img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border); display: block; background: var(--raised); }
 .post-platforms { flex-wrap: wrap; }
 @media (max-width: 959px) { .post-kit-grid { grid-template-columns: minmax(0, 1fr); } }
+.pl-listing h1 { margin: 12px 0 4px; line-height: 1.15; }
+.pl-listing h2 { margin: 40px 0 16px; }
+.pl-listing .sr-facts dd { text-transform: none; }

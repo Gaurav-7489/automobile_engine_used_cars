@@ -47,7 +47,7 @@ export default async function ListingPage({ params }: { params: Params }) {
             <p className="muted">It may have been sold or taken off the dealer&apos;s website. Contact the dealership for similar vehicles.</p>
           </section>
         ) : (
-          <article className="sr-section sr-detail">
+          <article className="sr-section sr-detail pl-listing">
             <div className="sr-detail-grid">
               <div className="pl-gallery" aria-label="Photos">
                 {v.photos.length ? (
