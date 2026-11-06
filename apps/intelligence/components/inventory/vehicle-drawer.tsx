@@ -8,9 +8,10 @@ import { Drawer } from "../overlay";
 import { useToast } from "../toast";
 import { Badge, Button, Check, FormSummary, Notice, RupeeField, SelectField, Tabs, TextArea, TextField } from "../ui";
 import { useWorkspace } from "../workspace";
+import { AddVehicleDrawer } from "./add-vehicle";
 
 type TabKey = "details" | "costs" | "media" | "documents" | "publishing";
-const TABS: { value: TabKey; label: string }[] = [{ value: "details", label: "Details" }, { value: "costs", label: "Costs" }, { value: "media", label: "Media" }, { value: "documents", label: "Documents" }, { value: "publishing", label: "Publishing" }];
+const TABS: { value: TabKey; label: string }[] = [{ value: "details", label: "Details" }, { value: "costs", label: "Costs" }, { value: "media", label: "Photos" }, { value: "documents", label: "Documents" }, { value: "publishing", label: "Publishing" }];
 const FIELD_TAB: Record<string, TabKey> = { make: "details", model: "details", variant: "details", year: "details", fuel: "details", transmission: "details", km: "details", owners: "details", acquiredOn: "details", registration: "details", asking: "costs", photos: "media" };
 const COST_LABELS: [keyof CostLedger, string][] = [["acquisition", "Acquisition"], ["transport", "Transport"], ["inspection", "Inspection"], ["refurbishment", "Refurbishment"], ["fees", "Purchase fees"]];
 
@@ -24,7 +25,12 @@ function fromVehicle(v: Vehicle): VehicleInput {
   };
 }
 
-export function VehicleDrawer({ open, onClose, vehicle, defaultBranch }: { open: boolean; onClose: () => void; vehicle?: Vehicle; defaultBranch: string }) {
+/** Adding a car uses the one-page form with photos; editing keeps the sectioned editor. */
+export function VehicleDrawer(props: { open: boolean; onClose: () => void; vehicle?: Vehicle; defaultBranch: string }) {
+  return props.vehicle ? <EditVehicleDrawer {...props} /> : <AddVehicleDrawer open={props.open} onClose={props.onClose} defaultBranch={props.defaultBranch} />;
+}
+
+function EditVehicleDrawer({ open, onClose, vehicle, defaultBranch }: { open: boolean; onClose: () => void; vehicle?: Vehicle; defaultBranch: string }) {
   const { run, state, can, session, refresh } = useWorkspace();
   const toast = useToast();
   const editing = Boolean(vehicle);

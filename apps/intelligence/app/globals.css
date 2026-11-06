@@ -140,7 +140,7 @@ table { border-collapse: collapse; width: 100%; }
 .disabled-reason { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
 /* Fields */
-.field { display: grid; gap: 4px; min-width: 0; }
+.field { display: grid; gap: 4px; min-width: 0; align-content: start; } /* side-by-side fields keep their inputs level whatever their help text */
 .field > label, .field > .label { font-size: 12px; line-height: 18px; color: var(--muted); font-weight: 500; }
 .field .req { color: var(--accent); }
 .input, .select, .textarea { width: 100%; min-height: 44px; padding: 10px 12px; background: var(--canvas); border: 1px solid var(--field-border); border-radius: var(--radius-control); color: var(--text); font-size: 14px; line-height: 20px; }
@@ -763,34 +763,39 @@ body::before { display: none; }
 @keyframes drift-b { to { transform: translate3d(calc(-7vmax - var(--px, 0.5) * 5vmax), calc(-4vmax + var(--py, 0.35) * 5vmax), 0) scale(1.12); } }
 @keyframes drift-c { to { transform: translate3d(calc(6vmax - var(--px, 0.5) * 4vmax), calc(-6vmax - var(--py, 0.35) * 3vmax), 0) scale(1.06); } }
 
-/* Glass everywhere: translucent fill, hairline edge with a bright top rim, soft blur, and a light that follows the pointer. */
+/* Surfaces: solid, quiet and consistent. A hairline border and a soft shadow separate panels; nothing is translucent, glowing or
+   following the pointer. Only the sticky top bar keeps a light blur, because content scrolls underneath it. */
 .card, .kpi, .table-wrap, .state-box, .login-form, .rail, .topbar, .bottom-nav, .dialog, .drawer, .menu, .toast, .route-veil-card {
-  --glass-blur: blur(18px) saturate(160%);
+  --glass-blur: blur(14px) saturate(140%);
 }
 .card, .kpi, .table-wrap, .state-box {
   position: relative;
-  background:
-    radial-gradient(260px circle at var(--mx, 50%) var(--my, -20%), var(--spot), transparent 70%),
-    linear-gradient(150deg, var(--glass-hi), transparent 42%),
-    var(--glass-fill);
-  border-color: var(--glass-line);
-  box-shadow: var(--e2), inset 0 1px 0 var(--glass-hi);
-  transition: box-shadow 260ms var(--ease-out), border-color 260ms var(--ease-out), transform 420ms var(--spring);
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 1px 2px color-mix(in srgb, #000 6%, transparent);
+  transition: box-shadow 200ms var(--ease-out), border-color 200ms var(--ease-out);
 }
-.card:hover, .kpi:hover { box-shadow: var(--e3), inset 0 1px 0 var(--glass-hi); border-color: color-mix(in srgb, var(--accent) 28%, var(--glass-line)); }
+.card:hover, .kpi:hover { border-color: color-mix(in srgb, var(--text) 16%, var(--border)); }
 .state-box { border-style: solid; }
-.rail { background: var(--glass-fill); border-right-color: var(--glass-line); }
-.topbar { background: var(--glass-fill-strong); border-bottom-color: var(--glass-line); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
-.dialog, .drawer { background: var(--glass-fill-strong); border-color: var(--glass-line); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+.rail { background: var(--surface); border-right-color: var(--border); }
+.topbar { background: color-mix(in srgb, var(--canvas) 88%, transparent); border-bottom-color: var(--border); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+/* Forms need a calm, solid surface: nothing behind a dialog or drawer shows through. */
+.dialog, .drawer { background: var(--surface); border-color: var(--border); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .data-table th { background: transparent; }
-.data-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--glass-hi) 40%, transparent); }
-.data-table tbody tr:hover td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
-.data-table td.pin-col, .data-table th.pin-col { background: var(--glass-fill-strong); }
-.input, .select, .textarea { background: color-mix(in srgb, var(--canvas) 55%, transparent); transition: border-color 160ms ease, box-shadow 220ms var(--ease-out), background 160ms ease; }
-.input:focus, .select:focus, .textarea:focus { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
-.btn { background: var(--glass-fill); border-color: var(--glass-line); box-shadow: inset 0 1px 0 var(--glass-hi); }
-.btn-primary { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 100%, #fff 14%), var(--accent)); border-color: transparent; box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 32%, transparent), inset 0 1px 0 rgba(255,255,255,0.35); }
-.btn-primary:hover:not(:disabled):not([aria-disabled="true"]) { box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 42%, transparent), inset 0 1px 0 rgba(255,255,255,0.4); }
+.data-table tbody tr:nth-child(even) td { background: transparent; }
+.data-table tbody tr:hover td { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.data-table td.pin-col, .data-table th.pin-col { background: var(--surface); }
+.data-table tbody tr:hover td.pin-col { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.input, .select, .textarea { background: var(--surface); transition: border-color 160ms ease, box-shadow 200ms var(--ease-out); }
+.input:focus, .select:focus, .textarea:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.btn { background: var(--surface); border-color: var(--field-border); box-shadow: none; }
+.btn:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--raised); }
+.btn-primary { background: var(--accent); border-color: transparent; color: var(--accent-ink); box-shadow: none; }
+.btn-primary:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--accent-strong); box-shadow: none; }
+.btn-ghost { background: transparent; border-color: transparent; }
+.btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+/* The drifting colour blobs behind every page are gone: a plain canvas reads calmer and keeps contrast predictable. */
+.ambient { display: none; }
 
 /* Blur is spent only where something scrolls or opens underneath it (top bar, tab bar, dialogs, menus, toasts, the loading veil). Panels sit over
    soft light only, where a translucent fill looks the same and costs nothing. If a device cannot keep up, the script switches to "lite" (no blur at all). */
@@ -813,33 +818,22 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
   @keyframes reveal { from { opacity: 0; transform: translate3d(0, 28px, 0) scale(0.985); } to { opacity: 1; transform: none; } }
 }
 .page-head h1, .page-head .h1 { animation: route-in 600ms 60ms var(--ease-out) both; }
-.nav-link, .bottom-nav a { transition: background 200ms var(--ease-out), color 200ms var(--ease-out), transform 360ms var(--spring); }
-.nav-link:hover { transform: translate3d(3px, 0, 0); }
-.nav-link[aria-current="page"] { box-shadow: inset 0 1px 0 var(--glass-hi), 0 0 24px -6px color-mix(in srgb, var(--accent) 55%, transparent); }
+.nav-link, .bottom-nav a { transition: background 160ms ease, color 160ms ease; }
 .bottom-nav a:active, .bottom-nav button:active { transform: scale(0.9); }
 
-/* Press feedback: buttons dip on press and spring back past rest; a ripple spreads from the touch point; primary actions lean toward the cursor. */
-.btn, .tab, .icon-btn, .avatar, .liquid-seg button { transition: transform 420ms var(--spring), background 160ms ease, border-color 160ms ease, box-shadow 260ms var(--ease-out), color 160ms ease; }
-.btn:active:not(:disabled), .icon-btn:active, .avatar:active { transform: scale(0.95); transition-duration: 70ms; }
-.btn-primary { transform: translate3d(var(--mag-x, 0px), var(--mag-y, 0px), 0); }
-.btn-primary:active:not(:disabled) { transform: translate3d(var(--mag-x, 0px), var(--mag-y, 0px), 0) scale(0.95); }
-.has-ripple { overflow: hidden; }
-.ripple { position: absolute; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent), transparent 66%); transform: scale(0); opacity: 0.9; pointer-events: none; animation: ripple 620ms var(--ease-out) forwards; }
-.btn-primary .ripple { background: radial-gradient(circle, rgba(255, 255, 255, 0.55), transparent 66%); }
-@keyframes ripple { to { transform: scale(1); opacity: 0; } }
+/* Press feedback: a small, quick dip. No ripples, no buttons drifting toward the cursor. */
+.btn, .tab, .icon-btn, .avatar, .liquid-seg button { transition: transform 120ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease; }
+.btn:active:not(:disabled), .icon-btn:active, .avatar:active { transform: scale(0.98); }
+.ripple { display: none; }
 .spinner { animation-duration: 700ms; }
 .toast { animation: toast-in 520ms var(--spring) both; }
 @keyframes toast-in { from { opacity: 0; transform: translate3d(36px, 0, 0) scale(0.92); } to { opacity: 1; transform: none; } }
 .overlay { animation: fade 220ms ease both; }
-.dialog { animation: dialog-in 460ms var(--spring) both; }
-@keyframes dialog-in { from { opacity: 0; transform: translate3d(0, 22px, 0) scale(0.95); } to { opacity: 1; transform: none; } }
-.drawer { animation: drawer-in 480ms var(--spring) both; }
-@keyframes drawer-in { from { opacity: 0.4; transform: translate3d(48px, 0, 0); } to { opacity: 1; transform: none; } }
-.menu { animation: dialog-in 320ms var(--spring) both; transform-origin: top right; }
-.badge { transition: transform 300ms var(--spring); }
-.badge:hover { transform: translateY(-1px) scale(1.04); }
-.kpi .kpi-value, .kpi-value { display: inline-block; animation: value-in 700ms 120ms var(--spring) both; }
-@keyframes value-in { from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.92); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.dialog { animation: dialog-in 200ms var(--ease-out) both; }
+@keyframes dialog-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: none; } }
+.drawer { animation: drawer-in 240ms var(--ease-out) both; }
+@keyframes drawer-in { from { opacity: 0.6; transform: translate3d(24px, 0, 0); } to { opacity: 1; transform: none; } }
+.menu { animation: dialog-in 160ms var(--ease-out) both; transform-origin: top right; }
 
 /* Liquid controls: a pill that slides to the selection, stretching on the way (position and width ease differently) and settling with overshoot. */
 .tabs { position: relative; border-bottom-color: var(--glass-line); }
@@ -1335,3 +1329,30 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 }
 @media (prefers-reduced-motion: reduce) { .adm-card, .adm-bar i, .adm-led.pass { animation: none; } .adm-card:hover { transform: none; } }
 :root[data-motion="reduced"] .adm-card, :root[data-motion="reduced"] .adm-bar i, :root[data-motion="reduced"] .adm-led.pass { animation: none; }
+
+/* Add a car: one page in plain sections, photos first. */
+.av-section { border: 0; margin: 0 0 8px; padding: 20px 0 4px; min-width: 0; border-top: 1px solid var(--border); }
+.av-section:first-of-type { border-top: 0; padding-top: 4px; }
+.av-section[disabled] { opacity: 0.7; }
+.av-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; padding: 0; margin-bottom: 10px; float: left; font-size: 15px; font-weight: 650; }
+.av-title .meta { font-weight: 400; text-align: right; }
+.av-title + * { clear: both; }
+.av-section > :not(legend) { clear: both; }
+.av-photos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+.av-photos > li:only-child { grid-column: 1 / -1; }
+.av-photo { position: relative; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: var(--raised); border: 1px solid var(--border); }
+.av-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.av-cover, .av-chip { position: absolute; left: 6px; bottom: 6px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: color-mix(in srgb, #000 62%, transparent); color: #fff; border: 0; min-height: 24px; display: inline-flex; align-items: center; }
+.av-chip { cursor: pointer; opacity: 0; transition: opacity 150ms ease; }
+.av-photo:hover .av-chip, .av-chip:focus-visible { opacity: 1; }
+@media (hover: none) { .av-chip { opacity: 1; } }
+.av-remove { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; border: 0; cursor: pointer; background: color-mix(in srgb, #000 62%, transparent); color: #fff; }
+.av-add { width: 100%; aspect-ratio: 4 / 3; display: grid; place-content: center; justify-items: center; gap: 6px; border-radius: 12px; border: 1.5px dashed var(--field-border); background: transparent; color: var(--accent); font-weight: 600; cursor: pointer; text-align: center; padding: 12px; }
+.av-add:hover { background: var(--accent-subtle); border-color: var(--accent); }
+.av-add-empty { aspect-ratio: auto; min-height: 148px; }
+.av-add-empty .meta { font-weight: 400; color: var(--muted); }
+.av-more { margin: 12px 0; display: inline-block; min-height: 24px; }
+.av-progress { position: relative; overflow: hidden; margin-bottom: 12px; padding: 10px 14px; border-radius: 12px; background: var(--accent-subtle); color: var(--accent-strong); font-weight: 600; font-size: 14px; }
+.av-progress span { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 18%, transparent); transition: width 300ms ease; }
+@media (prefers-reduced-motion: reduce) { .av-chip, .av-progress span { transition: none; } }
+:root[data-motion="reduced"] .av-chip, :root[data-motion="reduced"] .av-progress span { transition: none; }

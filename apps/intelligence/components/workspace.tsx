@@ -21,6 +21,12 @@ type Ctx = {
   can: (capability: Capability) => boolean;
   /** Runs a domain action for immediate feedback; the server repeats it authoritatively and its result replaces the local one. */
   run: <R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => R) => R;
+  /**
+   * Same as run, and also resolves once the server has answered: `saved` is false when the change was refused or never reached the
+   * server, and `vehicles` / `leads` hold the ids the server actually issued or changed (which can differ from the optimistic ids).
+   * Use it when a follow-up request needs the confirmed record, such as uploading photos to a car just added.
+   */
+  runConfirmed: <R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => R) => { result: R; confirmed: Promise<Confirmed> };
   /** Same as run for actions that hash or fetch before returning. These run locally only. */
   runAsync: <R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => Promise<R>) => Promise<R>;
   /** Kept for sample-mode screens; a live workspace waits for real provider acknowledgement and never fakes one. */
@@ -38,6 +44,8 @@ type Ctx = {
 };
 
 type Created = { vehicles: string[]; leads: string[]; sales: string[] };
+export type Confirmed = { saved: boolean; vehicles: string[]; leads: string[] };
+const NOT_SAVED: Confirmed = { saved: false, vehicles: [], leads: [] };
 type Mergeable = "vehicles" | "leads" | "sales" | "alerts";
 const upsert = <T extends { id: string }>(current: T[], incoming: T[]): T[] => {
   if (!incoming.length) return current;
@@ -111,14 +119,17 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
     return () => { window.clearInterval(interval); window.removeEventListener("focus", onFocus); };
   }, [refresh]);
 
-  const send = useCallback((commands: Command[], created: Created) => {
+  const send = useCallback((commands: Command[], created: Created): Promise<Confirmed> => {
     pending.current += 1;
     setSaving(true);
+    let settle: (c: Confirmed) => void = () => undefined;
+    const outcome = new Promise<Confirmed>((resolve) => { settle = resolve; });
     chain.current = chain.current.then(async () => {
       try {
         const response = await fetch("/api/workspace/commands", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ commands }) });
-        if (response.status === 401) { router.replace("/login?reason=expired"); return; }
+        if (response.status === 401) { settle(NOT_SAVED); router.replace("/login?reason=expired"); return; }
         const body = (await response.json().catch(() => null)) as { ok?: boolean; state?: WorkspaceState; changes?: Pick<WorkspaceState, Mergeable>; effects?: Effects; error?: { message?: string } } | null;
+        settle(body?.ok ? { saved: true, vehicles: (body.changes?.vehicles ?? []).map((x) => x.id), leads: (body.changes?.leads ?? []).map((x) => x.id) } : NOT_SAVED);
         if (body?.state && pending.current <= 1) {
           // The server returns the small collections plus the records this change touched; cached records it did not touch stay as they are.
           const cached = stateRef.current;
@@ -136,7 +147,8 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
         if (body?.ok && body.effects) window.dispatchEvent(new CustomEvent("vl:effects", { detail: body.effects }));
         if (!body?.ok) window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: body?.error?.message ?? "The change could not be saved. It has been undone." } }));
       } catch {
-        window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: "We could not reach the server. Your last change was not saved.", retry: () => send(commands, { vehicles: [], leads: [], sales: [] }) } }));
+        settle(NOT_SAVED);
+        window.dispatchEvent(new CustomEvent("vl:sync-error", { detail: { message: "We could not reach the server. Your last change was not saved.", retry: () => void send(commands, { vehicles: [], leads: [], sales: [] }) } }));
         // Nothing was saved, so records this device created optimistically are removed again.
         const cur = stateRef.current;
         const gone = { vehicles: new Set(created.vehicles), leads: new Set(created.leads), sales: new Set(created.sales) };
@@ -144,23 +156,27 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
         stateRef.current = undone; setState(undone);
         void refresh();
       } finally {
+        settle(NOT_SAVED); // no-op when already settled
         pending.current -= 1;
         if (pending.current === 0) setSaving(false);
       }
     });
+    return outcome;
   }, [router, refresh]);
 
-  const run = useCallback(<R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => R): R => {
+  const runConfirmed = useCallback(<R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => R): { result: R; confirmed: Promise<Confirmed> } => {
     const before = stateRef.current;
     const { value: result, commands } = recordCommands(() => fn(before, actor));
-    if (result.ok) {
-      stateRef.current = result.state;
-      setState(result.state);
-      const fresh = <T extends { id: string }>(a: T[], b: T[]) => { const known = new Set(b.map((x) => x.id)); return a.filter((x) => !known.has(x.id)).map((x) => x.id); };
-      if (commands.length && demoRef.current === "normal") send(commands, { vehicles: fresh(result.state.vehicles, before.vehicles), leads: fresh(result.state.leads, before.leads), sales: fresh(result.state.sales, before.sales) });
-    }
-    return result;
+    if (!result.ok) return { result, confirmed: Promise.resolve(NOT_SAVED) };
+    stateRef.current = result.state;
+    setState(result.state);
+    const fresh = <T extends { id: string }>(a: T[], b: T[]) => { const known = new Set(b.map((x) => x.id)); return a.filter((x) => !known.has(x.id)).map((x) => x.id); };
+    if (commands.length && demoRef.current === "normal") return { result, confirmed: send(commands, { vehicles: fresh(result.state.vehicles, before.vehicles), leads: fresh(result.state.leads, before.leads), sales: fresh(result.state.sales, before.sales) }) };
+    // Sample workspaces never reach a server; nothing is confirmed there.
+    return { result, confirmed: Promise.resolve(NOT_SAVED) };
   }, [actor, send]);
+
+  const run = useCallback(<R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => R): R => runConfirmed(fn).result, [runConfirmed]);
 
   const runAsync = useCallback(async <R extends Result<object>>(fn: (state: WorkspaceState, actor: Actor) => Promise<R>): Promise<R> => {
     const result = await fn(stateRef.current, actor);
@@ -180,7 +196,7 @@ function Inner({ session, initialState, asOf, children }: { session: Session; in
   const scope = useMemo(() => resolveScope(active, session.branchIds, params.get("branch")), [active, session.branchIds, params]);
   const can = useCallback((capability: Capability) => canDo(session.role, capability), [session.role]);
 
-  const value = useMemo<Ctx>(() => ({ state: active, session, actor, can, run, runAsync, queueAck, scope, demoState, hydrated: true, saving, refresh, mergeRecords, epoch }), [active, session, actor, can, run, runAsync, queueAck, scope, demoState, saving, refresh, mergeRecords, epoch]);
+  const value = useMemo<Ctx>(() => ({ state: active, session, actor, can, run, runConfirmed, runAsync, queueAck, scope, demoState, hydrated: true, saving, refresh, mergeRecords, epoch }), [active, session, actor, can, run, runConfirmed, runAsync, queueAck, scope, demoState, saving, refresh, mergeRecords, epoch]);
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
 
