@@ -27,24 +27,28 @@ test("large dealership: every page loads only what it shows, and actions persist
   // (Fetched from inside the page so the secure session cookie is sent.)
   const fetchText = (url: string) => page.evaluate(async (u) => (await fetch(u, { credentials: "include" })).text(), url);
   const html = await fetchText("/app/inventory");
-  expect(html).toContain("Inventory management");
+  expect(html).toContain("<title>Inventory | VandLabs</title>");
   expect(html.length).toBeLessThan(120_000);
 
   // Overview: figures arrive from the aggregate endpoint and are not zero for a stocked dealership.
   await page.goto("/app/overview");
-  await expect(page.getByRole("heading", { name: /command centre/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: /^Available stock/ })).toBeVisible();
   await expect(page.locator(".kpi-value").first()).not.toHaveText("0");
 
   // Inventory: server-side paging, filter, sort. Only one page of rows is in the DOM.
+  // Cards are the default view; the table view shows one page of rows the same way.
   await page.goto("/app/inventory");
+  await expect(page.locator(".inv-gcard").first()).toBeVisible();
+  expect(await page.locator(".inv-gcard").count()).toBeLessThanOrEqual(25);
+  await page.goto("/app/inventory?view=table");
   await expect(page.getByRole("table", { name: "Inventory" })).toBeVisible();
   const rows = page.getByRole("table", { name: "Inventory" }).locator("tbody tr");
   await expect(rows).toHaveCount(25);
   await expect(page.getByText(/1-25 of \d+/)).toBeVisible();
   await page.getByRole("button", { name: "Next" }).click();
   await expect(page.getByText(/26-50 of \d+/)).toBeVisible();
-  await page.goto("/app/inventory?q=kia&sort=asking&dir=desc");
+  await page.goto("/app/inventory?view=table&q=kia&sort=asking&dir=desc");
   await expect(rows.first()).toBeVisible();
   const kia = await rows.allInnerTexts();
   expect(kia.every((t) => /kia/i.test(t))).toBe(true);

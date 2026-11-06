@@ -11,6 +11,7 @@ import { downloadCsv } from "@/lib/export";
 import { FEATURES } from "@/lib/entitlements";
 import { BusinessKeys } from "./business-keys";
 import { TwoFactor } from "./two-factor";
+import { MotionSwitch, ThemeSwitch } from "../theme";
 import { LiquidTrail, useLiquid } from "../motion/liquid";
 import { ListSkeleton } from "./settings-skeleton";
 import { Dialog, Drawer } from "../overlay";
@@ -317,6 +318,10 @@ function Security() {
         <div><dt>Session</dt><dd>Secure HttpOnly cookie, 8 hours. No tokens in local storage.</dd></div>
       </dl>
       <TwoFactor />
+      <div className="stack-sm"><h3 className="h3">Appearance</h3>
+        <p className="muted">The sun and moon button at the top switches between light and dark. Choose System to follow your device.</p>
+        <div className="appearance-row"><ThemeSwitch /><MotionSwitch /></div>
+      </div>
       <div className="stack-sm"><h3 className="h3">Sessions</h3><p className="muted">{state.sessionsRevoked ? `Other sessions revoked ${state.sessionsRevoked} time(s).` : "Revoke all other sessions if a device is lost."}</p>
         {confirm ? <Notice tone="danger" role="alert"><div className="spread" style={{ flexWrap: "wrap" }}><span>Revoke every other session?</span><span className="row-flex"><Button size="sm" variant="danger" onClick={() => { run((s, a) => revokeSessions(s, a)); setConfirm(false); toast("Other sessions revoked."); }}>Revoke other sessions</Button><Button size="sm" onClick={() => setConfirm(false)}>Keep</Button></span></div></Notice> : <div><Button onClick={() => setConfirm(true)}>Revoke other sessions</Button></div>}
       </div>

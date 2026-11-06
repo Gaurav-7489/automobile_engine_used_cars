@@ -16,7 +16,7 @@ import { initials } from "@/lib/format";
 import { SUPPORT_EMAIL, supportMailto } from "@/lib/support";
 import { NAV, ROLE_LABEL, visibleNav } from "@/lib/permissions";
 import { entitled } from "@/lib/entitlements";
-import { ThemeMenuItems, ThemeSwitch, ThemeToggle, MotionSwitch } from "./theme";
+import { ThemeToggle } from "./theme";
 import { RouteLoader } from "./motion/route-loader";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { sumAlertCounts } from "@/lib/selectors";
@@ -95,9 +95,7 @@ function MoreSheet({ open, onClose, platformAdmin }: { open: boolean; onClose: (
           {permitted.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
       </div>
-      <Link href="/app/settings/security" className="btn" onClick={onClose}>Account and security</Link>
-      <div className="field"><span className="label">Theme</span><ThemeSwitch /></div>
-      <div className="field"><span className="label">Motion</span><MotionSwitch /></div>
+      <Link href="/app/settings/security" className="btn" onClick={onClose}>Account, security and appearance</Link>
       <Link href="/install" className="btn" onClick={onClose}>Install app</Link>
       {platformAdmin ? <Link href="/admin" className="btn" onClick={onClose}><Icon name="shield" size={18} />VandLabs admin console</Link> : null}
       <Button onClick={signOut}><Icon name="logout" size={18} />Sign out</Button>
@@ -175,9 +173,8 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
               {(close) => (
                 <>
                   <div className="menu-label" role="presentation">{session.name}<br />{session.email} · {ROLE_LABEL[session.role]}</div><hr />
-                  <Link role="menuitem" href={href("/app/settings/security")} onClick={close}>Account and security</Link>
+                  <Link role="menuitem" href={href("/app/settings/security")} onClick={close}>Account, security and appearance</Link>
                   <Link role="menuitem" href="/showroom" onClick={close}>Public showroom</Link>
-                  <ThemeMenuItems onChoose={close} />
                   <Link role="menuitem" href="/install" onClick={close}>Install the app</Link>
                   {platformAdmin ? <Link role="menuitem" href="/admin" onClick={close}>VandLabs admin console</Link> : null}
                   <button role="menuitem" onClick={signOut}><Icon name="logout" size={18} />Sign out</button>

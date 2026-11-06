@@ -18,7 +18,7 @@ test("alive: pointer light, tilt, ripple, liquid tab, route loader, scroll physi
   await page.setViewportSize({ width: 1440, height: 900 });
   await signIn(page);
   await page.goto("/app/overview");
-  await expect(page.getByRole("heading", { name: /command centre/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
   await page.waitForTimeout(1200);
 
   // Pointer light follows the cursor over a glass panel; the metric tile tilts and settles back.
@@ -31,15 +31,16 @@ test("alive: pointer light, tilt, ripple, liquid tab, route loader, scroll physi
   await page.mouse.move(5, 5, { steps: 6 });
   await expect.poll(async () => kpi.evaluate((e) => (e as HTMLElement).style.transform), { timeout: 4000 }).toBe("");
 
-  // Press ripple on a button.
+  // Press feedback is a CSS dip only: pressing adds no elements to the button (nothing piles up press after press).
   const primary = page.getByRole("button", { name: /add vehicle/i }).first();
   await primary.hover();
   const pb = (await primary.boundingBox())!;
+  const children = await primary.evaluate((e) => e.childElementCount);
   await page.mouse.move(pb.x + 8, pb.y + 8); await page.mouse.down();
-  await expect(primary.locator(".ripple")).toHaveCount(1);
+  expect(await primary.evaluate((e) => e.childElementCount)).toBe(children);
   await page.mouse.up();
-  await expect(primary.locator(".ripple")).toHaveCount(0, { timeout: 2000 });
-  await page.keyboard.press("Escape"); // the press opened the Add vehicle drawer; close it
+  await expect(page.locator(".drawer-wrap")).toHaveCount(1); // the press opened the Add vehicle drawer; close it
+  await page.keyboard.press("Escape");
   await expect(page.locator(".drawer-wrap")).toHaveCount(0);
 
   // Liquid tab indicator moves to the newly selected tab.
@@ -67,11 +68,11 @@ test("alive: pointer light, tilt, ripple, liquid tab, route loader, scroll physi
 
 test("reduced motion switches the layer off: no ambient drift, no entrance animation, no ripple, and the choice persists", async ({ page }) => {
   await signIn(page);
-  await page.goto("/app/overview");
-  await page.getByRole("button", { name: /^Profile menu/ }).click();
-  await page.getByRole("menuitemradio", { name: /^Motion/ }).click();
+  // The motion choice lives in Settings > Security > Appearance (the profile menu no longer repeats it).
+  await page.goto("/app/settings/security");
+  await page.getByRole("group", { name: "Motion" }).getByRole("button", { name: "Reduced" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-motion", "reduced");
-  await page.reload();
+  await page.goto("/app/overview");
   await expect(page.locator("html")).toHaveAttribute("data-motion", "reduced");
   await expect(page.locator(".kpi").first()).toBeVisible();
   const names = await page.evaluate(() => ({ kpi: getComputedStyle(document.querySelector(".kpi")!).animationName, blob: getComputedStyle(document.querySelector(".ambient i")!).animationName }));

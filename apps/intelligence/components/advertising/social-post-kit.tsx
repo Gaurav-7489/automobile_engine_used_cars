@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Campaign, Vehicle } from "@/lib/domain";
 import { buildCaption, captionLength, captionProblems, listingLink, normalisePhone, ordinalOwner, PLATFORMS, POST_FORMATS, postFacts, postPrice, shareLinks, type Platform, type PostFormatId } from "@/lib/social-post";
+import { Icon } from "../icons";
 import { useToast } from "../toast";
 import { Button, Check, Notice, SelectField, TextArea, TextField } from "../ui";
 import { useScopedHref, useWorkspace } from "../workspace";
@@ -56,6 +57,7 @@ export function SocialPostKit({ vehicle, campaign }: { vehicle: Vehicle; campaig
   const [theme, setTheme] = useState<PostTheme>("dark");
   const [accent, setAccent] = useState(ACCENTS[0].value);
   const [ribbon, setRibbon] = useState<string>(RIBBONS[0]);
+  const [active, setActive] = useState(0);
   const [selected, setSelected] = useState<string[]>(() => photos.slice(0, 5));
   const [details, setDetails] = useState(true);
   const [dealer, setDealer] = useState(state.tenant.displayName || state.tenant.name);
@@ -162,29 +164,71 @@ export function SocialPostKit({ vehicle, campaign }: { vehicle: Vehicle; campaig
   const quickShares = (["whatsapp", "facebook", "linkedin", "x"] as const).map((p) => shareLinks(captionFor(p), linkFor(p)).find((s) => s.platform === p)!);
   const editCaption = (text: string) => setEdits((e) => ({ ...e, [platform]: text }));
 
+  const slide = rendered[Math.min(active, Math.max(0, rendered.length - 1))];
+  const platformLabel = PLATFORMS.find((p) => p.id === platform)!.label;
+  const seg = <T extends string>(label: string, value: T, options: { value: T; label: string }[], onChange: (v: T) => void) => (
+    <div className={`pk-seg${options.length > 3 ? " pk-seg-grid" : ""}`} role="group" aria-label={label}>
+      {options.map((o) => <button key={o.value} type="button" className={o.value === value ? "on" : ""} aria-pressed={o.value === value} onClick={() => onChange(o.value)}>{o.label}</button>)}
+    </div>
+  );
+
   return (
-    <section className="card post-kit" id="social-posts" aria-labelledby="post-kit-title">
-      <div className="spread">
+    <section className="post-kit" id="social-posts" aria-labelledby="post-kit-title">
+      <div className="pk-head">
         <div>
           <h2 className="h3" id="post-kit-title">Posts for the {vehicle.year} {vehicle.make} {vehicle.model}</h2>
-          <p className="muted">Images and captions ready to post yourself, with a link that tracks enquiries. Every detail comes from stock record {vehicle.id}. Nothing is posted or paid for automatically.</p>
+          <p className="muted">Ready to post yourself. Every detail comes from stock record {vehicle.id}; nothing is posted or paid for automatically.</p>
+        </div>
+        <div className="row-flex">
+          {canShareFiles && rendered.length ? <Button onClick={share}><Icon name="share" size={16} />Share</Button> : null}
+          <Button variant="primary" disabled={!rendered.length} onClick={downloadAll}><Icon name="download" size={16} />Download all</Button>
         </div>
       </div>
 
       {live && !published && !ownSite.trim() ? (
-        <Notice tone="warn" role="status">This vehicle is not published to your website yet, so the listing link will say it is not available. <Link className="accent-text" href={href(`/app/inventory/${vehicle.id}`)}>Publish it from the stock page</Link>, or use your own website link below.</Notice>
+        <Notice tone="warn" role="status">This car is not on your website yet, so the link in the post would say it is unavailable. <Link className="accent-text" href={href(`/app/inventory/${vehicle.id}`)}>Publish it from the stock page</Link>, or add your own website link under Contact.</Notice>
       ) : null}
 
-      <div className="post-kit-grid">
-        <div className="stack post-kit-controls">
-          <fieldset className="stack-sm"><legend className="label">Format</legend>
-            <div className="seg post-seg" role="group" aria-label="Post format">
-              {POST_FORMATS.map((f) => <button key={f.id} type="button" className={`btn btn-sm ${f.id === formatId ? "btn-primary" : ""}`} aria-pressed={f.id === formatId} onClick={() => setFormatId(f.id)}>{f.label}</button>)}
-            </div>
-            <p className="meta">{format.width} × {format.height} px · {format.use}</p>
-          </fieldset>
+      <div className="pk-grid">
+        <div className="pk-stage">
+          <div className={`pk-main fmt-${format.id}`} aria-busy={rendering}>
+            {slide ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={slide.url} alt={`${slide.label}, slide ${rendered.indexOf(slide) + 1} of ${rendered.length}`} />
+            ) : <span className="meta">Preparing the images…</span>}
+            {rendering ? <span className="pk-busy">Updating…</span> : null}
+          </div>
+          <div className="pk-strip" role="group" aria-label="Slides">
+            {rendered.map((r, i) => (
+              <div key={r.url} className={`pk-strip-item ${r === slide ? "on" : ""}`}>
+                <button type="button" onClick={() => setActive(i)} aria-pressed={r === slide} aria-label={`Show slide ${i + 1}: ${r.label}`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={r.url} alt="" />
+                </button>
+                <span className="meta">{i + 1}. {r.label}</span>
+                <button type="button" className="link-btn" onClick={() => download(r)}>Download</button>
+              </div>
+            ))}
+          </div>
+        </div>
 
-          <fieldset className="stack-sm"><legend className="label">Photos {format.carousel ? `(carousel: cover + ${Math.max(0, selected.length - 1)} photo${selected.length - 1 === 1 ? "" : "s"}${details ? " + details" : ""})` : "(first selected photo is used)"}</legend>
+        <div className="pk-panel">
+          <section className="card pk-card" aria-labelledby="pk-look">
+            <h3 className="pk-card-title" id="pk-look">Look</h3>
+            <div className="pk-field"><span className="label">Format</span>{seg("Post format", formatId, POST_FORMATS.map((f) => ({ value: f.id, label: f.label })), setFormatId)}<span className="meta">{format.width} × {format.height} px · {format.use}</span></div>
+            <div className="pk-field"><span className="label">Style</span>
+              <div className="pk-style">
+                {seg("Image style", theme, [{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }], setTheme)}
+                <div className="post-swatches" role="group" aria-label="Accent colour">
+                  {ACCENTS.map((a) => <button key={a.value} type="button" className={`post-swatch ${accent === a.value ? "on" : ""}`} style={{ background: a.value }} aria-pressed={accent === a.value} aria-label={a.label} title={a.label} onClick={() => setAccent(a.value)} />)}
+                </div>
+              </div>
+            </div>
+            <SelectField label="Corner badge" value={ribbon} onChange={(e) => setRibbon(e.target.value)} options={RIBBONS.map((r) => ({ value: r, label: r || "None" }))} />
+          </section>
+
+          <section className="card pk-card" aria-labelledby="pk-photos">
+            <div className="spread"><h3 className="pk-card-title" id="pk-photos">Photos</h3>{photos.length ? <span className="meta">{selected.length} of {Math.min(photos.length, MAX_PHOTOS)} chosen</span> : null}</div>
             {photos.length ? (
               <>
                 <div className="post-thumbs">
@@ -202,83 +246,51 @@ export function SocialPostKit({ vehicle, campaign }: { vehicle: Vehicle; campaig
                     );
                   })}
                 </div>
-                <div className="row-flex"><Button size="sm" onClick={() => setSelected(photos.slice(0, MAX_PHOTOS))}>Select all</Button><Button size="sm" onClick={() => setSelected([])}>Clear</Button><span className="meta">{selected.length} of {Math.min(photos.length, MAX_PHOTOS)} max</span></div>
+                <div className="row-flex"><Button size="sm" onClick={() => setSelected(photos.slice(0, MAX_PHOTOS))}>Select all</Button><Button size="sm" variant="ghost" onClick={() => setSelected([])}>Clear</Button></div>
               </>
             ) : (
-              <Notice role="status">No photos on this vehicle yet, so a labelled schematic is used. <Link className="accent-text" href={href(`/app/inventory/${vehicle.id}`)}>Add photos on the stock page</Link> for real posts.</Notice>
+              <p className="muted">No photos yet, so the post uses a drawing of the car. <Link className="accent-text" href={href(`/app/inventory/${vehicle.id}`)}>Add real photos</Link> for better posts.</p>
             )}
-            {format.carousel ? <Check label="Add a details slide (specs, price, call to action)" checked={details} onChange={setDetails} /> : null}
-          </fieldset>
+            {format.carousel ? <Check label="Finish with a details slide (specs, price, contact)" checked={details} onChange={setDetails} /> : null}
+          </section>
 
-          <fieldset className="stack-sm"><legend className="label">Style</legend>
-            <div className="seg post-seg" role="group" aria-label="Theme">
-              {(["dark", "light"] as const).map((t) => <button key={t} type="button" className={`btn btn-sm ${theme === t ? "btn-primary" : ""}`} aria-pressed={theme === t} onClick={() => setTheme(t)}>{t === "dark" ? "Dark" : "Light"}</button>)}
-            </div>
-            <div className="post-swatches" role="group" aria-label="Accent colour">
-              {ACCENTS.map((a) => <button key={a.value} type="button" className={`post-swatch ${accent === a.value ? "on" : ""}`} style={{ background: a.value }} aria-pressed={accent === a.value} aria-label={a.label} title={a.label} onClick={() => setAccent(a.value)} />)}
-            </div>
-            <SelectField label="Corner badge" value={ribbon} onChange={(e) => setRibbon(e.target.value)} options={RIBBONS.map((r) => ({ value: r, label: r || "None" }))} />
-          </fieldset>
-
-          <fieldset className="stack-sm"><legend className="label">Contact and link</legend>
-            <TextField label="Dealer name on images" value={dealer} maxLength={40} onChange={(e) => setDealer(e.target.value)} />
-            <TextField label="Call / WhatsApp number" inputMode="tel" placeholder="98765 43210" value={phone} onChange={(e) => { setPhone(e.target.value); store.set(`${tenantKey}:phone`, e.target.value.trim()); }} error={phoneInvalid ? "Enter a 10-digit mobile number or a full number with country code." : undefined} help="Shown on the images and in captions. Saved on this device." />
-            {live && origin ? (
-              <div className="stack-sm">
-                <span className="label">Your public showroom (all published cars)</span>
-                <div className="row-flex"><a className="accent-text post-showroom" href={`/l/${state.tenant.id}`} target="_blank" rel="noopener noreferrer">{`${origin.replace(/^https?:\/\//, "")}/l/${state.tenant.id.slice(0, 8)}…`}</a><Button size="sm" onClick={() => copy(`${origin}/l/${state.tenant.id}?utm_source=bio&utm_medium=social`, "Showroom link")}>Copy</Button></div>
-                <p className="meta">Put this in your Instagram bio and WhatsApp Business profile.</p>
-              </div>
-            ) : null}
-            <TextField label="Your website link (optional)" type="url" placeholder="https://yourdealership.in/cars/innova" value={ownSite} onChange={(e) => { setOwnSite(e.target.value); store.set(`${tenantKey}:site`, e.target.value.trim()); }} help="Leave empty to use the VandLabs listing page for this vehicle. UTM tags are added for each platform." />
-          </fieldset>
-        </div>
-
-        <div className="stack post-kit-output">
-          <div className="spread">
-            <h3 className="h3">Images {rendering ? <span className="meta">· updating…</span> : <span className="meta">· {rendered.length} ready</span>}</h3>
-            <div className="row-flex">
-              {canShareFiles && rendered.length ? <Button size="sm" onClick={share}>Share…</Button> : null}
-              <Button size="sm" variant="primary" disabled={!rendered.length} onClick={downloadAll}>Download all</Button>
-            </div>
-          </div>
-          <div className={`post-previews fmt-${format.id}`} aria-busy={rendering}>
-            {rendered.map((r, i) => (
-              <figure key={r.url} className="post-preview">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={r.url} alt={`${r.label} slide ${i + 1} of ${rendered.length}`} />
-                <figcaption className="spread"><span className="meta">{i + 1}. {r.label}</span><button type="button" className="link-btn" onClick={() => download(r)}>Download</button></figcaption>
-              </figure>
-            ))}
-          </div>
-
-          <h3 className="h3">Caption</h3>
-          <div className="tabs post-platforms" role="tablist" aria-label="Platform">
-            {PLATFORMS.map((p) => <button key={p.id} type="button" role="tab" className="tab" aria-selected={platform === p.id} onClick={() => setPlatform(p.id)}>{p.label}</button>)}
-          </div>
-          <TextArea label={`${PLATFORMS.find((p) => p.id === platform)!.label} caption`} rows={platform === "x" ? 4 : 12} value={caption} onChange={(e) => editCaption(e.target.value)} help={`${length.toLocaleString("en-IN")} / ${limit.toLocaleString("en-IN")} characters${edits[platform] !== undefined ? " · edited" : ""}`} error={length > limit ? `Too long for ${PLATFORMS.find((p) => p.id === platform)!.label}. Shorten it.` : undefined} />
-          {problems.length ? <Notice tone="danger" role="alert">Blocked claim: {problems.join(" ")} Remove it before posting.</Notice> : <Notice role="status">Caption uses stock facts only.</Notice>}
-          <div className="form-grid">
-            <TextField label="Extra line (optional)" placeholder="Finance and exchange enquiries welcome" value={extra} maxLength={140} onChange={(e) => { setExtra(e.target.value); setEdits({}); }} />
-            <div className="stack-sm"><span className="label">&nbsp;</span><Check label="Hashtags" checked={tags} onChange={(v) => { setTags(v); setEdits({}); }} /></div>
-          </div>
-          <div className="row-flex">
-            <Button variant="primary" onClick={() => copy(caption, "Caption")} disabled={problems.length > 0}>Copy caption</Button>
-            <Button onClick={() => copy(link, "Link")} disabled={!link}>Copy link</Button>
-            {edits[platform] !== undefined ? <Button onClick={() => setEdits((e) => { const next = { ...e }; delete next[platform]; return next; })}>Reset caption</Button> : null}
-            {link ? <a className="btn" href={link} target="_blank" rel="noopener noreferrer">Open link</a> : null}
-          </div>
-          {link && !problems.length ? (
+          <details className="card pk-card pk-details">
+            <summary className="pk-card-title">Contact on the post<span className="meta">{dealer.trim() || "Dealer name"}{phoneShown ? ` · ${phoneShown}` : ""}</span></summary>
             <div className="stack-sm">
-              <span className="label">Open the platform with this post</span>
-              <div className="row-flex">
-                {quickShares.map((s) => <a key={s.platform} className="btn btn-sm" href={s.href} target="_blank" rel="noopener noreferrer">{s.label}</a>)}
-              </div>
-              <p className="meta">Instagram has no web composer: download the images (or use Share… on a phone), then paste the caption in the Instagram app. Each platform&apos;s link carries its own utm_source so leads are attributed to {campaign.id}.</p>
+              <TextField label="Dealer name" value={dealer} maxLength={40} onChange={(e) => setDealer(e.target.value)} />
+              <TextField label="Call or WhatsApp number" inputMode="tel" placeholder="98765 43210" value={phone} onChange={(e) => { setPhone(e.target.value); store.set(`${tenantKey}:phone`, e.target.value.trim()); }} error={phoneInvalid ? "Enter a 10-digit mobile number or a full number with country code." : undefined} help="Saved on this device." />
+              <TextField label="Your website link (optional)" type="url" placeholder="https://yourdealership.in/cars/innova" value={ownSite} onChange={(e) => { setOwnSite(e.target.value); store.set(`${tenantKey}:site`, e.target.value.trim()); }} help="Leave empty to link to this car's VandLabs page." />
+              {live && origin ? (
+                <div className="pk-showroom"><span className="meta">Showroom link for your Instagram bio</span><Button size="sm" onClick={() => copy(`${origin}/l/${state.tenant.id}?utm_source=bio&utm_medium=social`, "Showroom link")}><Icon name="copy" size={14} />Copy</Button></div>
+              ) : null}
             </div>
-          ) : null}
+          </details>
         </div>
       </div>
+
+      <section className="card pk-caption" aria-labelledby="pk-caption-title">
+        <div className="spread"><h3 className="pk-card-title" id="pk-caption-title">Caption</h3>{problems.length ? null : <span className="pk-ok"><Icon name="check" size={14} />Only facts from the stock record</span>}</div>
+        <div className="tabs post-platforms" role="tablist" aria-label="Platform">
+          {PLATFORMS.map((p) => <button key={p.id} type="button" role="tab" className="tab" aria-selected={platform === p.id} onClick={() => setPlatform(p.id)}>{p.label}</button>)}
+        </div>
+        <TextArea label={`${platformLabel} caption`} rows={platform === "x" ? 4 : 9} value={caption} onChange={(e) => editCaption(e.target.value)} help={`${length.toLocaleString("en-IN")} / ${limit.toLocaleString("en-IN")} characters${edits[platform] !== undefined ? " · edited" : ""}`} error={length > limit ? `Too long for ${platformLabel}. Shorten it.` : undefined} />
+        {problems.length ? <Notice tone="danger" role="alert">Remove this before posting: {problems.join(" ")}</Notice> : null}
+        <div className="pk-extra">
+          <TextField label="Extra line (optional)" placeholder="Finance and exchange enquiries welcome" value={extra} maxLength={140} onChange={(e) => { setExtra(e.target.value); setEdits({}); }} />
+          <Check label="Hashtags" checked={tags} onChange={(v) => { setTags(v); setEdits({}); }} />
+        </div>
+        <div className="pk-actions">
+          <div className="row-flex">
+            <Button variant="primary" onClick={() => copy(caption, "Caption")} disabled={problems.length > 0}><Icon name="copy" size={16} />Copy caption</Button>
+            <Button onClick={() => copy(link, "Link")} disabled={!link}><Icon name="link" size={16} />Copy link</Button>
+            {edits[platform] !== undefined ? <Button variant="ghost" onClick={() => setEdits((e) => { const next = { ...e }; delete next[platform]; return next; })}>Reset caption</Button> : null}
+          </div>
+          {link && !problems.length ? (
+            <div className="row-flex pk-post-to"><span className="meta">Post to</span>{quickShares.map((s) => <a key={s.platform} className="btn btn-sm" href={s.href} target="_blank" rel="noopener noreferrer">{s.label.replace(/^(Send on|Share on|Post on) /, "")}</a>)}</div>
+          ) : null}
+        </div>
+        <p className="meta">Instagram can&apos;t be posted to from a browser: download the images (or use Share on a phone), then paste the caption in the app. Each platform&apos;s link is tracked separately, so enquiries are credited to {campaign.id}.</p>
+      </section>
     </section>
   );
 }

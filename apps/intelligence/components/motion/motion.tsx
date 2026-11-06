@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 /**
- * The motion layer: pointer light and tilt with inertia, scroll physics, magnetic and ripple press feedback.
+ * The motion layer: pointer light and tilt with inertia, scroll physics, and a quick CSS press dip.
  * One passive listener per event type and a single requestAnimationFrame loop that runs only while something is moving.
  * Nothing here changes layout. It switches itself off for people who ask for reduced motion (system setting or the Motion control),
  * on touch-only devices where there is no pointer to follow, and while the tab is hidden.
@@ -12,7 +12,6 @@ import { useEffect } from "react";
 export const motionOff = () => typeof document !== "undefined" && document.documentElement.getAttribute("data-motion") === "reduced";
 
 const GLASS = ".card, .kpi, .table-wrap, .state-box, .login-form";
-const PRESS = ".btn, .tab, .nav-link, .icon-btn, .avatar, .theme-switch button, .liquid-seg button, .bottom-nav a, .bottom-nav button, .menu button, .menu a";
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export function MotionRoot() {
@@ -115,31 +114,16 @@ export function MotionRoot() {
       s.v = Math.abs(v) > Math.abs(s.v) ? v : s.v;
       s.last = y; s.lastT = now; kick();
     };
-    // Press feedback: a ripple from the touch point, on every kind of control.
-    const onDown = (e: PointerEvent) => {
-      if (motionOff() || e.button !== 0) return;
-      const el = (e.target as HTMLElement | null)?.closest<HTMLElement>(PRESS);
-      if (!el || el.hasAttribute("disabled") || el.getAttribute("aria-disabled") === "true") return;
-      const r = el.getBoundingClientRect(), size = Math.max(r.width, r.height) * 2;
-      const dot = document.createElement("span");
-      dot.className = "ripple"; dot.setAttribute("aria-hidden", "true");
-      dot.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - r.left - size / 2}px;top:${e.clientY - r.top - size / 2}px`;
-      if (getComputedStyle(el).position === "static") el.style.position = "relative";
-      el.classList.add("has-ripple");
-      el.appendChild(dot);
-      dot.addEventListener("animationend", () => dot.remove(), { once: true });
-    };
 
     window.addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("pointerout", onLeave, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
-    document.addEventListener("pointerdown", onDown, { passive: true });
     const vis = () => { if (document.hidden && raf) { cancelAnimationFrame(raf); raf = 0; } };
     document.addEventListener("visibilitychange", vis);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("pointermove", onMove); document.removeEventListener("pointerout", onLeave);
-      window.removeEventListener("scroll", onScroll); document.removeEventListener("pointerdown", onDown); document.removeEventListener("visibilitychange", vis);
+      window.removeEventListener("scroll", onScroll); document.removeEventListener("visibilitychange", vis);
     };
   }, []);
   return null;

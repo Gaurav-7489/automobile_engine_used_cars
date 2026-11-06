@@ -53,6 +53,7 @@ export function InventoryPage() {
   const [publishResults, setPublishResults] = useState<{ id: string; channels: PublishResult[] }[] | null>(null);
 
   const tab = (url.get("tab") || "all") as TabKey;
+  const view = url.get("view") === "table" ? "table" : "cards";
   const q = url.get("q");
   const make = url.get("make");
   const age = url.get("age");
@@ -132,6 +133,10 @@ export function InventoryPage() {
         <SelectField label="Make" aria-label="Make" className="inv-make" value={make} onChange={(e) => url.set({ make: e.target.value || null, page: null })} options={makes} placeholder="All makes" />
         <SelectField label="Age" aria-label="Age" className="inv-age" value={age} onChange={(e) => url.set({ age: e.target.value || null, page: null })} options={[{ value: "0-15", label: "0-15 days" }, { value: "16-30", label: "16-30 days" }, { value: "31-45", label: "31-45 days" }, { value: ">45", label: "Over 45 days" }]} placeholder="All ages" />
         <Button className="inv-more" onClick={() => setMoreOpen(true)}><Icon name="sliders" size={18} />Filters{(branchFilter ? 1 : 0) + (flag ? 1 : 0) ? ` (${(branchFilter ? 1 : 0) + (flag ? 1 : 0)})` : ""}</Button>
+        <div className="pk-seg inv-view only-desktop" role="group" aria-label="View">
+          <button type="button" className={view === "cards" ? "on" : ""} aria-pressed={view === "cards"} onClick={() => url.set({ view: null })}><Icon name="grid" size={16} />Cards</button>
+          <button type="button" className={view === "table" ? "on" : ""} aria-pressed={view === "table"} onClick={() => url.set({ view: "table" })}><Icon name="list" size={16} />Table</button>
+        </div>
       </div>
       {activeFilters.length ? <div className="chip-row"><span className="meta" aria-live="polite">{activeFilters.length} active filter{activeFilters.length > 1 ? "s" : ""}:</span>{activeFilters.map((f) => <span className="chip" key={f}>{f}</span>)}<button className="link-btn" onClick={clearFilters}>Clear all</button></div> : null}
 
@@ -156,7 +161,7 @@ export function InventoryPage() {
           <EmptyState title="No vehicles match these filters" actions={<Button onClick={clearFilters}>Clear filters</Button>}>Totals for this scope are retained above: {counts.all} unsold, {counts.available} available. Clear a filter to see them.</EmptyState>
         ) : (
           <>
-            <div className="table-wrap only-desktop">
+            {view === "table" ? <div className="table-wrap only-desktop">
               <table className="data-table" aria-label="Inventory">
                 <thead><tr>
                   {selectMode ? <th className="sel"><input type="checkbox" aria-label="Select all on this page" checked={pageAllSelected} onChange={(e) => setSelected((s) => e.target.checked ? Array.from(new Set([...s, ...pageRows.map((v) => v.id)])) : s.filter((id) => !pageRows.some((v) => v.id === id)))} /></th> : null}
@@ -174,21 +179,26 @@ export function InventoryPage() {
                   ))}
                 </tbody>
               </table>
-            </div>
-            <ul className="card-list only-mobile" aria-label="Inventory">
-              {pageRows.map((v) => (
-                <li key={v.id} className="card inv-card">
-                  <CarThumb vehicle={v} large />
-                  <div className="inv-card-body">
-                    <div className="spread"><Link href={href(`/app/inventory/${v.id}`)} className="row-title">{v.year} {v.make} {v.model}</Link>{rowMenu(v)}</div>
-                    <span className="meta">{[v.id, v.variant, formatKm(v.km)].filter(Boolean).join(" · ")}</span>
-                    <div className="spread inv-card-money"><strong>{formatMoney(v.asking)}</strong><span className="meta">landed {formatMoney(landedCost(v.costs))}</span></div>
-                    <div className="inv-status"><Badge tone={STATUS_TONE[v.status]}>{LIFECYCLE_LABEL[v.status]}</Badge><span className="meta">{stockAgeDays(v, SNAPSHOT_AT)} days in stock</span>{needsPriceReview(v) ? <Link className="inv-review" href={href("/app/pricing", { vehicle: v.id })}>Review price</Link> : null}</div>
-                    {attention(v).length ? <span className="inv-tags">{attention(v).map((a) => <span key={a} className="inv-tag">{a}</span>)}</span> : null}
-                    {selectMode ? <Check label={`Select ${v.id}`} checked={selected.includes(v.id)} onChange={() => toggleSel(v.id)} /> : null}
-                  </div>
-                </li>
-              ))}
+            </div> : null}
+            <ul className={`inv-grid ${view === "table" ? "only-mobile" : ""}`} aria-label="Inventory">
+              {pageRows.map((v) => {
+                const days = stockAgeDays(v, SNAPSHOT_AT);
+                return (
+                  <li key={v.id} className={`inv-gcard ${selected.includes(v.id) ? "picked" : ""}`}>
+                    <Link href={href(`/app/inventory/${v.id}`)} className="inv-gcard-media" tabIndex={-1} aria-hidden="true"><CarThumb vehicle={v} large /></Link>
+                    <span className="inv-gcard-status"><Badge tone={STATUS_TONE[v.status]}>{LIFECYCLE_LABEL[v.status]}</Badge></span>
+                    <div className="inv-gcard-body">
+                      <div className="inv-gcard-top"><Link href={href(`/app/inventory/${v.id}`)} className="inv-gcard-title">{v.year} {v.make} {v.model}</Link>{rowMenu(v)}</div>
+                      <span className="meta">{[v.id, v.variant].filter(Boolean).join(" · ")}</span>
+                      <strong className="inv-gcard-price">{formatMoney(v.asking)}</strong>
+                      <div className="inv-chips"><span>{formatKm(v.km)} km</span>{v.fuel ? <span>{v.fuel}</span> : null}{v.transmission ? <span>{v.transmission}</span> : null}</div>
+                      <div className="inv-gcard-foot"><span className="meta">Landed {formatMoney(landedCost(v.costs))}</span><span className={`meta ${days > 60 ? "warn-text" : ""}`}>{days} days in stock</span></div>
+                      {attention(v).length || needsPriceReview(v) ? <div className="inv-tags">{attention(v).map((t) => <span key={t} className="inv-tag">{t}</span>)}{needsPriceReview(v) ? <Link className="inv-review" href={href("/app/pricing", { vehicle: v.id })}>Review price</Link> : null}</div> : null}
+                      {selectMode ? <Check label={`Select ${v.id}`} checked={selected.includes(v.id)} onChange={() => toggleSel(v.id)} /> : null}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
             <div className="pager">
               <div className="row-flex"><span className="meta">{(current - 1) * size + 1}-{Math.min(total, current * size)} of {total}</span>

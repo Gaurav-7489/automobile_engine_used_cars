@@ -27,6 +27,22 @@ function useModal(open: boolean, onClose: () => void, dirty: boolean | undefined
     else onClose();
   }, [dirty, onClose]);
 
+  // Escape works from the moment the overlay opens, even before focus has moved into it (keys pressed inside the panel are
+  // handled by onKeyDown below, which stops them from reaching the document).
+  const latestClose = useRef(requestClose);
+  latestClose.current = requestClose;
+  useEffect(() => {
+    if (!open) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      const panel = panelRef.current;
+      if (panel && panel.contains(document.activeElement)) return;
+      latestClose.current();
+    };
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
+  }, [open, panelRef]);
+
   useEffect(() => {
     if (!open) return;
     triggerRef.current = document.activeElement as HTMLElement | null;
