@@ -143,7 +143,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
       <RouteLoader />
       <div className="app">
         <aside className="rail" aria-label="Workspace">
-          <Link href={href("/app/overview")} className="brand" aria-label="VandLabs Command Centre"><Brand sub /></Link>
+          <Link href={href("/app/overview")} className="brand" aria-label="VandLabs, go to Overview"><Brand sub /></Link>
           <nav aria-label="Primary" className="rail-nav">
             {groupNav(allowedNav).map(([group, items]) => (
               <div key={group} className="nav-group" role="group" aria-label={group}>

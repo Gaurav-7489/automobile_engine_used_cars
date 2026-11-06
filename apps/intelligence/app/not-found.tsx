@@ -8,7 +8,7 @@ export default function NotFound() {
       <main id="content" tabIndex={-1} style={{ maxWidth: 640, display: "grid", gap: 16, paddingBlock: 64 }}>
         <h1 className="h1" id="page-title">This page is not available</h1>
         <p className="muted">The page does not exist, or you do not have access to it. Private records look the same either way.</p>
-        <div className="row-flex"><Link href="/app/overview" className="btn btn-primary">Open Command Centre</Link><Link href="/" className="btn">Home</Link></div>
+        <div className="row-flex"><Link href="/app/overview" className="btn btn-primary">Go to Overview</Link><Link href="/" className="btn">Home</Link></div>
       </main>
     </div>
   );
