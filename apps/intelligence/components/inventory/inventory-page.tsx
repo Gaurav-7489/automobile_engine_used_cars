@@ -22,6 +22,20 @@ const LIFECYCLE_LABEL: Record<Lifecycle, string> = { available: "Available", res
 type VehiclePageData = { vehicles: Vehicle[]; total: number; page: number; size: number; counts: Record<"all" | "available" | "reserved" | "preparation" | "sold" | "archived", number>; makes: string[] };
 type SortKey = "year" | "km" | "landed" | "asking" | "age";
 
+const STATUS_TONE: Record<Lifecycle, "accent" | "info" | "warn" | "neutral"> = { available: "accent", reserved: "info", preparation: "warn", sold: "neutral", archived: "neutral" };
+
+/** The car's cover photo, or a quiet placeholder that says there is none. */
+function CarThumb({ vehicle, large = false }: { vehicle: Vehicle; large?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  const src = failed ? undefined : vehicle.photos?.[0];
+  return (
+    <span className={`inv-thumb${large ? " inv-thumb-lg" : ""}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {src ? <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} /> : <span className="inv-thumb-none"><Icon name="car" size={large ? 28 : 18} /><span className="sr-only">No photo</span></span>}
+    </span>
+  );
+}
+
 const SAMPLE_CSV = "make,model,variant,year,fuel,transmission,km,owners,registration,acquired_on,acquisition_cost,asking\nHonda,City,VX,2020,Petrol,Automatic,32000,1,KL 07 CD 4521,2026-10-12,925000,1040000\nSkoda,Octavia,Style,2019,Diesel,Automatic,54000,1,KL 08 EF 9901,2026-10-10,1180000,1325000\n";
 
 export function InventoryPage() {
@@ -103,21 +117,21 @@ export function InventoryPage() {
 
   return (
     <div className="page">
-      <PageHead title="Inventory management" lead="One authoritative stock record, from acquisition to reconciled sale."
+      <PageHead title="Inventory" lead="Every car you have, from the day you buy it to the day it sells."
         actions={<>
-          {state.live ? <a className="btn" href={`/l/${state.tenant.id}`} target="_blank" rel="noopener noreferrer">Public showroom</a> : null}
-          {can("inventory.edit") ? <Button variant="primary" className="primary-cta" onClick={() => setDrawer({ open: true })}>Add vehicle</Button> : <Button variant="primary" disabled reason="Requires Owner, Manager or Inventory access.">Add vehicle</Button>}
+          {state.live ? <a className="btn" href={`/l/${state.tenant.id}`} target="_blank" rel="noopener noreferrer">View showroom</a> : null}
+          <Button onClick={() => setImportOpen(true)} disabled={!can("inventory.edit")} reason={!can("inventory.edit") ? "Import needs Owner, Manager or Inventory access." : undefined}><Icon name="upload" size={18} />Import</Button>
+          {can("inventory.edit") ? <Button variant="primary" className="primary-cta" onClick={() => setDrawer({ open: true })}><Icon name="plus" size={18} />Add vehicle</Button> : <Button variant="primary" disabled reason="Requires Owner, Manager or Inventory access.">Add vehicle</Button>}
         </>} />
 
       <Tabs label="Lifecycle status" value={tab} onChange={(v) => url.set({ tab: v === "all" ? null : v, page: null })} idPrefix="inv"
         tabs={[{ value: "all", label: "All", count: counts.all }, { value: "available", label: "Available", count: counts.available }, { value: "reserved", label: "Reserved", count: counts.reserved }, { value: "preparation", label: "In preparation", count: counts.preparation }, { value: "sold", label: "Sold" }, { value: "archived", label: "Archived" }]} />
 
       <div className="inv-filters" role="group" aria-label="Filters">
-        <TextField label="Search model, stock ID or registration" aria-label="Search model, stock ID or registration" value={qDraft} onChange={(e) => setQDraft(e.target.value)} placeholder="Search model, stock ID or registration" className="inv-search" enterKeyHint="search" />
+        <TextField label="Search model, stock ID or registration" aria-label="Search model, stock ID or registration" value={qDraft} onChange={(e) => setQDraft(e.target.value)} placeholder="Search by model, stock ID or registration" className="inv-search" enterKeyHint="search" />
         <SelectField label="Make" aria-label="Make" className="inv-make" value={make} onChange={(e) => url.set({ make: e.target.value || null, page: null })} options={makes} placeholder="All makes" />
         <SelectField label="Age" aria-label="Age" className="inv-age" value={age} onChange={(e) => url.set({ age: e.target.value || null, page: null })} options={[{ value: "0-15", label: "0-15 days" }, { value: "16-30", label: "16-30 days" }, { value: "31-45", label: "31-45 days" }, { value: ">45", label: "Over 45 days" }]} placeholder="All ages" />
-        <Button onClick={() => setMoreOpen(true)}>More filters{(branchFilter ? 1 : 0) + (flag ? 1 : 0) ? ` (${(branchFilter ? 1 : 0) + (flag ? 1 : 0)})` : ""}</Button>
-        <Button onClick={() => setImportOpen(true)} disabled={!can("inventory.edit")} reason={!can("inventory.edit") ? "Import needs Owner, Manager or Inventory access." : undefined}>Import CSV</Button>
+        <Button className="inv-more" onClick={() => setMoreOpen(true)}><Icon name="sliders" size={18} />Filters{(branchFilter ? 1 : 0) + (flag ? 1 : 0) ? ` (${(branchFilter ? 1 : 0) + (flag ? 1 : 0)})` : ""}</Button>
       </div>
       {activeFilters.length ? <div className="chip-row"><span className="meta" aria-live="polite">{activeFilters.length} active filter{activeFilters.length > 1 ? "s" : ""}:</span>{activeFilters.map((f) => <span className="chip" key={f}>{f}</span>)}<button className="link-btn" onClick={clearFilters}>Clear all</button></div> : null}
 
@@ -146,16 +160,16 @@ export function InventoryPage() {
               <table className="data-table" aria-label="Inventory">
                 <thead><tr>
                   {selectMode ? <th className="sel"><input type="checkbox" aria-label="Select all on this page" checked={pageAllSelected} onChange={(e) => setSelected((s) => e.target.checked ? Array.from(new Set([...s, ...pageRows.map((v) => v.id)])) : s.filter((id) => !pageRows.some((v) => v.id === id)))} /></th> : null}
-                  <th className="pin-col" style={{ width: 272 }}>Vehicle / stock ID</th>{th("year", "Year", 64)}{th("km", "km", 100)}{th("landed", "Landed", 140)}{th("asking", "Asking", 140)}{th("age", "Age", 80)}
-                  <th style={{ width: 184 }}>Lifecycle</th><th style={{ width: 180 }}>Price review</th><th style={{ width: 56 }}><span className="sr-only">Actions</span></th>
+                  <th className="pin-col" style={{ width: 320 }}>Car</th>{th("year", "Year", 72)}{th("km", "Km", 100)}{th("landed", "Landed", 120)}{th("asking", "Asking", 120)}{th("age", "In stock", 96)}
+                  <th style={{ width: 150 }}>Status</th><th style={{ width: 56 }}><span className="sr-only">Actions</span></th>
                 </tr></thead>
                 <tbody>
                   {pageRows.map((v) => (
                     <tr key={v.id}>
                       {selectMode ? <td className="sel"><input type="checkbox" aria-label={`Select ${v.id}`} checked={selected.includes(v.id)} onChange={() => toggleSel(v.id)} /></td> : null}
-                      <td className="pin-col"><Link href={href(`/app/inventory/${v.id}`)} className="row-title">{v.make} {v.model}</Link><span className="sub">{v.id} / {v.variant}{attention(v).length ? <> · <span className="warn-text">{attention(v).join(", ")}</span></> : null}</span></td>
-                      <td className="num">{v.year}</td><td className="num">{formatKm(v.km)}</td><td className="num" title={`Landed cost incl. acquisition, transport, inspection, refurbishment, fees`}>{formatMoney(landedCost(v.costs))}</td><td className="num">{formatMoney(v.asking)}</td><td className="num">{stockAgeDays(v, SNAPSHOT_AT)}d</td>
-                      <td>{LIFECYCLE_LABEL[v.status]}</td><td>{needsPriceReview(v) ? <Link className="warn-text" style={{ fontWeight: 600 }} href={href("/app/pricing", { vehicle: v.id })}>Review</Link> : MISSING}</td><td>{rowMenu(v)}</td>
+                      <td className="pin-col"><div className="inv-car"><CarThumb vehicle={v} /><div className="inv-car-text"><Link href={href(`/app/inventory/${v.id}`)} className="row-title">{v.make} {v.model}</Link><span className="sub">{[v.id, v.variant].filter(Boolean).join(" · ")}</span>{attention(v).length ? <span className="inv-tags">{attention(v).map((a) => <span key={a} className="inv-tag">{a}</span>)}</span> : null}</div></div></td>
+                      <td className="num">{v.year}</td><td className="num">{formatKm(v.km)}</td><td className="num" title="Purchase price plus transport, inspection, repairs and fees">{formatMoney(landedCost(v.costs))}</td><td className="num">{formatMoney(v.asking)}</td><td className="num">{stockAgeDays(v, SNAPSHOT_AT)} days</td>
+                      <td><div className="inv-status"><Badge tone={STATUS_TONE[v.status]}>{LIFECYCLE_LABEL[v.status]}</Badge>{needsPriceReview(v) ? <Link className="inv-review" href={href("/app/pricing", { vehicle: v.id })}>Review price</Link> : null}</div></td><td>{rowMenu(v)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -163,18 +177,22 @@ export function InventoryPage() {
             </div>
             <ul className="card-list only-mobile" aria-label="Inventory">
               {pageRows.map((v) => (
-                <li key={v.id} className="card tight listing-card">
-                  {selectMode ? <Check label={`Select ${v.id}`} checked={selected.includes(v.id)} onChange={() => toggleSel(v.id)} /> : null}
-                  <Link href={href(`/app/inventory/${v.id}`)} className="h3">{v.model} / {v.id}</Link>
-                  <span className="meta">{formatMoney(v.asking)} asking / {formatMoney(landedCost(v.costs))} landed</span>
-                  <span className={needsPriceReview(v) || attention(v).length ? "warn-text meta" : "tone-accent meta"}>{LIFECYCLE_LABEL[v.status]} / {stockAgeDays(v, SNAPSHOT_AT)}d{needsPriceReview(v) ? " / Price review" : ""}{attention(v).length ? ` / ${attention(v).join(", ")}` : ""}</span>
-                  <div className="row-flex">{rowMenu(v)}</div>
+                <li key={v.id} className="card inv-card">
+                  <CarThumb vehicle={v} large />
+                  <div className="inv-card-body">
+                    <div className="spread"><Link href={href(`/app/inventory/${v.id}`)} className="row-title">{v.year} {v.make} {v.model}</Link>{rowMenu(v)}</div>
+                    <span className="meta">{[v.id, v.variant, formatKm(v.km)].filter(Boolean).join(" · ")}</span>
+                    <div className="spread inv-card-money"><strong>{formatMoney(v.asking)}</strong><span className="meta">landed {formatMoney(landedCost(v.costs))}</span></div>
+                    <div className="inv-status"><Badge tone={STATUS_TONE[v.status]}>{LIFECYCLE_LABEL[v.status]}</Badge><span className="meta">{stockAgeDays(v, SNAPSHOT_AT)} days in stock</span>{needsPriceReview(v) ? <Link className="inv-review" href={href("/app/pricing", { vehicle: v.id })}>Review price</Link> : null}</div>
+                    {attention(v).length ? <span className="inv-tags">{attention(v).map((a) => <span key={a} className="inv-tag">{a}</span>)}</span> : null}
+                    {selectMode ? <Check label={`Select ${v.id}`} checked={selected.includes(v.id)} onChange={() => toggleSel(v.id)} /> : null}
+                  </div>
                 </li>
               ))}
             </ul>
             <div className="pager">
               <div className="row-flex"><span className="meta">{(current - 1) * size + 1}-{Math.min(total, current * size)} of {total}</span>
-                <button className="link-btn" onClick={() => { setSelectMode((v) => !v); if (selectMode) setSelected([]); }} aria-pressed={selectMode}>{selectMode ? "Done selecting" : "Select vehicles / bulk actions"}</button>
+                <button className="link-btn" onClick={() => { setSelectMode((v) => !v); if (selectMode) setSelected([]); }} aria-pressed={selectMode}>{selectMode ? "Done selecting" : "Select cars"}</button>
                 {selectMode && selected.length ? <span className="meta">{selected.length} selected across pages</span> : null}
               </div>
               <div className="row-flex">
@@ -187,7 +205,6 @@ export function InventoryPage() {
           </>
         )}
       </RemotePanel>
-      <p className="footnote">Price review is a flag. Available / Reserved / In preparation / Sold / Archived are lifecycle states.</p>
 
       <VehicleDrawer key={`${drawer.open}-${drawer.vehicle?.id}-${drawer.vehicle?.version}`} open={drawer.open} onClose={() => setDrawer({ open: false })} vehicle={drawer.vehicle} defaultBranch={scope.ids[0] ?? "koc"} />
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} branchId={scope.ids[0] ?? ""} />

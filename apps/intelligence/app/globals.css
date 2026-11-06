@@ -224,7 +224,6 @@ table { border-collapse: collapse; width: 100%; }
 .data-table .sel input { width: 20px; height: 20px; accent-color: var(--accent); }
 .pin-col { position: sticky; left: 0; z-index: 2; }
 .data-table td.pin-col { background: var(--surface); }
-.data-table tbody tr:nth-child(even) td.pin-col { background: var(--pin-stripe); }
 .row-menu { position: relative; display: inline-block; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; }
 .toolbar-group { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
@@ -553,11 +552,11 @@ dl.kv { margin: 0; }
 @media (max-width: 1199px) { .regions-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* Inventory */
-.inv-filters { display: grid; grid-template-columns: minmax(0, 420fr) 160px 160px 170px 186px; gap: 16px; align-items: end; }
+.inv-filters { display: grid; grid-template-columns: minmax(0, 1fr) 180px 180px auto; gap: 12px; align-items: end; }
 .inv-filters .field label { display: none; }
 .bulk-bar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; border-color: var(--accent); }
-@media (max-width: 1199px) { .inv-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); } .inv-filters .inv-search { grid-column: 1 / -1; } }
-@media (max-width: 767px) { .inv-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+@media (max-width: 1199px) { .inv-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; } .inv-filters .inv-search { grid-column: 1 / -1; } }
+@media (max-width: 767px) { .inv-filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .inv-filters .inv-more { grid-column: 1 / -1; } }
 
 /* Pricing */
 .selector-row { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 16px; align-items: end; }
@@ -803,20 +802,14 @@ html[data-glass="lite"] * { -webkit-backdrop-filter: none !important; backdrop-f
 html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glass="lite"] .drawer, html[data-glass="lite"] .menu, html[data-glass="lite"] .toast, html[data-glass="lite"] .bottom-nav { background: var(--surface) !important; }
 
 /* Cheap native lazy rendering: panels far below the fold are not laid out or painted until they approach the viewport. */
-.table-wrap, .card + .card { content-visibility: auto; contain-intrinsic-size: auto 360px; }
+.table-wrap { content-visibility: auto; contain-intrinsic-size: auto 360px; }
 
 /* Entrances: every surface rises and settles with a small spring. Where the browser supports scroll-driven animation, surfaces
    reveal as they enter the viewport instead; elsewhere they animate on mount, staggered within a grid. */
-.route-enter { animation: route-in 480ms var(--ease-out) both; }
-@keyframes route-in { from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.995); } to { opacity: 1; transform: none; } }
-.kpi, .card, .state-box, .table-wrap { animation: pop-in 560ms var(--spring) backwards; }
-.kpi-grid > :nth-child(2), .kpi-row > :nth-child(2) { animation-delay: 60ms; } .kpi-grid > :nth-child(3), .kpi-row > :nth-child(3) { animation-delay: 120ms; } .kpi-grid > :nth-child(4), .kpi-row > :nth-child(4) { animation-delay: 180ms; }
-@keyframes pop-in { from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.97); } to { opacity: 1; transform: none; } }
-@supports (animation-timeline: view()) {
-  /* Compact panels only: a tall table would stay faint for hundreds of pixels of scrolling. */
-  .chart-card { animation: reveal linear both; animation-timeline: view(); animation-range: entry 0% entry 28%; }
-  @keyframes reveal { from { opacity: 0; transform: translate3d(0, 28px, 0) scale(0.985); } to { opacity: 1; transform: none; } }
-}
+.route-enter { animation: route-in 200ms var(--ease-out) both; }
+@keyframes route-in { from { opacity: 0; transform: translate3d(0, 4px, 0); } to { opacity: 1; transform: none; } }
+.kpi, .card, .state-box, .table-wrap { animation: pop-in 220ms var(--ease-out) backwards; }
+@keyframes pop-in { from { opacity: 0; } to { opacity: 1; } }
 .page-head h1, .page-head .h1 { animation: route-in 600ms 60ms var(--ease-out) both; }
 .nav-link, .bottom-nav a { transition: background 160ms ease, color 160ms ease; }
 .bottom-nav a:active, .bottom-nav button:active { transform: scale(0.9); }
@@ -1356,3 +1349,22 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 .av-progress span { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 18%, transparent); transition: width 300ms ease; }
 @media (prefers-reduced-motion: reduce) { .av-chip, .av-progress span { transition: none; } }
 :root[data-motion="reduced"] .av-chip, :root[data-motion="reduced"] .av-progress span { transition: none; }
+
+/* Inventory: the car's photo leads every row and card; status reads as a pill; problems are small tags, not sentences. */
+.inv-car { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.inv-car-text { display: grid; gap: 2px; min-width: 0; }
+.inv-thumb { flex: none; width: 72px; aspect-ratio: 4 / 3; border-radius: 8px; overflow: hidden; background: var(--raised); border: 1px solid var(--border); display: block; }
+.inv-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.inv-thumb-none { width: 100%; height: 100%; display: grid; place-items: center; color: color-mix(in srgb, var(--muted) 70%, transparent); }
+.inv-thumb-lg { width: 100%; border-radius: 0; border: 0; border-bottom: 1px solid var(--border); aspect-ratio: 16 / 9; }
+.inv-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.inv-tag { display: inline-flex; align-items: center; min-height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--warning); background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.inv-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.inv-review { font-size: 12px; font-weight: 600; color: var(--warning); min-height: 24px; display: inline-flex; align-items: center; }
+.inv-review:hover { text-decoration: underline; }
+.data-table td .inv-car .sub { display: block; }
+.card-list .inv-card { padding: 0; overflow: hidden; display: grid; }
+.inv-card-body { display: grid; gap: 6px; padding: 14px 16px 16px; min-width: 0; }
+.inv-card-money strong { font-size: 18px; }
+.page-head .btn svg { flex: none; }
+.inv-thumb-lg:has(.inv-thumb-none) { aspect-ratio: auto; height: 56px; }
