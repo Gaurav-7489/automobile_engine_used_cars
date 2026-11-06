@@ -166,8 +166,8 @@ export function SocialPostKit({ vehicle, campaign }: { vehicle: Vehicle; campaig
     <section className="card post-kit" id="social-posts" aria-labelledby="post-kit-title">
       <div className="spread">
         <div>
-          <h2 className="h3" id="post-kit-title">Social post studio</h2>
-          <p className="muted">Ready-to-post images and captions for {vehicle.make} {vehicle.model} with a tracked link. Facts come from stock record {vehicle.id}. Nothing is posted for you and nothing spends.</p>
+          <h2 className="h3" id="post-kit-title">Posts for the {vehicle.year} {vehicle.make} {vehicle.model}</h2>
+          <p className="muted">Images and captions ready to post yourself, with a link that tracks enquiries. Every detail comes from stock record {vehicle.id}. Nothing is posted or paid for automatically.</p>
         </div>
       </div>
 

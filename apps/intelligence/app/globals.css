@@ -579,16 +579,11 @@ dl.kv { margin: 0; }
 /* Advertising */
 .steps { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
 .steps .tab { min-height: 48px; }
-.studio { display: grid; grid-template-columns: minmax(0, 288fr) minmax(0, 496fr) minmax(0, 328fr); gap: 24px; align-items: stretch; }
-.studio-col { display: grid; gap: 16px; align-content: start; height: 100%; }
-.studio-actions { display: grid; gap: 12px; margin-top: auto; }
 .channel-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; padding: 4px 16px; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); min-height: 56px; }
 .channel-row.on { border-color: var(--field-border); }
 .channel-budget { width: 132px; } .channel-budget .input { min-height: 36px; padding: 4px 10px; font-weight: 600; color: var(--accent); background: transparent; border-color: transparent; } .channel-budget .input:focus { border-color: var(--field-border); }
 .radio-group { border: 0; padding: 0; margin: 0; display: grid; gap: 0; }
 .preflight { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
-@media (max-width: 1199px) { .studio { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .studio > :first-child { grid-column: 1 / -1; } }
-@media (max-width: 767px) { .studio { grid-template-columns: minmax(0, 1fr); } }
 
 /* Leads */
 .lead-tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border); gap: 0; }
@@ -1009,7 +1004,7 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 @media (max-width: 760px) { .sr-detail-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* Social post studio (Advertising Studio). */
-.post-kit { margin-top: 24px; display: grid; gap: 16px; scroll-margin-top: 96px; }
+.post-kit { margin-top: 0; display: grid; gap: 16px; scroll-margin-top: 96px; }
 .post-kit-grid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 24px; align-items: start; }
 .post-kit-controls fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .post-seg { flex-wrap: wrap; }
@@ -1368,3 +1363,33 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 .inv-card-money strong { font-size: 18px; }
 .page-head .btn svg { flex: none; }
 .inv-thumb-lg:has(.inv-thumb-none) { aspect-ratio: auto; height: 56px; }
+
+/* Advertising: the step form gets the room; one side panel shows the car and the ad preview. */
+.ads-start { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 360px); gap: 24px; align-items: end; }
+.ads-start-copy { display: grid; gap: 6px; }
+.ads-new { display: grid; gap: 12px; }
+.ads-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.steps .tab { display: inline-flex; align-items: center; gap: 8px; }
+.step-num { width: 22px; height: 22px; border-radius: 999px; display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--raised); color: var(--muted); }
+.steps .tab[aria-selected="true"] .step-num { background: var(--accent); color: var(--accent-ink); }
+.ads-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+.ads-main { display: grid; gap: 20px; align-content: start; padding: 24px; }
+.ads-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 16px; border-top: 1px solid var(--border); }
+.ads-side { display: grid; gap: 16px; position: sticky; top: calc(var(--header-h) + 16px); }
+.ads-car { padding: 0; overflow: hidden; display: grid; }
+.ads-car-media { aspect-ratio: 16 / 10; background: var(--raised); border-bottom: 1px solid var(--border); }
+.ads-car-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ads-car-media .vehicle-art { height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; }
+.ads-car-body { display: grid; gap: 6px; padding: 16px; }
+.ads-price { font-size: 22px; }
+.ads-change { justify-self: start; min-height: 24px; }
+.ads-preview { display: grid; gap: 8px; padding: 16px; }
+.ads-preview-head { margin: 0; font-size: 17px; font-weight: 650; line-height: 1.3; }
+.ads-preview-body { margin: 0; color: var(--muted); }
+.ads-preview-cta { justify-self: start; pointer-events: none; }
+.ads-link { word-break: break-all; font-size: 13px; }
+.preflight { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.preflight li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+@media (max-width: 1099px) { .ads-layout { grid-template-columns: minmax(0, 1fr); } .ads-side { position: static; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } }
+@media (max-width: 767px) { .ads-start { grid-template-columns: minmax(0, 1fr); } .ads-main { padding: 16px; } .ads-actions .row-flex { width: 100%; } .ads-actions .row-flex .btn { flex: 1 1 auto; } }
+.ads-preview-label { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
