@@ -104,7 +104,10 @@ export function InventoryPage() {
   return (
     <div className="page">
       <PageHead title="Inventory management" lead="One authoritative stock record, from acquisition to reconciled sale."
-        actions={can("inventory.edit") ? <Button variant="primary" className="primary-cta" onClick={() => setDrawer({ open: true })}>Add vehicle</Button> : <Button variant="primary" disabled reason="Requires Owner, Manager or Inventory access.">Add vehicle</Button>} />
+        actions={<>
+          {state.live ? <a className="btn" href={`/l/${state.tenant.id}`} target="_blank" rel="noopener noreferrer">Public showroom</a> : null}
+          {can("inventory.edit") ? <Button variant="primary" className="primary-cta" onClick={() => setDrawer({ open: true })}>Add vehicle</Button> : <Button variant="primary" disabled reason="Requires Owner, Manager or Inventory access.">Add vehicle</Button>}
+        </>} />
 
       <Tabs label="Lifecycle status" value={tab} onChange={(v) => url.set({ tab: v === "all" ? null : v, page: null })} idPrefix="inv"
         tabs={[{ value: "all", label: "All", count: counts.all }, { value: "available", label: "Available", count: counts.available }, { value: "reserved", label: "Reserved", count: counts.reserved }, { value: "preparation", label: "In preparation", count: counts.preparation }, { value: "sold", label: "Sold" }, { value: "archived", label: "Archived" }]} />

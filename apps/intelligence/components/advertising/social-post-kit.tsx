@@ -223,6 +223,13 @@ export function SocialPostKit({ vehicle, campaign }: { vehicle: Vehicle; campaig
           <fieldset className="stack-sm"><legend className="label">Contact and link</legend>
             <TextField label="Dealer name on images" value={dealer} maxLength={40} onChange={(e) => setDealer(e.target.value)} />
             <TextField label="Call / WhatsApp number" inputMode="tel" placeholder="98765 43210" value={phone} onChange={(e) => { setPhone(e.target.value); store.set(`${tenantKey}:phone`, e.target.value.trim()); }} error={phoneInvalid ? "Enter a 10-digit mobile number or a full number with country code." : undefined} help="Shown on the images and in captions. Saved on this device." />
+            {live && origin ? (
+              <div className="stack-sm">
+                <span className="label">Your public showroom (all published cars)</span>
+                <div className="row-flex"><a className="accent-text post-showroom" href={`/l/${state.tenant.id}`} target="_blank" rel="noopener noreferrer">{`${origin.replace(/^https?:\/\//, "")}/l/${state.tenant.id.slice(0, 8)}…`}</a><Button size="sm" onClick={() => copy(`${origin}/l/${state.tenant.id}?utm_source=bio&utm_medium=social`, "Showroom link")}>Copy</Button></div>
+                <p className="meta">Put this in your Instagram bio and WhatsApp Business profile.</p>
+              </div>
+            ) : null}
             <TextField label="Your website link (optional)" type="url" placeholder="https://yourdealership.in/cars/innova" value={ownSite} onChange={(e) => { setOwnSite(e.target.value); store.set(`${tenantKey}:site`, e.target.value.trim()); }} help="Leave empty to use the VandLabs listing page for this vehicle. UTM tags are added for each platform." />
           </fieldset>
         </div>

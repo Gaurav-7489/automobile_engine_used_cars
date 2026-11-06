@@ -4,6 +4,7 @@ import { cache } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme";
 import { EnquiryForm } from "@/components/listing/enquiry-form";
+import { CarPhoto } from "@/components/listing/car-photo";
 import { readPublicListing, type PublicListing } from "@/lib/server/public-listing";
 import { normalisePhone, ordinalOwner, postPrice } from "@/lib/social-post";
 
@@ -37,15 +38,17 @@ export default async function ListingPage({ params }: { params: Params }) {
     <div className="showroom">
       <div className="ambient" aria-hidden="true" />
       <header className="sr-header">
-        <span className="pl-dealer">{v?.dealer || <Brand sub={false} />}</span>
+        <Link href={`/l/${tenant.toLowerCase()}`} className="pl-dealer">{v?.dealer || <Brand sub={false} />}</Link>
         <span style={{ flex: 1 }} />
+        <Link href={`/l/${tenant.toLowerCase()}`} className="btn btn-sm">All cars</Link>
         <ThemeToggle />
       </header>
       <main id="content" tabIndex={-1} className="sr-main">
         {!v ? (
           <section className="sr-section pl-missing">
             <h1>This vehicle is no longer available</h1>
-            <p className="muted">It may have been sold or taken off the dealer&apos;s website. Contact the dealership for similar vehicles.</p>
+            <p className="muted">It may have been sold or taken off the dealer&apos;s website.</p>
+            <p><Link className="btn btn-primary" href={`/l/${tenant.toLowerCase()}`}>See all available cars</Link></p>
           </section>
         ) : (
           <article className="sr-section sr-detail pl-listing">
@@ -53,10 +56,7 @@ export default async function ListingPage({ params }: { params: Params }) {
               <div className="pl-gallery" aria-label="Photos">
                 {v.photos.length ? (
                   <div className="pl-track" tabIndex={0} aria-label={`${v.photos.length} photos; scroll sideways for more`}>
-                    {v.photos.map((src, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={src} src={src} alt={`${titleOf(v)}, photo ${i + 1} of ${v.photos.length}`} loading={i === 0 ? "eager" : "lazy"} />
-                    ))}
+                    {v.photos.map((src, i) => <div key={src} className="pl-slide"><CarPhoto src={src} alt={`${titleOf(v)}, photo ${i + 1} of ${v.photos.length}`} eager={i === 0} /></div>)}
                   </div>
                 ) : <div className="sr-detail-media pl-nophoto"><span className="meta">Photos coming soon</span></div>}
                 {v.photos.length > 1 ? <p className="meta">{v.photos.length} photos · scroll sideways</p> : null}

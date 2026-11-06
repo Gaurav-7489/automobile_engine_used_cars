@@ -1009,7 +1009,8 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .pl-dealer { font-weight: 800; font-size: 18px; letter-spacing: -0.01em; }
 .pl-gallery { display: grid; gap: 8px; min-width: 0; }
 .pl-track { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; border-radius: 16px; outline-offset: 4px; }
-.pl-track img { flex: 0 0 100%; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; scroll-snap-align: start; border-radius: 16px; background: var(--raised); }
+.pl-track .pl-slide { flex: 0 0 100%; aspect-ratio: 16 / 10; scroll-snap-align: start; border-radius: 16px; overflow: hidden; background: var(--raised); display: grid; place-items: center; }
+.pl-track img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pl-nophoto { display: grid; place-items: center; }
 .pl-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .pl-note { margin-top: 24px; }
@@ -1046,3 +1047,32 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .pl-enquiry { margin-top: 24px; }
 .pl-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .pl-listing .pl-enquiry h2 { margin: 0 0 4px; }
+
+/* Public dealer inventory (/l/{tenant}). */
+a.pl-dealer { color: var(--text); text-decoration: none; }
+.pl-inv-title { margin: 0 0 4px; }
+.pl-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 20px 0 24px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.pl-filter { display: grid; gap: 6px; min-width: 150px; flex: 1 1 150px; }
+.pl-filter-q { flex: 2 1 240px; }
+.pl-filter-actions { display: flex; gap: 8px; }
+.pl-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.pl-card { display: grid; height: 100%; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface); color: var(--text); text-decoration: none; transition: border-color 150ms ease, transform 150ms ease; }
+.pl-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.pl-card-media { position: relative; aspect-ratio: 4 / 3; background: var(--raised); display: grid; place-items: center; }
+.pl-card-media img { width: 100%; height: 100%; object-fit: cover; }
+.pl-card-badge { position: absolute; top: 10px; left: 10px; }
+.pl-card-body { display: grid; gap: 4px; padding: 14px 16px 16px; }
+.pl-card-title { font-size: 16px; }
+.pl-card-price { font-size: 20px; font-weight: 800; color: var(--accent); }
+.pl-pager { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; margin-top: 24px; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .pl-card { transition: none; } .pl-card:hover { transform: none; } }
+.pl-photo-missing { padding: 12px; }
+@media (max-width: 640px) {
+  .sr-section .pl-inv-title { font-size: 26px; }
+  .pl-filters { gap: 8px; padding: 12px; margin: 14px 0 18px; }
+  .pl-filter { min-width: 0; flex: 1 1 calc(50% - 8px); }
+  .pl-filter-q { flex-basis: 100%; }
+  .pl-filter-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .pl-filter-actions { flex-basis: 100%; }
+  .pl-filter-actions .btn { flex: 1; }
+}
