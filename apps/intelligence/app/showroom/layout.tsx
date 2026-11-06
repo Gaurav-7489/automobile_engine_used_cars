@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme";
 import { SAMPLE_NOTICE } from "@/lib/showroom";
+import { SUPPORT_EMAIL } from "@/lib/support";
 
 export const metadata: Metadata = { title: { default: "Showroom", template: "%s | VandLabs Showroom" }, description: "Browse the VandLabs sample showroom." };
 
@@ -25,7 +26,7 @@ export default function ShowroomLayout({ children }: { children: React.ReactNode
       <main id="content" tabIndex={-1} className="sr-main">{children}</main>
       <footer className="sr-footer">
         <span className="meta">VandLabs Automotive Intelligence</span>
-        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <Link href="/showroom/contact">Contact</Link> / <Link href="/info/support">Support</Link></span>
+        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <Link href="/showroom/contact">Contact</Link> / <Link href="/info/support">Support</Link> / <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></span>
       </footer>
     </div>
   );

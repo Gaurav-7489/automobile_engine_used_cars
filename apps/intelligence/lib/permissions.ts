@@ -61,6 +61,7 @@ export const NAV: { key: string; label: string; short: string; href: string; ico
   { key: "inventory", label: "Inventory", short: "Stock", href: "/app/inventory", icon: "stock", needs: "inventory.view", feature: "inventory" },
   { key: "pricing", label: "Pricing Intelligence", short: "Pricing", href: "/app/pricing", icon: "tag", needs: "price.view", feature: "pricing" },
   { key: "advertising", label: "Advertising Studio", short: "Ads", href: "/app/advertising", icon: "megaphone", needs: "campaign.view", feature: "advertising" },
+  { key: "showroom", label: "Showroom", short: "Showroom", href: "/app/showroom", icon: "store", needs: "inventory.view", feature: "inventory" },
   { key: "leads", label: "Leads & customers", short: "Leads", href: "/app/leads", icon: "users", needs: "leads.view", feature: "leads" },
   { key: "capital", label: "Capital & profit", short: "Capital", href: "/app/capital", icon: "coins", needs: "capital.view", feature: "capital" },
   { key: "alerts", label: "Alerts & actions", short: "Alerts", href: "/app/alerts", icon: "bell", needs: "alerts.view", feature: "alerts" },

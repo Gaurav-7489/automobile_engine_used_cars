@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cache } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme";
+import { SUPPORT_EMAIL } from "@/lib/support";
 import { EnquiryForm } from "@/components/listing/enquiry-form";
 import { CarPhoto } from "@/components/listing/car-photo";
 import { readPublicListing, type PublicListing } from "@/lib/server/public-listing";
@@ -86,7 +87,7 @@ export default async function ListingPage({ params }: { params: Params }) {
       </main>
       <footer className="sr-footer">
         <span className="meta">{v?.dealer ? `${v.dealer} · ` : ""}Listing by VandLabs</span>
-        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link></span>
+        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <a href={`mailto:${SUPPORT_EMAIL}?subject=Showroom%20feedback`}>Feedback</a></span>
       </footer>
     </div>
   );

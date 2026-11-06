@@ -3,6 +3,7 @@ import Link from "next/link";
 import { cache } from "react";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme";
+import { SUPPORT_EMAIL } from "@/lib/support";
 import { CarPhoto } from "@/components/listing/car-photo";
 import { PUBLIC_SORTS, readPublicInventory, type PublicInventory } from "@/lib/server/public-listing";
 import { postPrice } from "@/lib/social-post";
@@ -102,7 +103,7 @@ export default async function DealerInventory({ params, searchParams }: { params
       </main>
       <footer className="sr-footer">
         <span className="meta">{inv?.dealer ? `${inv.dealer} · ` : ""}Listing by VandLabs</span>
-        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link></span>
+        <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <a href={`mailto:${SUPPORT_EMAIL}?subject=Showroom%20feedback`}>Feedback</a></span>
       </footer>
     </div>
   );

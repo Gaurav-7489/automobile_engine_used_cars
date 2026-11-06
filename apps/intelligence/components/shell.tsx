@@ -13,6 +13,7 @@ import { ToastProvider } from "./toast";
 import { Button } from "./ui";
 import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./workspace";
 import { initials } from "@/lib/format";
+import { SUPPORT_EMAIL, supportMailto } from "@/lib/support";
 import { NAV, ROLE_LABEL, visibleNav } from "@/lib/permissions";
 import { entitled } from "@/lib/entitlements";
 import { ThemeMenuItems, ThemeSwitch, ThemeToggle, MotionSwitch } from "./theme";
@@ -187,6 +188,15 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
       <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title="Help and keyboard shortcuts" description="Documentation opens in a new tab. Shortcuts work on every page." footer={<Button variant="primary" onClick={() => setHelpOpen(false)}>Done</Button>}>
         <dl className="kv">{SHORTCUTS.map(([k, v]) => <div key={k}><dt>{v}</dt><dd><span className="kbd">{k}</span></dd></div>)}</dl>
         <p className="meta">Branch scope, filters, sort, tab and page cursor are held in the address bar, so Back restores them. Switching workspace clears cached private data.</p>
+        <section className="help-contact" aria-labelledby="help-contact-title">
+          <h3 className="h3" id="help-contact-title">Talk with us</h3>
+          <p className="muted">Questions, feedback or a problem? Write to <a className="accent-text" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>. A person reads every message.</p>
+          <div className="row-flex">
+            <a className="btn btn-sm" href={supportMailto("Feedback", `Page: ${typeof window === "undefined" ? "" : window.location.pathname}\n\n`)}>Send feedback</a>
+            <a className="btn btn-sm" href={supportMailto("Problem report", `Page: ${typeof window === "undefined" ? "" : window.location.pathname}\nWhat happened:\n\nWhat I expected:\n`)}>Report a problem</a>
+            <a className="btn btn-sm" href={supportMailto("Talk with VandLabs")}>Talk with us</a>
+          </div>
+        </section>
       </Dialog>
     </ToastProvider>
   );

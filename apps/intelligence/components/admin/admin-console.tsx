@@ -1,112 +1,14 @@
 "use client";
-import { clearRemoteCache } from "@/lib/remote-cache";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Fragment, useCallback, useEffect, useState } from "react";
-import { formatDateTime } from "@/lib/format";
-import { Brand } from "../brand";
+import { useCallback, useEffect, useState } from "react";
 import { Icon } from "../icons";
 import { Dialog } from "../overlay";
-import { Badge, Button, EmptyState, FormSummary, Kpi, Notice, PasswordField, Tabs, TextField } from "../ui";
+import { Badge, Button, FormSummary, Notice, PasswordField, TextField } from "../ui";
 import { call, useReauth } from "./shared";
-import { EntitlementsDialog } from "./entitlements-dialog";
-import { PlatformAudit } from "./platform-audit";
 
-type Workspace = { tenantId: string; organization: string; dealership: string; createdAt: string; locations: number; vehicles: number; published: number; leads: number; members: number; owners: string; pendingInvites: number };
+export type Workspace = { tenantId: string; organization: string; dealership: string; createdAt: string; locations: number; vehicles: number; published: number; leads: number; members: number; owners: string; pendingInvites: number };
 type Member = { userId: string; email: string; name: string; role: string; enabled: boolean; suspended: boolean; twoFactor: boolean; platformAdmin: boolean; createdAt: string };
-export function AdminConsole({ name, email }: { name: string; email: string }) {
-  const router = useRouter();
-  const [workspaces, setWorkspaces] = useState<Workspace[] | null>(null);
-  const [error, setError] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [open, setOpen] = useState<string | null>(null);
-  const [link, setLink] = useState<{ title: string; url: string; expiresAt: string } | null>(null);
-  const [reissue, setReissue] = useState<Workspace | null>(null);
-  const [access, setAccess] = useState<Workspace | null>(null);
-  const [view, setView] = useState<"dealerships" | "audit">("dealerships");
-
-  const load = useCallback(async () => {
-    const r = await call<{ workspaces: Workspace[] }>("/api/admin/workspaces");
-    if (r.ok) { setWorkspaces(r.data.workspaces); setError(""); } else setError(r.data.error?.message ?? "Workspaces could not be loaded.");
-  }, []);
-  useEffect(() => { void load(); }, [load]);
-
-  const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); clearRemoteCache(); router.push("/login"); router.refresh(); };
-  const total = (key: keyof Workspace) => (workspaces ?? []).reduce((sum, w) => sum + Number(w[key]), 0);
-  const showLink = (title: string, path: string, expiresAt: string) => setLink({ title, url: `${window.location.origin}${path}`, expiresAt });
-
-  return (
-    <div className="admin-shell">
-      <header className="topbar" style={{ position: "static" }}>
-        <Brand sub={false} />
-        <span className="badge accent" style={{ marginLeft: 8 }}>Admin</span>
-        <span className="spacer" />
-        <Link href="/app/overview" className="btn btn-sm"><Icon name="grid" size={16} /><span className="hide-mobile">My dealership workspace</span></Link>
-        <Button size="sm" onClick={signOut}><Icon name="logout" size={16} /><span className="hide-mobile">Sign out</span></Button>
-      </header>
-      <main className="main" id="content" tabIndex={-1}>
-        <div className="main-inner stack">
-          <div className="spread" style={{ flexWrap: "wrap", gap: 12 }}>
-            <div><h1 className="h1" id="page-title" tabIndex={-1}>VandLabs admin console</h1><p className="muted">Signed in as {name} ({email}). Every dealership on the platform, from one sign-in.</p></div>
-            <Button variant="primary" onClick={() => setCreating(true)}><Icon name="plus" size={18} />Add dealership</Button>
-          </div>
-          {link ? (
-            <Notice tone="accent" role="alert">
-              <div className="stack-sm">
-                <strong>{link.title}</strong>
-                <span>Send this link to the owner. It works once and expires {formatDateTime(link.expiresAt)}. It is not shown again.</span>
-                <code style={{ wordBreak: "break-all" }}>{link.url}</code>
-                <span className="row-flex"><Button size="sm" onClick={() => void navigator.clipboard?.writeText(link.url)}>Copy link</Button><Button size="sm" onClick={() => setLink(null)}>Done</Button></span>
-              </div>
-            </Notice>
-          ) : null}
-          {error ? <Notice tone="danger" role="alert">{error}</Notice> : null}
-          <div className="kpi-grid">
-            <Kpi label="Dealerships" value={workspaces ? workspaces.length : "—"} note="Workspaces on the platform" />
-            <Kpi label="Stock in workspaces" value={workspaces ? total("vehicles") : "—"} note={workspaces ? `${total("published")} published on websites` : undefined} />
-            <Kpi label="Leads" value={workspaces ? total("leads") : "—"} note="All dealerships" />
-            <Kpi label="People with access" value={workspaces ? total("members") : "—"} note="Active memberships" />
-          </div>
-          <Tabs label="Admin sections" value={view} onChange={setView} idPrefix="adm" tabs={[{ value: "dealerships", label: "Dealerships" }, { value: "audit", label: "Platform audit" }]} />
-          {view === "audit" ? <PlatformAudit dealerships={(workspaces ?? []).map((w) => ({ tenantId: w.tenantId, organization: w.organization }))} /> : null}
-          <section className="card stack" aria-labelledby="ws-h" hidden={view !== "dealerships"}>
-            <h2 className="h2" id="ws-h">Dealerships</h2>
-            {workspaces === null && !error ? <p className="muted">Loading.</p> : null}
-            {workspaces && !workspaces.length ? <EmptyState title="No dealerships yet">Add the first dealership. Its owner gets a one-time link to set their own password.</EmptyState> : null}
-            {workspaces && workspaces.length ? (
-              <div className="table-wrap"><table className="data-table">
-                <thead><tr><th>Dealership</th><th>Owner</th><th className="num">Branches</th><th className="num">Stock</th><th className="num">Leads</th><th className="num">People</th><th>Created</th><th><span className="sr-only">Actions</span></th></tr></thead>
-                <tbody>{workspaces.map((w) => (
-                  <Fragment key={w.tenantId}>
-                    <tr>
-                      <td><span className="row-title">{w.dealership}</span><br /><span className="meta">{w.organization}</span></td>
-                      <td>{w.owners || (w.pendingInvites ? <Badge tone="warn">Setup link sent</Badge> : <Badge tone="danger">No owner yet</Badge>)}</td>
-                      <td className="num">{w.locations}</td><td className="num">{w.vehicles}</td><td className="num">{w.leads}</td><td className="num">{w.members}</td>
-                      <td>{formatDateTime(w.createdAt)}</td>
-                      <td><span className="row-flex" style={{ justifyContent: "flex-end" }}>
-                        {w.members === 0 ? <Button size="sm" onClick={() => setReissue(w)}>New setup link</Button> : null}
-                        <Button size="sm" onClick={() => setAccess(w)}>Plan and access</Button>
-                        <Button size="sm" aria-expanded={open === w.tenantId} onClick={() => setOpen(open === w.tenantId ? null : w.tenantId)}>{open === w.tenantId ? "Hide people" : "People"}</Button>
-                      </span></td>
-                    </tr>
-                    {open === w.tenantId ? <tr><td colSpan={8}><Members tenantId={w.tenantId} /></td></tr> : null}
-                  </Fragment>
-                ))}</tbody>
-              </table></div>
-            ) : null}
-          </section>
-          <p className="meta">Dealer owners invite their own staff from Settings, Team inside their workspace. Every change made here is written to that dealership&rsquo;s audit log.</p>
-        </div>
-      </main>
-      {creating ? <CreateDealership onClose={() => setCreating(false)} onCreated={(path, expiresAt) => { setCreating(false); showLink("Dealership created", path, expiresAt); void load(); }} /> : null}
-      {access ? <EntitlementsDialog tenantId={access.tenantId} name={access.dealership} onClose={() => setAccess(null)} onSaved={() => undefined} /> : null}
-      {reissue ? <ReissueInvite workspace={reissue} onClose={() => setReissue(null)} onDone={(path, expiresAt) => { setReissue(null); showLink("New owner setup link", path, expiresAt); void load(); }} /> : null}
-    </div>
-  );
-}
-
-function Members({ tenantId }: { tenantId: string }) {
+export function Members({ tenantId }: { tenantId: string }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [error, setError] = useState("");
   const [target, setTarget] = useState<Member | null>(null);
@@ -161,7 +63,7 @@ function SuspendDialog({ member, onClose, onDone }: { member: Member; onClose: (
 
 type Branch = { name: string; city: string; state: string; phone: string };
 
-function CreateDealership({ onClose, onCreated }: { onClose: () => void; onCreated: (path: string, expiresAt: string) => void }) {
+export function CreateDealership({ onClose, onCreated }: { onClose: () => void; onCreated: (path: string, expiresAt: string) => void }) {
   const [form, setForm] = useState({ organization: "", dealership: "", ownerName: "", ownerEmail: "" });
   const [branches, setBranches] = useState<Branch[]>([{ name: "Main branch", city: "", state: "", phone: "" }]);
   const [password, setPassword] = useState("");
@@ -210,7 +112,7 @@ function CreateDealership({ onClose, onCreated }: { onClose: () => void; onCreat
   );
 }
 
-function ReissueInvite({ workspace, onClose, onDone }: { workspace: Workspace; onClose: () => void; onDone: (path: string, expiresAt: string) => void }) {
+export function ReissueInvite({ workspace, onClose, onDone }: { workspace: Workspace; onClose: () => void; onDone: (path: string, expiresAt: string) => void }) {
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [password, setPassword] = useState("");

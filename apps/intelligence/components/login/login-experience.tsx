@@ -8,7 +8,8 @@ import { useRef, useState, useEffect } from "react";
 import { Brand } from "../brand";
 import { Dialog } from "../overlay";
 import { Button, Check, FormSummary, Notice, PasswordField, TextField } from "../ui";
-import { VehicleArt } from "../vehicle-art";
+import { LoginCinema } from "./login-cinema";
+import { SUPPORT_EMAIL, supportMailto } from "@/lib/support";
 
 type Props = { providers: { id: "google" | "microsoft"; label: string }[] };
 
@@ -54,19 +55,19 @@ export function LoginExperience({ providers }: Props) {
 
   return (
     <div className="login-shell">
-      <aside className="login-brand" aria-hidden={false}>
-        <Brand />
+      <aside className="login-brand">
+        <LoginCinema />
+        <div className="login-brand-top"><Brand /></div>
         <div className="login-copy">
-          <h2 className="display">Better evidence.<br />Clearer decisions.<br />One workspace.</h2>
-          <p className="lead-lg">Inventory, market comparisons and controlled execution for the dealership team.</p>
+          <h2 className="display">Better evidence.<br />Clearer decisions.<br /><span className="login-accent">One workspace.</span></h2>
+          <p className="lead-lg">Inventory, pricing, advertising, leads and your showroom, run by one dealership team.</p>
         </div>
-        <div className="login-art"><VehicleArt ratio="21 / 9" /></div>
       </aside>
       <div className="login-theme"><ThemeToggle className="icon-btn" /></div>
       <main className="login-form-wrap" id="content" tabIndex={-1}>
         <div className="login-mobile-brand"><Brand sub={false} /></div>
-        <form className="login-form" onSubmit={submit} noValidate aria-describedby="login-status">
-          <div><h1 className="h1" style={{ fontSize: 32, lineHeight: "40px" }}>Welcome back</h1><p className="muted" style={{ marginTop: 8 }}>Sign in to your dealership workspace.</p></div>
+        <form className="login-form login-card" onSubmit={submit} noValidate aria-describedby="login-status">
+          <div className="login-head"><span className="login-kicker"><span className="login-dot" aria-hidden="true" />Dealership workspace</span><h1 className="h1 login-title">Welcome back</h1><p className="muted">Sign in to pick up where your team left off.</p></div>
           {reason === "expired" ? <Notice tone="warn" role="status">Your session expired. Sign in again. Your non-sensitive setup draft was kept; no password was stored.</Notice> : null}
           {notice === "sso_unavailable" ? <Notice tone="warn" role="status">{provider} sign-in is not available in this environment yet. Use your email and password, or ask your administrator to enable it.</Notice> : null}
           {notice === "sso_unknown" ? <Notice tone="warn" role="status">That sign-in provider is not configured for this workspace.</Notice> : null}
@@ -91,6 +92,7 @@ export function LoginExperience({ providers }: Props) {
             <p className="meta">Organisation access is assigned by your administrator. MFA may be required.</p>
           </div>
         </form>
+        <p className="login-help">Questions or feedback? <a className="accent-text" href={supportMailto("Hello from the sign-in page")}>{SUPPORT_EMAIL}</a></p>
         <footer className="login-links"><Link href="/info/privacy">Privacy</Link><span aria-hidden="true">/</span><Link href="/info/terms">Terms</Link><span aria-hidden="true">/</span><Link href="/info/support">Support</Link><span aria-hidden="true">/</span><Link href="/showroom">Showroom</Link><ThemeSwitch /></footer>
       </main>
       <ForgotDialog open={forgotOpen} onClose={() => setForgotOpen(false)} />
@@ -103,7 +105,10 @@ export function LoginExperience({ providers }: Props) {
 function ForgotDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Dialog open={open} onClose={onClose} title="Reset your password" description="Resets are issued by your workspace owner." footer={<Button variant="primary" onClick={onClose}>Done</Button>}>
-      <Notice tone="accent" role="status">Ask a workspace owner to open Settings, Team and issue a one-time reset link for your account. The link expires in 60 minutes and signs you out everywhere once used.</Notice>
+      <div className="stack">
+        <Notice tone="accent" role="status">Ask a workspace owner to open Settings, Team and issue a one-time reset link for your account. The link expires in 60 minutes and signs you out everywhere once used.</Notice>
+        <p className="meta">Are you the owner and locked out? Email <a className="accent-text" href={supportMailto("Owner account recovery")}>{SUPPORT_EMAIL}</a> from your registered address.</p>
+      </div>
     </Dialog>
   );
 }
@@ -113,7 +118,7 @@ function AccessDialog({ open, onClose }: { open: boolean; onClose: () => void })
     <Dialog open={open} onClose={onClose} title="Request access" description="Access is by invitation only." footer={<Button variant="primary" onClick={onClose}>Done</Button>}>
       <div className="stack">
         <p>Ask your workspace owner to invite you from Settings, Team. You will receive a one-time link to choose your own password.</p>
-        <p>To set up a new dealership workspace, <Link href="/info/support">contact VandLabs</Link>.</p>
+        <p>To set up a new dealership workspace, write to <a className="accent-text" href={supportMailto("New dealership workspace")}>{SUPPORT_EMAIL}</a>.</p>
       </div>
     </Dialog>
   );

@@ -1,6 +1,11 @@
 import type { SVGProps } from "react";
 
 const PATHS: Record<string, string> = {
+  store: "M3.5 7.5l1.5-4h10l1.5 4M3.5 7.5h13M3.5 7.5a2.2 2.2 0 0 0 4.3 0 2.2 2.2 0 0 0 4.4 0 2.2 2.2 0 0 0 4.3 0M4.5 9.5v7h11v-7M8.5 16.5v-4h3v4",
+  pulse: "M2.5 10h3.5l2-5 4 10 2-5h3.5",
+  flask: "M8 3h4M8.8 3v4.5L4.4 15a1.3 1.3 0 0 0 1.1 2h9a1.3 1.3 0 0 0 1.1-2l-4.4-7.5V3M6.3 12.5h7.4",
+  server: "M4 3.5h12v5H4zM4 11.5h12v5H4zM7 6h.01M7 14h.01",
+  mail: "M3.5 5.5h13v9h-13zM3.5 6l6.5 5 6.5-5",
   grid: "M3.5 3.5h5v5h-5zM11.5 3.5h5v5h-5zM3.5 11.5h5v5h-5zM11.5 11.5h5v5h-5z",
   radar: "M10 17a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM10 13.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM10 10l5-4",
   stock: "M3 16.5h14M5.5 16.5v-6M10 16.5v-10M14.5 16.5v-8",

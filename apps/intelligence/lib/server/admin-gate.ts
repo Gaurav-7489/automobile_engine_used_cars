@@ -32,3 +32,14 @@ export async function adminApi(request: Request | null, options: { reauth?: bool
   if (options.reauth && !(await hasRecentReauth(access.userId))) return { error: problem(403, "reauth_required", "Confirm your password first.") };
   return { access };
 }
+
+/**
+ * Gate for admin reads that hold no dealership data (system health, build and test facts). An administrator can see these
+ * before two-factor login is on; everything about dealerships still needs two-factor.
+ */
+export async function adminSystemApi() {
+  const access = await adminAccess();
+  if (access.ok) return { ok: true as const, twoFactor: true };
+  if (access.reason === "two_factor_required") return { ok: true as const, twoFactor: false };
+  return { ok: false as const, error: access.reason === "signed_out" ? problem(401, "unauthenticated", "Sign in to continue.") : problem(404, "not_found", "Not found.") };
+}

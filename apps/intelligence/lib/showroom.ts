@@ -2,7 +2,7 @@ import { vehicles, tenantConfig, locationName } from "@vandlabs/demo-data";
 import type { Vehicle } from "@vandlabs/contracts";
 
 /** The public showroom shows the built-in sample catalogue only. It never reads a dealership's tenant data. */
-export const SAMPLE_NOTICE = "Sample catalogue for demonstration. Real dealership stock is private to signed-in staff.";
+export const SAMPLE_NOTICE = "Sample showroom with demo cars. Every dealership on VandLabs gets its own showroom like this for its published stock, managed from Showroom in the app.";
 
 export const sampleVehicles = (): Vehicle[] => vehicles.filter(v => v.publishStatus === "published");
 export const sampleVehicle = (slug: string) => sampleVehicles().find(v => v.slug === slug) ?? null;
