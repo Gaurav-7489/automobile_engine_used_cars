@@ -66,8 +66,17 @@ export function saleIndexRow(s: Sale, sourceUpdatedAt: unknown, fromLedger: bool
 export async function syncReadModel(c: SqlClient, tenantId: string, options: { force?: boolean } = {}): Promise<number> {
   const now = Date.now();
   if (!options.force && now - (lastSync.get(tenantId) ?? 0) < FRESH_MS) return 0;
-  // One rebuild at a time per tenant: a second request waits for the first instead of repeating its work.
-  await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 5))", [tenantId]);
+  // One rebuild at a time per tenant. A write (force) waits its turn so the person sees their own change at once.
+  // A read does not queue: the lock is held until the holder's transaction ends, so waiting would park this request, and
+  // its pooled connection, behind every other page and prefetch loading for the same dealership. If another request is
+  // already rebuilding, this read uses the index as it stands (the same short staleness FRESH_MS already allows), unless
+  // the index has never been built for this dealership, in which case it waits rather than show empty lists.
+  if (options.force) await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 5))", [tenantId]);
+  else if ((await c.query("SELECT pg_try_advisory_xact_lock(hashtextextended($1, 5)) AS ok", [tenantId])).rows[0]?.ok !== true) {
+    const built = (await c.query("SELECT EXISTS (SELECT 1 FROM intelligence_vehicle_index WHERE tenant_id = $1) OR NOT EXISTS (SELECT 1 FROM vehicles WHERE tenant_id = $1) AS ok", [tenantId])).rows[0]?.ok === true;
+    if (built) return 0;
+    await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 5))", [tenantId]);
+  }
   lastSync.set(tenantId, now);
   const firstBranch = String(((await c.query("SELECT id FROM locations WHERE tenant_id = $1 ORDER BY name LIMIT 1", [tenantId])).rows[0] as Row | undefined)?.id ?? "");
   let refreshed = 0;
