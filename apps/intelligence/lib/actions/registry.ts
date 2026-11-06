@@ -93,6 +93,7 @@ export const COMMANDS: Record<string, Entry> = {
   revokeApiKey: { run: withActor(settings.revokeApiKey), reauth: 1 },
   revokeSessions: { run: withActor(settings.revokeSessions) },
   setPolicy: { run: (s, a, [patch]) => settings.setPolicy(s, a, pick(patch, POLICY_KEYS)) },
+  setMarketplaceListing: { run: (s, a, [listed]) => settings.setMarketplaceListing(s, a, listed === true) },
   saveReportSchedule: { run: (s, a, [input]) => reports.saveReportSchedule(s, a, pick(input, SCHEDULE_KEYS) as reports.ScheduleInput) },
   deleteReportSchedule: { run: withActor(reports.deleteReportSchedule) },
 };

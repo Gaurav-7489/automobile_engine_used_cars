@@ -99,6 +99,7 @@ const NEEDS: Record<string, Extractor> = {
   setNotification: none, revokeApiKey: none, revokeSessions: none, setPolicy: none,
   // Report schedules: shell collections (team, branches, schedules) only.
   saveReportSchedule: none, deleteReportSchedule: none,
+  setMarketplaceListing: none,
 };
 
 /** The records a batch needs, or null when any command in it is not proven scope-safe (the caller then reads everything). */

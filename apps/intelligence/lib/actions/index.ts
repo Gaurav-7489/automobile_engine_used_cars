@@ -76,6 +76,7 @@ export const setNotification = record("setNotification", settingsRaw.setNotifica
 export const revokeApiKey = record("revokeApiKey", settingsRaw.revokeApiKey);
 export const revokeSessions = record("revokeSessions", settingsRaw.revokeSessions);
 export const setPolicy = record("setPolicy", settingsRaw.setPolicy);
+export const setMarketplaceListing = record("setMarketplaceListing", settingsRaw.setMarketplaceListing);
 export const saveReportSchedule = record("saveReportSchedule", reportsRaw.saveReportSchedule);
 export const deleteReportSchedule = record("deleteReportSchedule", reportsRaw.deleteReportSchedule);
 export const toggleWatch = recordBare("toggleWatch", marketRaw.toggleWatch);

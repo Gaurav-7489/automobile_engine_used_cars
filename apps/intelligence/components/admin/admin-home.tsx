@@ -202,12 +202,7 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
 
         {demo ? <div className="adm-demo-banner" role="note"><Badge tone="warn">DEMO DATA</Badge><span>Cards and figures marked DEMO are fictional, for demonstrations. They are not stored and never mix with real dealerships, which are marked LIVE.</span><button type="button" className="link-btn" onClick={() => toggleDemo(false)}>Hide demo data</button></div> : null}
         {demoNote ? <Notice tone="accent" role="status"><span className="spread">{demoNote}<button type="button" className="link-btn" onClick={() => setDemoNote("")}>OK</button></span></Notice> : null}
-        {link ? (
-          <Notice tone="accent" role="alert">
-            <div className="stack-sm"><strong>{link.title}</strong><span>Send this link to the owner. It works once and expires {formatDateTime(link.expiresAt)}. It is not shown again.</span><code style={{ wordBreak: "break-all" }}>{link.url}</code>
-              <span className="row-flex"><Button size="sm" onClick={() => void navigator.clipboard?.writeText(link.url)}>Copy link</Button><Button size="sm" onClick={() => setLink(null)}>Done</Button></span></div>
-          </Notice>
-        ) : null}
+        {link ? <SetupLink link={link} onDone={() => setLink(null)} /> : null}
         {wsError ? <Notice tone="danger" role="alert">{wsError}</Notice> : null}
 
         {view === "overview" ? (
@@ -355,5 +350,29 @@ function Checks({ system, compact = false }: { system: System | null; compact?: 
         </div>
       ))}
     </div>
+  );
+}
+
+/** The owner's one-time setup link, with the three steps that follow and ready-made messages to send it. */
+function SetupLink({ link, onDone }: { link: { title: string; url: string; expiresAt: string }; onDone: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const message = `Hello, your VandLabs dealership workspace is ready. Open this link to choose your password and sign in. It works once and expires ${formatDateTime(link.expiresAt)}.\n\n${link.url}`;
+  return (
+    <section className="card adm-setup" role="alert" aria-labelledby="setup-title">
+      <div className="spread"><h2 className="h3" id="setup-title">{link.title}</h2><Badge tone="accent">Works once</Badge></div>
+      <ol className="adm-steps">
+        <li>Send this link to the owner by WhatsApp or email.</li>
+        <li>They open it, choose their own password and sign in. Nobody else ever sees the password.</li>
+        <li>From Settings, Team, the owner invites their staff the same way.</li>
+      </ol>
+      <code className="adm-link">{link.url}</code>
+      <p className="meta">Expires {formatDateTime(link.expiresAt)}. It is not shown again: if it is lost, issue a new one from the dealership&apos;s card.</p>
+      <div className="row-flex">
+        <Button variant="primary" onClick={() => { void navigator.clipboard?.writeText(link.url).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 2000); }, () => undefined); }}><Icon name="copy" size={16} />{copied ? "Copied" : "Copy link"}</Button>
+        <a className="btn" href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noopener noreferrer"><Icon name="message" size={16} />Share on WhatsApp</a>
+        <a className="btn" href={`mailto:?subject=${encodeURIComponent("Your VandLabs workspace is ready")}&body=${encodeURIComponent(message)}`}><Icon name="mail" size={16} />Send by email</a>
+        <Button variant="ghost" onClick={onDone}>Done</Button>
+      </div>
+    </section>
   );
 }

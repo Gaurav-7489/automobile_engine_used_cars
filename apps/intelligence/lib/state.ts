@@ -44,6 +44,8 @@ export type WorkspaceState = {
   notifications: Record<string, boolean>;
   sessionsRevoked: number;
   reportSchedules: ReportSchedule[];
+  /** Whether this dealership's published cars also appear on the public VandLabs marketplace (/cars). On unless the owner turns it off. */
+  marketplace: { listed: boolean };
   savedViews: { id: string; name: string; query: string }[];
   /**
    * Live workspaces load only the small collections up front. `vehicles`, `leads`, `sales` and `alerts` then hold just the records
@@ -86,7 +88,7 @@ export function buildProductionState(): WorkspaceState {
     watchlist: [], savedSearches: [], scenarios: [], reviews: [], contactIntents: [], corrections: [],
     policy: { distinctApprover: true, reviewThresholdDays: 30, ageingDays: 45, staleFeedHours: 24, leadResponseMinutes: 60, evidenceExpiryDays: 7, priceFloorPercent: 102, rulesVersion: 1 },
     notifications: { "alerts.critical": true, "alerts.approvals": true, "leads.assigned": true, "reports.ready": false, "security.notices": true },
-    sessionsRevoked: 0, reportSchedules: [], savedViews: [],
+    sessionsRevoked: 0, reportSchedules: [], savedViews: [], marketplace: { listed: true },
   };
 }
 
@@ -117,6 +119,7 @@ export function buildSeed(): WorkspaceState {
     sessionsRevoked: 0,
     reportSchedules: [],
     savedViews: [],
+    marketplace: { listed: true },
   };
 }
 

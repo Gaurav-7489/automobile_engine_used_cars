@@ -113,6 +113,15 @@ export function saveBusiness(state: WorkspaceState, actor: Actor, input: { displ
   return ok(withAudit({ ...state, tenant: { ...state.tenant, displayName: trim(input.displayName), name: trim(input.displayName), legalName: trim(input.legalName), gstin: trim(input.gstin).toUpperCase(), timezone: trim(input.timezone) } }, actor, "business.saved", state.tenant.id, "Business profile updated"));
 }
 
+/** List or remove this dealership's published cars on the public VandLabs marketplace. Owner only; audited. */
+export function setMarketplaceListing(state: WorkspaceState, actor: Actor, listed: boolean): Result {
+  const denied = guard(actor, "settings.admin");
+  if (denied) return denied;
+  const value = listed === true;
+  if (state.marketplace?.listed === value) return ok(state);
+  return ok(withAudit({ ...state, marketplace: { listed: value } }, actor, value ? "marketplace.listed" : "marketplace.unlisted", state.tenant.id, value ? "Published cars appear on the VandLabs marketplace" : "Published cars removed from the VandLabs marketplace"));
+}
+
 export function saveBranch(state: WorkspaceState, actor: Actor, input: { id?: string; name: string; city: string; state: string; timezone: string }): Result {
   const denied = guard(actor, "settings.admin");
   if (denied) return denied;

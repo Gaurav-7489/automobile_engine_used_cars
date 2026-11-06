@@ -8,7 +8,7 @@ import { test, expect, type Page } from "@playwright/test";
  */
 const user = process.env.LOCAL_SCALE_USER, password = process.env.LOCAL_SCALE_PASSWORD ?? "";
 const WIDTHS = [320, 360, 393, 430, 600, 768, 820, 1024, 1180, 1280, 1440, 1920];
-const PUBLIC = ["/login", "/install", "/info/privacy", "/showroom", "/showroom/discover?q=automatic%20SUV", "/showroom/inventory", "/showroom/vehicles/toyota-fortuner-4x4-2022", "/showroom/saved", "/showroom/compare?cars=toyota-fortuner-4x4-2022,skoda-kodiaq-lk-2023", "/showroom/contact"];
+const PUBLIC = ["/login", "/cars", "/install", "/info/privacy", "/showroom", "/showroom/discover?q=automatic%20SUV", "/showroom/inventory", "/showroom/vehicles/toyota-fortuner-4x4-2022", "/showroom/saved", "/showroom/compare?cars=toyota-fortuner-4x4-2022,skoda-kodiaq-lk-2023", "/showroom/contact"];
 const PRIVATE = ["/app/overview", "/app/market", "/app/inventory", "/app/pricing", "/app/advertising", "/app/leads", "/app/capital", "/app/alerts", "/app/reports", "/app/stock-intelligence", "/app/acquisition", "/app/automations",
   ...["business", "branches", "team", "security", "integrations", "billing", "api", "notifications", "audit"].map((s) => `/app/settings/${s}`)];
 

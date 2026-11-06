@@ -1398,3 +1398,26 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 .goo-field { display: none; }
 /* Secondary text inside a primary button uses the button's own ink, so it stays readable on the accent fill. */
 .btn-primary .meta, .btn-primary .muted, .btn-primary .help { color: inherit; opacity: 0.88; }
+/* Marketplace: who is selling, under each car. */
+.mk-dealer { margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--accent); }
+.adm-setup { display: grid; gap: 12px; border-color: var(--accent); }
+.adm-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.adm-link { display: block; padding: 10px 12px; border-radius: 10px; background: var(--raised); word-break: break-all; font-size: 13px; }
+
+/* Motion, kept quiet: car cards lift a little and their photo eases in on hover; grids of cars fade up in a short stagger.
+   Nothing moves for people who prefer reduced motion. */
+.pl-card { transition: border-color 180ms ease, transform 220ms var(--ease-out), box-shadow 220ms var(--ease-out); }
+.pl-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px -14px color-mix(in srgb, #000 35%, transparent); }
+.pl-card-media { overflow: hidden; }
+.pl-card-media img { transition: transform 600ms var(--ease-out); }
+.pl-card:hover .pl-card-media img { transform: scale(1.04); }
+.pl-grid > li { animation: card-up 360ms var(--ease-out) both; }
+.pl-grid > li:nth-child(2) { animation-delay: 40ms; } .pl-grid > li:nth-child(3) { animation-delay: 80ms; } .pl-grid > li:nth-child(4) { animation-delay: 120ms; }
+.pl-grid > li:nth-child(5) { animation-delay: 160ms; } .pl-grid > li:nth-child(6) { animation-delay: 200ms; } .pl-grid > li:nth-child(n+7) { animation-delay: 240ms; }
+@keyframes card-up { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
+.inv-thumb img { transition: transform 500ms var(--ease-out); }
+.data-table tbody tr:hover .inv-thumb img { transform: scale(1.06); }
+@media (prefers-reduced-motion: reduce) { .pl-card, .pl-card-media img, .inv-thumb img { transition: none; } .pl-card:hover { transform: none; } .pl-card:hover .pl-card-media img, .data-table tbody tr:hover .inv-thumb img { transform: none; } .pl-grid > li { animation: none; } }
+:root[data-motion="reduced"] .pl-card, :root[data-motion="reduced"] .pl-card-media img, :root[data-motion="reduced"] .inv-thumb img { transition: none; }
+:root[data-motion="reduced"] .pl-card:hover, :root[data-motion="reduced"] .pl-card:hover .pl-card-media img, :root[data-motion="reduced"] .data-table tbody tr:hover .inv-thumb img { transform: none; }
+:root[data-motion="reduced"] .pl-grid > li { animation: none; }

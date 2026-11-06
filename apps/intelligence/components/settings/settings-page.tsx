@@ -3,7 +3,7 @@
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { changeRole, connectIntegration, disconnectIntegration, inviteMember, removeMember, revokeSessions, saveBranch, saveBusiness, scopeText, setNotification, setPolicy, testConnection } from "@/lib/actions";
+import { changeRole, connectIntegration, disconnectIntegration, inviteMember, removeMember, revokeSessions, saveBranch, saveBusiness, scopeText, setMarketplaceListing, setNotification, setPolicy, testConnection } from "@/lib/actions";
 import type { AuditEvent, Integration, IntegrationState, Role } from "@/lib/domain";
 import { formatDateTime, formatShortDateTime } from "@/lib/format";
 import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions";
@@ -201,6 +201,11 @@ function Business() {
       <hr className="divider" />
       <div className="stack-sm"><h3 className="h3">Approval policy</h3>
         <Check label="Require a distinct approver for price changes and campaign budgets" checked={state.policy.distinctApprover} disabled={!admin} onChange={(v) => { const r = run((s, a) => setPolicy(s, a, { distinctApprover: v })); if (r.ok) toast(v ? "Self-approval is prohibited." : "Self-approval is now allowed. This is audited.", "ok"); }} help="Default policy. Turning it off lets a requester approve their own request; the change is audited." />
+      </div>
+      <hr className="divider" />
+      <div className="stack-sm"><h3 className="h3">VandLabs marketplace</h3>
+        <Check label="Show our published cars on the VandLabs marketplace" checked={state.marketplace?.listed !== false} disabled={!admin} onChange={(v) => { const r = run((s, a) => setMarketplaceListing(s, a, v)); if (r.ok) toast(v ? "Your published cars now appear on the marketplace." : "Your cars are no longer shown on the marketplace."); else toast(r.message, "error"); }} help="Buyers see the same cars and details as on your own showroom page, and every enquiry comes to you as a lead. Registration numbers and costs are never shown." />
+        <a className="link-btn" href="/cars" target="_blank" rel="noopener noreferrer">Open the marketplace</a>
       </div>
     </section>
   );

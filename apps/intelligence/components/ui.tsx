@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CountUp } from "./motion/count-up";
 import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { Icon } from "./icons";
 import { Liquid, useLiquid } from "./motion/liquid";
@@ -118,7 +119,7 @@ export function Kpi({ label, value, note, tone = "accent", href, onClick, info }
   const body = (
     <>
       <span className="kpi-label"><span>{label}</span></span>
-      <span className="kpi-value">{value}</span>
+      <span className="kpi-value"><CountUp value={value} /></span>
       {note ? <span className={`kpi-note ${tone === "warn" ? "warn" : tone === "neutral" ? "neutral" : ""}`}>{note}</span> : <span />}
     </>
   );

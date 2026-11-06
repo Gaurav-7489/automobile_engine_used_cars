@@ -14,7 +14,7 @@ type StaffRow = { userId: string; displayName: string; role: string; intelligenc
 /** Collections kept as tenant-scoped documents. Each entity has a string `id`. */
 export const DOC_COLLECTIONS = ["alerts", "priceRequests", "campaigns", "integrations", "apiKeys", "audit", "savedSearches", "scenarios", "reviews", "corrections", "reportSchedules", "savedViews"] as const;
 type DocCollection = (typeof DOC_COLLECTIONS)[number];
-type Meta = Pick<WorkspaceState, "policy" | "notifications" | "sessionsRevoked" | "watchlist" | "contactIntents"> & { profile: { legalName: string; gstin: string; displayName: string; timezone: string; defaultBranchId?: string } };
+type Meta = Pick<WorkspaceState, "policy" | "notifications" | "sessionsRevoked" | "watchlist" | "contactIntents" | "marketplace"> & { profile: { legalName: string; gstin: string; displayName: string; timezone: string; defaultBranchId?: string } };
 
 const LIFECYCLE_AVAILABILITY: Record<Lifecycle, "available" | "reserved" | "sold"> = { available: "available", reserved: "reserved", preparation: "available", sold: "sold", archived: "available" };
 /* ------------------------------------------------------------------ read */
@@ -120,7 +120,7 @@ export async function readState(c: SqlClient, tenantId: string, options: { shell
     integrations: mergeIntegrations(base.integrations, list<Integration>("integrations")), apiKeys: list<ApiKey>("apiKeys"),
     audit: list<AuditEvent>("audit").sort((a, b) => b.at.localeCompare(a.at)), savedSearches: list<SavedSearch>("savedSearches"), scenarios: list<Scenario>("scenarios"), reviews: list<AcquisitionReview>("reviews"),
     corrections: list<WorkspaceState["corrections"][number]>("corrections"), reportSchedules: list<WorkspaceState["reportSchedules"][number]>("reportSchedules"), savedViews: list<WorkspaceState["savedViews"][number]>("savedViews"),
-    policy: { ...base.policy, ...(meta.policy ?? {}) }, notifications: { ...base.notifications, ...(meta.notifications ?? {}) }, sessionsRevoked: meta.sessionsRevoked ?? 0, watchlist: meta.watchlist ?? [], contactIntents: meta.contactIntents ?? [],
+    policy: { ...base.policy, ...(meta.policy ?? {}) }, notifications: { ...base.notifications, ...(meta.notifications ?? {}) }, sessionsRevoked: meta.sessionsRevoked ?? 0, watchlist: meta.watchlist ?? [], contactIntents: meta.contactIntents ?? [], marketplace: { listed: meta.marketplace?.listed !== false },
   };
   // Campaigns and price requests name a vehicle; record its branch so a shell (no vehicle records) can still be redacted by branch.
   const referenced = [...new Set([...state.priceRequests.map((r) => r.vehicleId), ...state.campaigns.map((x) => x.vehicleId)])];
@@ -177,7 +177,7 @@ export async function persist(c: SqlClient, p: Principal, before: WorkspaceState
 }
 
 function metaOf(s: WorkspaceState): Meta & { id: string } {
-  return { id: "workspace", policy: s.policy, notifications: s.notifications, sessionsRevoked: s.sessionsRevoked, watchlist: s.watchlist, contactIntents: s.contactIntents,
+  return { id: "workspace", policy: s.policy, notifications: s.notifications, sessionsRevoked: s.sessionsRevoked, watchlist: s.watchlist, contactIntents: s.contactIntents, marketplace: s.marketplace,
     profile: { legalName: s.tenant.legalName, gstin: s.tenant.gstin, displayName: s.tenant.displayName, timezone: s.tenant.timezone, defaultBranchId: s.branches.find((b) => b.isDefault)?.id } };
 }
 
