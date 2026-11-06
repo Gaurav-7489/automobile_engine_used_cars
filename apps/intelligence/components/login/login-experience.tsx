@@ -8,7 +8,7 @@ import { useRef, useState, useEffect } from "react";
 import { Brand } from "../brand";
 import { Dialog } from "../overlay";
 import { Button, Check, FormSummary, Notice, PasswordField, TextField } from "../ui";
-import { LoginCinema } from "./login-cinema";
+import { LoginBand, LoginCinema } from "./login-cinema";
 import { SUPPORT_EMAIL, supportMailto } from "@/lib/support";
 
 type Props = { providers: { id: "google" | "microsoft"; label: string }[] };
@@ -63,6 +63,7 @@ export function LoginExperience({ providers }: Props) {
           <p className="lead-lg">Inventory, pricing, advertising, leads and your showroom, run by one dealership team.</p>
         </div>
       </aside>
+      <LoginBand />
       <div className="login-theme"><ThemeToggle className="icon-btn" /></div>
       <main className="login-form-wrap" id="content" tabIndex={-1}>
         <div className="login-mobile-brand"><Brand sub={false} /></div>

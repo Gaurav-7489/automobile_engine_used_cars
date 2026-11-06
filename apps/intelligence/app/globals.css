@@ -1177,12 +1177,27 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 @media (max-width: 1023px) { .login-card { padding: 24px; } }
 @media (max-width: 767px) { .login-card { padding: 20px; border-radius: 18px; } .login-title { font-size: 28px !important; line-height: 36px !important; } }
 
+/* Phones and tablets: a slim band of the night drive above the form (the panel itself is hidden below 1024px). */
+.cine-band { display: none; }
+@media (max-width: 1023px) {
+  .cine-band { display: block; position: relative; overflow: hidden; isolation: isolate; height: 88px; background: #050807; border-bottom: 1px solid #13201c; }
+  .cine-band .cine-sky, .cine-band .cine-band-glow { position: absolute; inset: 0; }
+  .cine-band .cine-far { bottom: 34%; height: 46%; }
+  .cine-band .cine-near { bottom: 28%; height: 56%; }
+  .cine-band .cine-road { height: 28%; }
+  .cine-band .cine-lanes { top: 55%; height: 2px; }
+  .cine-band .cine-streaks i { width: 140px; }
+  .cine-band .cine-streaks i:nth-child(1) { bottom: 18%; } .cine-band .cine-streaks i:nth-child(2) { bottom: 8%; } .cine-band .cine-streaks i:nth-child(3) { bottom: 13%; width: 200px; }
+  .cine-band-glow { background: radial-gradient(40% 70% at 82% 100%, rgba(209, 250, 229, 0.22), transparent 70%), linear-gradient(180deg, rgba(5, 8, 7, 0.55) 0%, rgba(5, 8, 7, 0) 60%); }
+}
+@media (max-width: 767px) { .cine-band { height: 72px; } }
+
 /* Every cinematic and card animation stops under reduced motion. */
 @media (prefers-reduced-motion: reduce) {
-  .cine *, .cine-car, .hero-car *, .login-card::before, .login-card > *, .login-dot { animation: none !important; }
+  .cine *, .cine-band *, .cine-car, .hero-car *, .login-card::before, .login-card > *, .login-dot { animation: none !important; }
   .cine-captions span:first-child { opacity: 1; }
 }
-:root[data-motion="reduced"] .cine *, :root[data-motion="reduced"] .cine-car, :root[data-motion="reduced"] .hero-car *,
+:root[data-motion="reduced"] .cine *, :root[data-motion="reduced"] .cine-band *, :root[data-motion="reduced"] .cine-car, :root[data-motion="reduced"] .hero-car *,
 :root[data-motion="reduced"] .login-card::before, :root[data-motion="reduced"] .login-card > *, :root[data-motion="reduced"] .login-dot { animation: none !important; }
 :root[data-motion="reduced"] .cine-captions span:first-child { opacity: 1; }
 

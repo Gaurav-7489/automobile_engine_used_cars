@@ -53,3 +53,20 @@ export function LoginCinema() {
     </div>
   );
 }
+
+/**
+ * Phones and tablets (below 1024px), where the panel above is hidden: a slim band of the same night drive above the form.
+ * Decorative only (skipped by screen readers), no car or captions, and still under reduced motion.
+ */
+export function LoginBand() {
+  return (
+    <div className="cine-band" aria-hidden="true">
+      <div className="cine-sky" />
+      <div className="cine-city cine-far"><City seed={7} className="cine-city-svg" /><City seed={7} className="cine-city-svg" /></div>
+      <div className="cine-city cine-near"><City seed={31} className="cine-city-svg" /><City seed={31} className="cine-city-svg" /></div>
+      <div className="cine-road"><div className="cine-lanes" /></div>
+      <div className="cine-streaks">{Array.from({ length: 3 }, (_, i) => <i key={i} />)}</div>
+      <div className="cine-band-glow" />
+    </div>
+  );
+}
