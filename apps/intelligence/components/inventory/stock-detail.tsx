@@ -12,6 +12,7 @@ import { Badge, Button, EmptyState, ErrorPanel, PageHead, PanelSkeleton } from "
 import { useRemote } from "../use-remote";
 import type { Lead, Sale, Vehicle } from "@/lib/domain";
 import { VehicleArt } from "../vehicle-art";
+import { CarPhoto } from "../listing/car-photo";
 import { useScopedHref, useWorkspace } from "../workspace";
 import { EvidenceBadge } from "../market/common";
 import { VehicleDrawer } from "./vehicle-drawer";
@@ -43,12 +44,18 @@ export function StockDetail({ id }: { id: string }) {
     <div className="page">
       <PageHead title={`${vehicle.make} ${vehicle.model} ${vehicle.variant}`} actions={<>
         {can("inventory.edit") && vehicle.status !== "sold" && vehicle.status !== "archived" ? <Button onClick={() => setEdit(true)}>Edit</Button> : null}
+        {state.live && vehicle.channels.includes("Owned site") && (vehicle.status === "available" || vehicle.status === "reserved") ? <a className="btn" href={`/l/${state.tenant.id}/${encodeURIComponent(vehicle.id.toLowerCase())}`} target="_blank" rel="noopener noreferrer">Public page</a> : null}
         {vehicle.status === "available" && can("price.view") ? <Link className="btn btn-primary" href={href("/app/pricing", { vehicle: vehicle.id })}>Review price</Link> : null}
       </>}>
         <p className="lead"><Link className="accent-text" href={href("/app/inventory")}>Inventory</Link> &gt; {vehicle.id} / {vehicle.year} / {vehicle.fuel} / {vehicle.transmission}</p>
       </PageHead>
       <div className="detail-hero">
-        <VehicleArt label={vehicle.hasImages ? "Schematic vehicle image" : "No photos yet: labelled silhouette"} ratio="560 / 272" />
+        {(vehicle.photos ?? []).length ? <StockGallery photos={vehicle.photos ?? []} title={`${vehicle.year} ${vehicle.make} ${vehicle.model}`} /> : (
+          <div className="stock-nophoto">
+            <VehicleArt label="No photos yet: labelled silhouette" ratio="560 / 272" />
+            {can("inventory.edit") && vehicle.status !== "sold" && vehicle.status !== "archived" ? <Button size="sm" onClick={() => setEdit(true)}>Add photos</Button> : null}
+          </div>
+        )}
         <section className="card facts" aria-labelledby="stock-facts">
           <div className="spread"><h2 className="h3" id="stock-facts">Stock record / {state.branches.find((b) => b.id === vehicle.branchId)?.name}</h2><div className="row-flex"><Badge tone="accent">{LABEL[vehicle.status]}</Badge>{needsPriceReview(vehicle) ? <Badge tone="warn">Price review</Badge> : null}</div></div>
           <div className="price-pair"><div><div className="price-big" title={formatExact(vehicle.asking)}>{formatMoney(vehicle.asking)}</div><div className="meta">Asking price</div></div><div><div className="price-big" title={formatExact(landed)}>{formatMoney(landed)}</div><div className="meta">Landed cost</div></div></div>
@@ -85,6 +92,27 @@ export function StockDetail({ id }: { id: string }) {
         <section className="card" aria-labelledby="lc"><h2 className="h3" id="lc">Advertising and leads</h2><ul className="stack-sm" style={{ margin: "12px 0 0", paddingLeft: 18 }}>{campaigns.map((c) => <li key={c.id}><Link className="accent-text" href={href(`/app/advertising/${c.id}`)}>{c.id}</Link> / {c.status}</li>)}<li>{leads.length} linked lead{leads.length === 1 ? "" : "s"}{leads.length && can("leads.view") ? <> / <Link className="accent-text" href={href("/app/leads", { vehicle: vehicle.id })}>Open leads</Link></> : null}</li></ul></section>
       </div>
       <VehicleDrawer key={`${edit}`} open={edit} onClose={() => setEdit(false)} vehicle={vehicle} defaultBranch={scope.ids[0] ?? ""} />
+    </div>
+  );
+}
+
+/** Real photos from the shared vehicle record: one large, the rest as thumbnails to switch between. */
+function StockGallery({ photos, title }: { photos: string[]; title: string }) {
+  const [current, setCurrent] = useState(0);
+  const shown = photos[Math.min(current, photos.length - 1)];
+  return (
+    <div className="stock-gallery">
+      <div className="stock-gallery-main"><CarPhoto key={shown} src={shown} alt={`${title}, photo ${current + 1} of ${photos.length}`} eager /></div>
+      {photos.length > 1 ? (
+        <div className="stock-gallery-thumbs" role="group" aria-label="Photos">
+          {photos.map((src, i) => (
+            <button key={src} type="button" className={i === current ? "on" : ""} aria-pressed={i === current} aria-label={`Show photo ${i + 1}`} onClick={() => setCurrent(i)}>
+              <CarPhoto src={src} alt="" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <p className="meta">{photos.length} photo{photos.length === 1 ? "" : "s"}</p>
     </div>
   );
 }

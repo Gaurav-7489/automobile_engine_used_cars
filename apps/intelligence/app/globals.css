@@ -1076,3 +1076,15 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
   .pl-filter-actions { flex-basis: 100%; }
   .pl-filter-actions .btn { flex: 1; }
 }
+
+/* Stock record photos. */
+.stock-gallery { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.stock-gallery-main { aspect-ratio: 560 / 340; border-radius: var(--radius-card); overflow: hidden; background: var(--raised); display: grid; place-items: center; }
+.stock-gallery-main img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.stock-gallery-thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.stock-gallery-thumbs button { flex: 0 0 72px; height: 54px; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: var(--raised); cursor: pointer; display: grid; place-items: center; font-size: 10px; }
+.stock-gallery-thumbs button.on { border-color: var(--accent); }
+.stock-gallery-thumbs img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.stock-nophoto { display: grid; gap: 8px; justify-items: start; align-content: start; min-width: 0; }
+.stock-nophoto > :first-child { width: 100%; }
+.stock-gallery-thumbs .pl-photo-missing { font-size: 0; padding: 0; }
