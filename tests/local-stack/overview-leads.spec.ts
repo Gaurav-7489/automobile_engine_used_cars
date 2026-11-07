@@ -18,7 +18,7 @@ test.beforeAll(async ({ browser }) => {
   await page.context().storageState({ path: STATE });
   await page.close();
 });
-test.use({ storageState: async ({}, use) => use(STATE) });
+test.use({ storageState: STATE });
 const sideways = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
 for (const [name, size] of [["desktop", { width: 1440, height: 900 }], ["phone", { width: 390, height: 844 }], ["narrow", { width: 320, height: 700 }]] as const) {
