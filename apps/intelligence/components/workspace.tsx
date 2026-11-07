@@ -218,6 +218,13 @@ export function useUrlState() {
     }
     const query = next.toString();
     const url = query ? `${pathname}?${query}` : pathname;
+    // Filters, tabs, views and open records live only in the browser (no server component reads them), so the address is
+    // updated in place: Next keeps useSearchParams in step with the History API and the screen changes at once, with no
+    // server round trip between the tap and the result. Without the History API, fall back to the router.
+    if (typeof window !== "undefined" && typeof window.history?.replaceState === "function") {
+      if (options.push) window.history.pushState(null, "", url); else window.history.replaceState(null, "", url);
+      return;
+    }
     if (options.push) router.push(url, { scroll: false }); else router.replace(url, { scroll: false });
   }, [params, pathname, router]);
   return { get, set, params, pathname };

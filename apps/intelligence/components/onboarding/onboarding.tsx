@@ -82,7 +82,6 @@ export function Onboarding() {
       </header>
       <div className="onb-body">
         <nav className="onb-steps only-desktop" aria-label="Workspace setup">
-          <p className="eyebrow" style={{ marginBottom: 16 }}>Workspace setup</p>
           <ol>{STEPS.map((s, i) => (
             <li key={s.key} aria-current={i + 1 === step ? "step" : undefined} className={i + 1 === step ? "current" : i + 1 < step ? "done" : ""}>
               <button type="button" onClick={() => { if (i + 1 < step) go(i + 1); }} disabled={i + 1 > step}>
@@ -92,7 +91,7 @@ export function Onboarding() {
           ))}</ol>
         </nav>
         <main className="onb-main" id="content" tabIndex={-1}>
-          <p className="eyebrow only-mobile" aria-live="polite">Step {step} of 5 / {meta.label}</p>
+          <p className="meta only-mobile" aria-live="polite">Step {step} of 5 / {meta.label}</p>
           <h1 className="h1" ref={headingRef} tabIndex={-1} id="page-title">{meta.title}</h1>
           <section className="card onb-card" aria-labelledby="onb-card-title">
             <h2 className="h3" id="onb-card-title">{meta.label} details / Step {step} of 5</h2>

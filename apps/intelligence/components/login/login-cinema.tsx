@@ -1,6 +1,5 @@
 import { HeroCar } from "./hero-car";
 
-const CAPTIONS = ["Acquire with evidence.", "Price with confidence.", "Sell before it ages."];
 
 /** Deterministic window lights for the skyline, so server and client render the same scene. */
 function skyline(seed: number, width: number) {
@@ -49,7 +48,6 @@ export function LoginCinema() {
       <div className="cine-car"><HeroCar /></div>
       <div className="cine-grain" />
       <div className="cine-vignette" />
-      <div className="cine-captions">{CAPTIONS.map((c) => <span key={c}>{c}</span>)}</div>
     </div>
   );
 }

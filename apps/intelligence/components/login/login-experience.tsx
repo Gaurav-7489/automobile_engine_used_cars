@@ -68,7 +68,7 @@ export function LoginExperience({ providers }: Props) {
       <main className="login-form-wrap" id="content" tabIndex={-1}>
         <div className="login-mobile-brand"><Brand sub={false} /></div>
         <form className="login-form login-card" onSubmit={submit} noValidate aria-describedby="login-status">
-          <div className="login-head"><span className="login-kicker"><span className="login-dot" aria-hidden="true" />Dealership workspace</span><h1 className="h1 login-title">Welcome back</h1><p className="muted">Sign in to pick up where your team left off.</p></div>
+          <div className="login-head"><h1 className="h1 login-title">Welcome back</h1><p className="muted">Sign in to pick up where your team left off.</p></div>
           {reason === "expired" ? <Notice tone="warn" role="status">Your session expired. Sign in again. Your non-sensitive setup draft was kept; no password was stored.</Notice> : null}
           {notice === "sso_unavailable" ? <Notice tone="warn" role="status">{provider} sign-in is not available in this environment yet. Use your email and password, or ask your administrator to enable it.</Notice> : null}
           {notice === "sso_unknown" ? <Notice tone="warn" role="status">That sign-in provider is not configured for this workspace.</Notice> : null}

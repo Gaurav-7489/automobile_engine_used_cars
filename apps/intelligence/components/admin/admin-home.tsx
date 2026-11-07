@@ -189,7 +189,6 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
       <main className="adm-main" id="content" tabIndex={-1}>
         <header className="adm-head">
           <div>
-            <p className="adm-kicker">VandLabs platform{clock.date ? ` · ${clock.date}` : ""}</p>
             <h1 className="adm-title" id="page-title">{view === "overview" ? `${greet}, ${first}` : NAV.find((n) => n.key === view)!.label}</h1>
             <p className="muted">Signed in as {email}. {view === "overview" ? "Everything on the platform, at a glance." : ""}</p>
           </div>

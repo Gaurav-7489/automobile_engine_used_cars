@@ -8,7 +8,6 @@ export default function ShowroomHome() {
   return (
     <>
       <section className="sr-hero">
-        <p className="eyebrow">Showroom</p>
         <h1>Find the car that fits.<br />See the evidence behind it.</h1>
         <p className="lede">Browse the sample catalogue the way a dealership team sees it: real specification fields, no invented claims, and anything unrecorded marked as unknown.</p>
         <div className="sr-actions">

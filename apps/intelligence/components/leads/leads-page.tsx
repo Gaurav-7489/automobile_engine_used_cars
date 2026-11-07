@@ -11,7 +11,7 @@ import { Dialog, Drawer, Menu } from "../overlay";
 import { RemotePanel } from "../panel";
 import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
-import { Badge, Button, Check, EmptyState, FormSummary, Notice, PageHead, SelectField, Tabs, TextArea, TextField } from "../ui";
+import { Badge, Button, Check, EmptyState, FormSummary, Notice, PageHead, SelectField, Skeleton, Tabs, TextArea, TextField } from "../ui";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 import { Icon } from "../icons";
 
@@ -163,7 +163,13 @@ export function LeadsPage({ leadId }: { leadId?: string }) {
 
       <AddLead open={addOpen} onClose={() => setAddOpen(false)} />
       <FilterSheet open={filterOpen} onClose={() => setFilterOpen(false)} owners={owners} />
-      {selected ? <LeadDrawer key={selected.id} lead={selected} onClose={() => url.set({ lead: null })} /> : null}
+      {selected ? <LeadDrawer key={selected.id} lead={selected} onClose={() => url.set({ lead: null })} />
+        : open && deep.status !== "error" ? (
+          // A lead opened from a link opens straight away and fills in when its record arrives: no blank wait, then a pop.
+          <Drawer open onClose={() => url.set({ lead: null })} size="w560" title={`Lead ${open}`} description="Loading the lead…" footer={<Button onClick={() => url.set({ lead: null })}>Close</Button>}>
+            <div className="stack" role="status" aria-busy="true" aria-label="Loading lead"><Skeleton h={72} /><Skeleton h={18} w="60%" /><Skeleton h={18} w="45%" /><Skeleton h={120} /></div>
+          </Drawer>
+        ) : null}
       <StageDialog pending={pending} onClose={() => setPending(null)} />
     </div>
   );

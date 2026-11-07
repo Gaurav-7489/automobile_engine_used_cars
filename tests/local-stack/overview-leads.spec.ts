@@ -61,3 +61,39 @@ test("the view switch beside the filters moves between list and pipeline, and th
   await expect(page).toHaveURL(/overdue=1/);
   await expect(overdue).toHaveAttribute("aria-pressed", "true");
 });
+
+test("tabs and view switches change the screen at once, without a server round trip", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/app/leads?created=all");
+  await expect(page.getByRole("table", { name: "Leads" })).toBeVisible({ timeout: 15_000 });
+  const rsc: string[] = [];
+  // Only server renders of this page count (the menu prefetches other pages in the background, which is fine).
+  page.on("request", (r) => { const u = new URL(r.url()); if (u.pathname === "/app/leads" && (r.headers()["rsc"] || u.searchParams.has("_rsc"))) rsc.push(r.url()); });
+  const started = Date.now();
+  await page.getByRole("group", { name: "Filters" }).getByRole("group", { name: "View" }).getByRole("button", { name: "Pipeline" }).click();
+  await expect(page).toHaveURL(/view=pipeline/, { timeout: 1000 });
+  expect(Date.now() - started).toBeLessThan(1000);
+  await page.getByRole("tab", { name: "New" }).click();
+  await expect(page).toHaveURL(/stage=New/, { timeout: 1000 });
+  expect(rsc, "no server render request for query-string changes").toEqual([]);
+  // Back returns to the previous filter state in the browser.
+  await page.goBack();
+  await expect(page).not.toHaveURL(/stage=New/);
+});
+
+test("a followed link shows it is loading until the next page arrives", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/app/overview");
+  await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
+  // Record the moment the link is marked (the next page may already be prefetched and arrive almost at once).
+  await page.evaluate(() => {
+    (window as unknown as { marked: string[] }).marked = [];
+    new MutationObserver((list) => { for (const m of list) if ((m.target as Element).getAttribute("data-pending") === "true") (window as unknown as { marked: string[] }).marked.push((m.target as Element).textContent ?? ""); })
+      .observe(document.body, { subtree: true, attributes: true, attributeFilter: ["data-pending"] });
+  });
+  const link = page.locator("nav").getByRole("link", { name: /^Leads/ }).first();
+  await link.click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { marked: string[] }).marked.length)).toBeGreaterThan(0);
+  await page.waitForURL(/\/app\/leads/);
+  await expect(page.locator("[data-pending]")).toHaveCount(0, { timeout: 8000 });
+});

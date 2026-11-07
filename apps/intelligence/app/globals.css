@@ -660,10 +660,11 @@ dl.kv { margin: 0; }
 :root {
   --shadow-ink-5: rgba(0, 0, 0, 0.5);
   --shadow-ink-6: rgba(0, 0, 0, 0.6);
-  --e1: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --e2: 0 4px 12px rgba(0, 0, 0, 0.32);
-  --e3: 0 12px 28px rgba(0, 0, 0, 0.42);
-  --e4: 0 24px 56px rgba(0, 0, 0, 0.52);
+  /* One soft scale, two layers each (a tight contact shadow and a wide, faint ambient one), used everywhere. */
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --e2: 0 1px 2px rgba(0, 0, 0, 0.28), 0 8px 20px -8px rgba(0, 0, 0, 0.5);
+  --e3: 0 2px 6px rgba(0, 0, 0, 0.32), 0 18px 40px -12px rgba(0, 0, 0, 0.6);
+  --e4: 0 4px 12px rgba(0, 0, 0, 0.36), 0 32px 64px -20px rgba(0, 0, 0, 0.7);
   --glass-bg: rgba(26, 31, 30, 0.78);
   --glass-edge: rgba(255, 255, 255, 0.09);
   --glass-blur: blur(14px) saturate(140%);
@@ -671,17 +672,17 @@ dl.kv { margin: 0; }
 :root[data-theme="light"] {
   --shadow-ink-5: rgba(16, 24, 22, 0.22);
   --shadow-ink-6: rgba(16, 24, 22, 0.28);
-  --e1: 0 1px 2px rgba(16, 24, 22, 0.10);
-  --e2: 0 4px 12px rgba(16, 24, 22, 0.10);
-  --e3: 0 12px 28px rgba(16, 24, 22, 0.14);
-  --e4: 0 24px 56px rgba(16, 24, 22, 0.20);
+  --e1: 0 1px 2px rgba(16, 24, 22, 0.05), 0 1px 1px rgba(16, 24, 22, 0.03);
+  --e2: 0 1px 2px rgba(16, 24, 22, 0.04), 0 6px 16px -6px rgba(16, 24, 22, 0.12);
+  --e3: 0 2px 6px rgba(16, 24, 22, 0.05), 0 16px 36px -12px rgba(16, 24, 22, 0.18);
+  --e4: 0 4px 12px rgba(16, 24, 22, 0.06), 0 32px 64px -24px rgba(16, 24, 22, 0.28);
   --glass-bg: rgba(255, 255, 255, 0.80);
   --glass-edge: rgba(255, 255, 255, 0.70);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --shadow-ink-5: rgba(16, 24, 22, 0.22); --shadow-ink-6: rgba(16, 24, 22, 0.28);
-    --e1: 0 1px 2px rgba(16, 24, 22, 0.10); --e2: 0 4px 12px rgba(16, 24, 22, 0.10); --e3: 0 12px 28px rgba(16, 24, 22, 0.14); --e4: 0 24px 56px rgba(16, 24, 22, 0.20);
+    --e1: 0 1px 2px rgba(16, 24, 22, 0.05), 0 1px 1px rgba(16, 24, 22, 0.03); --e2: 0 1px 2px rgba(16, 24, 22, 0.04), 0 6px 16px -6px rgba(16, 24, 22, 0.12); --e3: 0 2px 6px rgba(16, 24, 22, 0.05), 0 16px 36px -12px rgba(16, 24, 22, 0.18); --e4: 0 4px 12px rgba(16, 24, 22, 0.06), 0 32px 64px -24px rgba(16, 24, 22, 0.28);
     --glass-bg: rgba(255, 255, 255, 0.80); --glass-edge: rgba(255, 255, 255, 0.70);
   }
 }
@@ -1134,10 +1135,6 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 .cine-grain { position: absolute; inset: -50%; opacity: 0.08; mix-blend-mode: overlay; animation: cine-grain 0.9s steps(4) infinite;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 .cine-vignette { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.75) 100%), linear-gradient(180deg, rgba(5, 8, 7, 0.85) 0%, rgba(5, 8, 7, 0) 38%); }
-.cine-captions { position: absolute; left: 64px; bottom: 34px; z-index: 6; height: 22px; font-size: 13px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(209, 250, 229, 0.85); }
-.cine-captions span { position: absolute; left: 0; top: 0; white-space: nowrap; opacity: 0; animation: cine-caption 12s ease-in-out infinite; }
-.cine-captions span:nth-child(2) { animation-delay: 4s; }
-.cine-captions span:nth-child(3) { animation-delay: 8s; }
 @keyframes cine-pan { to { transform: translateX(-50%); } }
 @keyframes cine-lanes { to { transform: translateX(-160px); } }
 @keyframes cine-streak { 0% { transform: translateX(0); opacity: 0; } 8% { opacity: 1; } 60% { opacity: 0.9; } 100% { transform: translateX(-1100px); opacity: 0; } }
@@ -1148,7 +1145,6 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 @keyframes cine-float { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(-40px, -12px, 0) scale(1.3); } }
 @keyframes cine-twinkle { 50% { opacity: 0.15; } }
 @keyframes cine-grain { 0% { transform: translate(0, 0); } 25% { transform: translate(-8%, 4%); } 50% { transform: translate(5%, -6%); } 75% { transform: translate(-3%, 8%); } 100% { transform: translate(0, 0); } }
-@keyframes cine-caption { 0% { opacity: 0; transform: translateY(8px); filter: blur(4px); } 6%, 28% { opacity: 1; transform: none; filter: none; } 34%, 100% { opacity: 0; transform: translateY(-8px); filter: blur(4px); } }
 
 /* ===== Sign-in: the card ===== */
 .login-card { position: relative; padding: 36px; border-radius: 24px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 30px 80px -40px rgba(4, 120, 87, 0.45), var(--e2, 0 1px 2px rgba(0,0,0,.06)); isolation: isolate; }
@@ -1162,9 +1158,6 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 .login-card > *:nth-child(5) { animation-delay: 240ms; } .login-card > *:nth-child(6) { animation-delay: 300ms; } .login-card > *:nth-child(n+7) { animation-delay: 360ms; }
 @keyframes login-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .login-head { display: grid; gap: 8px; }
-.login-kicker { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
-.login-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); animation: login-pulse 2.4s ease-out infinite; }
-@keyframes login-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
 .login-title { font-size: 36px !important; line-height: 44px !important; letter-spacing: -0.02em; margin: 0; }
 .login-card .input:focus, .login-card input:focus { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); border-color: var(--accent); transition: box-shadow 200ms ease, border-color 200ms ease; }
 .login-help { font-size: 13px; color: var(--muted); max-width: 488px; margin: 0; }
@@ -1189,12 +1182,10 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 
 /* Every cinematic and card animation stops under reduced motion. */
 @media (prefers-reduced-motion: reduce) {
-  .cine *, .cine-band *, .cine-car, .hero-car *, .login-card::before, .login-card > *, .login-dot { animation: none !important; }
-  .cine-captions span:first-child { opacity: 1; }
+  .cine *, .cine-band *, .cine-car, .hero-car *, .login-card::before, .login-card > * { animation: none !important; }
 }
 :root[data-motion="reduced"] .cine *, :root[data-motion="reduced"] .cine-band *, :root[data-motion="reduced"] .cine-car, :root[data-motion="reduced"] .hero-car *,
-:root[data-motion="reduced"] .login-card::before, :root[data-motion="reduced"] .login-card > *, :root[data-motion="reduced"] .login-dot { animation: none !important; }
-:root[data-motion="reduced"] .cine-captions span:first-child { opacity: 1; }
+:root[data-motion="reduced"] .login-card::before, :root[data-motion="reduced"] .login-card > * { animation: none !important; }
 
 /* In-app Showroom hub. */
 .sh-link { display: grid; gap: 12px; }
@@ -1229,7 +1220,6 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 .adm-side-foot { display: grid; gap: 8px; } .adm-side-foot a.meta { text-align: center; font-size: 12px; }
 .adm-main { padding: 32px clamp(16px, 3vw, 48px) 64px; display: grid; gap: 20px; align-content: start; min-width: 0; }
 .adm-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
-.adm-kicker { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
 .adm-title { margin: 0; font-size: clamp(26px, 3vw, 36px); line-height: 1.15; letter-spacing: -0.02em; }
 .adm-head-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .adm-switch { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
@@ -1549,3 +1539,51 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 .pa-body .row-title { cursor: default; }
 .lead-who button.row-title:hover, .lead-card button.row-title:hover { color: var(--accent); }
 .lead-who .sub, .lead-card .sub { display: block; font-size: 12px; line-height: 18px; color: var(--muted); }
+
+
+/* ---------------------------------------------------------------------------------------------------------------------------
+   Shadows: every surface takes its depth from the one scale above (--e1 resting, --e2 lifted on hover, --e3 floating chrome,
+   --e4 dialogs and drawers). No coloured glows. */
+.card, .kpi, .table-wrap, .state-box, .pa-item, .pipe-card, .inv-gcard, .lead-card, .pl-card, .adm-card { box-shadow: var(--e1); }
+.kpi-action:hover, .inv-gcard:hover, .pl-card:hover, .adm-card:hover, .pipe-card:hover { box-shadow: var(--e2); }
+.inv-gcard.picked { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent), var(--e2); }
+.menu, .toast, .chart-tooltip, .compare-tray, .route-veil-card { box-shadow: var(--e3); }
+.dialog, .drawer, .overlay.sheet-wrap .dialog, .dialog.w480 { box-shadow: var(--e4); }
+.login-card, .adm-hero { box-shadow: var(--e3); }
+.pk-seg button.on, .inv-gcard-status .badge { box-shadow: var(--e1); }
+.pk-main img { box-shadow: var(--e3); }
+/* The selected tab is a flat tint, not a glowing blob. */
+.liquid-pill { background: var(--accent-subtle); box-shadow: none; }
+
+/* ---------------------------------------------------------------------------------------------------------------------------
+   Press feedback: every tap is acknowledged the moment it lands, before anything else happens. Controls dip and darken;
+   clickable cards press in slightly; a followed link stays marked as loading until its page arrives. */
+.btn, .tab, .icon-btn, .avatar, .chip-toggle, .lead-next, .nav-link, .pk-seg button, .liquid-seg button, .bottom-nav a, .bottom-nav button, .post-swatch {
+  transition: transform 90ms ease, background-color 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 160ms ease, opacity 120ms ease;
+}
+.btn:active:not(:disabled):not([aria-disabled="true"]), .icon-btn:active, .avatar:active, .chip-toggle:active, .lead-next:active,
+.tab:active, .pk-seg button:active, .liquid-seg button:active, .post-swatch:active { transform: scale(0.96); }
+.btn:active:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, var(--text) 9%, var(--surface)); }
+.btn-primary:active:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb, #000 14%, var(--accent)); }
+.btn-ghost:active:not(:disabled):not([aria-disabled="true"]), .icon-btn:active { background: color-mix(in srgb, var(--text) 9%, transparent); }
+.nav-link:active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.kpi-action, .inv-gcard, .pl-card, .pa-item, .pipe-card, .lead-card { transition: transform 120ms ease, box-shadow 180ms ease, border-color 160ms ease; }
+.kpi-action:active, .inv-gcard:active, .pl-card:active, .pipe-card:active { transform: scale(0.985); box-shadow: var(--e1); }
+/* A followed link: tinted and gently pulsing until the next page is in (cleared by the route loader). */
+a[data-pending] { cursor: progress; }
+.nav-link[data-pending], .bottom-nav a[data-pending] { background: var(--accent-subtle); color: var(--accent); }
+a[data-pending]:not(.nav-link):not(.bottom-nav a) { opacity: 0.7; }
+a.btn[data-pending] { opacity: 1; background: color-mix(in srgb, var(--text) 9%, var(--surface)); }
+a.btn-primary[data-pending] { background: color-mix(in srgb, #000 14%, var(--accent)); }
+a[data-pending] { animation: pending-pulse 900ms ease-in-out infinite alternate; }
+@keyframes pending-pulse { from { filter: none; } to { filter: brightness(0.92); } }
+@media (prefers-reduced-motion: reduce) {
+  .btn:active, .icon-btn:active, .avatar:active, .chip-toggle:active, .lead-next:active, .tab:active, .pk-seg button:active, .liquid-seg button:active, .post-swatch:active,
+  .kpi-action:active, .inv-gcard:active, .pl-card:active, .pipe-card:active, .bottom-nav a:active, .bottom-nav button:active { transform: none !important; }
+  a[data-pending] { animation: none; }
+}
+:root[data-motion="reduced"] .btn:active, :root[data-motion="reduced"] .icon-btn:active, :root[data-motion="reduced"] .avatar:active, :root[data-motion="reduced"] .chip-toggle:active,
+:root[data-motion="reduced"] .lead-next:active, :root[data-motion="reduced"] .tab:active, :root[data-motion="reduced"] .pk-seg button:active, :root[data-motion="reduced"] .liquid-seg button:active,
+:root[data-motion="reduced"] .post-swatch:active, :root[data-motion="reduced"] .kpi-action:active, :root[data-motion="reduced"] .inv-gcard:active, :root[data-motion="reduced"] .pl-card:active,
+:root[data-motion="reduced"] .pipe-card:active, :root[data-motion="reduced"] .bottom-nav a:active, :root[data-motion="reduced"] .bottom-nav button:active { transform: none !important; }
+:root[data-motion="reduced"] a[data-pending] { animation: none; }
