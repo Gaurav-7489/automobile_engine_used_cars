@@ -67,6 +67,27 @@ export async function signIn(emailInput: string, password: string, code?: string
   return { ok: true, userId: user.id, name: user.display_name, tenantId: usable[0].tenant_id };
 }
 
+export type VerifiedSignIn = { ok: true; userId: string; name: string; tenantId: string } | { ok: false; code: "no_account" | "disabled" | "mfa" | "no_access" };
+
+/**
+ * Sign-in for an email address an identity provider has verified (Google). Nobody gains an account this way: the address must
+ * already belong to an invited member. Accounts with two-factor login keep using their password and code, so turning two-factor
+ * on is never bypassed by a second way in.
+ */
+export async function signInVerifiedEmail(emailInput: string): Promise<VerifiedSignIn> {
+  const email = normalizeEmail(emailInput);
+  if (!emailOk(email)) return { ok: false, code: "no_account" };
+  const user = (await plain((c) => c.query("SELECT * FROM intelligence_login_lookup($1)", [email]))).rows[0] as { id: string; display_name: string; disabled: boolean; totp_enabled: boolean } | undefined;
+  if (!user) return { ok: false, code: "no_account" };
+  if (user.disabled) return { ok: false, code: "disabled" };
+  if (user.totp_enabled) return { ok: false, code: "mfa" };
+  const memberships = (await plain((c) => c.query("SELECT * FROM intelligence_memberships($1)", [user.id]))).rows as { tenant_id: string; payload: StaffPayload }[];
+  const usable = memberships.filter((m) => roleOf(m.payload) !== null);
+  if (!usable.length) return { ok: false, code: "no_access" };
+  await plain((c) => c.query("SELECT intelligence_record_login($1, true)", [user.id]));
+  return { ok: true, userId: user.id, name: user.display_name, tenantId: usable[0].tenant_id };
+}
+
 export type Reauth = { ok: true } | { ok: false; code: "invalid" | "locked" };
 
 /**

@@ -6,8 +6,8 @@ import type { WorkspaceState } from "../state";
 import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, seq, trim, withAudit } from "./common";
 
 export const CHANNELS: { id: Channel["id"]; name: string; requiresApi: boolean }[] = [
-  { id: "search", name: "Search", requiresApi: true },
-  { id: "meta", name: "Meta", requiresApi: true },
+  { id: "search", name: "Google Search", requiresApi: true },
+  { id: "meta", name: "Facebook and Instagram", requiresApi: true },
   { id: "owned", name: "Owned site listing", requiresApi: false },
   { id: "marketplace", name: "Marketplaces", requiresApi: true },
 ];
@@ -18,7 +18,9 @@ export function channelStatus(state: WorkspaceState, id: Channel["id"]): Channel
   if (state.live) {
     if (id === "search" || id === "meta") {
       const account = state.integrations.find((i) => i.id === ADVERTISING_ACCOUNT_ID);
-      return account?.state === "Connected" ? { id, name: def.name, connected: true } : { id, name: def.name, connected: false, reason: "Setup required: connect an advertising account in Settings → Integrations." };
+      // Each channel needs its own provider: a Google Ads account does not make Facebook and Instagram available, or the reverse.
+      const has = account?.state === "Connected" && (account.providers ?? []).includes(id === "search" ? "google" : "meta");
+      return has ? { id, name: def.name, connected: true } : { id, name: def.name, connected: false, reason: id === "search" ? "Connect your Google Ads account above." : "Connect your Facebook account above." };
     }
     if (id === "owned") return { id, name: def.name, connected: state.integrations.find((i) => i.id === "publishing")?.state === "Connected" };
   }
@@ -161,7 +163,7 @@ export function preflight(state: WorkspaceState, c: Campaign): Preflight[] {
     { key: "stock", label: "Vehicle available and unchanged", passed: !!vehicle && vehicle.status === "available" && vehicle.version === (c.approvedVersion ?? -1), detail: vehicle ? (vehicle.version === c.approvedVersion ? `${vehicle.id} available` : "Vehicle changed after approval") : "Vehicle missing" },
     { key: "channels", label: "Connected channels", passed: enabled.length > 0 && enabled.every((ch) => channelStatus(state, ch.id).connected), detail: enabled.map((ch) => CHANNELS.find((x) => x.id === ch.id)?.name).join(", ") || "None selected" },
     { key: "tracking", label: "Valid tracking", passed: /^vl_cmp-\d+_v-\d+$/.test(c.utm) && c.clickWindowDays > 0, detail: `UTM ${c.utm} · click ${c.clickWindowDays}d / view ${c.viewWindowDays}d` },
-    { key: "account", label: "Advertising account connected", passed: account?.state === "Connected", detail: account?.state === "Connected" ? "Connected" : "Not configured: connect it in Settings → Integrations" },
+    { key: "account", label: "Advertising account connected", passed: account?.state === "Connected", detail: account?.state === "Connected" ? "Connected" : "Not connected yet" },
   ];
 }
 

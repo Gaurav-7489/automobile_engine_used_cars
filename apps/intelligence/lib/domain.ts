@@ -170,6 +170,8 @@ export type Campaign = {
   createdByName: string;
   note?: string;
   platformAck?: "awaiting" | "acknowledged";
+  /** What each ad platform created for this campaign, once it has confirmed. Absent until then. */
+  platform?: { google?: { campaign: string; budget: string }; meta?: { campaign: string; adset: string; ad: string } };
   metrics?: {
     spend: number; clicks: number; leads: number; qualified: number; testDrives: number;
     byChannel: { channel: string; spend: number; clicks: number; leads: number }[];
@@ -244,6 +246,8 @@ export type Integration = {
   id: string;
   name: string;
   kind: "Licensed feed" | "Advertising account" | "Inventory publishing";
+  /** Advertising account only: which providers the dealership has really connected ("google", "meta"). */
+  providers?: string[];
   state: IntegrationState;
   lastSuccessAt: string | null;
   scopes: string;

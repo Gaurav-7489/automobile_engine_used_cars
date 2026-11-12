@@ -7,7 +7,7 @@ import { commercePlans, type CommercePlan } from "@vandlabs/contracts";
  * limits that already existed; the per-dealership switches are how access is controlled today.
  */
 export type FeatureKey =
-  | "market" | "inventory" | "pricing" | "advertising" | "leads" | "capital" | "alerts" | "reports" | "stock_intelligence" | "automations" | "acquisition" | "api_access" | "desktop";
+  | "market" | "inventory" | "pricing" | "advertising" | "leads" | "capital" | "alerts" | "reports" | "stock_intelligence" | "automations" | "acquisition" | "api_access" | "desktop" | "assistant";
 
 export const FEATURES: { key: FeatureKey; label: string; needsSubscription: boolean; description: string }[] = [
   { key: "inventory", label: "Inventory", needsSubscription: false, description: "Stock records, import, lifecycle." },
@@ -22,6 +22,7 @@ export const FEATURES: { key: FeatureKey; label: string; needsSubscription: bool
   { key: "automations", label: "Automations", needsSubscription: false, description: "Follow-up rules with recorded runs." },
   { key: "acquisition", label: "Acquisition research", needsSubscription: true, description: "Recommendations from permitted sourcing data." },
   { key: "api_access", label: "Business API", needsSubscription: true, description: "API keys and programmatic access." },
+  { key: "assistant", label: "Assistant", needsSubscription: false, description: "Ask questions about stock, leads, sales and prices." },
   { key: "desktop", label: "Desktop application", needsSubscription: false, description: "Sign in from the desktop client." },
 ];
 

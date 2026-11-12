@@ -1,0 +1,28 @@
+import { json, problem, readJson } from "@/lib/api";
+import { adAccountStatus, canManageAds, chooseAccount, disconnect, isAdProvider } from "@/lib/server/ad-accounts";
+import { getPrincipal } from "@/lib/server/auth";
+import { sameOrigin } from "@/lib/server/csrf";
+import { can } from "@/lib/permissions";
+
+export const dynamic = "force-dynamic";
+
+export async function GET() {
+  const current = await getPrincipal();
+  if (!current) return problem(401, "unauthenticated", "Sign in to continue.");
+  if (!can(current.principal.role, "campaign.view")) return problem(403, "forbidden", "Your role cannot view advertising.");
+  return json({ accounts: await adAccountStatus(current.principal), canManage: canManageAds(current.principal) });
+}
+
+/** Switch the ad account in use, or disconnect a provider (its stored tokens are deleted). */
+export async function POST(request: Request) {
+  if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
+  const current = await getPrincipal();
+  if (!current) return problem(401, "unauthenticated", "Sign in to continue.");
+  if (!canManageAds(current.principal)) return problem(403, "forbidden", "Only an owner or manager can change advertising accounts.");
+  const body = await readJson<{ provider?: unknown; action?: unknown; accountId?: unknown }>(request);
+  if (!body || !isAdProvider(body.provider)) return problem(422, "invalid", "Choose Google or Facebook.");
+  const done = body.action === "disconnect" ? await disconnect(current.principal, body.provider)
+    : body.action === "choose" && typeof body.accountId === "string" ? await chooseAccount(current.principal, body.provider, body.accountId.slice(0, 40)) : null;
+  if (done === null) return problem(422, "invalid", "Unknown action.");
+  return done ? json({ ok: true, accounts: await adAccountStatus(current.principal) }) : problem(404, "not_found", "That account is not connected.");
+}

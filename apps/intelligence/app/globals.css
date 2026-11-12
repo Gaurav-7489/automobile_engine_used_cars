@@ -1587,3 +1587,33 @@ a[data-pending] { animation: pending-pulse 900ms ease-in-out infinite alternate;
 :root[data-motion="reduced"] .post-swatch:active, :root[data-motion="reduced"] .kpi-action:active, :root[data-motion="reduced"] .inv-gcard:active, :root[data-motion="reduced"] .pl-card:active,
 :root[data-motion="reduced"] .pipe-card:active, :root[data-motion="reduced"] .bottom-nav a:active, :root[data-motion="reduced"] .bottom-nav button:active { transform: none !important; }
 :root[data-motion="reduced"] a[data-pending] { animation: none; }
+
+/* Assistant ------------------------------------------------------------------ */
+.assistant { max-width: 760px; }
+.chat { display: grid; gap: 12px; align-content: start; min-height: 240px; }
+.chat-start { display: grid; gap: 12px; padding: 8px 0; }
+.chat-starters { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.chat-starter { text-align: left; padding: 14px 16px; min-height: 48px; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); color: var(--text); font-size: 14px; }
+.chat-starter:hover { border-color: var(--accent); }
+.chat-msg { max-width: 88%; padding: 12px 16px; border-radius: 12px; font-size: 15px; line-height: 24px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-msg.user { justify-self: end; background: var(--accent-subtle); color: var(--text); }
+.chat-msg.assistant { justify-self: start; background: var(--surface); border: 1px solid var(--border); }
+.chat-wait { display: inline-flex; gap: 4px; align-items: center; height: 24px; }
+.chat-wait i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: chat-wait 1.2s infinite ease-in-out; }
+.chat-wait i:nth-child(2) { animation-delay: 0.15s; } .chat-wait i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chat-wait { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .chat-wait i { animation: none; opacity: 0.6; } }
+.chat-form { display: flex; gap: 8px; align-items: flex-end; position: sticky; bottom: 0; padding: 8px 0; background: var(--canvas); }
+.chat-input { flex: 1; min-height: 44px; max-height: 160px; resize: none; padding: 10px 12px; line-height: 22px; field-sizing: content; }
+
+/* Prices by state ------------------------------------------------------------ */
+.state-pick { max-width: 360px; }
+.price-range { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--raised); min-width: 160px; }
+.price-range span { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+
+/* Ad accounts ---------------------------------------------------------------- */
+.ad-accounts { display: grid; gap: 12px; }
+.ad-account { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); }
+.ad-account strong { display: block; }
+.sso-btn { gap: 10px; }
+.data-table th.num { text-align: right; }

@@ -12,6 +12,7 @@
     "cf:deploy": "opennextjs-cloudflare deploy"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@opennextjs/cloudflare": "^1.20.10",
     "@vandlabs/contracts": "workspace:*",
     "@vandlabs/data": "workspace:*",

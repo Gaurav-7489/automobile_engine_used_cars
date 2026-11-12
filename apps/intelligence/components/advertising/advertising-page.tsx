@@ -15,6 +15,7 @@ import { useToast } from "../toast";
 import { Badge, Button, Check, EmptyState, ErrorPanel, FormSummary, Kpi, Notice, PageHead, PanelSkeleton, RupeeField, SelectField, Tabs, TextArea, TextField } from "../ui";
 import { VehicleArt } from "../vehicle-art";
 import { SocialPostKit } from "./social-post-kit";
+import { AdAccounts } from "./ad-accounts";
 import { listingPath } from "@/lib/social-post";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 
@@ -47,6 +48,7 @@ export function AdvertisingPage({ campaignId }: { campaignId?: string }) {
     return (
       <div className="page">
         <PageHead title="Advertising" lead="Ads and social posts for the cars you want to sell." />
+        {state.live ? <AdAccounts /> : null}
         {available.length === 0 ? <EmptyState title="No cars on sale yet">Only cars that are on sale can be advertised. Put a car on sale in Inventory, then come back.</EmptyState> : (
           <section className="card ads-start">
             <div className="ads-start-copy"><h2 className="h3">Start a campaign</h2><p className="muted">Choose a car on sale. You set the audience and budget next. Nothing is spent until the budget is approved and the ad is published.</p></div>
@@ -81,9 +83,20 @@ function NewCampaign({ options, onStart }: { options: { value: string; label: st
 }
 
 function Studio({ campaign, onList }: { campaign: Campaign; onList: () => void }) {
-  const { state, can, run, queueAck, actor } = useWorkspace();
+  const { state, can, run, queueAck, actor, refresh } = useWorkspace();
+  const [launching, setLaunching] = useState(false);
+  /** Live workspaces publish on the real platforms; the campaign changes only from what they confirm. */
+  const launch = async (action: "publish" | "pause" | "resume") => {
+    setLaunching(true);
+    try {
+      const r = await fetch("/api/advertising/launch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ campaignId: campaign.id, action }) });
+      const body = await r.json().catch(() => ({}));
+      toast(r.ok ? body.message : body?.error?.message ?? "That did not work. Try again.", r.ok ? undefined : "error");
+    } catch { toast("We could not reach the server. Try again.", "error"); }
+    await refresh();
+    setLaunching(false);
+  };
   const url = useUrlState();
-  const href = useScopedHref();
   const toast = useToast();
   const vehicle = state.vehicles.find((v) => v.id === campaign.vehicleId);
   const editable = campaign.status === "Draft";
@@ -166,6 +179,7 @@ function Studio({ campaign, onList }: { campaign: Campaign; onList: () => void }
           <Button onClick={onList}>Campaigns ({state.campaigns.length})</Button>
           {editable && view === "campaign" ? <Button variant="primary" className="primary-cta" disabled={!canEdit} reason={!can("campaign.edit") ? "Requires Owner, Manager or Marketing access." : undefined} onClick={() => { if (commit()) toast("Draft saved."); }}>Save draft</Button> : null}
         </>} />
+      {state.live && view === "campaign" ? <AdAccounts /> : null}
       <Tabs label="Advertising" idPrefix="ads" value={view} onChange={(v) => url.set({ view: v === "campaign" ? null : v, campaign: campaign.id })} tabs={[{ value: "campaign", label: "Campaign" }, { value: "social", label: "Social posts" }]} />
 
       {view === "social" ? (
@@ -239,7 +253,7 @@ function Studio({ campaign, onList }: { campaign: Campaign; onList: () => void }
                         <p className="meta">Posting on Instagram, Facebook or WhatsApp yourself? <button type="button" className="link-btn" onClick={() => url.set({ view: "social", campaign: campaign.id })}>Make social posts</button> from this car.</p>
                       </div>
                     ) : null}
-                    {step === 5 ? <ReviewStep campaign={campaign} work={work} checks={checks} vehicleName={`${vehicle.make} ${vehicle.model}`} link={`${listingPath(state.tenant.id, vehicle.id)}?utm_campaign=${campaign.utm}`} accountNote={account?.state !== "Connected" ? <>The advertising account is not connected yet. <Link className="accent-text" href={href("/app/settings/integrations")}>Connect it in Settings</Link>.</> : null} /> : null}
+                    {step === 5 ? <ReviewStep campaign={campaign} work={work} checks={checks} vehicleName={`${vehicle.make} ${vehicle.model}`} link={`${listingPath(state.tenant.id, vehicle.id)}?utm_campaign=${campaign.utm}`} accountNote={account?.state !== "Connected" ? <>No advertising account is connected yet. Connect Google Ads or Facebook at the top of this page.</> : null} /> : null}
                     <div className="ads-actions">
                       {step > 1 ? <Button onClick={() => go(step - 1)}>Back</Button> : <span />}
                       <div className="row-flex">
@@ -247,9 +261,12 @@ function Studio({ campaign, onList }: { campaign: Campaign; onList: () => void }
                         {step < 5 ? <Button variant="primary" onClick={() => go(step + 1)}>Next: {STEPS[step]}</Button> : null}
                         {step === 5 && campaign.status === "Draft" ? <Button variant="primary" onClick={() => { if (!commit()) return; act(() => run((s, a) => submitCampaign(s, a, campaign.id)), "Submitted for approval. Nothing is spent yet."); }} disabled={!can("campaign.edit")} reason={!can("campaign.edit") ? "Requires Owner, Manager or Marketing access." : undefined}>Submit for approval</Button> : null}
                         {step === 5 && campaign.status === "Pending" ? <><Button onClick={() => { run((s, a) => updateCampaign(s, a, campaign.id, { status: "Draft" } as Partial<Campaign>)); toast("Returned to draft."); }} disabled={!can("campaign.approve")}>Return to draft</Button><Button variant="primary" onClick={() => act(() => run((s, a) => approveCampaign(s, a, campaign.id)), "Approved. Approval alone does not spend.")} disabled={!can("campaign.approve") || (state.policy.distinctApprover && campaign.createdBy === actor.sub)} reason={state.policy.distinctApprover && campaign.createdBy === actor.sub ? "Someone other than the creator must approve." : !can("campaign.approve") ? "Requires Owner or Manager access." : undefined}>Approve budget and ad</Button></> : null}
-                        {step === 5 && campaign.status === "Approved" ? <Button variant="primary" onClick={() => act(() => run((s, a) => publishCampaign(s, a, campaign.id)), "Publish requested. Not live until the platform confirms.", () => queueAck(campaign.id))} disabled={!can("campaign.edit")}>Publish</Button> : null}
-                        {step === 5 && campaign.status === "Active" ? <Button onClick={() => act(() => run((s, a) => pauseCampaign(s, a, campaign.id)), "Pause requested. Waiting for the platform to confirm.", () => queueAck(campaign.id))} disabled={!can("campaign.edit")}>Pause</Button> : null}
-                        {step === 5 && campaign.status === "Paused" ? <Button variant="primary" onClick={() => act(() => run((s, a) => resumeCampaign(s, a, campaign.id)), "Resume requested. Stock and dates checked again.", () => queueAck(campaign.id))} disabled={!can("campaign.edit")}>Resume</Button> : null}
+                        {step === 5 && campaign.status === "Approved" && state.live ? <Button variant="primary" loading={launching} loadingLabel="Publishing" onClick={() => launch("publish")} disabled={!can("campaign.edit")}>Publish</Button> : null}
+                        {step === 5 && campaign.status === "Active" && state.live ? <Button loading={launching} onClick={() => launch("pause")} disabled={!can("campaign.edit")}>Pause</Button> : null}
+                        {step === 5 && campaign.status === "Paused" && state.live ? <Button variant="primary" loading={launching} onClick={() => launch("resume")} disabled={!can("campaign.edit")}>Resume</Button> : null}
+                        {step === 5 && campaign.status === "Approved" && !state.live ? <Button variant="primary" onClick={() => act(() => run((s, a) => publishCampaign(s, a, campaign.id)), "Publish requested. Not live until the platform confirms.", () => queueAck(campaign.id))} disabled={!can("campaign.edit")}>Publish</Button> : null}
+                        {step === 5 && campaign.status === "Active" && !state.live ? <Button onClick={() => act(() => run((s, a) => pauseCampaign(s, a, campaign.id)), "Pause requested. Waiting for the platform to confirm.", () => queueAck(campaign.id))} disabled={!can("campaign.edit")}>Pause</Button> : null}
+                        {step === 5 && campaign.status === "Paused" && !state.live ? <Button variant="primary" onClick={() => act(() => run((s, a) => resumeCampaign(s, a, campaign.id)), "Resume requested. Stock and dates checked again.", () => queueAck(campaign.id))} disabled={!can("campaign.edit")}>Resume</Button> : null}
                       </div>
                     </div>
                   </>

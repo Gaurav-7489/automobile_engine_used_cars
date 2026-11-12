@@ -58,11 +58,13 @@ export const ROLES = Object.keys(MATRIX) as Role[];
 export type NavGroup = "Today" | "Stock" | "Sales" | "Business";
 export const NAV: { key: string; label: string; short: string; href: string; icon: string; group: NavGroup; needs?: Capability; feature?: FeatureKey }[] = [
   { key: "overview", label: "Overview", short: "Home", href: "/app/overview", icon: "grid", group: "Today" },
+  { key: "assistant", label: "Assistant", short: "Ask", href: "/app/assistant", icon: "sparkle", group: "Today", feature: "assistant" },
   { key: "alerts", label: "Alerts & actions", short: "Alerts", href: "/app/alerts", icon: "bell", group: "Today", needs: "alerts.view", feature: "alerts" },
   { key: "inventory", label: "Inventory", short: "Stock", href: "/app/inventory", icon: "car", group: "Stock", needs: "inventory.view", feature: "inventory" },
   { key: "stock-intelligence", label: "Stock ageing", short: "Ageing", href: "/app/stock-intelligence", icon: "clock", group: "Stock", needs: "inventory.view", feature: "stock_intelligence" },
   { key: "pricing", label: "Pricing", short: "Pricing", href: "/app/pricing", icon: "tag", group: "Stock", needs: "price.view", feature: "pricing" },
   { key: "market", label: "Market Radar", short: "Radar", href: "/app/market", icon: "radar", group: "Stock", needs: "market.view", feature: "market" },
+  { key: "state-prices", label: "Prices by state", short: "States", href: "/app/state-prices", icon: "columns", group: "Stock", needs: "market.view" },
   { key: "acquisition", label: "Buying", short: "Buying", href: "/app/acquisition", icon: "map", group: "Stock", needs: "acquisition.review", feature: "acquisition" },
   { key: "leads", label: "Leads & customers", short: "Leads", href: "/app/leads", icon: "users", group: "Sales", needs: "leads.view", feature: "leads" },
   { key: "advertising", label: "Advertising", short: "Ads", href: "/app/advertising", icon: "megaphone", group: "Sales", needs: "campaign.view", feature: "advertising" },
