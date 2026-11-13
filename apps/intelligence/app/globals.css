@@ -1781,3 +1781,47 @@ body { background: var(--canvas-art); background-attachment: fixed; letter-spaci
 .ov-card .pa-ico { width: 32px; height: 32px; border-radius: 10px; }
 .ov-card .pa-reason { margin: 2px 0; }
 @media (max-width: 767px) { .ov-card .pa-item:nth-child(n + 4) { display: none; } .ov-card .pa-item { grid-template-columns: auto minmax(0, 1fr); } .ov-card .pa-go { grid-column: 2; justify-self: start; min-height: 36px; } }
+.sh-bar { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; background: var(--glass-strong, var(--raised)); border-bottom: 1px solid var(--glass-border, var(--border)); font-size: 12px; color: var(--muted); }
+.sh-dots { display: inline-flex; gap: 5px; } .sh-dots i { width: 9px; height: 9px; border-radius: 50%; background: color-mix(in srgb, var(--muted) 35%, transparent); }
+.sh-url { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; padding: 3px 10px; border-radius: 8px; background: var(--glass-input, var(--surface)); }
+.sh-reload { width: 28px; height: 28px; border: 0; border-radius: 8px; background: none; color: var(--text); font-size: 15px; }
+.sh-reload:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.sh-frame.phone .sh-dots { display: none; }
+
+/* ==========================================================================================================================
+   Calm rendering. Shadows are barely there (a hairline edge does the separating), primary buttons do not glow, and panels
+   appear in place instead of fading in on every visit, so pages feel steady rather than busy.
+   ========================================================================================================================== */
+:root { --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); }
+:root[data-theme="light"] { --glass-shadow: 0 1px 2px rgba(15, 30, 40, 0.04), 0 2px 8px -4px rgba(15, 30, 40, 0.06); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --glass-shadow: 0 1px 2px rgba(15, 30, 40, 0.04), 0 2px 8px -4px rgba(15, 30, 40, 0.06); } }
+.btn-primary, .btn-primary:hover:not(:disabled):not([aria-disabled="true"]) { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18); }
+.nav-link[aria-current="page"], .section-tabs a[aria-current="page"] { box-shadow: inset 0 1px 0 var(--glass-top); }
+.kpi, .card, .state-box, .table-wrap, .page-head h1, .page-head .h1 { animation: none; }
+.route-enter { animation: route-in 140ms ease-out both; }
+@keyframes route-in { from { opacity: 0.6; } to { opacity: 1; } }
+.lazy-hold { display: grid; gap: 16px; align-content: start; }
+
+/* Assistant on every page */
+.ask-fab { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid var(--glass-border); background: var(--glass-strong); color: var(--text); font-weight: 600; font-size: 14px; -webkit-backdrop-filter: var(--glass-blur-x); backdrop-filter: var(--glass-blur-x); box-shadow: 0 4px 16px -6px rgba(0, 0, 0, 0.25), inset 0 1px 0 var(--glass-top); }
+.ask-fab svg { color: var(--accent); }
+.ask-fab:hover { background: var(--glass-strong); border-color: color-mix(in srgb, var(--accent) 40%, var(--glass-border)); }
+.ask-panel { position: fixed; z-index: 70; top: 12px; right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); display: flex; flex-direction: column; border-radius: 22px; border: 1px solid var(--glass-border); background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-blur-x); backdrop-filter: var(--glass-blur-x); box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.35), inset 0 1px 0 var(--glass-top); transform: translateX(calc(100% + 24px)); visibility: hidden; transition: transform 260ms var(--ease-out), visibility 0s linear 260ms; }
+.ask-panel.open { transform: none; visibility: visible; transition: transform 260ms var(--ease-out); }
+.ask-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--glass-border); }
+.ask-head strong { display: inline-flex; align-items: center; gap: 8px; }
+.ask-head strong svg { color: var(--accent); }
+.ask-head .icon-btn { width: 34px; height: 34px; min-width: 34px; min-height: 34px; }
+.ask-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; }
+.assistant.compact { display: grid; gap: 12px; align-content: start; min-height: 100%; }
+.assistant.compact .chat { min-height: 0; }
+.assistant.compact .chat-starters { grid-template-columns: 1fr; }
+.assistant.compact .chat-msg { max-width: 92%; font-size: 14px; line-height: 22px; }
+.assistant.compact .chat-form { background: transparent; }
+.chat-form { background: transparent; }
+@media (max-width: 767px) {
+  .ask-fab { bottom: calc(84px + env(safe-area-inset-bottom)); right: 14px; }
+  .ask-panel { top: 8px; right: 8px; left: 8px; bottom: 8px; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .ask-panel, .ask-panel.open { transition: none; } }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .ask-fab, .ask-panel { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--surface); } }

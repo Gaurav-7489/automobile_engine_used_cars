@@ -24,6 +24,7 @@ export function ShowroomHub() {
   const remote = useRemote<Data>(live ? `/api/showroom?branches=${scope.ids.join(",")}` : null, (d) => mergeRecords({ vehicles: d.pending }));
   const [origin, setOrigin] = useState("");
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
+  const [frameKey, setFrameKey] = useState(0);
   useEffect(() => setOrigin(window.location.origin), []);
   const path = live ? `/l/${state.tenant.id}` : "/showroom";
   const url = origin ? `${origin}${path}` : path;
@@ -36,6 +37,8 @@ export function ShowroomHub() {
     const failed = r.results.find((x) => x.channels[0]?.status !== "Synced");
     toast(done ? `${done} car${done === 1 ? "" : "s"} now live in your showroom.` : failed?.channels[0]?.detail ?? "Nothing was published.", done ? undefined : "error");
     remote.reload();
+    // The preview is the real public page: reload it so newly published cars appear straight away.
+    if (done) setFrameKey((k) => k + 1);
   };
 
   if (live && !remote.data && remote.status !== "error") return <div className="page"><PageHead title="Showroom" lead="Loading your showroom…" /><PanelSkeleton rows={6} title="Showroom" /></div>;
@@ -72,8 +75,15 @@ export function ShowroomHub() {
               {(["desktop", "phone"] as const).map((x) => <button key={x} type="button" className={`btn btn-sm ${device === x ? "btn-primary" : ""}`} aria-pressed={device === x} onClick={() => setDevice(x)}>{x === "desktop" ? "Desktop" : "Phone"}</button>)}
             </div>
           </div>
-          <div className={`sh-frame ${device}`}><iframe title="Showroom preview" src={path} loading="lazy" /></div>
-          <p className="meta">This is exactly what customers see. Changes to price, photos or availability show here as soon as they are saved.</p>
+          {live && d && d.live === 0 ? (
+            <Notice tone="warn" role="status">Your showroom is live but shows no cars yet: {d.notLive ? `${d.notLive} car${d.notLive === 1 ? " is" : "s are"} not published.` : "nothing is on sale."} {d.notLive ? "Publish them on the right and they appear here." : ""}</Notice>
+          ) : null}
+          <div className={`sh-frame ${device}`}>
+            <div className="sh-bar"><span className="sh-dots" aria-hidden="true"><i /><i /><i /></span><span className="sh-url" title={url}>{url.replace(/^https?:\/\//, "")}</span>
+              <button type="button" className="sh-reload" onClick={() => setFrameKey((k) => k + 1)} aria-label="Reload preview">↻</button></div>
+            <iframe key={frameKey} title="Your public showroom" src={path} loading="lazy" />
+          </div>
+          <p className="meta">Your real public showroom at the link above, exactly as customers see it. Only published, unsold cars appear.</p>
         </section>
 
         <section className="card stack" aria-labelledby="sh-pending">

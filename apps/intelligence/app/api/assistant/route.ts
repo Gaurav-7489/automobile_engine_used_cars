@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { json, problem, rateLimited, readJson } from "@/lib/api";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { assistantConfigured, runAssistant, toolsFor, validMessages } from "@/lib/server/assistant";
+import { checkRequest, redactingEmitter } from "@/lib/server/assistant-guard";
 import { getPrincipal } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { tenantTx } from "@/lib/server/db";
@@ -27,9 +28,13 @@ export async function POST(request: Request) {
   if (!assistantConfigured()) return problem(503, "not_configured", "The assistant is not set up for this workspace yet. Ask VandLabs to enable it.");
   const limit = await hitShared(`assistant:${principal.userId}:${clientKey(request)}`, 30, 10 * 60_000);
   if (!limit.allowed) return rateLimited("You have asked a lot in a short time. Wait a few minutes and try again.", limit.retryAfter);
-  const body = await readJson<{ messages?: unknown }>(request, 120_000);
+  const body = await readJson<{ messages?: unknown; page?: unknown }>(request, 120_000);
   if (!body || !validMessages(body.messages)) return problem(422, "invalid", "Send your question as text.");
   const messages = body.messages;
+  const page = typeof body.page === "string" && /^\/app\/[A-Za-z0-9/_-]{0,120}$/.test(body.page) ? body.page : "";
+  // Secrets are refused here, before any model is called.
+  const verdict = checkRequest(messages.at(-1)!.content);
+  if (!verdict.allowed) return new Response(verdict.reply, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
   let dealership = "";
   try {
     const gate = await tenantTx(principal.tenantId, async (c) => ({
@@ -47,13 +52,17 @@ export async function POST(request: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let wrote = false;
-      const emit = (text: string) => { if (text.trim() || wrote) { wrote = wrote || Boolean(text.trim()); controller.enqueue(encoder.encode(text)); } };
+      // Every word passes through the secret filter on its way to the screen.
+      const out = redactingEmitter((text) => controller.enqueue(encoder.encode(text)), 160);
+      const emit = (text: string) => { if (text.trim() || wrote) { wrote = wrote || Boolean(text.trim()); out.write(text); } };
       try {
-        const outcome = await runAssistant({ principal, dealership, messages, emit });
+        const outcome = await runAssistant({ principal, dealership, messages, emit, page });
+        out.end();
         if (outcome.status !== "done") controller.enqueue(encoder.encode(NOTE[outcome.status]));
       } catch (error) {
         const busy = error instanceof Anthropic.RateLimitError || (error instanceof Anthropic.APIError && (error.status ?? 0) >= 500);
         console.error(JSON.stringify({ event: "assistant_failure", user: principal.userId, status: error instanceof Anthropic.APIError ? error.status : undefined, message: error instanceof Error ? error.name : "unknown" }));
+        out.end();
         controller.enqueue(encoder.encode(`${wrote ? "\n\n" : ""}${busy ? "The assistant is busy right now. Try again in a moment." : "The assistant could not answer that. Try again."}`));
       }
       controller.close();

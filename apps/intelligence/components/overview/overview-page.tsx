@@ -14,7 +14,11 @@ import { useRemote } from "../use-remote";
 import { Badge, Button, EmptyState, InfoTip, Kpi } from "../ui";
 import { FollowUps } from "./follow-ups";
 import { Icon } from "../icons";
-import { VehicleDrawer } from "../inventory/vehicle-drawer";
+import dynamic from "next/dynamic";
+import { LazyMount } from "../lazy-mount";
+
+// The add-vehicle form is only downloaded when someone opens it.
+const VehicleDrawer = dynamic(() => import("../inventory/vehicle-drawer").then((m) => m.VehicleDrawer), { ssr: false });
 import { defaultBranchOf, useScopedHref, useWorkspace } from "../workspace";
 import type { Alert, InventoryEvent, Lead, Vehicle } from "@/lib/domain";
 import type { StockMetrics } from "@/lib/finance";
@@ -120,6 +124,7 @@ export function OverviewPage() {
       </section>
       </div>
 
+      <LazyMount height={380}>
       <div className="split-60 order-charts" style={{ gridTemplateColumns: "minmax(0, 720fr) minmax(0, 416fr)" }}>
         <section className="card order-movement" aria-labelledby="mv-title">
           <div className="card-head"><h2 className="h3" id="mv-title">Inventory movement</h2><span className="meta">Acquired / Sold · {monthLabel(getMonths()[0])} to {monthLabel(getMonths()[getMonths().length - 1])}</span></div>
@@ -138,9 +143,11 @@ export function OverviewPage() {
       </div>
 
 
+      </LazyMount>
+
       <footer className="meta order-foot">Updated {formatDateTime(SNAPSHOT_AT)}{scope.value === ALL_BRANCHES ? " · all your branches" : ""}{demoState === "partial" ? <> · <Badge tone="warn">Partial data</Badge></> : null}</footer>
 
-      <VehicleDrawer open={addOpen} onClose={() => setAddOpen(false)} defaultBranch={scope.ids[0] ?? ""} key={addOpen ? "open" : "closed"} />
+      {addOpen ? <VehicleDrawer open={addOpen} onClose={() => setAddOpen(false)} defaultBranch={scope.ids[0] ?? ""} key="open" /> : null}
       <Drawer open={Boolean(monthDrawer)} onClose={() => setMonthDrawer(null)} size="w480" title={monthDrawer ? `${monthLabel(monthDrawer.month)} inventory events` : ""} description={monthDrawer ? `${eventRows.filter((e) => e.type === "acquired").length} acquired · ${eventRows.filter((e) => e.type === "sold").length} sold${monthDrawer.type ? ` · filtered to ${monthDrawer.type}` : ""}` : undefined}
         footer={<><Button onClick={() => setMonthDrawer(null)}>Close</Button><Link className="btn btn-primary" href={href("/app/reports", { tab: "inventory", ...branchParam })}>Open in Reports</Link></>}>
         <table className="chart-data-table" style={{ width: "100%" }}><caption className="sr-only">Inventory events</caption>

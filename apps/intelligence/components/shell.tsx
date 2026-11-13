@@ -17,6 +17,7 @@ import { SUPPORT_EMAIL, supportMailto } from "@/lib/support";
 import { navFor, ROLE_LABEL, sectionTabs, visibleNav } from "@/lib/permissions";
 import { entitled } from "@/lib/entitlements";
 import { ThemeToggle } from "./theme";
+import { AssistantDock } from "./assistant/assistant-dock";
 import { RouteLoader } from "./motion/route-loader";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { sumAlertCounts } from "@/lib/selectors";
@@ -25,7 +26,7 @@ import { clearRemoteCache, warm } from "@/lib/remote-cache";
 /** Pointer, focus or touch on a destination starts loading its data, so it is usually ready before the click lands. */
 const warmOn = (path: string) => ({ onPointerEnter: () => warm(path), onFocus: () => warm(path), onTouchStart: () => warm(path) });
 
-const SHORTCUTS: [string, string][] = [["Ctrl / ⌘ + K", "Open global search"], ["/", "Open global search (outside fields)"], ["↑ ↓ then Enter", "Select and open a search result"], ["Esc", "Close a dialog, drawer or menu"], ["← → Home End", "Move between tabs"], ["Tab / Shift + Tab", "Move through controls; focus is always visible"]];
+const SHORTCUTS: [string, string][] = [["Ctrl / ⌘ + K", "Open global search"], ["Ctrl / ⌘ + J", "Open the assistant"], ["/", "Open global search (outside fields)"], ["↑ ↓ then Enter", "Select and open a search result"], ["Esc", "Close a dialog, drawer or menu"], ["← → Home End", "Move between tabs"], ["Tab / Shift + Tab", "Move through controls; focus is always visible"]];
 
 /** A feature the dealership does not have: an explanation instead of a page that would only fail to load. */
 function FeatureOff({ label, reason }: { label: string; reason: string }) {
@@ -204,6 +205,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
           <button type="button" onClick={() => setMoreOpen(true)} aria-haspopup="dialog" aria-current={!bottom.some((b) => b.key === key) ? "page" : undefined}><Icon name="menu" /><span>More</span></button>
         </nav>
       </div>
+      {entitled(state.entitlements, "assistant") ? <AssistantDock /> : null}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <MoreSheet platformAdmin={platformAdmin} open={moreOpen} onClose={() => setMoreOpen(false)} />
       <Dialog open={helpOpen} onClose={() => setHelpOpen(false)} title="Help and keyboard shortcuts" description="Documentation opens in a new tab. Shortcuts work on every page." footer={<Button variant="primary" onClick={() => setHelpOpen(false)}>Done</Button>}>

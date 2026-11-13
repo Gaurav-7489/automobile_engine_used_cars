@@ -55,7 +55,7 @@ test("the assistant only offers and runs the lookups the member's role allows, a
   const { h, kerala, owner } = await setup();
   try {
     const boss = await owner(kerala);
-    assert.deepEqual(toolsFor("owner").sort(), ["campaigns", "find_cars", "lead_overview", "sales_summary", "state_prices", "stock_overview"]);
+    assert.deepEqual(toolsFor("owner").sort(), ["campaigns", "find_cars", "lead_overview", "sales_summary", "search_help", "state_prices", "stock_overview"]);
     assert.ok(!toolsFor("sales").includes("sales_summary"), "sales staff do not get the finance summary");
     const inv = await issueInvite(boss, { email: "sales@kerala.example", name: "Sales", role: "sales", locationIds: kerala.locationIds, dealershipIds: boss.dealershipIds });
     const s = await redeemToken((inv as { token: string }).token, "another horse battery 8");

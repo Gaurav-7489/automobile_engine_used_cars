@@ -65,7 +65,7 @@ export type NavItem = { key: string; label: string; short: string; href: string;
 export const NAV: NavItem[] = [
   { key: "overview", label: "Overview", short: "Home", href: "/app/overview", icon: "grid", group: "Today", tab: "Today" },
   { key: "alerts", label: "Alerts & actions", short: "Alerts", href: "/app/alerts", icon: "bell", group: "Today", needs: "alerts.view", feature: "alerts", parent: "overview", tab: "Alerts" },
-  { key: "assistant", label: "Assistant", short: "Ask", href: "/app/assistant", icon: "sparkle", group: "Today", feature: "assistant" },
+  { key: "assistant", label: "Assistant", short: "Ask", href: "/app/assistant", icon: "sparkle", group: "Today", feature: "assistant", parent: "overview" },
   { key: "inventory", label: "Inventory", short: "Stock", href: "/app/inventory", icon: "car", group: "Stock", needs: "inventory.view", feature: "inventory", tab: "Stock" },
   { key: "stock-intelligence", label: "Stock ageing", short: "Ageing", href: "/app/stock-intelligence", icon: "clock", group: "Stock", needs: "inventory.view", feature: "stock_intelligence", parent: "inventory", tab: "Ageing" },
   { key: "pricing", label: "Pricing", short: "Pricing", href: "/app/pricing", icon: "tag", group: "Stock", needs: "price.view", feature: "pricing" },
