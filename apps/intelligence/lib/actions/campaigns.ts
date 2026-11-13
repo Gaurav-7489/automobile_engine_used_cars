@@ -4,6 +4,7 @@ import { stockAgeDays } from "../finance";
 import { now } from "../clock";
 import type { WorkspaceState } from "../state";
 import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, seq, trim, withAudit } from "./common";
+import { recommendPlan } from "../marketing-plan";
 
 export const CHANNELS: { id: Channel["id"]; name: string; requiresApi: boolean }[] = [
   { id: "search", name: "Google Search", requiresApi: true },
@@ -74,7 +75,8 @@ export function validateCampaign(state: WorkspaceState, c: Campaign): Record<str
   return errors;
 }
 
-export function createCampaign(state: WorkspaceState, actor: Actor, vehicleId: string): Result<{ campaign: Campaign }> {
+/** `fromPlan` starts the draft from the car's recommended plan, computed here from the stored record (never taken from the browser). */
+export function createCampaign(state: WorkspaceState, actor: Actor, vehicleId: string, fromPlan = false): Result<{ campaign: Campaign }> {
   const denied = guard(actor, "campaign.edit");
   if (denied) return denied;
   const vehicle = state.vehicles.find((v) => v.id === vehicleId);
@@ -92,7 +94,19 @@ export function createCampaign(state: WorkspaceState, actor: Actor, vehicleId: s
     utm: `vl_${id.toLowerCase()}_${vehicle.id.toLowerCase()}`, clickWindowDays: 7, viewWindowDays: 1, createdBy: actor.sub, createdByName: actor.name,
     note: `Reason: ${days} days in stock and ${vehicle.enquiries14d} enquiries in 14 days. Budget experiment; outcomes unknown.`, history: [{ at: stamp, actor: actor.name, action: "Draft created" }],
   };
-  return ok(withAudit({ ...state, campaigns: [campaign, ...state.campaigns] }, actor, "campaign.created", id, vehicleId), { campaign });
+  if (fromPlan === true) {
+    const city = state.branches.find((b) => b.id === vehicle.branchId)?.city ?? "";
+    const plan = recommendPlan({ vehicle, city, daysInStock: days });
+    const share = (cid: string) => (plan.channels.find((c) => c.id === cid)?.share ?? 0) / 100;
+    Object.assign(campaign, {
+      region: `${plan.audience.area} + ${plan.audience.radiusKm} km`, radiusKm: plan.audience.radiusKm, totalCap30d: plan.budget.total30, dailyCap: plan.budget.daily,
+      channels: campaign.channels.map((ch) => ch.id === "search" || ch.id === "meta" ? { ...ch, enabled: share(ch.id) > 0, budget: Math.round(plan.budget.total30 * share(ch.id)) } : ch),
+      headline: plan.headline, body: plan.body, note: `From VandLabs plan (${plan.segmentLabel}, ${plan.priority}): ${plan.reasons.join(" ")}`,
+      recommendation: { version: plan.version, segment: plan.segment, angle: plan.angle, priority: plan.priority },
+      history: [{ at: stamp, actor: actor.name, action: `Draft created from the recommended plan (${plan.version}). Review and adjust before approval.` }],
+    });
+  }
+  return ok(withAudit({ ...state, campaigns: [campaign, ...state.campaigns] }, actor, "campaign.created", id, `${vehicleId}${campaign.recommendation ? " from plan" : ""}`), { campaign });
 }
 
 const EDITABLE: Campaign["status"][] = ["Draft"];

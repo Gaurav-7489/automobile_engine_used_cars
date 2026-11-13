@@ -170,6 +170,8 @@ export type Campaign = {
   createdByName: string;
   note?: string;
   platformAck?: "awaiting" | "acknowledged";
+  /** Set when the campaign was started from VandLabs' plan for this car; the team still reviews, adjusts and approves it. */
+  recommendation?: { version: string; segment: string; angle: string; priority: string };
   /** What each ad platform created for this campaign, once it has confirmed. Absent until then. */
   platform?: { google?: { campaign: string; budget: string }; meta?: { campaign: string; adset: string; ad: string } };
   metrics?: {

@@ -6,6 +6,8 @@ import { ThemeToggle } from "@/components/theme";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { EnquiryForm } from "@/components/listing/enquiry-form";
 import { CarPhoto } from "@/components/listing/car-photo";
+import { CustomerChat } from "@/components/listing/customer-chat";
+import { websiteChatEnabled } from "@/lib/server/channels";
 import { readPublicListing, type PublicListing } from "@/lib/server/public-listing";
 import { normalisePhone, ordinalOwner, postPrice } from "@/lib/social-post";
 
@@ -35,6 +37,7 @@ export default async function ListingPage({ params }: { params: Params }) {
   const { tenant, stock } = await params;
   const v = await load(tenant, stock);
   const phone = v ? normalisePhone(v.branch.phone) : null;
+  const chat = v ? await websiteChatEnabled(tenant.toLowerCase()) : false;
   return (
     <div className="showroom">
       <div className="ambient" aria-hidden="true" />
@@ -85,6 +88,7 @@ export default async function ListingPage({ params }: { params: Params }) {
           </article>
         )}
       </main>
+      {v && chat ? <CustomerChat tenant={tenant.toLowerCase()} stock={v.stockId} dealer={v.dealer} title={titleOf(v)} /> : null}
       <footer className="sr-footer">
         <span className="meta">{v?.dealer ? `${v.dealer} · ` : ""}Listing by VandLabs</span>
         <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <a href={`mailto:${SUPPORT_EMAIL}?subject=Showroom%20feedback`}>Feedback</a></span>

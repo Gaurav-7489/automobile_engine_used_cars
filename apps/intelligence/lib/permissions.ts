@@ -11,24 +11,25 @@ export type Capability =
   | "alerts.view" | "alerts.act" | "alerts.rules"
   | "reports.view" | "reports.finance" | "reports.export" | "reports.schedule"
   | "settings.view" | "settings.admin" | "settings.integrations" | "settings.team" | "settings.keys" | "settings.audit"
-  | "automations.view" | "automations.manage" | "subscription.view";
+  | "automations.view" | "automations.manage" | "subscription.view"
+  | "finance.record" | "investors.view" | "investors.manage";
 
 const ALL: Capability[] = [
   "market.view", "market.export", "acquisition.review", "inventory.view", "inventory.edit", "inventory.transition", "inventory.bulk", "price.view", "price.propose", "price.approve", "price.floorException",
   "campaign.view", "campaign.edit", "campaign.approve", "leads.view", "leads.edit", "leads.contact", "leads.merge", "leads.export", "capital.view", "capital.correct", "capital.scenario",
   "alerts.view", "alerts.act", "alerts.rules", "reports.view", "reports.finance", "reports.export", "reports.schedule", "settings.view", "settings.admin", "settings.integrations", "settings.team", "settings.keys", "settings.audit",
-  "automations.view", "automations.manage", "subscription.view",
+  "automations.view", "automations.manage", "subscription.view", "finance.record", "investors.view", "investors.manage",
 ];
 
 /** Owner controls business, approvals and all permitted branches. Manager manages assigned branches. Inventory edits stock, not approval. Marketing drafts campaigns. Sales handles assigned leads. Finance sees ledgers. Viewer is read-only. */
 const MATRIX: Record<Role, Capability[]> = {
   owner: ALL,
   manager: ["market.view", "market.export", "acquisition.review", "inventory.view", "inventory.edit", "inventory.transition", "inventory.bulk", "price.view", "price.propose", "price.approve", "campaign.view", "campaign.edit", "campaign.approve",
-    "leads.view", "leads.edit", "leads.contact", "leads.merge", "leads.export", "capital.view", "capital.scenario", "alerts.view", "alerts.act", "alerts.rules", "reports.view", "reports.export", "reports.schedule", "settings.view", "automations.view", "automations.manage"],
+    "leads.view", "leads.edit", "leads.contact", "leads.merge", "leads.export", "capital.view", "capital.scenario", "alerts.view", "alerts.act", "alerts.rules", "reports.view", "reports.export", "reports.schedule", "settings.view", "automations.view", "automations.manage", "finance.record"],
   inventory: ["market.view", "acquisition.review", "inventory.view", "inventory.edit", "inventory.transition", "inventory.bulk", "price.view", "price.propose", "campaign.view", "leads.view", "alerts.view", "alerts.act", "settings.view", "automations.view"],
   marketing: ["market.view", "inventory.view", "price.view", "campaign.view", "campaign.edit", "leads.view", "alerts.view", "alerts.act", "reports.view", "reports.export", "settings.view", "automations.view"],
   sales: ["market.view", "inventory.view", "price.view", "campaign.view", "leads.view", "leads.edit", "leads.contact", "alerts.view", "alerts.act", "settings.view", "automations.view"],
-  finance: ["market.view", "inventory.view", "price.view", "capital.view", "capital.correct", "capital.scenario", "alerts.view", "reports.view", "reports.finance", "reports.export", "reports.schedule", "settings.view"],
+  finance: ["market.view", "inventory.view", "price.view", "capital.view", "capital.correct", "capital.scenario", "alerts.view", "reports.view", "reports.finance", "reports.export", "reports.schedule", "settings.view", "finance.record", "investors.view", "investors.manage"],
   viewer: ["market.view", "inventory.view", "price.view", "campaign.view", "leads.view", "alerts.view", "settings.view"],
 };
 
@@ -67,9 +68,12 @@ export const NAV: { key: string; label: string; short: string; href: string; ico
   { key: "state-prices", label: "Prices by state", short: "States", href: "/app/state-prices", icon: "columns", group: "Stock", needs: "market.view" },
   { key: "acquisition", label: "Buying", short: "Buying", href: "/app/acquisition", icon: "map", group: "Stock", needs: "acquisition.review", feature: "acquisition" },
   { key: "leads", label: "Leads & customers", short: "Leads", href: "/app/leads", icon: "users", group: "Sales", needs: "leads.view", feature: "leads" },
+  { key: "conversations", label: "Conversations", short: "Chats", href: "/app/conversations", icon: "message", group: "Sales", needs: "leads.view", feature: "leads" },
   { key: "advertising", label: "Advertising", short: "Ads", href: "/app/advertising", icon: "megaphone", group: "Sales", needs: "campaign.view", feature: "advertising" },
   { key: "showroom", label: "Showroom", short: "Showroom", href: "/app/showroom", icon: "store", group: "Sales", needs: "inventory.view", feature: "inventory" },
   { key: "capital", label: "Capital & profit", short: "Capital", href: "/app/capital", icon: "coins", group: "Business", needs: "capital.view", feature: "capital" },
+  { key: "revenue", label: "Revenue & expenses", short: "Revenue", href: "/app/revenue", icon: "chart", group: "Business", needs: "capital.view", feature: "capital" },
+  { key: "investors", label: "Investors", short: "Investors", href: "/app/investors", icon: "users", group: "Business", needs: "investors.view", feature: "capital" },
   { key: "reports", label: "Reports", short: "Reports", href: "/app/reports", icon: "chart", group: "Business", needs: "reports.view", feature: "reports" },
   { key: "automations", label: "Automations", short: "Auto", href: "/app/automations", icon: "zap", group: "Business", needs: "automations.view", feature: "automations" },
   { key: "settings", label: "Settings", short: "Settings", href: "/app/settings/business", icon: "gear", group: "Business", needs: "settings.view" },

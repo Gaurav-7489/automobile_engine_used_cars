@@ -1,5 +1,6 @@
 "use client";
 
+import { Messaging } from "./messaging";
 import { notFound, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -22,7 +23,7 @@ import { useRemote } from "../use-remote";
 import { useScopedHref, useWorkspace } from "../workspace";
 
 export const SECTIONS = [
-  { key: "business", label: "Business" }, { key: "branches", label: "Branches" }, { key: "team", label: "Team & roles" }, { key: "security", label: "Security" }, { key: "integrations", label: "Integrations" },
+  { key: "business", label: "Business" }, { key: "branches", label: "Branches" }, { key: "team", label: "Team & roles" }, { key: "security", label: "Security" }, { key: "integrations", label: "Integrations" }, { key: "messaging", label: "Customer messaging" },
   { key: "billing", label: "Plan and access" }, { key: "api", label: "API access" }, { key: "notifications", label: "Notifications" }, { key: "audit", label: "Audit" },
 ] as const;
 type SectionKey = (typeof SECTIONS)[number]["key"];
@@ -58,6 +59,7 @@ function Settings({ section }: { section: SectionKey }) {
           {section === "team" ? <Team /> : null}
           {section === "security" ? <Security /> : null}
           {section === "integrations" ? <Integrations /> : null}
+          {section === "messaging" ? <Messaging /> : null}
           {section === "billing" ? <Billing /> : null}
           {section === "api" ? <><ApiAccess /><BusinessKeys /></> : null}
           {section === "notifications" ? <Notifications /> : null}

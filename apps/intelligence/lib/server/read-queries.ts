@@ -13,7 +13,7 @@ const AGE = "GREATEST(0, COALESCE(v.sold_day, $TODAY::date) - v.acquired_day)";
 const BUCKET = `CASE WHEN ${AGE} <= 15 THEN '0-15' WHEN ${AGE} <= 30 THEN '16-30' WHEN ${AGE} <= 45 THEN '31-45' ELSE '>45' END`;
 
 /** Sales with the fields that follow the vehicle (ledger sales) resolved at read time. */
-const SALES_EFFECTIVE = `
+export const SALES_EFFECTIVE = `
   SELECT s.sale_id, s.vehicle_stock_id, s.closed_at, s.price_paise, s.direct_paise, s.data,
          CASE WHEN s.from_ledger THEN COALESCE(v.branch_id, s.branch_id) ELSE s.branch_id END AS branch_id,
          CASE WHEN s.from_ledger THEN COALESCE(v.landed_paise, 0) ELSE s.landed_paise END AS landed_paise,

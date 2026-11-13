@@ -1617,3 +1617,49 @@ a[data-pending] { animation: pending-pulse 900ms ease-in-out infinite alternate;
 .ad-account strong { display: block; }
 .sso-btn { gap: 10px; }
 .data-table th.num { text-align: right; }
+
+/* Customer chat on public car pages ----------------------------------------- */
+.cc-launch { position: fixed; right: 16px; bottom: 16px; z-index: 40; min-height: 48px; padding: 0 20px; border-radius: 24px; border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 15px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18); }
+.cc-panel { position: fixed; right: 16px; bottom: 16px; z-index: 40; width: min(380px, calc(100vw - 32px)); height: min(560px, calc(100vh - 32px)); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22); overflow: hidden; }
+.cc-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.cc-head span { display: block; font-size: 12px; color: var(--muted); }
+.cc-close { width: 36px; height: 36px; border: 0; background: none; color: var(--text); font-size: 22px; line-height: 1; border-radius: 8px; }
+.cc-log { flex: 1; overflow-y: auto; padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.cc-hint { color: var(--muted); font-size: 14px; margin: 0; }
+.cc-msg { max-width: 86%; padding: 9px 12px; border-radius: 12px; font-size: 14px; line-height: 21px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cc-customer { justify-self: end; background: var(--accent); color: var(--accent-ink); }
+.cc-ai, .cc-team { justify-self: start; background: var(--raised); }
+.cc-by { display: block; font-size: 11px; font-weight: 600; color: var(--accent); }
+.cc-typing { display: inline-flex; gap: 4px; }
+.cc-typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: chat-wait 1.2s infinite ease-in-out; }
+.cc-typing i:nth-child(2) { animation-delay: 0.15s; } .cc-typing i:nth-child(3) { animation-delay: 0.3s; }
+.cc-error { margin: 0 16px; color: var(--danger); font-size: 13px; }
+.cc-form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
+.cc-note { margin: 0; padding: 0 12px 10px; font-size: 11px; line-height: 16px; color: var(--muted); }
+
+/* Conversations -------------------------------------------------------------- */
+.conv-layout { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.conv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 70vh; overflow-y: auto; }
+.conv-empty { padding: 12px; }
+.conv-item { width: 100%; display: grid; gap: 4px; justify-items: start; text-align: left; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-card); background: var(--surface); color: var(--text); }
+.conv-item .spread { width: 100%; }
+.conv-item.on { border-color: var(--accent); }
+.conv-last { font-size: 13px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.conv-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.conv-thread { display: grid; gap: 12px; min-height: 360px; align-content: start; }
+.conv-thread-head { flex-wrap: wrap; }
+.conv-messages { display: grid; gap: 10px; max-height: 56vh; overflow-y: auto; }
+.conv-msg { max-width: 85%; padding: 8px 12px; border-radius: 10px; background: var(--raised); }
+.conv-msg p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.conv-team, .conv-ai { justify-self: end; background: var(--accent-subtle); }
+@media (max-width: 767px) { .conv-layout { grid-template-columns: 1fr; } .conv-list { max-height: 40vh; } }
+
+/* Marketing plans per car ---------------------------------------------------- */
+.plan-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-items: start; }
+.plan-card { display: grid; gap: 10px; }
+.plan-facts { display: grid; gap: 8px; margin: 0; }
+.plan-facts dt { font-size: 12px; color: var(--muted); }
+.plan-facts dd { margin: 0; font-size: 14px; line-height: 21px; }
+.plan-list { margin: 4px 0 0; padding-left: 18px; font-size: 14px; line-height: 21px; }
+.plan-copy { margin: 4px 0 0; padding: 10px 12px; background: var(--raised); border-radius: 8px; font-size: 14px; }
+.plan-actions { justify-content: space-between; }

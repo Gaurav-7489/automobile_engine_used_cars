@@ -6,6 +6,8 @@ import { ThemeToggle } from "@/components/theme";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { CarPhoto } from "@/components/listing/car-photo";
 import { PUBLIC_SORTS, readPublicInventory, type PublicInventory } from "@/lib/server/public-listing";
+import { CustomerChat } from "@/components/listing/customer-chat";
+import { websiteChatEnabled } from "@/lib/server/channels";
 import { postPrice } from "@/lib/social-post";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +39,7 @@ export default async function DealerInventory({ params, searchParams }: { params
   const { tenant } = await params;
   const f = await filtersOf(searchParams);
   const inv = await load(tenant, f);
+  const chat = inv ? await websiteChatEnabled(tenant.toLowerCase()) : false;
   const base = `/l/${tenant.toLowerCase()}`;
   const pageHref = (page: number) => {
     const q = new URLSearchParams(Object.entries({ ...f, page: String(page) }).filter(([, v]) => v) as [string, string][]);
@@ -101,6 +104,7 @@ export default async function DealerInventory({ params, searchParams }: { params
           </section>
         )}
       </main>
+      {inv && chat ? <CustomerChat tenant={tenant.toLowerCase()} dealer={inv.dealer} /> : null}
       <footer className="sr-footer">
         <span className="meta">{inv?.dealer ? `${inv.dealer} · ` : ""}Listing by VandLabs</span>
         <span><Link href="/info/privacy">Privacy</Link> / <Link href="/info/terms">Terms</Link> / <a href={`mailto:${SUPPORT_EMAIL}?subject=Showroom%20feedback`}>Feedback</a></span>

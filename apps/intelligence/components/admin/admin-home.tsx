@@ -16,6 +16,7 @@ import { Badge, Button, EmptyState, Notice } from "../ui";
 import { CreateDealership, Members, ReissueInvite, type Workspace } from "./admin-console";
 import { EntitlementsDialog } from "./entitlements-dialog";
 import { PlatformAudit } from "./platform-audit";
+import { HealthReview } from "./health-review";
 import { call } from "./shared";
 
 type Check = { key: string; group: string; label: string; status: "pass" | "warn" | "fail"; detail: string; ms?: number };
@@ -25,12 +26,13 @@ type System = {
   tests: { name: string; files: number; tests: number }[];
   migrations: { name: string; present: boolean }[];
 };
-type View = "overview" | "dealerships" | "system" | "releases" | "activity" | "security";
+type View = "overview" | "dealerships" | "health" | "system" | "releases" | "activity" | "security";
 type Row = { kind: "live"; w: Workspace } | { kind: "demo"; d: DemoDealership };
 
 const NAV: { key: View; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "grid" },
   { key: "dealerships", label: "Dealerships", icon: "store" },
+  { key: "health", label: "Customer health", icon: "heart" },
   { key: "system", label: "System health", icon: "pulse" },
   { key: "releases", label: "Releases & tests", icon: "flask" },
   { key: "activity", label: "Activity & audit", icon: "chart" },
@@ -238,6 +240,8 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
             <p className="meta">Dealer owners invite their own staff from Settings, Team inside their workspace. Every change made here is written to that dealership&rsquo;s audit log.</p>
           </div>
         ) : null}
+
+        {view === "health" ? (locked ? lockedPanel("Customer health") : <HealthReview />) : null}
 
         {view === "system" ? (
           <div className="adm-stack">

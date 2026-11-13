@@ -325,6 +325,7 @@ function LeadDrawer({ lead, onClose }: { lead: Lead; onClose: () => void }) {
       </dl>
       {lead.stage === "Won" && lead.saleId ? <Notice tone="accent">Linked sale {lead.saleId}. Realized profit comes only from the reconciled sale.</Notice> : null}
       {lead.stage === "Lost" ? <Notice>Lost: {lead.lostReason}</Notice> : null}
+      {["Website chat", "WhatsApp", "Instagram"].includes(lead.source) ? <LeadConversation leadId={lead.id} /> : null}
 
       <section aria-labelledby="tasks-h"><h3 className="h3" id="tasks-h">Tasks</h3>
         {lead.tasks.length ? <ul className="stack-sm" style={{ listStyle: "none", margin: "8px 0 0", padding: 0 }}>{lead.tasks.map((t) => <li key={t.id}><Check label={<span style={t.done ? { textDecoration: "line-through" } : undefined}>{t.title} <span className="meta">/ due {formatShortDateTime(t.dueAt)}{t.done ? ` / done by ${t.doneBy}` : ""}</span></span>} checked={t.done} onChange={() => { const r = run((s, a) => toggleTask(s, a, lead.id, t.id)); if (r.ok) toast(t.done ? "Task reopened." : "Task completed.", "ok"); }} disabled={!can("leads.edit")} /></li>)}</ul> : <p className="muted">No tasks.</p>}
@@ -425,3 +426,19 @@ function AppointmentDialog({ open, onClose, lead }: { open: boolean; onClose: ()
 }
 
 export { MISSING };
+
+/** The chat that produced this lead, so whoever picks it up sees exactly what the customer asked and what they were told. */
+function LeadConversation({ leadId }: { leadId: string }) {
+  const href = useScopedHref();
+  const remote = useRemote<{ conversations: { id: string; channel: string; messages: { id: string; from: string; text: string }[] }[] }>(`/api/conversations?lead=${leadId}`);
+  const conv = remote.data?.conversations[0];
+  if (!conv) return null;
+  return (
+    <section aria-labelledby="lead-conv-h" className="stack-sm">
+      <div className="spread"><h3 className="h3" id="lead-conv-h">Conversation</h3><Link className="btn btn-sm" href={href(`/app/conversations?c=${conv.id}`)}>Open and reply</Link></div>
+      <ul className="stack-sm" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {conv.messages.slice(-6).map((m) => <li key={m.id} className="meta"><strong>{m.from === "customer" ? "Customer" : m.from === "ai" ? "AI" : "Team"}:</strong> {m.text}</li>)}
+      </ul>
+    </section>
+  );
+}

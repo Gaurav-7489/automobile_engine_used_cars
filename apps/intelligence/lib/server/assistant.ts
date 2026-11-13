@@ -7,6 +7,7 @@ import type { Principal } from "./identity";
 import { listVehicles, salesSummarySql, stageCounts, stockMetricsSql, todayIst } from "./read-queries";
 import { syncReadModel } from "./read-model";
 import { readStatePrices } from "./state-prices";
+import { financeSummary } from "./finance-records";
 import { enterLive } from "./workspace";
 
 /**
@@ -102,15 +103,17 @@ const TOOLS: Record<string, AssistantTool> = {
   },
   sales_summary: {
     needs: "reports.view",
-    def: { name: "sales_summary", description: "Completed sales per month for the last six months: cars sold, and (if this person may see finance) profit and typical days to sell.", input_schema: noInput, strict: true },
+    def: { name: "sales_summary", description: "Completed sales per month for the last six months: cars sold and typical days to sell, and (if this person may see finance) profit on cars sold, recorded running expenses by category, and the result after expenses.", input_schema: noInput, strict: true },
     run: async ({ c, principal }) => {
       const month = (offset: number) => { const d = new Date(`${todayIst().slice(0, 7)}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() - offset); return d.toISOString().slice(0, 7); };
       const rows = (await salesSummarySql(c, principal.tenantId, principal.locationIds, month(5), month(0))).filter((r) => r.state === "Completed");
       const finance = can(principal.role, "reports.finance");
+      const money = finance ? (await financeSummary(c, principal.tenantId, principal.locationIds, month(5), month(0))).months : [];
       return { months: rows.sort((a, b) => a.month.localeCompare(b.month)).map((r) => {
         const days = [...r.days].sort((a, b) => a - b);
-        return { month: r.month, carsSold: r.count, ...(finance ? { profit: rupee(r.profit) } : {}), typicalDaysToSell: days.length ? days[Math.floor(days.length / 2)] : null };
-      }) };
+        const m = money.find((x) => x.month === r.month);
+        return { month: r.month, carsSold: r.count, ...(finance ? { profitOnCarsSold: rupee(r.profit), runningExpenses: rupee(m?.expenses ?? 0), afterExpenses: rupee(m?.afterExpenses ?? r.profit), expensesByCategory: Object.fromEntries(Object.entries(m?.byCategory ?? {}).map(([k, v]) => [k, rupee(v)])) } : {}), typicalDaysToSell: days.length ? days[Math.floor(days.length / 2)] : null };
+      }), ...(finance ? { note: "Profit is from completed sales with full car costs; expenses are what the dealership recorded in Revenue & expenses." } : {}) };
     },
   },
   state_prices: {

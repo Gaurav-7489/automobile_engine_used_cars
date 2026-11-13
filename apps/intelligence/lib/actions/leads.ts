@@ -4,7 +4,7 @@ import { now } from "../clock";
 import type { WorkspaceState } from "../state";
 import { type Actor, type Result, branchGuard, fail, guard, nextId, ok, seq, trim, withAudit } from "./common";
 
-export const LEAD_SOURCES = ["Website", "Search ad", "Meta ad", "Referral", "Walk-in", "Phone"] as const;
+export const LEAD_SOURCES = ["Website", "Website chat", "WhatsApp", "Instagram", "Search ad", "Meta ad", "Referral", "Walk-in", "Phone"] as const;
 
 export type LeadInput = {
   name: string; contact: string; source: string; vehicleId: string; owner: string; branchId: string; consentEvidence: string; marketingConsent: boolean;

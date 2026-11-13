@@ -16,6 +16,7 @@ import { Badge, Button, Check, EmptyState, ErrorPanel, FormSummary, Kpi, Notice,
 import { VehicleArt } from "../vehicle-art";
 import { SocialPostKit } from "./social-post-kit";
 import { AdAccounts } from "./ad-accounts";
+import { PlansView } from "./plans-view";
 import { listingPath } from "@/lib/social-post";
 import { useScopedHref, useUrlState, useWorkspace } from "../workspace";
 
@@ -42,12 +43,17 @@ export function AdvertisingPage({ campaignId }: { campaignId?: string }) {
     toast(`${r.campaign.id} draft created from stock ${vehicleId}.`);
   };
 
+  const plansTabs = <Tabs label="Advertising" idPrefix="adtop" value={url.get("view") === "plans" ? "plans" : "campaigns"} onChange={(v) => url.set({ view: v === "plans" ? "plans" : null })} tabs={[{ value: "campaigns", label: visible.length ? "Campaign" : "Campaigns" }, { value: "plans", label: "Plans per car" }]} />;
+  if (remote.data && url.get("view") === "plans") {
+    return <div className="page"><PageHead title="Advertising" lead="Ads and social posts for the cars you want to sell." />{plansTabs}<PlansView vehicles={available} /></div>;
+  }
   if (!remote.data && remote.status !== "error") return <div className="page"><PageHead title="Advertising" lead="Loading your campaigns…" /><PanelSkeleton rows={6} title="Advertising" /></div>;
   if (!remote.data) return <div className="page"><PageHead title="Advertising" /><ErrorPanel title="Advertising could not load" onRetry={remote.reload} /></div>;
   if (!campaign) {
     return (
       <div className="page">
         <PageHead title="Advertising" lead="Ads and social posts for the cars you want to sell." />
+        {plansTabs}
         {state.live ? <AdAccounts /> : null}
         {available.length === 0 ? <EmptyState title="No cars on sale yet">Only cars that are on sale can be advertised. Put a car on sale in Inventory, then come back.</EmptyState> : (
           <section className="card ads-start">
@@ -180,7 +186,7 @@ function Studio({ campaign, onList }: { campaign: Campaign; onList: () => void }
           {editable && view === "campaign" ? <Button variant="primary" className="primary-cta" disabled={!canEdit} reason={!can("campaign.edit") ? "Requires Owner, Manager or Marketing access." : undefined} onClick={() => { if (commit()) toast("Draft saved."); }}>Save draft</Button> : null}
         </>} />
       {state.live && view === "campaign" ? <AdAccounts /> : null}
-      <Tabs label="Advertising" idPrefix="ads" value={view} onChange={(v) => url.set({ view: v === "campaign" ? null : v, campaign: campaign.id })} tabs={[{ value: "campaign", label: "Campaign" }, { value: "social", label: "Social posts" }]} />
+      <Tabs label="Advertising" idPrefix="ads" value={view} onChange={(v) => url.set({ view: v === "campaign" ? null : v, campaign: v === "plans" ? null : campaign.id })} tabs={[{ value: "campaign", label: "Campaign" }, { value: "social", label: "Social posts" }, { value: "plans", label: "Plans per car" }]} />
 
       {view === "social" ? (
         <SocialPostKit vehicle={vehicle} campaign={work} />
