@@ -1,5 +1,6 @@
 "use client";
 
+import { StatePricesCard } from "../state-prices/state-prices-card";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { difference } from "@/lib/evidence";
@@ -76,6 +77,7 @@ export function StockDetail({ id }: { id: string }) {
             </dl>
           </section>
         </Panel>
+        {can("market.view") ? <StatePricesCard make={vehicle.make} model={vehicle.model} asking={vehicle.asking} /> : null}
         <section className="card" aria-labelledby="ledger">
           <h2 className="h3" id="ledger">Stock ledger</h2>
           <dl className="kv mt-4">

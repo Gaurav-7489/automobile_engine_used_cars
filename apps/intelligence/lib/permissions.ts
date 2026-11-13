@@ -57,27 +57,48 @@ export const ROLES = Object.keys(MATRIX) as Role[];
 
 /** Mobile bottom navigation and desktop rail order. */
 export type NavGroup = "Today" | "Stock" | "Sales" | "Business";
-export const NAV: { key: string; label: string; short: string; href: string; icon: string; group: NavGroup; needs?: Capability; feature?: FeatureKey }[] = [
-  { key: "overview", label: "Overview", short: "Home", href: "/app/overview", icon: "grid", group: "Today" },
+/**
+ * One sidebar entry per job. Pages that belong to the same job are not separate sidebar entries: they are tabs at the top of
+ * their section (`parent`), so the sidebar stays short and everything still has one obvious place.
+ */
+export type NavItem = { key: string; label: string; short: string; href: string; icon: string; group: NavGroup; needs?: Capability; feature?: FeatureKey; parent?: string; tab?: string };
+export const NAV: NavItem[] = [
+  { key: "overview", label: "Overview", short: "Home", href: "/app/overview", icon: "grid", group: "Today", tab: "Today" },
+  { key: "alerts", label: "Alerts & actions", short: "Alerts", href: "/app/alerts", icon: "bell", group: "Today", needs: "alerts.view", feature: "alerts", parent: "overview", tab: "Alerts" },
   { key: "assistant", label: "Assistant", short: "Ask", href: "/app/assistant", icon: "sparkle", group: "Today", feature: "assistant" },
-  { key: "alerts", label: "Alerts & actions", short: "Alerts", href: "/app/alerts", icon: "bell", group: "Today", needs: "alerts.view", feature: "alerts" },
-  { key: "inventory", label: "Inventory", short: "Stock", href: "/app/inventory", icon: "car", group: "Stock", needs: "inventory.view", feature: "inventory" },
-  { key: "stock-intelligence", label: "Stock ageing", short: "Ageing", href: "/app/stock-intelligence", icon: "clock", group: "Stock", needs: "inventory.view", feature: "stock_intelligence" },
+  { key: "inventory", label: "Inventory", short: "Stock", href: "/app/inventory", icon: "car", group: "Stock", needs: "inventory.view", feature: "inventory", tab: "Stock" },
+  { key: "stock-intelligence", label: "Stock ageing", short: "Ageing", href: "/app/stock-intelligence", icon: "clock", group: "Stock", needs: "inventory.view", feature: "stock_intelligence", parent: "inventory", tab: "Ageing" },
   { key: "pricing", label: "Pricing", short: "Pricing", href: "/app/pricing", icon: "tag", group: "Stock", needs: "price.view", feature: "pricing" },
-  { key: "market", label: "Market Radar", short: "Radar", href: "/app/market", icon: "radar", group: "Stock", needs: "market.view", feature: "market" },
-  { key: "state-prices", label: "Prices by state", short: "States", href: "/app/state-prices", icon: "columns", group: "Stock", needs: "market.view" },
+  { key: "market", label: "Market", short: "Market", href: "/app/market", icon: "radar", group: "Stock", needs: "market.view", feature: "market", tab: "Listings" },
+  { key: "market-regions", label: "Prices by region", short: "Regions", href: "/app/market/regions", icon: "map", group: "Stock", needs: "market.view", feature: "market", parent: "market", tab: "By region" },
+  { key: "state-prices", label: "Prices by state", short: "States", href: "/app/state-prices", icon: "columns", group: "Stock", needs: "market.view", parent: "market", tab: "By state" },
   { key: "acquisition", label: "Buying", short: "Buying", href: "/app/acquisition", icon: "map", group: "Stock", needs: "acquisition.review", feature: "acquisition" },
-  { key: "leads", label: "Leads & customers", short: "Leads", href: "/app/leads", icon: "users", group: "Sales", needs: "leads.view", feature: "leads" },
-  { key: "conversations", label: "Conversations", short: "Chats", href: "/app/conversations", icon: "message", group: "Sales", needs: "leads.view", feature: "leads" },
+  { key: "leads", label: "Customers", short: "Leads", href: "/app/leads", icon: "users", group: "Sales", needs: "leads.view", feature: "leads", tab: "Leads" },
+  { key: "conversations", label: "Conversations", short: "Chats", href: "/app/conversations", icon: "message", group: "Sales", needs: "leads.view", feature: "leads", parent: "leads", tab: "Conversations" },
+  { key: "automations", label: "Follow-up rules", short: "Rules", href: "/app/automations", icon: "zap", group: "Sales", needs: "automations.view", feature: "automations", parent: "leads", tab: "Follow-up rules" },
   { key: "advertising", label: "Advertising", short: "Ads", href: "/app/advertising", icon: "megaphone", group: "Sales", needs: "campaign.view", feature: "advertising" },
   { key: "showroom", label: "Showroom", short: "Showroom", href: "/app/showroom", icon: "store", group: "Sales", needs: "inventory.view", feature: "inventory" },
-  { key: "capital", label: "Capital & profit", short: "Capital", href: "/app/capital", icon: "coins", group: "Business", needs: "capital.view", feature: "capital" },
-  { key: "revenue", label: "Revenue & expenses", short: "Revenue", href: "/app/revenue", icon: "chart", group: "Business", needs: "capital.view", feature: "capital" },
-  { key: "investors", label: "Investors", short: "Investors", href: "/app/investors", icon: "users", group: "Business", needs: "investors.view", feature: "capital" },
+  { key: "capital", label: "Money", short: "Money", href: "/app/capital", icon: "coins", group: "Business", needs: "capital.view", feature: "capital", tab: "Capital & profit" },
+  { key: "revenue", label: "Revenue & expenses", short: "Revenue", href: "/app/revenue", icon: "chart", group: "Business", needs: "capital.view", feature: "capital", parent: "capital", tab: "Revenue & expenses" },
+  { key: "investors", label: "Investors", short: "Investors", href: "/app/investors", icon: "users", group: "Business", needs: "investors.view", feature: "capital", parent: "capital", tab: "Investors" },
   { key: "reports", label: "Reports", short: "Reports", href: "/app/reports", icon: "chart", group: "Business", needs: "reports.view", feature: "reports" },
-  { key: "automations", label: "Automations", short: "Auto", href: "/app/automations", icon: "zap", group: "Business", needs: "automations.view", feature: "automations" },
   { key: "settings", label: "Settings", short: "Settings", href: "/app/settings/business", icon: "gear", group: "Business", needs: "settings.view" },
 ];
 
+const allowed = (n: NavItem, role: Role, entitlements: Entitlements | undefined) => (!n.needs || can(role, n.needs)) && (!n.feature || entitled(entitlements, n.feature));
+
+/** The tabs at the top of a section: the section itself and its sub-pages the member may use. Empty when there is only one. */
+export function sectionTabs(sectionKey: string, role: Role, entitlements: Entitlements | undefined): NavItem[] {
+  const tabs = NAV.filter((n) => (n.key === sectionKey || n.parent === sectionKey) && n.tab && allowed(n, role, entitlements));
+  return tabs.length > 1 ? tabs : [];
+}
+
+/** The page a path belongs to, and the sidebar section it sits under. */
+export function navFor(pathname: string): { item: NavItem | undefined; section: string } {
+  const base = (n: NavItem) => (n.key === "settings" ? "/app/settings" : n.href);
+  const item = [...NAV].sort((a, b) => base(b).length - base(a).length).find((n) => pathname === base(n) || pathname.startsWith(`${base(n)}/`));
+  return { item, section: item?.parent ?? item?.key ?? "overview" };
+}
+
 /** Navigation the signed-in member may use: allowed by role and included in the dealership's entitlements. */
-export const visibleNav = (role: Role, entitlements: Entitlements | undefined) => NAV.filter((n) => (!n.needs || can(role, n.needs)) && (!n.feature || entitled(entitlements, n.feature)));
+export const visibleNav = (role: Role, entitlements: Entitlements | undefined) => NAV.filter((n) => !n.parent && allowed(n, role, entitlements));

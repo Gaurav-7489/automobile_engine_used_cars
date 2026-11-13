@@ -2,19 +2,20 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { AGE_BUCKETS } from "@/lib/finance";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { formatDate, formatDateTime, formatMoney, formatTime, monthLabel, monthName, MISSING } from "@/lib/format";
 import { getMonths, SNAPSHOT_AT } from "@/lib/time";
 import { HBars, GroupedBars } from "../charts-lazy";
-import { Drawer, Menu } from "../overlay";
+import { Drawer } from "../overlay";
 import { RemotePanel } from "../panel";
 import { useRemote } from "../use-remote";
-import { Badge, Button, EmptyState, InfoTip, Kpi, PageHead, Tabs, TextField } from "../ui";
+import { Badge, Button, EmptyState, InfoTip, Kpi } from "../ui";
+import { FollowUps } from "./follow-ups";
 import { Icon } from "../icons";
 import { VehicleDrawer } from "../inventory/vehicle-drawer";
-import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "../workspace";
+import { defaultBranchOf, useScopedHref, useWorkspace } from "../workspace";
 import type { Alert, InventoryEvent, Lead, Vehicle } from "@/lib/domain";
 import type { StockMetrics } from "@/lib/finance";
 
@@ -22,42 +23,21 @@ type OverviewData = { metrics: StockMetrics; movement: { month: string; acquired
 const ZERO_AGE = { "0-15": 0, "16-30": 0, "31-45": 0, ">45": 0 };
 const ZERO_METRICS: StockMetrics = { unsold: 0, available: 0, reserved: 0, preparation: 0, landedCapital: 0, ageing: 0, estimatedGross: 0, grossExcluded: 0, availableByAge: ZERO_AGE, capitalByAge: ZERO_AGE };
 
-type RangeKey = "today" | "30d" | "mtd" | "custom";
-const RANGES: { value: RangeKey; label: string }[] = [{ value: "today", label: "Today" }, { value: "30d", label: "Last 30 days" }, { value: "mtd", label: "Month to date" }, { value: "custom", label: "Custom" }];
-type QueueTab = "all" | "pricing" | "leads" | "integrations";
-
-function inRange(alert: Alert, range: RangeKey, from: string, to: string): boolean {
-  if (!alert.dueAt) return true;
-  const due = new Date(alert.dueAt).getTime();
-  const snapshot = new Date(SNAPSHOT_AT).getTime();
-  const overdue = due < snapshot;
-  if (range === "today") return overdue || formatDate(alert.dueAt) === formatDate(SNAPSHOT_AT);
-  if (range === "30d") return due >= snapshot - 30 * 86_400_000;
-  if (range === "mtd") { const ist = new Date(snapshot + 330 * 60_000); return due >= Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - 330 * 60_000; }
-  const start = from ? new Date(`${from}T00:00:00+05:30`).getTime() : 0;
-  const end = to ? new Date(`${to}T23:59:59+05:30`).getTime() : Infinity;
-  return due >= start && due <= end;
-}
-
 export function OverviewPage() {
   const { state, scope, can, demoState, mergeRecords } = useWorkspace();
-  const url = useUrlState();
   const href = useScopedHref();
   const router = useRouter();
   const [addOpen, setAddOpen] = useState(false);
   const [monthDrawer, setMonthDrawer] = useState<{ month: string; type?: "acquired" | "sold" } | null>(null);
-  const range = (RANGES.find((r) => r.value === url.get("range"))?.value ?? "30d") as RangeKey;
-  const [draftFrom, setDraftFrom] = useState(url.get("from"));
-  const [draftTo, setDraftTo] = useState(url.get("to"));
-  const [customOpen, setCustomOpen] = useState(false);
-  const tab = (["all", "pricing", "leads", "integrations"].includes(url.get("queue")) ? url.get("queue") : "all") as QueueTab;
   // Aggregated in the database for the permitted branches; the browser never receives the stock or lead lists to compute these.
   const remote = useRemote<OverviewData>(`/api/overview?branches=${scope.ids.join(",")}`, (d) => mergeRecords({ vehicles: d.records.vehicles, leads: d.records.leads }));
   const model = { metrics: remote.data?.metrics ?? ZERO_METRICS, movement: remote.data?.movement ?? getMonths().map((month) => ({ month, acquired: 0, sold: 0 })), hasStock: remote.data?.hasStock ?? true };
   const m = model.metrics;
-  const alerts = useMemo(() => (remote.data?.alerts ?? []).filter((a) => inRange(a, range, url.get("from"), url.get("to"))), [remote.data, range, url]);
-  const filtered = alerts.filter((a) => (tab === "all" ? true : tab === "pricing" ? a.type === "Pricing" : tab === "leads" ? a.type === "Leads" : a.type === "Integration"));
-  const rangeLabel = range === "custom" ? `${url.get("from") || "…"} to ${url.get("to") || "…"}` : RANGES.find((r) => r.value === range)!.label;
+  const rank = { Critical: 0, Warning: 1, Info: 2 } as Record<string, number>;
+  const filtered = [...(remote.data?.alerts ?? [])].sort((x, y) => (rank[x.severity] ?? 3) - (rank[y.severity] ?? 3));
+  const { session } = useWorkspace();
+  const istHour = new Date(Date.now() + 330 * 60_000).getUTCHours();
+  const greeting = `${istHour < 12 ? "Good morning" : istHour < 17 ? "Good afternoon" : "Good evening"}${session.name ? `, ${session.name.split(" ")[0]}` : ""}`;
   const branchParam: Record<string, string> = scope.value === defaultBranchOf(state) ? {} : { branch: scope.value };
   const invHref = (extra: Record<string, string>) => href("/app/inventory", { ...extra, ...branchParam });
   const days = AGE_BUCKETS.map((b) => ({ key: b.key, label: b.label, count: m.availableByAge[b.key] }));
@@ -82,26 +62,13 @@ export function OverviewPage() {
 
   return (
     <div className="page overview">
-      <PageHead title="Overview" lead="Your stock, leads and what needs doing today."
-        actions={<>
-          <Menu label={`Date range: ${rangeLabel}`} buttonClass="btn" align="right" text={<><span>{rangeLabel}</span></>}>
-            {(close) => (
-              <>
-                {RANGES.map((r) => <button key={r.value} role="menuitemradio" aria-checked={range === r.value} onClick={() => { if (r.value === "custom") { setCustomOpen(true); close(); } else { url.set({ range: r.value === "30d" ? null : r.value, from: null, to: null }); close(); } }}>{r.label}</button>)}
-              </>
-            )}
-          </Menu>
-          {can("inventory.edit") ? <Button variant="primary" className="primary-cta" onClick={() => setAddOpen(true)}>Add vehicle</Button> : <Button variant="primary" disabled reason="Requires Owner, Manager or Inventory access.">Add vehicle</Button>}
-        </>} />
-
-      {customOpen ? (
-        <div className="card tight row-flex" role="group" aria-label="Custom date range">
-          <TextField label="From" type="date" value={draftFrom} onChange={(e) => setDraftFrom(e.target.value)} />
-          <TextField label="To" type="date" value={draftTo} onChange={(e) => setDraftTo(e.target.value)} />
-          <Button variant="primary" onClick={() => { url.set({ range: "custom", from: draftFrom, to: draftTo }); setCustomOpen(false); }} disabled={!draftFrom && !draftTo}>Apply</Button>
-          <Button onClick={() => setCustomOpen(false)}>Cancel</Button>
+      <header className="ov-hero">
+        <div>
+          <h1 className="h1" id="page-title" tabIndex={-1}>{greeting}</h1>
+          <p className="muted">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" })} · {scope.label}</p>
         </div>
-      ) : null}
+        {can("inventory.edit") ? <Button variant="primary" className="primary-cta" onClick={() => setAddOpen(true)}>Add vehicle</Button> : null}
+      </header>
 
       {empty ? (
         <EmptyState title="Set up your workspace" actions={<><Button variant="primary" onClick={() => setAddOpen(true)}>Add first vehicle</Button><Link href={href("/app/inventory", { import: "1" })} className="btn">Import stock</Link><Link href="/onboarding" className="btn btn-ghost">Resume setup</Link></>}>
@@ -119,18 +86,18 @@ export function OverviewPage() {
               info={<InfoTip label="About estimated gross at asking">Asking price minus landed cost for cost-complete, priced, available vehicles. {m.grossExcluded} record(s) excluded for missing cost. Not a realized result.</InfoTip>} />
           </div>
         </RemotePanel>
-        <p className="meta mt-2">Key figures are stock as of {formatDate(SNAPSHOT_AT)}. The movement chart covers whole months; the range selector above applies to activity lists only.</p>
       </section>
 
-      <section aria-labelledby="pa-title" className="order-actions stack">
-        <div className="section-title"><h2 className="h2" id="pa-title">Priority actions</h2><Link className="accent-text" href={href("/app/alerts", branchParam)}>View all &gt;</Link></div>
-        <Tabs label="Priority action categories" value={tab} onChange={(v) => url.set({ queue: v === "all" ? null : v })} tabs={[{ value: "all", label: "All" }, { value: "pricing", label: "Pricing" }, { value: "leads", label: "Leads" }, { value: "integrations", label: "Integrations" }]} idPrefix="queue" />
+      <div className="ov-split">
+      <FollowUps />
+      <section aria-labelledby="pa-title" className="order-actions card ov-card">
+        <div className="section-title"><h2 className="h3" id="pa-title">Needs attention</h2><Link className="accent-text" href={href("/app/alerts", branchParam)}>All</Link></div>
         <RemotePanel title="Priority actions" remote={remote} rows={5}>
           {filtered.length === 0 ? (
-            <EmptyState title="All caught up">No open actions in {rangeLabel.toLowerCase()} for {scope.label}. Charts above remain available.</EmptyState>
+            <p className="muted ov-empty">All caught up. Nothing needs attention right now.</p>
           ) : (
             <ul className="pa-list" aria-label="Priority actions">
-              {filtered.slice(0, 6).map((a) => {
+              {filtered.slice(0, 5).map((a) => {
                 const rec = recordLabel(a);
                 const act = actionFor(a);
                 const tone = a.severity === "Critical" ? "danger" : a.severity === "Warning" ? "warn" : "neutral";
@@ -151,6 +118,7 @@ export function OverviewPage() {
           )}
         </RemotePanel>
       </section>
+      </div>
 
       <div className="split-60 order-charts" style={{ gridTemplateColumns: "minmax(0, 720fr) minmax(0, 416fr)" }}>
         <section className="card order-movement" aria-labelledby="mv-title">
@@ -170,10 +138,7 @@ export function OverviewPage() {
       </div>
 
 
-      <footer className="meta order-foot">
-        Snapshot {formatDateTime(SNAPSHOT_AT)} · {state.tenant.timezone === "Asia/Kolkata" ? "Asia/Kolkata" : state.tenant.timezone} · Calculated from your workspace records {demoState === "partial" ? <Badge tone="warn">Incomplete: partial data</Badge> : null}
-        {scope.value === ALL_BRANCHES ? " / Totals span all permitted branches" : ""}
-      </footer>
+      <footer className="meta order-foot">Updated {formatDateTime(SNAPSHOT_AT)}{scope.value === ALL_BRANCHES ? " · all your branches" : ""}{demoState === "partial" ? <> · <Badge tone="warn">Partial data</Badge></> : null}</footer>
 
       <VehicleDrawer open={addOpen} onClose={() => setAddOpen(false)} defaultBranch={scope.ids[0] ?? ""} key={addOpen ? "open" : "closed"} />
       <Drawer open={Boolean(monthDrawer)} onClose={() => setMonthDrawer(null)} size="w480" title={monthDrawer ? `${monthLabel(monthDrawer.month)} inventory events` : ""} description={monthDrawer ? `${eventRows.filter((e) => e.type === "acquired").length} acquired · ${eventRows.filter((e) => e.type === "sold").length} sold${monthDrawer.type ? ` · filtered to ${monthDrawer.type}` : ""}` : undefined}

@@ -14,7 +14,7 @@ import { Button } from "./ui";
 import { defaultBranchOf, useScopedHref, useUrlState, useWorkspace } from "./workspace";
 import { initials } from "@/lib/format";
 import { SUPPORT_EMAIL, supportMailto } from "@/lib/support";
-import { NAV, ROLE_LABEL, visibleNav } from "@/lib/permissions";
+import { navFor, ROLE_LABEL, sectionTabs, visibleNav } from "@/lib/permissions";
 import { entitled } from "@/lib/entitlements";
 import { ThemeToggle } from "./theme";
 import { RouteLoader } from "./motion/route-loader";
@@ -37,9 +37,18 @@ function FeatureOff({ label, reason }: { label: string; reason: string }) {
   );
 }
 
-function activeKey(pathname: string): string {
-  const segment = pathname.split("/")[2];
-  return NAV.find((n) => n.key === segment)?.key ?? "overview";
+/** Sub-pages of the current section, as one glass segmented control at the top of the page. */
+function SectionTabs({ section, pathname }: { section: string; pathname: string }) {
+  const { state, session } = useWorkspace();
+  const href = useScopedHref();
+  const tabs = sectionTabs(section, session.role, state.entitlements);
+  if (!tabs.length) return null;
+  const current = navFor(pathname).item?.key;
+  return (
+    <nav className="section-tabs" aria-label="Section">
+      {tabs.map((t) => <Link key={t.key} href={href(t.href)} prefetch aria-current={current === t.key ? "page" : undefined} {...warmOn(t.href)}>{t.tab}</Link>)}
+    </nav>
+  );
 }
 
 function BranchSelect() {
@@ -111,8 +120,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
   const [searchOpen, setSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const key = activeKey(pathname);
-  const navItem = NAV.find((n) => n.key === key);
+  const { item: navItem, section: key } = navFor(pathname);
   const gate = navItem?.feature && !entitled(state.entitlements, navItem.feature) ? navItem : null;
   const counts = sumAlertCounts(state.alertCounts, scope.ids);
   const urgent = counts.critical + counts.overdue;
@@ -149,7 +157,7 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
                 {items.map((item) => (
                   <Link key={item.key} href={href(item.href)} prefetch className="nav-link" aria-current={key === item.key ? "page" : undefined} {...warmOn(item.href)}>
                     <Icon name={item.icon} size={18} /><span className="nav-label label-text">{item.label}</span>
-                    {item.key === "alerts" && urgent > 0 ? <span className="nav-badge" aria-label={`${urgent} urgent`}>{urgent}</span> : null}
+                    {item.key === "overview" && urgent > 0 ? <span className="nav-badge" aria-label={`${urgent} urgent`}>{urgent}</span> : null}
                   </Link>
                 ))}
               </div>
@@ -187,12 +195,13 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
         <main className="main" id="content" tabIndex={-1}>
           <div className="main-inner">
             <div className="meta only-mobile" style={{ marginBottom: 8 }}>{scope.label}</div>
+            <SectionTabs section={key} pathname={pathname} />
             <div key={pathname} className="route-enter">{gate ? <FeatureOff label={gate.label} reason={state.entitlements!.features[gate.feature!].reason} /> : children}</div>
           </div>
         </main>
         <nav className="bottom-nav" aria-label="Primary mobile">
           {bottom.map((item) => <Link key={item.key} href={href(item.href)} prefetch aria-current={key === item.key ? "page" : undefined} {...warmOn(item.href)}><Icon name={item.icon} /><span>{item.short}</span></Link>)}
-          <button type="button" onClick={() => setMoreOpen(true)} aria-haspopup="dialog" aria-current={["pricing", "advertising", "capital", "alerts", "reports", "settings"].includes(key) ? "page" : undefined}><Icon name="menu" /><span>More</span></button>
+          <button type="button" onClick={() => setMoreOpen(true)} aria-haspopup="dialog" aria-current={!bottom.some((b) => b.key === key) ? "page" : undefined}><Icon name="menu" /><span>More</span></button>
         </nav>
       </div>
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
