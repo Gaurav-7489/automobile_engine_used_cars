@@ -37,7 +37,6 @@ export function ListSkeleton({ rows = 4, title = "Loading list" }: { rows?: numb
 export function SettingsSkeleton() {
   return (
     <div className="page" role="status" aria-busy="true" aria-label="Loading settings…">
-      <div className="goo-field" aria-hidden="true"><i /><i /><i /></div>
       <div className="stack-sm"><Skeleton h={34} w={300} /><Skeleton h={14} w={420} /></div>
       <div className="settings-grid">
         <div className="settings-nav only-desktop" aria-hidden="true">

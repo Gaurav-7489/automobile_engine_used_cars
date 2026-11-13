@@ -844,11 +844,9 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .route-bar { position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 400; overflow: hidden; pointer-events: none; }
 .route-bar i { position: absolute; inset: 0; transform-origin: left; background: linear-gradient(90deg, transparent, var(--accent), color-mix(in srgb, var(--accent) 60%, #fff), var(--accent)); box-shadow: 0 0 14px var(--accent); animation: route-bar 1.6s var(--ease-out) infinite; }
 @keyframes route-bar { 0% { transform: translateX(-100%) scaleX(0.3); } 60% { transform: translateX(10%) scaleX(0.8); } 100% { transform: translateX(100%) scaleX(0.3); } }
-.route-veil { position: fixed; z-index: 90; top: var(--header-h); bottom: 0; left: var(--rail-w); right: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--canvas) 38%, transparent); -webkit-backdrop-filter: blur(10px) saturate(140%); backdrop-filter: blur(10px) saturate(140%); animation: fade 200ms ease both; }
+.route-veil { position: fixed; z-index: 90; top: var(--header-h); bottom: 0; left: var(--rail-w); right: 0; display: grid; place-items: center; background: var(--vl-veil); -webkit-backdrop-filter: blur(6px) saturate(120%); backdrop-filter: blur(6px) saturate(120%); animation: fade 200ms ease both; }
 @media (max-width: 1023px) { .route-veil { left: 0; } }
 .route-veil-card { display: inline-flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 999px; background: var(--glass-fill-strong); border: 1px solid var(--glass-line); box-shadow: var(--e3), inset 0 1px 0 var(--glass-hi); color: var(--text); font-weight: 600; animation: pop-in 420ms var(--spring) both; }
-.liquid-orb { width: 18px; height: 18px; border-radius: 42% 58% 55% 45% / 50% 45% 55% 50%; background: radial-gradient(circle at 35% 30%, #fff8, var(--accent) 55%); animation: orb 1.1s ease-in-out infinite; box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 60%, transparent); }
-@keyframes orb { 0%, 100% { border-radius: 42% 58% 55% 45% / 50% 45% 55% 50%; transform: rotate(0) scale(1); } 50% { border-radius: 58% 42% 45% 55% / 45% 55% 45% 55%; transform: rotate(180deg) scale(1.18); } }
 .main-inner { will-change: auto; }
 
 @media (max-width: 767px) {
@@ -864,32 +862,16 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 @media (prefers-reduced-motion: reduce) {
   .ambient i, .route-enter, .kpi, .card, .state-box, .table-wrap, .chart-card, .toast, .dialog, .drawer, .menu, .kpi-value, .page-head h1, .page-head .h1, .overlay { animation: none !important; }
   .liquid-pill, .btn, .tab, .nav-link, .card, .kpi { transition-duration: 1ms !important; }
-  .route-bar i, .liquid-orb { animation-duration: 3s; }
+  .route-bar i { animation-duration: 3s; }
 }
 :root[data-motion="reduced"] .ambient i, :root[data-motion="reduced"] .route-enter, :root[data-motion="reduced"] .kpi, :root[data-motion="reduced"] .card, :root[data-motion="reduced"] .state-box,
 :root[data-motion="reduced"] .table-wrap, :root[data-motion="reduced"] .chart-card, :root[data-motion="reduced"] .toast, :root[data-motion="reduced"] .dialog, :root[data-motion="reduced"] .drawer,
 :root[data-motion="reduced"] .menu, :root[data-motion="reduced"] .kpi-value, :root[data-motion="reduced"] .page-head h1, :root[data-motion="reduced"] .overlay { animation: none !important; }
 :root[data-motion="reduced"] .liquid-pill, :root[data-motion="reduced"] .btn, :root[data-motion="reduced"] .tab, :root[data-motion="reduced"] .nav-link, :root[data-motion="reduced"] .card, :root[data-motion="reduced"] .kpi { transition-duration: 1ms !important; }
 :root[data-motion="reduced"] 
-/* ---- Fluid: skeletons that flow, metaballs that merge, and a droplet that stretches between controls. ---------------------------------- */
+/* ---- Skeletons (still; the VL mark carries the motion) and the droplet that stretches between controls. ---------------------------------- */
 .skeleton { position: relative; overflow: hidden; background: color-mix(in srgb, var(--raised) 88%, var(--accent) 2%); animation: none; border-radius: 10px; isolation: isolate; }
-.skeleton::after { content: ""; position: absolute; inset: -60% -70%; z-index: 1; pointer-events: none;
-  background:
-    radial-gradient(38% 90% at 28% 50%, color-mix(in srgb, var(--skeleton-hi) 100%, transparent), transparent 72%),
-    radial-gradient(30% 80% at 62% 50%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 72%),
-    radial-gradient(24% 70% at 82% 50%, color-mix(in srgb, var(--info) 9%, transparent), transparent 72%);
-  animation: fluid-flow 2.6s cubic-bezier(0.45, 0, 0.35, 1) infinite; }
-@keyframes fluid-flow { 0% { transform: translateX(-42%) skewX(-14deg) scaleX(0.9); } 50% { transform: translateX(36%) skewX(-14deg) scaleX(1.3); } 100% { transform: translateX(-42%) skewX(-14deg) scaleX(0.9); } }
-.skeleton:nth-child(2n)::after { animation-delay: -0.5s; } .skeleton:nth-child(3n)::after { animation-delay: -1.1s; }
 .settings-nav .skeleton { border-radius: 12px; }
-
-/* Metaballs behind a page title: three drops drift and merge through the goo filter. Decorative only. */
-.goo-field { position: relative; height: 0; overflow: visible; pointer-events: none; z-index: 0; filter: url(#goo); }
-.goo-field i { position: absolute; top: -8px; width: 56px; height: 56px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 26%, transparent); animation: goo-a 9s ease-in-out infinite alternate; }
-.goo-field i:nth-child(1) { right: 22%; } .goo-field i:nth-child(2) { right: 14%; width: 40px; height: 40px; animation-name: goo-b; animation-duration: 11s; } .goo-field i:nth-child(3) { right: 6%; width: 48px; height: 48px; animation-name: goo-c; animation-duration: 13s; }
-@keyframes goo-a { to { transform: translate3d(70px, 18px, 0) scale(1.15); } }
-@keyframes goo-b { to { transform: translate3d(-90px, 26px, 0) scale(1.3); } }
-@keyframes goo-c { to { transform: translate3d(-120px, 6px, 0) scale(0.85); } }
 
 /* The droplet that follows the pointer in the settings list: a leader and a slower follower, merged by the goo filter. */
 .settings-nav { position: relative; background: var(--surface); border-color: var(--border); }
@@ -901,10 +883,8 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .goo-trail .lead { transition: left 260ms var(--ease-out), width 260ms var(--ease-out), top 240ms var(--spring), height 240ms var(--ease-out); }
 .goo-trail .trail { opacity: 0.9; transition: left 620ms var(--spring) 40ms, width 620ms var(--spring) 40ms, top 560ms var(--spring) 40ms, height 560ms var(--ease-out) 40ms; transform: scale(0.94); }
 
-@media (prefers-reduced-motion: reduce) { .skeleton::after, .goo-field i { animation: none !important; } .goo-trail .liquid-pill { transition-duration: 1ms !important; } }
-:root[data-motion="reduced"] .skeleton::after, :root[data-motion="reduced"] .goo-field i { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .goo-trail .liquid-pill { transition-duration: 1ms !important; } }
 :root[data-motion="reduced"] .goo-trail .liquid-pill { transition-duration: 1ms !important; }
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .goo-field { display: none; } }
 
 /* Theme change: the new theme spreads from the pressed control in a slow circle (components/theme.tsx drives the clip-path). */
 ::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
@@ -1380,7 +1360,6 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 @media (max-width: 1099px) { .ads-layout { grid-template-columns: minmax(0, 1fr); } .ads-side { position: static; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); } }
 @media (max-width: 767px) { .ads-start { grid-template-columns: minmax(0, 1fr); } .ads-main { padding: 16px; } .ads-actions .row-flex { width: 100%; } .ads-actions .row-flex .btn { flex: 1 1 auto; } }
 .ads-preview-label { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.goo-field { display: none; }
 /* Secondary text inside a primary button uses the button's own ink, so it stays readable on the accent fill. */
 .btn-primary .meta, .btn-primary .muted, .btn-primary .help { color: inherit; opacity: 0.88; }
 /* Marketplace: who is selling, under each car. */
@@ -1825,3 +1804,50 @@ body { background: var(--canvas-art); background-attachment: fixed; letter-spaci
 }
 @media (prefers-reduced-motion: reduce) { .ask-panel, .ask-panel.open { transition: none; } }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .ask-fab, .ask-panel { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--surface); } }
+
+/* ---- Loading: the shimmering VL mark over a softly darkened, blurred area. -------------------------------------------------------------
+   Replaces the old flowing skeleton sweep, goo drops and morphing orb. Any loading region (role="status" + aria-busy="true", or
+   .vl-loading) is dimmed and blurred, and the VL letters shimmer at its centre. Skeleton bars underneath stay still. */
+:root { --vl-veil: rgba(4, 6, 6, 0.42); --vl-base: color-mix(in srgb, var(--text) 42%, transparent); --vl-shine: #ffffff; }
+:root[data-theme="light"] { --vl-veil: rgba(10, 16, 14, 0.22); --vl-shine: #ffffff; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --vl-veil: rgba(10, 16, 14, 0.22); } }
+
+.skeleton, .skeleton::after { animation: none !important; }
+.skeleton::after { display: none; }
+
+.vl-mark { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; line-height: 1; user-select: none; pointer-events: none; animation: pop-in 320ms var(--ease-out, ease) both; }
+.vl-letters, .vl-word {
+  background: linear-gradient(100deg, var(--vl-base) 0%, var(--vl-base) 38%, var(--vl-shine) 50%, var(--vl-base) 62%, var(--vl-base) 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  animation: vl-shimmer 1.8s linear infinite;
+}
+.vl-letters { font-weight: 800; letter-spacing: -0.04em; font-size: 44px; filter: drop-shadow(0 2px 14px rgba(0, 0, 0, 0.35)); }
+.vl-word { font-weight: 600; font-size: 11px; letter-spacing: 0.32em; text-transform: uppercase; padding-left: 0.32em; animation-delay: 0.12s; }
+.vl-sm .vl-letters { font-size: 26px; } .vl-sm .vl-word { font-size: 9px; }
+.vl-lg .vl-letters { font-size: 64px; } .vl-lg .vl-word { font-size: 12px; }
+@keyframes vl-shimmer { from { background-position: 125% 0; } to { background-position: -125% 0; } }
+
+/* A loading region: dim + blur everything inside it, then the VL letters on top. */
+:is(div, section, main)[role="status"][aria-busy="true"], .page[aria-busy="true"], .table-wrap[aria-busy="true"], .pk-main[aria-busy="true"], .vl-loading { position: relative; isolation: isolate; }
+:is(div, section, main)[role="status"][aria-busy="true"]::before, .page[aria-busy="true"]::before, .table-wrap[aria-busy="true"]::before, .pk-main[aria-busy="true"]::before, .vl-loading::before {
+  content: ""; position: absolute; inset: 0; z-index: 5; border-radius: inherit; pointer-events: none;
+  background: var(--vl-veil); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); animation: fade 200ms ease both;
+}
+:is(div, section, main)[role="status"][aria-busy="true"]::after, .page[aria-busy="true"]::after, .table-wrap[aria-busy="true"]::after, .pk-main[aria-busy="true"]::after, .vl-loading::after {
+  content: "VL"; position: absolute; z-index: 6; left: 50%; top: min(50%, 42vh); transform: translate(-50%, -50%); pointer-events: none;
+  font: 800 40px/1 var(--font); letter-spacing: -0.04em; white-space: nowrap;
+  background: linear-gradient(100deg, var(--vl-base) 0%, var(--vl-base) 38%, var(--vl-shine) 50%, var(--vl-base) 62%, var(--vl-base) 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  animation: vl-shimmer 1.8s linear infinite;
+}
+.page[aria-busy="true"]::after, main[role="status"][aria-busy="true"]::after { font-size: 64px; }
+/* Nested loaders show one mark, from the outermost region. */
+:is([aria-busy="true"], .vl-loading) :is([aria-busy="true"], .vl-loading)::before,
+:is([aria-busy="true"], .vl-loading) :is([aria-busy="true"], .vl-loading)::after { content: none; }
+
+@media (prefers-reduced-motion: reduce) { .vl-letters, .vl-word, [aria-busy="true"]::after, .vl-loading::after { animation: none !important; background-position: 50% 0; } }
+:root[data-motion="reduced"] :is(.vl-letters, .vl-word, [aria-busy="true"]::after, .vl-loading::after) { animation: none !important; background-position: 50% 0; }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  [aria-busy="true"]::before, .vl-loading::before { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .vl-letters, .vl-word, [aria-busy="true"]::after, .vl-loading::after { background: none; color: var(--text); -webkit-text-fill-color: var(--text); }
+}

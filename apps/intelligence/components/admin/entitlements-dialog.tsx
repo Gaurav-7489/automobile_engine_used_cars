@@ -53,7 +53,7 @@ export function EntitlementsDialog({ tenantId, name, onClose, onSaved }: { tenan
       footer={<><Button onClick={onClose}>{done ? "Close" : "Cancel"}</Button><Button variant="primary" loading={busy} loadingLabel="Saving access…" disabled={!loaded} onClick={save}>{done ? "Saved: save again" : "Save access"}</Button></>}>
       <div className="stack">
         {loadError ? <Notice tone="danger" role="alert">{loadError} <button className="link-btn" onClick={() => void load()}>Retry</button></Notice> : null}
-        {!loaded && !loadError ? <div className="stack" role="status" aria-label="Loading access settings"><Skeleton h={32} /><Skeleton h={120} /></div> : null}
+        {!loaded && !loadError ? <div className="stack" role="status" aria-busy="true" aria-label="Loading access settings"><Skeleton h={32} /><Skeleton h={120} /></div> : null}
         {done ? <Notice tone="accent" role="status">Access saved and audited.</Notice> : null}
         {loaded ? (
           <>

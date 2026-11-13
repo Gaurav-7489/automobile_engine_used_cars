@@ -2,10 +2,11 @@
 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { VLMark } from "./vl-loader";
 
 /**
  * Navigation feedback. The moment an internal link is followed a thin liquid bar starts; if the next page takes longer than a
- * moment, a glass veil covers the content area (not the whole screen, so the rail and top bar stay usable) until the new page is in.
+ * moment, a dark, softly blurred veil with the shimmering VL mark covers the content area (not the whole screen, so the rail and top bar stay usable) until the new page is in.
  */
 export function RouteLoader() {
   const pathname = usePathname();
@@ -42,7 +43,7 @@ export function RouteLoader() {
       <div className="route-bar" aria-hidden="true"><i /></div>
       {phase === "veil" ? (
         <div className="route-veil" role="status" aria-live="polite">
-          <div className="route-veil-card"><span className="liquid-orb" aria-hidden="true" /><span>Loading</span></div>
+          <VLMark size="lg" /><span className="sr-only">Loading</span>
         </div>
       ) : null}
     </>

@@ -19,7 +19,7 @@ export function LazyMount({ children, height = 320, className = "" }: { children
   }, []);
   if (shown) return <>{children}</>;
   return (
-    <div ref={ref} className={`card lazy-hold ${className}`} style={{ minHeight: height }} aria-hidden="true">
+    <div ref={ref} className={`card lazy-hold vl-loading ${className}`} style={{ minHeight: height }} aria-hidden="true">
       <span className="skeleton" style={{ height: 18, width: "35%" }} />
       <span className="skeleton" style={{ height: Math.max(40, height - 90) }} />
     </div>

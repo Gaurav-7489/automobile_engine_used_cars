@@ -119,7 +119,7 @@ export function RegionsPage() {
             <h2 className="h3" id="rg-title">Matched regional median and IQR</h2>
             <p className="meta">Asking-price comparisons. Adjusted estimate is a separate model output. Horizontal axis: asking price, ₹ lakh.</p>
             <Panel title="Regional chart" rows={5}>
-              {status === "loading" && !data ? <div className="stack-sm">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} h={28} />)}</div> : (
+              {status === "loading" && !data ? <div className="stack-sm" role="status" aria-busy="true" aria-label="Loading regions">{Array.from({ length: 4 }, (_, i) => <Skeleton key={i} h={28} />)}</div> : (
                 <>
                   <div className="only-desktop"><RangeBars axisMin={lakh(20)} axisMax={lakh(32)} format={(v) => `₹${Math.round(v / lakh(1))} L`} selected={chosen?.region} onSelect={select}
                     rows={regions.map((r) => ({ key: r.region, label: r.region, sub: r.status === "ok" ? `n=${r.n}` : "n unavailable", median: r.median, q1: r.q1, q3: r.q3, display: formatMoney(r.median), unavailable: r.status === "unavailable" }))} /></div>
