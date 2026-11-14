@@ -13,6 +13,9 @@ import { open, seal } from "./secret-box";
  * returned a working token and at least one ad account.
  */
 export type AdProvider = "google" | "meta";
+/** What the owner can connect from Advertising. WhatsApp uses the same Meta app but is stored as a messaging channel. */
+export type ConnectProvider = AdProvider | "whatsapp";
+export const isConnectProvider = (v: unknown): v is ConnectProvider => v === "google" || v === "meta" || v === "whatsapp";
 export const AD_PROVIDERS: { id: AdProvider; name: string; covers: string }[] = [
   { id: "google", name: "Google Ads", covers: "Google Search ads" },
   { id: "meta", name: "Facebook and Instagram", covers: "Ads on Facebook and Instagram" },
@@ -24,21 +27,27 @@ export const googleAdsBase = () => `https://googleads.googleapis.com/${process.e
 export const metaBase = () => `https://graph.facebook.com/${process.env.META_API_VERSION?.trim() || "v24.0"}`;
 
 const env = (name: string) => process.env[name]?.trim() ?? "";
-export function providerConfigured(provider: AdProvider): boolean {
+export function providerConfigured(provider: ConnectProvider): boolean {
   return provider === "google" ? googleConfigured() && Boolean(env("GOOGLE_ADS_DEVELOPER_TOKEN")) : Boolean(env("META_APP_ID") && env("META_APP_SECRET"));
 }
 
 const META_SCOPES = "ads_management,ads_read,pages_show_list,pages_read_engagement,business_management,instagram_basic";
+const WHATSAPP_SCOPES = "whatsapp_business_management,whatsapp_business_messaging,business_management";
+/** Google Ads, plus read-only YouTube so the dealership's channel can be shown and used for YouTube ads in the same account. */
+const GOOGLE_SCOPES = "https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/youtube.readonly";
 
-export function adAuthUrl(provider: AdProvider, redirectUri: string, state: string): string {
-  if (provider === "google") return googleAuthUrl({ redirectUri, state, scope: "https://www.googleapis.com/auth/adwords", offline: true });
-  const p = new URLSearchParams({ client_id: env("META_APP_ID"), redirect_uri: redirectUri, state, response_type: "code", scope: META_SCOPES });
+export function adAuthUrl(provider: ConnectProvider, redirectUri: string, state: string): string {
+  if (provider === "google") return googleAuthUrl({ redirectUri, state, scope: GOOGLE_SCOPES, offline: true });
+  const p = new URLSearchParams({ client_id: env("META_APP_ID"), redirect_uri: redirectUri, state, response_type: "code", scope: provider === "whatsapp" ? WHATSAPP_SCOPES : META_SCOPES });
+  // With a WhatsApp Embedded Signup configuration, Meta walks the owner through creating or choosing a WhatsApp Business number.
+  if (provider === "whatsapp" && env("META_WHATSAPP_CONFIG_ID")) { p.set("config_id", env("META_WHATSAPP_CONFIG_ID")); p.set("override_default_response_type", "true"); }
   return `https://www.facebook.com/${process.env.META_API_VERSION?.trim() || "v24.0"}/dialog/oauth?${p.toString()}`;
 }
 
 export type AdAccountChoice = { id: string; name: string };
-export type MetaPage = { id: string; name: string; instagramId: string | null };
-export type AdDetails = { accounts: AdAccountChoice[]; pages?: MetaPage[]; pageId?: string; instagramId?: string | null };
+export type MetaPage = { id: string; name: string; instagramId: string | null; instagramUsername?: string | null };
+export type YouTubeChannel = { id: string; title: string };
+export type AdDetails = { accounts: AdAccountChoice[]; pages?: MetaPage[]; pageId?: string; instagramId?: string | null; instagramUsername?: string | null; youtube?: YouTubeChannel | null };
 export type AdConnection = { provider: AdProvider; accountId: string; accountName: string; details: AdDetails; connectedAt: string; expiresAt: string | null };
 
 type Fetched = { ok: true; access: string; refresh: string | null; expiresAt: string | null; accounts: AdAccountChoice[]; details: Partial<AdDetails> } | { ok: false; message: string };
@@ -61,7 +70,18 @@ async function fetchGoogle(code: string, redirectUri: string): Promise<Fetched> 
   const names = Array.isArray(list.body.resourceNames) ? (list.body.resourceNames as unknown[]).filter((n): n is string => typeof n === "string") : [];
   if (list.status !== 200 || !names.length) return { ok: false, message: list.status === 200 ? "That Google login has no Google Ads account. Create one at ads.google.com, then connect again." : "Google Ads refused the request. The VandLabs developer token may not be approved for live accounts yet." };
   const accounts = names.map((n) => n.replace("customers/", "")).filter((id) => /^\d{6,12}$/.test(id)).slice(0, 20).map((id) => ({ id, name: `Google Ads ${id.replace(/(\d{3})(\d{3})(\d+)/, "$1-$2-$3")}` }));
-  return { ok: true, access: tokens.access_token, refresh: tokens.refresh_token, expiresAt: new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString(), accounts, details: {} };
+  return { ok: true, access: tokens.access_token, refresh: tokens.refresh_token, expiresAt: new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString(), accounts, details: { youtube: await youtubeChannel(tokens.access_token) } };
+}
+
+/** The YouTube channel on the same Google login, if there is one. Read-only; nothing is posted to it. */
+async function youtubeChannel(access: string): Promise<YouTubeChannel | null> {
+  try {
+    const r = await getJson("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true&maxResults=1", { authorization: `Bearer ${access}` });
+    const item = (Array.isArray(r.body.items) ? r.body.items : [])[0] as { id?: unknown; snippet?: { title?: unknown } } | undefined;
+    return r.status === 200 && typeof item?.id === "string" ? { id: item.id, title: String(item.snippet?.title || item.id) } : null;
+  } catch {
+    return null;
+  }
 }
 
 async function fetchMeta(code: string, redirectUri: string): Promise<Fetched> {
@@ -76,12 +96,15 @@ async function fetchMeta(code: string, redirectUri: string): Promise<Fetched> {
   const ads = await getJson(`${metaBase()}/me/adaccounts?fields=account_id,name&limit=50`, auth);
   const accounts = (Array.isArray(ads.body.data) ? (ads.body.data as Record<string, unknown>[]) : []).filter((a) => typeof a.id === "string").map((a) => ({ id: String(a.id), name: String(a.name || a.id) }));
   if (!accounts.length) return { ok: false, message: "That Facebook login has no ad account. Create one in Meta Business Suite, then connect again." };
-  const pagesBody = await getJson(`${metaBase()}/me/accounts?fields=id,name,instagram_business_account{id}&limit=50`, auth);
+  const pagesBody = await getJson(`${metaBase()}/me/accounts?fields=id,name,instagram_business_account{id,username}&limit=50`, auth);
   const pages: MetaPage[] = (Array.isArray(pagesBody.body.data) ? (pagesBody.body.data as Record<string, unknown>[]) : []).filter((p) => typeof p.id === "string")
-    .map((p) => ({ id: String(p.id), name: String(p.name || p.id), instagramId: typeof (p.instagram_business_account as { id?: unknown } | undefined)?.id === "string" ? String((p.instagram_business_account as { id: string }).id) : null }));
+    .map((p) => {
+      const ig = p.instagram_business_account as { id?: unknown; username?: unknown } | undefined;
+      return { id: String(p.id), name: String(p.name || p.id), instagramId: typeof ig?.id === "string" ? ig.id : null, instagramUsername: typeof ig?.username === "string" ? ig.username : null };
+    });
   if (!pages.length) return { ok: false, message: "Ads need a Facebook Page for your dealership. Create a Page, then connect again." };
   const page = pages.find((p) => p.instagramId) ?? pages[0];
-  return { ok: true, access, refresh: null, expiresAt: new Date(Date.now() + seconds * 1000).toISOString(), accounts, details: { pages, pageId: page.id, instagramId: page.instagramId } };
+  return { ok: true, access, refresh: null, expiresAt: new Date(Date.now() + seconds * 1000).toISOString(), accounts, details: { pages, pageId: page.id, instagramId: page.instagramId, instagramUsername: page.instagramUsername ?? null } };
 }
 
 const ADMIN_ROLES = new Set(["owner", "manager"]);

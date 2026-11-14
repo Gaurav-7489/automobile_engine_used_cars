@@ -55,7 +55,7 @@ export function ShowroomHub() {
         <div className="sh-link-url"><span className="label meta">Your showroom link</span><code>{url}</code></div>
         <div className="row-flex">
           <a className="btn btn-sm" href={`https://wa.me/?text=${encodeURIComponent(`See our cars for sale: ${url}?utm_source=whatsapp&utm_medium=social`)}`} target="_blank" rel="noopener noreferrer">Share on WhatsApp</a>
-          {can("campaign.view") ? <Link className="btn btn-sm" href={href("/app/advertising")}>Make social posts</Link> : null}
+          {can("campaign.view") ? <Link className="btn btn-sm" href={href("/app/advertising")}>Promote cars</Link> : null}
         </div>
         <p className="meta">Put it in your Instagram bio, WhatsApp Business profile and Google Business listing. Each car page has its own link and an enquiry form.</p>
       </section>

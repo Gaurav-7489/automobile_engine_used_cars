@@ -18,11 +18,12 @@ export const money = (n: number) => postPrice(n * 100);
 export const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 export const km = (n: number) => `${num.format(n)} km`;
 
-export type ShowroomQuery = { q?: string; body?: string; fuel?: string; sort?: string };
-export function filterVehicles(list: Vehicle[], { q, body, fuel, sort }: ShowroomQuery) {
+export type ShowroomQuery = { q?: string; make?: string; model?: string; variant?: string; body?: string; fuel?: string; sort?: string };
+export function filterVehicles(list: Vehicle[], { q, body, fuel, sort, make, model, variant }: ShowroomQuery) {
   const needle = q?.trim().toLowerCase();
   const out = list.filter(v =>
     (!needle || `${v.make} ${v.model} ${v.variant} ${v.year}`.toLowerCase().includes(needle)) &&
+    (!make || v.make.toLowerCase() === make.toLowerCase()) && (!model || v.model.toLowerCase() === model.toLowerCase()) && (!variant || v.variant.toLowerCase() === variant.toLowerCase()) &&
     (!body || v.bodyType === body) && (!fuel || v.fuelType === fuel));
   const by: Record<string, (a: Vehicle, b: Vehicle) => number> = {
     "price-asc": (a, b) => a.price - b.price, "price-desc": (a, b) => b.price - a.price,

@@ -63,7 +63,7 @@ const NEEDS: Record<string, Extractor> = {
   updateCampaign: (a, s, v) => campaignVehicle(v, s, a[0]),
   changeVehicle: (a, s, v) => { campaignVehicle(v, s, a[0]); vehicle(v, a[1]); },
   submitCampaign: (a, s, v) => campaignVehicle(v, s, a[0]), approveCampaign: (a, s, v) => campaignVehicle(v, s, a[0]), publishCampaign: (a, s, v) => campaignVehicle(v, s, a[0]),
-  pauseCampaign: (a, s, v) => campaignVehicle(v, s, a[0]), resumeCampaign: (a, s, v) => campaignVehicle(v, s, a[0]), discardCampaign: (a, s, v) => campaignVehicle(v, s, a[0]),
+  pauseCampaign: (a, s, v) => campaignVehicle(v, s, a[0]), resumeCampaign: (a, s, v) => campaignVehicle(v, s, a[0]), discardCampaign: (a, s, v) => campaignVehicle(v, s, a[0]), withdrawCampaign: (a, s, v) => campaignVehicle(v, s, a[0]),
   // Pricing.
   createPriceRequest: (a, _s, v) => vehicle(v, (a[0] as { vehicleId?: unknown } | undefined)?.vehicleId),
   submitPriceRequest: (a, s, v) => requestVehicle(v, s, a[0]), approvePriceRequest: (a, s, v) => requestVehicle(v, s, a[0]), rejectPriceRequest: (a, s, v) => requestVehicle(v, s, a[0]),

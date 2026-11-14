@@ -44,3 +44,16 @@ Not covered: search and AI endpoints (not present in Intelligence), per-tenant q
 ## Not done
 
 No penetration test, dependency audit, CSRF re-audit (existing `sameOrigin` checks were left in place and are present on every new route), file-content validation review, or RLS audit of the legacy apps.
+
+## Content Security Policy
+
+Every page response gets its policy from `apps/intelligence/middleware.ts`, built by `apps/intelligence/lib/csp.ts`, with a fresh random nonce per request.
+
+- **Scripts:** `script-src 'self' 'nonce-…' 'strict-dynamic'`. Next.js tags its own scripts with the nonce and the root layout tags the theme script. Injected markup (`<script>`, `onerror=`/`onclick=` handlers, `javascript:` links, `srcdoc` frames) is blocked. Development adds `'unsafe-eval'` only.
+- **Styles:** `<style>` elements need the nonce; style attributes (React `style={{}}`) stay allowed through `style-src-attr 'unsafe-inline'`.
+- **Everything else:** `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, images from this site plus the photo hosts, connections to this site only. Pages refuse to be framed except the public showroom (`/showroom`, `/l/…`), which only this site may frame.
+- **API responses:** `default-src 'none'; frame-ancestors 'none'` (static header in `next.config.ts`).
+- Because each response has its own nonce, every page renders per request; there are no statically prerendered pages.
+- `upgrade-insecure-requests` is left out on purpose: Strict-Transport-Security already forces HTTPS, and the directive breaks local production builds served over http.
+
+Covered by `tests/security/csp.test.ts`. Adding a third-party script or image host means adding it in `lib/csp.ts`.

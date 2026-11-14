@@ -1,3 +1,4 @@
+import { CarFilter } from "@/components/listing/car-filter";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
@@ -21,14 +22,14 @@ export const metadata: Metadata = {
 
 export default async function MarketplacePage({ searchParams }: { searchParams: Search }) {
   const s = await searchParams;
-  const f = { q: one(s.q), make: one(s.make), fuel: one(s.fuel), city: one(s.city), sort: one(s.sort), budget: one(s.budget), page: one(s.page) };
+  const f = { q: one(s.q), make: one(s.make), model: one(s.model), variant: one(s.variant), fuel: one(s.fuel), city: one(s.city), sort: one(s.sort), budget: one(s.budget), page: one(s.page) };
   let market: Marketplace | null = null;
   try {
-    market = await readMarketplace({ q: f.q, make: f.make, fuel: f.fuel, city: f.city, sort: f.sort, maxPrice: Number(f.budget) || undefined, page: Number(f.page) || 1 });
+    market = await readMarketplace({ q: f.q, make: f.make, model: f.model, variant: f.variant, fuel: f.fuel, city: f.city, sort: f.sort, maxPrice: Number(f.budget) || undefined, page: Number(f.page) || 1 });
   } catch (error) {
     console.error(JSON.stringify({ event: "marketplace_unavailable", message: error instanceof Error ? error.message.slice(0, 160) : "unknown" }));
   }
-  const filtered = Boolean(f.q || f.make || f.fuel || f.city || f.budget);
+  const filtered = Boolean(f.q || f.make || f.model || f.variant || f.fuel || f.city || f.budget);
   const pageHref = (page: number) => `/cars?${new URLSearchParams(Object.entries({ ...f, page: String(page) }).filter(([, v]) => v) as [string, string][]).toString()}`;
   return (
     <div className="showroom">
@@ -47,7 +48,7 @@ export default async function MarketplacePage({ searchParams }: { searchParams: 
             <p className="muted">{market.total} car{market.total === 1 ? "" : "s"} {filtered ? "match your search" : "for sale"}{market.dealers ? ` from ${market.dealers} dealership${market.dealers === 1 ? "" : "s"}` : ""} · straight from each dealer&apos;s stock</p>
             <form className="pl-filters" method="get" action="/cars" role="search" aria-label="Search cars">
               <label className="pl-filter pl-filter-q"><span className="label">Search</span><input className="input" type="search" name="q" defaultValue={f.q} placeholder="Make, model, dealer or city" maxLength={60} /></label>
-              {market.makes.length > 1 ? <label className="pl-filter"><span className="label pl-filter-label">Make</span><select className="input" name="make" defaultValue={f.make}><option value="">All makes</option>{market.makes.map((m) => <option key={m} value={m}>{m}</option>)}</select></label> : null}
+              <CarFilter initial={{ make: f.make, model: f.model, variant: f.variant }} brands={market.makes} />
               <label className="pl-filter"><span className="label pl-filter-label">Budget</span><select className="input" name="budget" defaultValue={f.budget}><option value="">Any budget</option>{BUDGETS.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}</select></label>
               {market.fuels.length > 1 ? <label className="pl-filter"><span className="label pl-filter-label">Fuel</span><select className="input" name="fuel" defaultValue={f.fuel}><option value="">Any fuel</option>{market.fuels.map((x) => <option key={x} value={x}>{x}</option>)}</select></label> : null}
               {market.cities.length > 1 ? <label className="pl-filter"><span className="label pl-filter-label">City</span><select className="input" name="city" defaultValue={f.city}><option value="">All cities</option>{market.cities.map((c) => <option key={c} value={c}>{c}</option>)}</select></label> : null}

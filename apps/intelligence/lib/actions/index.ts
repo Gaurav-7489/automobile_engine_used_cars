@@ -37,6 +37,7 @@ export const publishCampaign = record("publishCampaign", campaignsRaw.publishCam
 export const pauseCampaign = record("pauseCampaign", campaignsRaw.pauseCampaign);
 export const resumeCampaign = record("resumeCampaign", campaignsRaw.resumeCampaign);
 export const discardCampaign = record("discardCampaign", campaignsRaw.discardCampaign);
+export const withdrawCampaign = record("withdrawCampaign", campaignsRaw.withdrawCampaign);
 export const proposeCorrection = record("proposeCorrection", capitalRaw.proposeCorrection);
 export const addVehicle = record("addVehicle", inventoryRaw.addVehicle);
 export const updateVehicle = record("updateVehicle", inventoryRaw.updateVehicle);

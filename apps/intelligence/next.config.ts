@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { API_CSP } from "./lib/csp";
 
 /**
  * Build facts shown in the admin console: product version, build time and the automated test inventory (suites and test
@@ -41,6 +42,7 @@ const nextConfig: NextConfig = {
   // The shared data package is TypeScript source in this monorepo.
   transpilePackages: ["@vandlabs/data", "@vandlabs/contracts", "@vandlabs/demo-data"],
   serverExternalPackages: ["pg", "@aws-sdk/client-secrets-manager"],
+  // Page responses get their Content Security Policy, with a fresh nonce, from middleware.ts (lib/csp.ts).
   async headers() {
     return [
       {
@@ -49,19 +51,15 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" },
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
-          { key: "Content-Security-Policy", value: "default-src 'self'; img-src 'self' data: blob: https://images.unsplash.com https://*.public.blob.vercel-storage.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
         ],
       },
+      // API responses render nothing: they may load nothing and never be framed.
+      { source: "/api/:path*", headers: [{ key: "Content-Security-Policy", value: API_CSP }] },
       // Public showroom pages may be shown inside this app (the in-app Showroom preview), and only by this site.
-      ...["/l/:path*", "/showroom", "/showroom/:path*"].map((source) => ({
-        source,
-        headers: [
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "Content-Security-Policy", value: "default-src 'self'; img-src 'self' data: blob: https://images.unsplash.com https://*.public.blob.vercel-storage.com; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'" },
-        ],
-      })),
+      ...["/l/:path*", "/showroom", "/showroom/:path*"].map((source) => ({ source, headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] })),
     ];
   },
 };

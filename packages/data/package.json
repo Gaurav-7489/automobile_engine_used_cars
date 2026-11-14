@@ -21,7 +21,7 @@
     "@vandlabs/demo-data": "workspace:*",
     "@vandlabs/server-auth": "workspace:*",
     "fflate": "0.8.3",
-    "next": "^15.5.27",
+    "next": "^15.5.29",
     "pg": "^8.16.3",
     "saxes": "6.0.0",
     "yauzl": "3.4.0"

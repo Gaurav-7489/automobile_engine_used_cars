@@ -81,7 +81,7 @@ const LIVE_STOCK = "v.publish_status = 'published' AND v.availability_status IN 
 const FROM = "FROM vehicles v JOIN locations l ON l.id = v.location_id AND l.tenant_id = v.tenant_id";
 
 /** Every published, unsold car of one dealership, with the same public-fields-only rule as a single listing. */
-export async function readPublicInventory(tenantId: string, f: { q?: string; make?: string; fuel?: string; city?: string; sort?: string; page?: number }): Promise<PublicInventory | null> {
+export async function readPublicInventory(tenantId: string, f: { q?: string; make?: string; model?: string; variant?: string; fuel?: string; city?: string; sort?: string; page?: number }): Promise<PublicInventory | null> {
   if (!UUID.test(tenantId)) return null;
   const tenant = tenantId.toLowerCase();
   return tenantTx(tenant, async (c) => {
@@ -95,6 +95,8 @@ export async function readPublicInventory(tenantId: string, f: { q?: string; mak
     const q = (f.q ?? "").trim().slice(0, 60);
     if (q) add("(coalesce(v.payload->>'make', '') || ' ' || coalesce(v.payload->>'model', '') || ' ' || coalesce(v.payload->>'variant', '')) ILIKE ?", `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`);
     if (f.make) add("lower(v.payload->>'make') = lower(?)", f.make.slice(0, 40));
+    if (f.model) add("lower(v.payload->>'model') = lower(?)", f.model.slice(0, 40));
+    if (f.variant) add("lower(v.payload->>'variant') = lower(?)", f.variant.slice(0, 40));
     if (f.fuel) add("lower(v.payload->>'fuelType') = lower(?)", f.fuel.slice(0, 20));
     if (f.city) add("lower(l.city) = lower(?)", f.city.slice(0, 60));
     const filter = where.join(" AND ");

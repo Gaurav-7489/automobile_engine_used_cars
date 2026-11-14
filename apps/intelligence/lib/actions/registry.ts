@@ -51,6 +51,7 @@ export const COMMANDS: Record<string, Entry> = {
   pauseCampaign: { run: withActor(campaigns.pauseCampaign) },
   resumeCampaign: { run: withActor(campaigns.resumeCampaign) },
   discardCampaign: { run: withActor(campaigns.discardCampaign) },
+  withdrawCampaign: { run: withActor(campaigns.withdrawCampaign) },
   proposeCorrection: { run: withActor(capital.proposeCorrection) },
   addVehicle: { run: withActor(inventory.addVehicle) },
   updateVehicle: { run: (s, a, [id, version, patch]) => inventory.updateVehicle(s, a, id, version, pick(patch, VEHICLE_PATCH_KEYS)) },

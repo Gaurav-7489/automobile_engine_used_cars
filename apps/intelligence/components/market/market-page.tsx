@@ -174,7 +174,7 @@ export function MarketPage() {
         <Panel title="Results" rows={6}>
           {listings.status === "error" && !result ? <ErrorPanel title="Market results could not load" message={`${listings.error ?? "The feed did not respond."} Last successful read: ${formatDateTime(feed?.lastSuccessAt)}.`} onRetry={listings.retry} /> : null}
           {feed?.state === "Degraded" ? <Notice tone="warn" role="status">Feed A last succeeded {formatDateTime(feed.lastSuccessAt)}. Newer listings may be missing.</Notice> : null}
-          {listings.status === "loading" && !rows.length ? <div className="stack-sm" role="status" aria-label="Loading results">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} h={56} />)}</div> : null}
+          {listings.status === "loading" && !rows.length ? <div className="stack-sm" role="status" aria-busy="true" aria-label="Loading results">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} h={56} />)}</div> : null}
           {listings.status !== "loading" && result && rows.length === 0 ? (
             <EmptyState title="No listings match this search" actions={<><Button onClick={() => url.set({ q: f.q ?? null, yearFrom: null, yearTo: null, region: null, priceMin: null, priceMax: null, fuel: null, transmission: null, variant: null, observed: null, make: null, city: null, kmMax: null, owners: null, cursor: null, cleared: "1" })}>Clear filters</Button><Button onClick={() => document.querySelector<HTMLInputElement>(".search-q input")?.focus()}>Modify search</Button></>}>
               {activeChips.length ? `Active filters: ${activeChips.map((c) => c.label).join(", ")}. ` : ""}Widening is never done silently. Clear a filter or change the query.
