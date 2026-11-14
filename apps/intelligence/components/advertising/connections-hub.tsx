@@ -70,6 +70,15 @@ export function ConnectionsHub({ remote }: { remote: ReturnType<typeof usePlatfo
       </section>
     );
   }
+  // Never leave a loader up: if the accounts cannot be read, say so and keep the rest of the page usable.
+  if (!remote.data && remote.status === "error") {
+    return (
+      <Notice tone="warn" role="alert">
+        Connected accounts could not be loaded, so connecting and promoting are paused. Your cars and campaigns below are unaffected.{" "}
+        <button type="button" className="link-btn" onClick={remote.reload}>Try again</button>
+      </Notice>
+    );
+  }
   if (!remote.data) return <section className="pf-hub" role="status" aria-busy="true" aria-label="Loading connected accounts">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="pf-card pf-card-hold" />)}</section>;
   const { platforms, canManage } = remote.data;
   const connected = platforms.filter((p) => p.connected).length;
