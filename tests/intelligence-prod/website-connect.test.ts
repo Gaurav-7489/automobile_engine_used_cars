@@ -9,6 +9,7 @@ import { connectWebsite, disconnectWebsite, siteHost, websiteInfo } from "../../
 import { loadVluceDemoCollection } from "../../apps/intelligence/lib/server/demo-collection";
 import { readPublicInventory } from "../../apps/intelligence/lib/server/public-listing";
 import { VLUCE_DEMO_CARS } from "../../packages/demo-data/src/vluce";
+import { gateEnquiry } from "../../apps/intelligence/lib/server/website-enquiry";
 
 const key = () => `vl_${randomBytes(9).toString("base64url")}_${randomBytes(32).toString("base64url")}`;
 const PASSWORD = "correct horse battery 7";
@@ -100,6 +101,48 @@ test("the VLuce demo collection loads the website template's cars, published, on
     const again = await loadVluceDemoCollection(owner);
     assert.equal(again.added, 0);
     assert.equal(again.skipped, VLUCE_DEMO_CARS.length);
+  } finally {
+    await h.close();
+  }
+});
+
+test("enquiries relayed by a connected website are limited per visitor, not per website server", async () => {
+  const h = await harness();
+  try {
+    const admin = await h.admin.connect();
+    const p = await provisionWorkspace(admin, { organization: "Gate", dealership: "Gate Motors", locations: [{ name: "Main", city: "Kochi", state: "Kerala", phone: "1" }], owner: { email: "owner@gate.example", name: "Owner" } });
+    assert.ok((await redeemToken(p.ownerToken, PASSWORD)).ok);
+    const other = await provisionWorkspace(admin, { organization: "Elsewhere", dealership: "Elsewhere Motors", locations: [{ name: "Main", city: "Kochi", state: "Kerala", phone: "1" }], owner: { email: "o@elsewhere.example", name: "O" } });
+    const k = key();
+    assert.ok((await connectWebsite({ email: "owner@gate.example", password: PASSWORD, key: k, siteUrl: "https://gate.example" })).ok);
+    // Every request reaches Intelligence from the website server's one address.
+    const fromSite = (visitor?: string, auth = `Bearer ${k}`) => new Request("https://intel.example/api/public/enquiry", { method: "POST", headers: { authorization: auth, "x-forwarded-for": "203.0.113.9", ...(visitor ? { "x-visitor-address": visitor } : {}) } });
+    const fromBrowser = () => new Request("https://intel.example/api/public/enquiry", { method: "POST", headers: { "x-forwarded-for": "198.51.100.4" } });
+
+    // Twenty different visitors of one website all get through: the old per-address limit stopped at six.
+    for (let i = 1; i <= 20; i += 1) {
+      const gate = await gateEnquiry(fromSite(`192.0.2.${i}`), p.tenantId);
+      assert.ok(gate.ok && gate.via === "website", `visitor ${i}: ${JSON.stringify(gate)}`);
+    }
+    // One visitor still gets six per ten minutes.
+    for (let i = 0; i < 5; i += 1) assert.ok((await gateEnquiry(fromSite("192.0.2.1"), p.tenantId)).ok);
+    const seventh = await gateEnquiry(fromSite("192.0.2.1"), p.tenantId);
+    assert.equal(seventh.ok, false);
+    assert.equal((seventh as { status: number }).status, 429);
+    // A forged or garbage visitor header lands in one shared bucket rather than a fresh one each time.
+    for (let i = 0; i < 6; i += 1) assert.ok((await gateEnquiry(fromSite(`not an address ${i}`), p.tenantId)).ok);
+    assert.equal((await gateEnquiry(fromSite("not an address 7"), p.tenantId)).ok, false);
+
+    // Claiming to be a website needs a real key for that same dealership.
+    const fake = await gateEnquiry(fromSite("192.0.2.50", `Bearer vl_${"a".repeat(12)}_${"b".repeat(43)}`), p.tenantId);
+    assert.equal((fake as { status: number }).status, 401);
+    const wrongDealer = await gateEnquiry(fromSite("192.0.2.51"), other.tenantId);
+    assert.equal((wrongDealer as { status: number }).status, 403);
+
+    // Browsers on Intelligence's own pages keep the per-address limit.
+    for (let i = 0; i < 6; i += 1) assert.ok((await gateEnquiry(fromBrowser(), p.tenantId)).ok);
+    const browser7 = await gateEnquiry(fromBrowser(), p.tenantId);
+    assert.equal(browser7.ok, false);
   } finally {
     await h.close();
   }

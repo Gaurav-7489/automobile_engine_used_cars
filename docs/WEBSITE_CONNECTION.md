@@ -22,6 +22,14 @@ DATABASE_URL=... OWNER_PASSWORD=... pnpm intelligence:load-vluce-demo --owner-em
 
 Cars go through the normal command pipeline, get their photos and listing details, and the 23 available or reserved ones are published; the 2 "arriving soon" stay in preparation. Running it again skips cars already loaded. Costs are illustrative (90% of asking).
 
-## Known limit
+## Enquiry limits
 
-`/api/public/enquiry` limits enquiries per client address (6 per 10 minutes). Enquiries relayed by a website's server can share one address, so a busy connected website could hit that limit. The website also limits each visitor itself. Worth keying that limit per website key in a follow-up.
+`/api/public/enquiry` (`gateEnquiry` in `lib/server/website-enquiry.ts`):
+
+| Who sends it | Limit |
+|---|---|
+| A browser on Intelligence's own showroom pages | 6 per 10 minutes per address |
+| A connected website's server (Bearer website key) | 6 per 10 minutes per visitor, using the visitor address the website sends in `X-Visitor-Address`; at most 300 per hour per website |
+| Either | at most 120 per hour per dealership |
+
+A website key is trusted only for its own workspace: a wrong or ended key gets 401, another dealership's key gets 403. A missing or malformed visitor address falls into one shared bucket for that website.
