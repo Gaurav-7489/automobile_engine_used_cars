@@ -2,6 +2,8 @@ import { tenantTx } from "./db";
 import type { Principal } from "./identity";
 import { enterLive, runCommandsIn } from "./workspace";
 import { queueLeadEmail } from "./lead-notifications";
+import { authenticateApiKey } from "./api-keys";
+import { clientKey, hitShared } from "../rate-limit";
 
 type Row = Record<string, unknown>;
 
@@ -84,4 +86,39 @@ export async function submitWebsiteEnquiry(tenantId: string, stockId: string, in
     if (lead) await queueLeadEmail(c, tenant, lead.id);
     return { ok: true as const, reference: lead?.id ?? "received", duplicate: false };
   });
+}
+
+export type EnquiryGate = { ok: true; via: "browser" | "website" } | { ok: false; status: 401 | 403 | 429; message: string; retryAfter?: number };
+
+const ADDRESS = /^[0-9A-Fa-f:.]{2,45}$/;
+
+/**
+ * Rate limits for public enquiries.
+ *
+ * A browser posting from Intelligence's own showroom pages is limited by its address, as before. A connected dealership
+ * website posts from its server, so every visitor shares that server's address: such a request carries the website's key,
+ * and is limited per visitor address the website reports (X-Visitor-Address) under that key, plus an overall ceiling per
+ * website. A key is trusted only for its own workspace; a missing or wrong key is refused, so nobody can claim to be a
+ * website to get the per-visitor limits. The per-dealership ceiling applies to both paths.
+ */
+export async function gateEnquiry(request: Request, tenantId: string): Promise<EnquiryGate> {
+  const auth = request.headers.get("authorization");
+  let via: "browser" | "website" = "browser";
+  let visitorKey = `enquiry:${clientKey(request)}`;
+  if (auth) {
+    const site = await authenticateApiKey(auth);
+    if (!site) return { ok: false, status: 401, message: "The website's connection to the dealership has ended. Please call the dealership." };
+    if (site.tenantId !== tenantId.toLowerCase()) return { ok: false, status: 403, message: "This website is not connected to that dealership." };
+    const reported = request.headers.get("x-visitor-address")?.trim() ?? "";
+    const visitor = ADDRESS.test(reported) ? reported.toLowerCase() : "unknown";
+    const whole = await hitShared(`enquiry-site:${site.keyId}`, 300, 60 * 60_000);
+    if (!whole.allowed) return { ok: false, status: 429, message: "The dealership is receiving a lot of enquiries. Please call them directly.", retryAfter: whole.retryAfter };
+    via = "website";
+    visitorKey = `enquiry-site:${site.keyId}:${visitor}`;
+  }
+  const visitor = await hitShared(visitorKey, 6, 10 * 60_000);
+  if (!visitor.allowed) return { ok: false, status: 429, message: "Too many enquiries from this device. Please call the dealership or try again later.", retryAfter: visitor.retryAfter };
+  const dealership = await hitShared(`enquiry-tenant:${tenantId.toLowerCase()}`, 120, 60 * 60_000);
+  if (!dealership.allowed) return { ok: false, status: 429, message: "The dealership is receiving a lot of enquiries. Please call them directly.", retryAfter: dealership.retryAfter };
+  return { ok: true, via };
 }
