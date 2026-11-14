@@ -11,7 +11,13 @@ export async function GET() {
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Sign in to continue.");
   if (!can(current.principal.role, "campaign.view")) return problem(403, "forbidden", "Your role cannot view advertising.");
-  return json({ accounts: await adAccountStatus(current.principal), platforms: await platformStatus(current.principal), canManage: canManageAds(current.principal) });
+  try {
+    return json({ accounts: await adAccountStatus(current.principal), platforms: await platformStatus(current.principal), canManage: canManageAds(current.principal) });
+  } catch (error) {
+    // Most often a database that has not had the advertising migrations applied (0021, 0022).
+    console.error(JSON.stringify({ event: "ad_accounts_unavailable", message: error instanceof Error ? error.message.slice(0, 200) : "unknown" }));
+    return problem(503, "unavailable", "Connected accounts are not available right now.");
+  }
 }
 
 /** Switch the ad account in use, or disconnect a provider (its stored tokens are deleted). */
