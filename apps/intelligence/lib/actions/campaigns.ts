@@ -238,6 +238,18 @@ export function discardCampaign(state: WorkspaceState, actor: Actor, id: string)
   return ok(withAudit({ ...state, campaigns: state.campaigns.filter((c) => c.id !== id) }, actor, "campaign.discarded", id, "Draft discarded"));
 }
 
+/** Withdraws a campaign that has not gone live (a draft, or one waiting for or holding approval). Nothing has spent, so it is removed. */
+export function withdrawCampaign(state: WorkspaceState, actor: Actor, id: string): Result {
+  const denied = guard(actor, "campaign.edit");
+  if (denied) return denied;
+  const current = state.campaigns.find((c) => c.id === id);
+  if (!current) return fail(404, "not_found", "Record not found.");
+  const vehicle = state.vehicles.find((v) => v.id === current.vehicleId);
+  if (vehicle && branchGuard(actor, vehicle.branchId)) return fail(404, "not_found", "Record not found.");
+  if (!["Draft", "Pending", "Approved"].includes(current.status) || current.platform?.google || current.platform?.meta) return fail(409, "conflict", "This campaign has been on the platforms. Pause it instead.");
+  return ok(withAudit({ ...state, campaigns: state.campaigns.filter((c) => c.id !== id) }, actor, "campaign.withdrawn", id, `Withdrawn while ${current.status.toLowerCase()}; nothing spent`));
+}
+
 export function metricsFor(c: Campaign) {
   const m = c.metrics;
   if (!m) return null;

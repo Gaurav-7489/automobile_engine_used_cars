@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { addVehicle, emptyVehicleInput, updateVehicle, validateVehicle, vehicleChecks, type VehicleInput } from "@/lib/actions";
 import type { CostLedger, Vehicle } from "@/lib/domain";
 import { formatExact, formatMoney } from "@/lib/format";
+import { CarSelector } from "../car-selector";
 import { Drawer } from "../overlay";
 import { useToast } from "../toast";
 import { Badge, Button, Check, FormSummary, Notice, RupeeField, SelectField, Tabs, TextArea, TextField } from "../ui";
@@ -123,9 +124,8 @@ function EditVehicleDrawer({ open, onClose, vehicle, defaultBranch }: { open: bo
       <Tabs tabs={TABS} value={tab} onChange={setTab} label="Vehicle sections" idPrefix="veh" />
       {tab === "details" ? (
         <div className="form-grid" role="tabpanel" aria-labelledby={`veh-${tab}`}>
-          <TextField label="Make" required value={form.make} onChange={(e) => set("make", e.target.value)} error={errors.make} disabled={editing} data-autofocus />
-          <TextField label="Model" required value={form.model} onChange={(e) => set("model", e.target.value)} error={errors.model} disabled={editing} />
-          <TextField label="Variant" required value={form.variant} onChange={(e) => set("variant", e.target.value)} error={errors.variant} />
+          <CarSelector required autoFocus={!editing} lockMakeAndModel={editing} value={{ make: form.make, model: form.model, variant: form.variant }} errors={{ make: errors.make, model: errors.model, variant: errors.variant }}
+            onChange={(car) => { set("make", car.make); set("model", car.model); set("variant", car.variant); }} />
           <TextField label="Model year" required inputMode="numeric" value={form.year} onChange={(e) => set("year", e.target.value)} error={errors.year} disabled={editing} help="YYYY" />
           <SelectField label="Fuel" required value={form.fuel} onChange={(e) => set("fuel", e.target.value as VehicleInput["fuel"])} error={errors.fuel} options={["Diesel", "Petrol", "Hybrid", "Electric"]} placeholder="Choose fuel" disabled={editing} />
           <SelectField label="Transmission" required value={form.transmission} onChange={(e) => set("transmission", e.target.value as VehicleInput["transmission"])} error={errors.transmission} options={["Automatic", "Manual"]} placeholder="Choose transmission" disabled={editing} />

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { addVehicle, emptyVehicleInput, validateVehicle, vehicleChecks, type VehicleInput } from "@/lib/actions";
 import type { CostLedger } from "@/lib/domain";
+import { CarSelector } from "../car-selector";
 import { Icon } from "../icons";
 import { Drawer } from "../overlay";
 import { useToast } from "../toast";
@@ -185,9 +186,8 @@ export function AddVehicleDrawer({ open, onClose, defaultBranch }: { open: boole
       <fieldset className="av-section" disabled={busy || phase.kind === "upload-failed"}>
         <legend className="av-title"><span>The car</span></legend>
         <div className="form-grid">
-          <TextField label="Make" required value={form.make} onChange={(e) => set("make", e.target.value)} error={errors.make} placeholder="e.g. Hyundai" data-autofocus />
-          <TextField label="Model" required value={form.model} onChange={(e) => set("model", e.target.value)} error={errors.model} placeholder="e.g. Creta" />
-          <TextField label="Variant" required value={form.variant} onChange={(e) => set("variant", e.target.value)} error={errors.variant} placeholder="e.g. SX (O)" />
+          <CarSelector required autoFocus value={{ make: form.make, model: form.model, variant: form.variant }} errors={{ make: errors.make, model: errors.model, variant: errors.variant }}
+            onChange={(car) => { setForm((f) => ({ ...f, ...car })); setErrors((e) => { const next = { ...e }; delete next.make; delete next.model; delete next.variant; return next; }); }} />
           <TextField label="Year" required inputMode="numeric" maxLength={4} value={form.year} onChange={(e) => set("year", e.target.value)} error={errors.year} placeholder="e.g. 2022" />
           <SelectField label="Fuel" required value={form.fuel} onChange={(e) => set("fuel", e.target.value as VehicleInput["fuel"])} error={errors.fuel} options={["Petrol", "Diesel", "Hybrid", "Electric"]} placeholder="Choose" />
           <SelectField label="Gearbox" required value={form.transmission} onChange={(e) => set("transmission", e.target.value as VehicleInput["transmission"])} error={errors.transmission} options={["Manual", "Automatic"]} placeholder="Choose" />

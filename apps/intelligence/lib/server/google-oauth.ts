@@ -8,7 +8,7 @@ import { signPayload, verifyPayload } from "../session";
 export const OAUTH_COOKIE = process.env.NODE_ENV === "production" ? "__Host-vl_oauth" : "vl_oauth";
 export const OAUTH_TTL_SECONDS = 10 * 60;
 
-export type OAuthState = { n: string; purpose: "signin" | "ads"; provider: "google" | "meta"; returnTo?: string; sub?: string; tid?: string; exp: number };
+export type OAuthState = { n: string; purpose: "signin" | "ads"; provider: "google" | "meta" | "whatsapp"; returnTo?: string; sub?: string; tid?: string; exp: number };
 
 export const googleConfigured = (): boolean => Boolean(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim());
 

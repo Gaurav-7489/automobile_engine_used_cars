@@ -1851,3 +1851,77 @@ body { background: var(--canvas-art); background-attachment: fixed; letter-spaci
   [aria-busy="true"]::before, .vl-loading::before { -webkit-backdrop-filter: none; backdrop-filter: none; }
   .vl-letters, .vl-word, [aria-busy="true"]::after, .vl-loading::after { background: none; color: var(--text); -webkit-text-fill-color: var(--text); }
 }
+
+/* ---- Universal car selector: Brand → Model → Variant, each a searchable list that unlocks in turn. ---------------------------------- */
+.car-selector { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; grid-column: 1 / -1; }
+@media (max-width: 720px) { .car-selector { grid-template-columns: 1fr; } }
+.car-combo-box { position: relative; }
+.car-combo .input { padding-right: 34px; }
+.car-combo-caret { position: absolute; right: 14px; top: 50%; width: 8px; height: 8px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+.car-combo.is-locked .input { background: var(--surface); color: var(--muted); cursor: not-allowed; }
+.car-combo.is-locked > label { opacity: 0.7; }
+.car-combo-list { position: absolute; z-index: 60; left: 0; right: 0; top: calc(100% + 4px); max-height: 280px; overflow: auto; margin: 0; padding: 4px; list-style: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--e3); animation: pop-in 140ms ease both; }
+.car-combo-opt { padding: 10px 12px; min-height: 40px; border-radius: 8px; cursor: pointer; color: var(--text); display: flex; align-items: center; }
+.car-combo-opt[aria-selected="true"] { background: var(--accent-subtle, color-mix(in srgb, var(--accent) 14%, transparent)); }
+.car-combo-opt.is-chosen { font-weight: 600; color: var(--accent-strong, var(--accent)); }
+.car-combo-opt.is-clear { color: var(--muted); }
+.car-combo-opt.is-custom { color: var(--accent-strong, var(--accent)); border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+.car-combo-empty { padding: 12px; color: var(--muted); font-size: 13px; }
+/* In the public showroom filter row the selector spans the row's width. */
+.pl-filters .car-selector { flex: 1 1 100%; }
+
+/* ---- Advertising: connected accounts, promote a car, campaigns. ------------------------------------------------------------------ */
+.pf-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.pf-card { position: relative; display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: center; padding: 14px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); min-height: 112px; transition: border-color 200ms ease, box-shadow 200ms ease; }
+.pf-card.is-on { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent); }
+.pf-card-hold { background: var(--raised); min-height: 112px; }
+.pf-body { display: grid; gap: 2px; min-width: 0; }
+.pf-body .meta { overflow-wrap: anywhere; }
+.pf-action { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pf-on { font-size: 12px; font-weight: 600; color: var(--accent-strong, var(--accent)); display: inline-flex; gap: 6px; align-items: center; }
+.pf-on span { font-size: 9px; }
+.pf-via { font-size: 11px; }
+.pf-action { align-self: end; }
+.pf-card { align-content: space-between; }
+.pf-mark { display: inline-grid; place-items: center; border-radius: 10px; flex: none; }
+.pf-instagram { background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fd5949 45%, #d6249f 60%, #285aeb 90%); }
+.pf-facebook { background: #1877f2; }
+.pf-whatsapp { background: #25d366; }
+.pf-google { background: #4285f4; }
+.pf-youtube { background: #ff0000; }
+
+.promo-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.promo-card { display: grid; grid-template-rows: auto 1fr auto; padding: 0; overflow: hidden; }
+.promo-media { position: relative; aspect-ratio: 16 / 10; background: var(--raised); overflow: hidden; }
+.promo-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.promo-flag { position: absolute; left: 10px; top: 10px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface); color: var(--text); box-shadow: var(--e2, none); }
+.promo-flag.tone-accent { color: var(--accent-strong, var(--accent)); }
+.promo-flag.tone-warn { color: var(--warn, #b45309); }
+.promo-body { display: grid; gap: 4px; padding: 14px 16px 6px; }
+.promo-price { font-size: 18px; font-weight: 700; margin-top: 2px; }
+.promo-actions { padding: 10px 16px 16px; display: flex; justify-content: flex-end; }
+
+.promo-platform { display: grid; grid-template-columns: auto auto 1fr; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); cursor: pointer; }
+div.promo-platform { cursor: default; grid-template-columns: auto 1fr; }
+.promo-platform.is-on { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.promo-platform.is-off { opacity: 0.72; }
+.promo-platform input { width: 18px; height: 18px; accent-color: var(--accent); }
+.promo-marks { display: inline-flex; gap: 4px; }
+.promo-platform-text { display: grid; gap: 2px; min-width: 0; }
+.promo-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.promo-preset { display: grid; gap: 2px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.promo-preset span { font-size: 12px; color: var(--muted); }
+.promo-preset.is-on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.promo-ad { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.promo-ad-media { aspect-ratio: 1.91 / 1; background: var(--raised); overflow: hidden; }
+.promo-ad-media img, .promo-preview-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.promo-preview-img { aspect-ratio: 1.91 / 1; border-radius: 10px; }
+.promo-ad-text { display: grid; gap: 6px; padding: 12px 14px 14px; justify-items: start; }
+.promo-ad-text p { margin: 0; color: var(--muted); }
+
+.camp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.camp-row { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; color: inherit; text-decoration: none; }
+.camp-main { display: grid; gap: 2px; min-width: 0; }
+.camp-figures { display: grid; justify-items: end; font-weight: 600; }
+@media (max-width: 640px) { .camp-row { grid-template-columns: 1fr auto; } .camp-figures { display: none; } .promo-presets { grid-template-columns: 1fr; } }

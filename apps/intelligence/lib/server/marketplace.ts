@@ -14,7 +14,7 @@ export type MarketCar = {
   fuel: string; transmission: string; km: number; price: number | null; photo: string | null; city: string; state: string; availability: "available" | "reserved";
 };
 export type Marketplace = { cars: MarketCar[]; total: number; page: number; pages: number; makes: string[]; cities: string[]; fuels: string[]; dealers: number };
-export type MarketFilters = { q?: string; make?: string; fuel?: string; city?: string; sort?: string; page?: number; maxPrice?: number };
+export type MarketFilters = { q?: string; make?: string; model?: string; variant?: string; fuel?: string; city?: string; sort?: string; page?: number; maxPrice?: number };
 
 export const MARKET_PAGE_SIZE = 24;
 const SORTS = {
@@ -39,6 +39,8 @@ export async function readMarketplace(f: MarketFilters): Promise<Marketplace> {
     const q = (f.q ?? "").trim().slice(0, 60);
     if (q) add("concat_ws(' ', make, model, variant, dealer, city) ILIKE ?", like(q));
     if (f.make) add("lower(make) = lower(?)", f.make.slice(0, 40));
+    if (f.model) add("lower(model) = lower(?)", f.model.slice(0, 40));
+    if (f.variant) add("lower(variant) = lower(?)", f.variant.slice(0, 40));
     if (f.fuel) add("lower(fuel) = lower(?)", f.fuel.slice(0, 20));
     if (f.city) add("lower(city) = lower(?)", f.city.slice(0, 60));
     if (f.maxPrice && Number.isFinite(f.maxPrice) && f.maxPrice > 0) add("price <= ?", Math.round(f.maxPrice));

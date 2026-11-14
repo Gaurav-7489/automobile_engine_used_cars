@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { CarPhoto } from "@/components/listing/car-photo";
 import { PUBLIC_SORTS, readPublicInventory, type PublicInventory } from "@/lib/server/public-listing";
+import { CarFilter } from "@/components/listing/car-filter";
 import { CustomerChat } from "@/components/listing/customer-chat";
 import { websiteChatEnabled } from "@/lib/server/channels";
 import { postPrice } from "@/lib/social-post";
@@ -18,11 +19,11 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) 
 const FUELS = ["Petrol", "Diesel", "CNG", "Hybrid", "Electric"];
 
 const load = cache(async (tenant: string, f: Record<string, string>): Promise<PublicInventory | null> =>
-  readPublicInventory(tenant, { q: f.q, make: f.make, fuel: f.fuel, city: f.city, sort: f.sort, page: Number(f.page) || 1 }).catch(() => null));
+  readPublicInventory(tenant, { q: f.q, make: f.make, model: f.model, variant: f.variant, fuel: f.fuel, city: f.city, sort: f.sort, page: Number(f.page) || 1 }).catch(() => null));
 
 const filtersOf = async (searchParams: Search) => {
   const s = await searchParams;
-  return { q: one(s.q), make: one(s.make), fuel: one(s.fuel), city: one(s.city), sort: one(s.sort), page: one(s.page) };
+  return { q: one(s.q), make: one(s.make), model: one(s.model), variant: one(s.variant), fuel: one(s.fuel), city: one(s.city), sort: one(s.sort), page: one(s.page) };
 };
 
 export async function generateMetadata({ params, searchParams }: { params: Params; searchParams: Search }): Promise<Metadata> {
@@ -45,7 +46,7 @@ export default async function DealerInventory({ params, searchParams }: { params
     const q = new URLSearchParams(Object.entries({ ...f, page: String(page) }).filter(([, v]) => v) as [string, string][]);
     return `${base}?${q.toString()}`;
   };
-  const filtered = Boolean(f.q || f.make || f.fuel || f.city);
+  const filtered = Boolean(f.q || f.make || f.model || f.variant || f.fuel || f.city);
   return (
     <div className="showroom">
       <div className="ambient" aria-hidden="true" />
@@ -63,7 +64,7 @@ export default async function DealerInventory({ params, searchParams }: { params
             <p className="muted">{inv.total} car{inv.total === 1 ? "" : "s"} {filtered ? "match your search" : "available"}{inv.cities.length ? ` · ${inv.cities.join(", ")}` : ""}</p>
             <form className="pl-filters" method="get" action={base} role="search" aria-label="Search cars">
               <label className="pl-filter pl-filter-q"><span className="label">Search</span><input className="input" type="search" name="q" defaultValue={f.q} placeholder="Make or model, e.g. Creta" maxLength={60} /></label>
-              {inv.makes.length > 1 ? <label className="pl-filter"><span className="label pl-filter-label">Make</span><select className="input" name="make" defaultValue={f.make}><option value="">All makes</option>{inv.makes.map((m) => <option key={m} value={m}>{m}</option>)}</select></label> : null}
+              <CarFilter initial={{ make: f.make, model: f.model, variant: f.variant }} brands={inv.makes} />
               <label className="pl-filter"><span className="label pl-filter-label">Fuel</span><select className="input" name="fuel" defaultValue={f.fuel}><option value="">Any fuel</option>{FUELS.map((x) => <option key={x} value={x}>{x}</option>)}</select></label>
               {inv.cities.length > 1 ? <label className="pl-filter"><span className="label pl-filter-label">City</span><select className="input" name="city" defaultValue={f.city}><option value="">All cities</option>{inv.cities.map((c) => <option key={c} value={c}>{c}</option>)}</select></label> : null}
               <label className="pl-filter"><span className="label pl-filter-label">Sort</span><select className="input" name="sort" defaultValue={f.sort || "newest"}>{PUBLIC_SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>

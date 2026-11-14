@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { CarFilter } from "@/components/listing/car-filter";
 import { ShowroomGrid } from "@/components/showroom/vehicle-card";
 import { cap, filterVehicles, sampleVehicles } from "@/lib/showroom";
 
 export const metadata: Metadata = { title: "Inventory" };
 
-type Search = Promise<{ q?: string; body?: string; fuel?: string; sort?: string }>;
+type Search = Promise<{ q?: string; make?: string; model?: string; variant?: string; body?: string; fuel?: string; sort?: string }>;
 const SORTS = [{ value: "", label: "Featured" }, { value: "price-asc", label: "Price, low to high" }, { value: "price-desc", label: "Price, high to low" }, { value: "km-asc", label: "Lowest kilometres" }, { value: "newest", label: "Newest" }];
 
 /** Laid out like a dealership's own page (/l/{tenant}), over the labelled sample catalogue. */
@@ -15,13 +16,14 @@ export default async function Inventory({ searchParams }: { searchParams: Search
   const bodies = [...new Set(all.map((v) => v.bodyType))].sort();
   const fuels = [...new Set(all.map((v) => v.fuelType))].sort();
   const list = filterVehicles(all, query);
-  const filtered = Boolean(query.q || query.body || query.fuel);
+  const filtered = Boolean(query.q || query.make || query.model || query.variant || query.body || query.fuel);
   return (
     <section className="sr-section">
       <h1 className="pl-inv-title">Cars for sale</h1>
       <p className="muted" role="status">{list.length} sample car{list.length === 1 ? "" : "s"} {filtered ? "match your search" : "available"}</p>
       <form className="pl-filters" method="get" action="/showroom/inventory" role="search" aria-label="Filter inventory">
         <label className="pl-filter pl-filter-q"><span className="label">Search</span><input className="input" type="search" name="q" defaultValue={query.q ?? ""} placeholder="Make, model, year" maxLength={60} /></label>
+        <CarFilter initial={{ make: query.make ?? "", model: query.model ?? "", variant: query.variant ?? "" }} brands={[...new Set(all.map((v) => v.make))]} />
         <label className="pl-filter"><span className="label pl-filter-label">Body</span><select className="input" name="body" defaultValue={query.body ?? ""}><option value="">Any body</option>{bodies.map((b) => <option key={b} value={b}>{cap(b)}</option>)}</select></label>
         <label className="pl-filter"><span className="label pl-filter-label">Fuel</span><select className="input" name="fuel" defaultValue={query.fuel ?? ""}><option value="">Any fuel</option>{fuels.map((f) => <option key={f} value={f}>{cap(f)}</option>)}</select></label>
         <label className="pl-filter"><span className="label pl-filter-label">Sort</span><select className="input" name="sort" defaultValue={query.sort ?? ""}>{SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>

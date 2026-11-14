@@ -62,7 +62,7 @@ export const COMMAND_FEATURE: Record<string, FeatureKey> = {
   addVehicle: "inventory", updateVehicle: "inventory", transitionVehicle: "inventory", importCommit: "inventory", bulkArchive: "inventory", bulkAssignBranch: "inventory", publishVehicles: "inventory",
   addLead: "leads", changeStage: "leads", logOutcome: "leads", sendMessage: "leads", retryMessage: "leads", scheduleAppointment: "leads", cancelAppointment: "leads", toggleTask: "leads", assignLead: "leads", mergeLeads: "leads",
   createPriceRequest: "pricing", submitPriceRequest: "pricing", approvePriceRequest: "pricing", rejectPriceRequest: "pricing", withdrawPriceRequest: "pricing", retryFailedChannels: "pricing",
-  createCampaign: "advertising", updateCampaign: "advertising", changeVehicle: "advertising", submitCampaign: "advertising", approveCampaign: "advertising", publishCampaign: "advertising", pauseCampaign: "advertising", resumeCampaign: "advertising", discardCampaign: "advertising",
+  createCampaign: "advertising", updateCampaign: "advertising", changeVehicle: "advertising", submitCampaign: "advertising", approveCampaign: "advertising", publishCampaign: "advertising", pauseCampaign: "advertising", resumeCampaign: "advertising", discardCampaign: "advertising", withdrawCampaign: "advertising",
   proposeCorrection: "capital", acknowledge: "alerts", assignAlerts: "alerts", snooze: "alerts", resolve: "alerts", updateRules: "alerts",
   saveReportSchedule: "reports", deleteReportSchedule: "reports",
   toggleWatch: "market", saveSearch: "market", renameSearch: "market", deleteSearch: "market", logContactIntent: "market", saveScenario: "market",
