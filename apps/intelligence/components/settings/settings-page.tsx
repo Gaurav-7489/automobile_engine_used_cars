@@ -379,6 +379,7 @@ function ApiAccess() {
   return (
     <section className="card stack" aria-labelledby="api-h">
       <div className="spread" style={{ flexWrap: "wrap" }}><h2 className="h2" id="api-h">API access</h2><Button variant="primary" onClick={() => setCreating(true)}>Create key</Button></div>
+      <p className="muted">Your VandLabs website connects itself: sign in on its /connect page with this email and password, and it appears here as a Website key. Revoke it to disconnect.</p>
       <p className="muted">Read-only keys let another system (your website, a CRM, a spreadsheet) read this workspace. Keys cover the branches you can see, expire automatically and can be revoked at any time. Only a hash is stored, so a key is shown once.</p>
       {shown ? <Notice tone="accent" role="alert"><div className="stack-sm"><strong>Copy this key now. It will not be shown again.</strong><code style={{ wordBreak: "break-all" }}>{shown}</code><span className="row-flex"><Button size="sm" onClick={() => { void navigator.clipboard?.writeText(shown); toast("Key copied."); }}>Copy</Button><Button size="sm" onClick={() => setShown(null)}>I have stored it</Button></span></div></Notice> : null}
       {loadError ? <Notice tone="danger" role="alert">{loadError}</Notice> : null}
@@ -387,7 +388,7 @@ function ApiAccess() {
       {keys && keys.length ? (
         <div className="table-wrap"><table className="data-table dense"><thead><tr><th>Name</th><th>Access</th><th>Key</th><th>Created</th><th>Expires</th><th>Last used</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>
           {keys.map((k) => { const expired = new Date(k.expiresAt) < new Date(); return (
-            <tr key={k.id}><td>{k.name}</td><td>{SCOPE_LABEL[k.scope] ?? k.scope}</td><td><code>{k.prefix}…</code></td><td>{formatShortDateTime(k.createdAt)} by {k.createdBy}</td><td>{formatShortDateTime(k.expiresAt)}</td><td>{k.lastUsedAt ? formatShortDateTime(k.lastUsedAt) : "Never"}</td>
+            <tr key={k.id}><td>{k.name.startsWith("Website: ") ? <span className="row-flex"><Badge tone="accent">Website</Badge>{k.name.slice(9)}</span> : k.name}</td><td>{SCOPE_LABEL[k.scope] ?? k.scope}</td><td><code>{k.prefix}…</code></td><td>{formatShortDateTime(k.createdAt)} by {k.createdBy}</td><td>{formatShortDateTime(k.expiresAt)}</td><td>{k.lastUsedAt ? formatShortDateTime(k.lastUsedAt) : "Never"}</td>
               <td>{k.revokedAt ? <Badge tone="neutral">Revoked</Badge> : expired ? <Badge tone="warn">Expired</Badge> : <Badge tone="accent">Active</Badge>}</td>
               <td>{!k.revokedAt && !expired ? <Button size="sm" variant="danger" onClick={() => setRevoking(k)}>Revoke</Button> : null}</td></tr>); })}
         </tbody></table></div>

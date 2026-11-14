@@ -5,7 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./runtime": "./src/runtime.ts",
-    "./automation": "./src/automation.ts"
+    "./automation": "./src/automation.ts",
+    "./vluce": "./src/vluce.ts"
   },
   "dependencies": { "@vandlabs/contracts": "workspace:*" }
 }
