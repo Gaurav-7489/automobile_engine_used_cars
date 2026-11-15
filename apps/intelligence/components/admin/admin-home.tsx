@@ -11,9 +11,8 @@ import { Brand } from "../brand";
 import { ThemeToggle } from "../theme";
 import { Icon } from "../icons";
 import { Dialog } from "../overlay";
-import { TwoFactor } from "../settings/two-factor";
 import { Badge, Button, EmptyState, Notice } from "../ui";
-import { CreateDealership, Members, ReissueInvite, type Workspace } from "./admin-console";
+import { CreateDealership, Members, ReissueInvite, WebsiteLinks, type Workspace } from "./admin-console";
 import { EntitlementsDialog } from "./entitlements-dialog";
 import { PlatformAudit } from "./platform-audit";
 import { HealthReview } from "./health-review";
@@ -74,8 +73,8 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
   const [people, setPeople] = useState<Workspace | null>(null);
   const [access, setAccess] = useState<Workspace | null>(null);
   const [reissue, setReissue] = useState<Workspace | null>(null);
-  const [link, setLink] = useState<{ title: string; url: string; expiresAt: string } | null>(null);
-  const [twoFactorOpen, setTwoFactorOpen] = useState(false);
+  const [assigned, setAssigned] = useState<{ title: string; email: string; url: string } | null>(null);
+  const [website, setWebsite] = useState<Workspace | null>(null);
   const [demoNote, setDemoNote] = useState("");
 
   useEffect(() => { try { const v = localStorage.getItem(DEMO_KEY); if (v !== null) setDemo(v === "1"); } catch { /* default on */ } }, []);
@@ -95,7 +94,9 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
   useEffect(() => { void loadWorkspaces(); void loadSystem(); }, [loadWorkspaces, loadSystem]);
 
   const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); clearRemoteCache(); router.push("/login"); router.refresh(); };
-  const showLink = (title: string, path: string, expiresAt: string) => setLink({ title, url: `${window.location.origin}${path}`, expiresAt });
+  const showAssigned = (title: string, email: string, url: string) => setAssigned({ title, email, url });
+  // Admin data needs a Google-authenticated session; a legacy password session is sent through Google sign-in.
+  const signInWithGoogle = () => { window.location.href = "/api/auth/sso/google?returnTo=/admin"; };
 
   const rows: Row[] = useMemo(() => [
     ...(workspaces ?? []).map((w) => ({ kind: "live" as const, w })),
@@ -121,7 +122,7 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
   const card = (r: Row) => {
     const isDemo = r.kind === "demo";
     const d = isDemo ? r.d : null, w = !isDemo ? r.w : null;
-    const status = d ? d.status : w!.owners ? "Active" : w!.pendingInvites ? "Setting up" : "No owner";
+    const status = d ? d.status : w!.owners ? "Active" : w!.pendingOwner || w!.pendingInvites ? "Waiting for owner sign-in" : "No owner";
     return (
       <article key={isDemo ? d!.tenantId : w!.tenantId} className={`adm-card ${isDemo ? "demo" : "live"}`}>
         <header>
@@ -140,7 +141,7 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
           <div><dt>Leads</dt><dd>{val(r, "leads")}</dd></div>
           <div><dt>People</dt><dd>{val(r, "members")}</dd></div>
         </dl>
-        {d ? <div className="adm-card-spark"><Spark values={d.leads14d} /><span className="meta">Leads, last 14 days</span></div> : <div className="adm-card-spark"><span className="meta">Owner: {w!.owners || "not joined yet"} · created {formatDateTime(w!.createdAt)}</span></div>}
+        {d ? <div className="adm-card-spark"><Spark values={d.leads14d} /><span className="meta">Leads, last 14 days</span></div> : <div className="adm-card-spark"><span className="meta">Owner: {w!.owners || (w!.pendingOwner ? `${w!.pendingOwner} (not signed in yet)` : "not assigned")} · created {formatDateTime(w!.createdAt)}</span></div>}
         <footer>
           {isDemo ? (
             <><Button size="sm" onClick={() => demoOnly("Plan and access")}>Plan and access</Button><Button size="sm" onClick={() => demoOnly("People")}>People</Button></>
@@ -148,7 +149,8 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
             <>
               <Button size="sm" onClick={() => setAccess(w!)}>Plan and access</Button>
               <Button size="sm" onClick={() => setPeople(w!)}>People</Button>
-              {w!.members === 0 ? <Button size="sm" onClick={() => setReissue(w!)}>New setup link</Button> : null}
+              <Button size="sm" onClick={() => setWebsite(w!)}>Website</Button>
+              {w!.members === 0 ? <Button size="sm" onClick={() => setReissue(w!)}>Change owner</Button> : null}
             </>
           )}
         </footer>
@@ -159,8 +161,8 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
   const lockedPanel = (what: string) => (
     <div className="adm-locked">
       <Icon name="shield" size={22} />
-      <div><strong>{what} are locked</strong><p className="meta">Real dealership data needs two-factor login on your account. It takes about two minutes.</p></div>
-      <Button variant="primary" size="sm" onClick={() => setTwoFactorOpen(true)}>Turn on two-factor</Button>
+      <div><strong>{what} are locked</strong><p className="meta">Real dealership data needs a Google sign-in. Your Google account&apos;s 2-Step Verification protects it.</p></div>
+      <Button variant="primary" size="sm" onClick={signInWithGoogle}>Continue with Google</Button>
     </div>
   );
 
@@ -178,8 +180,8 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
         </nav>
         <div className={`adm-sec ${locked ? "off" : "on"}`}>
           <Icon name="shield" size={18} />
-          <div><strong>Two-factor {locked ? "off" : "on"}</strong><span>{locked ? "Real dealership data is locked" : "Full access"}</span></div>
-          {locked ? <Button size="sm" variant="primary" onClick={() => setTwoFactorOpen(true)}>Turn on</Button> : null}
+          <div><strong>{locked ? "Google sign-in needed" : "Signed in with Google"}</strong><span>{locked ? "Real dealership data is locked" : "Full access · changes ask Google to confirm"}</span></div>
+          {locked ? <Button size="sm" variant="primary" onClick={signInWithGoogle}>Continue</Button> : null}
         </div>
         <div className="adm-side-foot">
           <Link href="/app/overview" className="btn btn-sm btn-block"><Icon name="grid" size={16} />My workspace</Link>
@@ -197,13 +199,13 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
           <div className="adm-head-actions">
             <ThemeToggle />
             <label className="adm-switch"><input type="checkbox" checked={demo} onChange={(e) => toggleDemo(e.target.checked)} /><span aria-hidden="true" /><span>Demo data</span></label>
-            <Button variant="primary" onClick={() => (locked ? setTwoFactorOpen(true) : setCreating(true))}><Icon name="plus" size={18} />Add dealership</Button>
+            <Button variant="primary" onClick={() => (locked ? signInWithGoogle() : setCreating(true))}><Icon name="plus" size={18} />Add dealership</Button>
           </div>
         </header>
 
         {demo ? <div className="adm-demo-banner" role="note"><Badge tone="warn">DEMO DATA</Badge><span>Cards and figures marked DEMO are fictional, for demonstrations. They are not stored and never mix with real dealerships, which are marked LIVE.</span><button type="button" className="link-btn" onClick={() => toggleDemo(false)}>Hide demo data</button></div> : null}
         {demoNote ? <Notice tone="accent" role="status"><span className="spread">{demoNote}<button type="button" className="link-btn" onClick={() => setDemoNote("")}>OK</button></span></Notice> : null}
-        {link ? <SetupLink link={link} onDone={() => setLink(null)} /> : null}
+        {assigned ? <OwnerAssigned info={assigned} onDone={() => setAssigned(null)} /> : null}
         {wsError ? <Notice tone="danger" role="alert">{wsError}</Notice> : null}
 
         {view === "overview" ? (
@@ -307,14 +309,15 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
         {view === "security" ? (
           <div className="adm-stack">
             <section className="adm-two">
-              <div className="card"><h2 className="h3">Your two-factor login</h2><TwoFactor onEnabled={() => router.refresh()} /></div>
+              <div className="card stack-sm"><h2 className="h3">Your sign-in</h2><p>You sign in with Google ({email}). Keep 2-Step Verification on for this Google account: it is what protects the admin console.</p><a className="btn btn-sm" href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noopener noreferrer">Google 2-Step Verification</a></div>
               <div className="card">
                 <h2 className="h3">Platform safeguards</h2>
                 <ul className="adm-gates">
                   {[
                     ["Per-dealership isolation", "Row-level security in PostgreSQL; the app's database role cannot bypass it"],
-                    ["Two-factor for dealership data", "The admin console shows real dealerships only with two-factor on"],
-                    ["Password confirmation for changes", "Creating dealerships, plans, suspensions and setup links need a fresh password"],
+                    ["Google sign-in for dealership data", "The admin console shows real dealerships only to a Google-authenticated administrator"],
+                    ["Fresh Google confirmation for changes", "Creating dealerships, plans, suspensions, owner changes and website links need Google to confirm it's you"],
+                    ["Assigned identities only", "Nobody gets in by having a Google account: VandLabs assigns each owner's Google account, bound on first sign-in"],
                     ["Rate limits", "Sign-in, enquiries, photos and commands are limited per person and per dealership"],
                     ["Audit trail", "Every admin change is written to the dealership's audit log"],
                     ["Same-origin writes", "Every change is checked against the site's own origin"],
@@ -327,14 +330,10 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
         ) : null}
       </main>
 
-      {twoFactorOpen ? (
-        <Dialog open onClose={() => setTwoFactorOpen(false)} title="Turn on two-factor login" description="Unlocks real dealership data in the admin console. Use any authenticator app." footer={<Button onClick={() => setTwoFactorOpen(false)}>Close</Button>}>
-          <TwoFactor onEnabled={() => { setTwoFactorOpen(false); router.refresh(); }} />
-        </Dialog>
-      ) : null}
-      {creating ? <CreateDealership onClose={() => setCreating(false)} onCreated={(path, expiresAt) => { setCreating(false); showLink("Dealership created", path, expiresAt); void loadWorkspaces(); }} /> : null}
+      {creating ? <CreateDealership onClose={() => setCreating(false)} onCreated={(ownerEmail, url) => { setCreating(false); showAssigned("Dealership created", ownerEmail, url); void loadWorkspaces(); }} /> : null}
       {access ? <EntitlementsDialog tenantId={access.tenantId} name={access.dealership} onClose={() => setAccess(null)} onSaved={() => undefined} /> : null}
-      {reissue ? <ReissueInvite workspace={reissue} onClose={() => setReissue(null)} onDone={(path, expiresAt) => { setReissue(null); showLink("New owner setup link", path, expiresAt); void loadWorkspaces(); }} /> : null}
+      {reissue ? <ReissueInvite workspace={reissue} onClose={() => setReissue(null)} onDone={(ownerEmail, url) => { setReissue(null); showAssigned("Owner changed", ownerEmail, url); void loadWorkspaces(); }} /> : null}
+      {website ? <WebsiteLinks workspace={website} onClose={() => setWebsite(null)} /> : null}
       {people ? <Dialog open onClose={() => setPeople(null)} size="w960" title={`People at ${people.dealership}`} description="Suspending signs a person out everywhere at once." footer={<Button onClick={() => setPeople(null)}>Done</Button>}><Members tenantId={people.tenantId} /></Dialog> : null}
     </div>
   );
@@ -356,24 +355,20 @@ function Checks({ system, compact = false }: { system: System | null; compact?: 
   );
 }
 
-/** The owner's one-time setup link, with the three steps that follow and ready-made messages to send it. */
-function SetupLink({ link, onDone }: { link: { title: string; url: string; expiresAt: string }; onDone: () => void }) {
-  const [copied, setCopied] = useState(false);
-  const message = `Hello, your VandLabs dealership workspace is ready. Open this link to choose your password and sign in. It works once and expires ${formatDateTime(link.expiresAt)}.\n\n${link.url}`;
+/** After creating a dealership: who the owner is and exactly what they do. Nothing secret is shown or sent. */
+function OwnerAssigned({ info, onDone }: { info: { title: string; email: string; url: string }; onDone: () => void }) {
+  const message = `Hello, your VandLabs dealership workspace is ready. Open ${info.url} and choose Continue with Google using ${info.email}. No password is needed.`;
   return (
     <section className="card adm-setup" role="alert" aria-labelledby="setup-title">
-      <div className="spread"><h2 className="h3" id="setup-title">{link.title}</h2><Badge tone="accent">Works once</Badge></div>
+      <div className="spread"><h2 className="h3" id="setup-title">{info.title}</h2><Badge tone="accent">Google sign-in</Badge></div>
       <ol className="adm-steps">
-        <li>Send this link to the owner by WhatsApp or email.</li>
-        <li>They open it, choose their own password and sign in. Nobody else ever sees the password.</li>
-        <li>From Settings, Team, the owner invites their staff the same way.</li>
+        <li>Tell the owner the dealership is ready (the message below has everything).</li>
+        <li>They open {info.url} and choose <strong>Continue with Google</strong> with <strong>{info.email}</strong>.</li>
+        <li>That first sign-in links their Google account to the dealership. Any other Google account is refused.</li>
       </ol>
-      <code className="adm-link">{link.url}</code>
-      <p className="meta">Expires {formatDateTime(link.expiresAt)}. It is not shown again: if it is lost, issue a new one from the dealership&apos;s card.</p>
       <div className="row-flex">
-        <Button variant="primary" onClick={() => { void navigator.clipboard?.writeText(link.url).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 2000); }, () => undefined); }}><Icon name="copy" size={16} />{copied ? "Copied" : "Copy link"}</Button>
-        <a className="btn" href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noopener noreferrer"><Icon name="message" size={16} />Share on WhatsApp</a>
-        <a className="btn" href={`mailto:?subject=${encodeURIComponent("Your VandLabs workspace is ready")}&body=${encodeURIComponent(message)}`}><Icon name="mail" size={16} />Send by email</a>
+        <a className="btn btn-primary" href={`https://wa.me/?text=${encodeURIComponent(message)}`} target="_blank" rel="noopener noreferrer"><Icon name="message" size={16} />Share on WhatsApp</a>
+        <a className="btn" href={`mailto:${encodeURIComponent(info.email)}?subject=${encodeURIComponent("Your VandLabs workspace is ready")}&body=${encodeURIComponent(message)}`}><Icon name="mail" size={16} />Send by email</a>
         <Button variant="ghost" onClick={onDone}>Done</Button>
       </div>
     </section>

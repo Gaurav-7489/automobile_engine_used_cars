@@ -5,6 +5,7 @@ import { SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/session";
 import { newSessionCookie } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { redeemToken, tokenInfo } from "@/lib/server/identity";
+import { LEGACY_OFF_MESSAGE, legacyPasswordLogin } from "@/lib/server/legacy-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
 
 /** Completes an invitation or password reset: the person chooses their own password and is signed in. */
 export async function POST(request: Request) {
+  if (!legacyPasswordLogin()) return problem(410, "gone", LEGACY_OFF_MESSAGE);
   if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
   const limit = await hitShared(`redeem:${clientKey(request)}`, 10, 10 * 60_000);
   if (!limit.allowed) return rateLimited("Too many attempts. Try again in a few minutes.", limit.retryAfter);

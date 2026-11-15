@@ -1,6 +1,8 @@
 # Connecting a VandLabs website template
 
-A dealership website built from a VandLabs template (first: `Gaurav-7489/templete-one-VLuce`) connects to its Intelligence workspace when the **owner signs in on the website's `/connect` page** with their Intelligence email and password. No keys are copied.
+A dealership website built from a VandLabs template (first: `Gaurav-7489/templete-one-VLuce`) is linked to its Intelligence workspace **by a VandLabs administrator**: admin console → dealership → Website → a website key shown once, set on the website's deployment as `VANDLABS_API_KEY` (with `VANDLABS_API_URL`). Since Google-only sign-in (docs/GOOGLE_SIGN_IN.md) owners have no Intelligence password, and they never type credentials into their public website.
+
+The older owner-password connect (`POST /api/public/website/connect`) answers 410 unless `LEGACY_PASSWORD_LOGIN=enabled`. Connections it created keep working.
 
 The two products are sold separately. Intelligence works without a website; a website works without Intelligence (see the template's `docs/DEPLOYMENT.md` for website-only operation). This page is only about the optional link.
 
@@ -8,7 +10,8 @@ The two products are sold separately. Intelligence works without a website; a we
 
 | Piece | Endpoint | Auth | Notes |
 |---|---|---|---|
-| Connect / renew / disconnect | `POST /api/public/website/connect` | owner email + password (+ code) | Server to server only; cookies refused; sign-in lockout and limits apply |
+| Link / relink / unlink (admin) | `POST/DELETE /api/admin/workspaces/{tenant}/websites` | platform administrator, Google session + fresh Google confirmation | Key shown once; relinking revokes the previous key; audited |
+| Connect (legacy, owner password) | `POST /api/public/website/connect` | owner email + password | Off (410) unless `LEGACY_PASSWORD_LOGIN=enabled` |
 | Link check | `GET /api/v1/website` | website key | Which workspace, renewal date. Also triggers delivery of any pending inventory webhooks |
 | Stock | `GET /api/v1/inventory` | website key (`inventory:read` satisfied) | Published, available stock only. No costs or margins |
 | Enquiries | `POST /api/v1/website/enquiries` | website key + `Idempotency-Key` | All enquiry types, below |

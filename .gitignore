@@ -100,3 +100,4 @@ role-test-results/
 .vercel
 local-stack-results/
 ecosystem-results/
+google-auth-results/

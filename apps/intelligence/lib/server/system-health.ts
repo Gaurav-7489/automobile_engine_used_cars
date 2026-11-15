@@ -32,6 +32,8 @@ const MIGRATIONS: { name: string; kind: "table" | "function"; object: string }[]
   { name: "0017 Automations", kind: "table", object: "intelligence_automation_rules" },
   { name: "0018 Sourcing", kind: "function", object: "intelligence_admin_set_source" },
   { name: "0019 Report schedules", kind: "function", object: "intelligence_due_report_tenants" },
+  { name: "0023 Website integration", kind: "table", object: "intelligence_webhook_outbox" },
+  { name: "0024 Google identity", kind: "function", object: "intelligence_google_signin" },
 ];
 
 const env = (k: string) => (process.env[k] ?? "").trim();
@@ -68,6 +70,9 @@ export async function systemReport(): Promise<SystemReport> {
   checks.push({ key: "session", group: "Security", label: "Session signing key", status: secret.length >= 32 ? "pass" : "fail", detail: secret.length >= 32 ? "Set, 32+ characters" : "Missing or shorter than 32 characters" });
   const origin = env("APP_ORIGIN");
   checks.push({ key: "origin", group: "Security", label: "App address (APP_ORIGIN)", status: /^https:\/\//.test(origin) ? "pass" : origin ? "warn" : "fail", detail: origin ? origin.replace(/^https?:\/\//, "") : "Not set: desktop sign-in and email links need it" });
+  const googleReady = Boolean(env("GOOGLE_CLIENT_ID") && env("GOOGLE_CLIENT_SECRET"));
+  checks.push({ key: "google", group: "Security", label: "Google sign-in", status: googleReady ? "pass" : "fail", detail: googleReady ? "Configured. It is the only way to sign in." : "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are not set: nobody can sign in" });
+  checks.push({ key: "legacy-login", group: "Security", label: "Legacy password sign-in", status: env("LEGACY_PASSWORD_LOGIN").toLowerCase() === "enabled" ? "warn" : "pass", detail: env("LEGACY_PASSWORD_LOGIN").toLowerCase() === "enabled" ? "Enabled for migration or rollback. Remove LEGACY_PASSWORD_LOGIN once Google sign-in is verified." : "Off: passwords, resets and authenticator codes cannot be used" });
 
   // Services.
   checks.push({ key: "photos", group: "Services", label: "Photo storage", status: blobConfigured() ? "pass" : "warn", detail: blobConfigured() ? "Vercel Blob connected: photo upload and social posts work" : "Not connected: dealers cannot upload car photos" });

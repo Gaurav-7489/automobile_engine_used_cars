@@ -4,8 +4,8 @@ import type { Session } from "../domain";
 import { REAUTH_COOKIE, REAUTH_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS, signPayload, signSession, verifyPayload, verifySession } from "../session";
 import { resolvePrincipal, type Principal } from "./identity";
 
-export function principalSession(principal: Principal, issuedAt: number, exp: number): Session {
-  return { sub: principal.userId, tid: principal.tenantId, name: principal.name, email: principal.email, role: principal.role, branchIds: principal.locationIds, iat: issuedAt, exp };
+export function principalSession(principal: Principal, issuedAt: number, exp: number, amr?: Session["amr"]): Session {
+  return { sub: principal.userId, tid: principal.tenantId, name: principal.name, email: principal.email, role: principal.role, branchIds: principal.locationIds, iat: issuedAt, exp, amr };
 }
 
 /** Every request re-validates the signed cookie against the database: disabled accounts, revoked sessions and role changes apply at once. */
@@ -16,12 +16,12 @@ export const getPrincipal = cache(async (): Promise<{ principal: Principal; sess
   const signed = await verifySession(token);
   if (!signed?.tid || signed.iat === undefined) return null;
   const principal = await resolvePrincipal(signed.sub, signed.tid, signed.iat);
-  return principal ? { principal, session: principalSession(principal, signed.iat, signed.exp) } : null;
+  return principal ? { principal, session: principalSession(principal, signed.iat, signed.exp, signed.amr) } : null;
 });
 
-export async function newSessionCookie(userId: string, tenantId: string): Promise<string | null> {
+export async function newSessionCookie(userId: string, tenantId: string, amr: Session["amr"] = "password"): Promise<string | null> {
   const iat = Math.floor(Date.now() / 1000);
-  return signSession({ sub: userId, tid: tenantId, name: "", email: "", role: "viewer", branchIds: [], iat, exp: iat + SESSION_TTL_SECONDS });
+  return signSession({ sub: userId, tid: tenantId, name: "", email: "", role: "viewer", branchIds: [], iat, exp: iat + SESSION_TTL_SECONDS, amr });
 }
 
 /** What a password confirmation grants: tied to one user and the exact session it was made in, so it cannot move between sessions or people. */

@@ -8,8 +8,8 @@ import { Button, FormSummary, Notice, PasswordField } from "../ui";
 
 type Info = { kind: "invite" | "reset"; email: string; name: string };
 
-/** Completes a one-time invitation or password reset. The person chooses their own password; nobody else ever sees it. */
-export function JoinExperience({ token }: { token: string }) {
+/** An invitation link: the invited person signs in with Google using that email (a password form exists only while LEGACY_PASSWORD_LOGIN=enabled). */
+export function JoinExperience({ token, legacy = false }: { token: string; legacy?: boolean }) {
   const router = useRouter();
   const [info, setInfo] = useState<Info | "invalid" | null>(null);
   const [password, setPassword] = useState("");
@@ -54,6 +54,13 @@ export function JoinExperience({ token }: { token: string }) {
             <Notice tone="warn" role="alert">It may have expired or already been used. Ask your workspace owner for a new one.</Notice>
             <Link className="btn" href="/login">Back to sign in</Link>
           </div>
+        ) : !legacy ? (
+          <div className="login-form stack">
+            <h1 className="h1" style={{ fontSize: 32, lineHeight: "40px" }}>{info.kind === "reset" ? "Passwords are no longer used" : "Your access is ready"}</h1>
+            <p className="muted">{info.kind === "reset" ? "Sign in with Google using" : "Sign in with the Google account for"} <strong>{info.email}</strong>. No password is needed.</p>
+            <a className="btn btn-primary btn-block sso-btn" href="/api/auth/sso/google">Continue with Google</a>
+            <p className="meta">Use exactly this email&apos;s Google account. Other Google accounts are refused.</p>
+          </div>
         ) : (
           <form className="login-form" onSubmit={submit} noValidate>
             <div>
@@ -64,6 +71,7 @@ export function JoinExperience({ token }: { token: string }) {
             <PasswordField label="New password" name="new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} help="At least 12 characters. Use a phrase only you know." />
             <PasswordField label="Confirm password" name="confirm-password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             <Button type="submit" variant="primary" className="btn-block" loading={busy} loadingLabel="Saving">{info.kind === "reset" ? "Save password and sign in" : "Create account and sign in"}</Button>
+            <a className="btn btn-block" href="/api/auth/sso/google">Or continue with Google</a>
           </form>
         )}
       </main>

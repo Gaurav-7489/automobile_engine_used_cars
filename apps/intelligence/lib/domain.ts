@@ -316,4 +316,5 @@ export type AcquisitionReview = {
 export type SavedSearch = { id: string; name: string; query: string; cadence: "Off" | "Daily" | "Weekly"; createdAt: string };
 
 /** sub is the account id, tid the workspace (tenant). iat is the issue time in seconds; role and branches are re-read from the database on every request. */
-export type Session = { sub: string; name: string; email: string; role: Role; branchIds: string[]; exp: number; tid?: string; iat?: number };
+/** `amr`: how this session was authenticated. "google" sessions came through verified Google sign-in; older ones carry none. */
+export type Session = { sub: string; name: string; email: string; role: Role; branchIds: string[]; exp: number; tid?: string; iat?: number; amr?: "google" | "password" };

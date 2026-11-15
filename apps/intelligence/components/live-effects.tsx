@@ -23,9 +23,9 @@ export function LiveEffects() {
   }, [toast]);
   const url = (link: Link) => `${window.location.origin}/join/${link.token}`;
   return (
-    <Dialog open={links.length > 0} onClose={() => setLinks([])} title={links[0]?.kind === "reset" ? "Password reset link" : "Invitation link"} description="Shown once. Share it only with the person named. It works one time and expires." footer={<Button variant="primary" onClick={() => setLinks([])}>I have shared it</Button>}>
+    <Dialog open={links.length > 0} onClose={() => setLinks([])} title={links[0]?.kind === "reset" ? "Password reset link" : "Invitation saved"} description="Tell the person their access is ready. They sign in with Continue with Google using exactly this email address; the link below is optional." footer={<Button variant="primary" onClick={() => setLinks([])}>Done</Button>}>
       <div className="stack">
-        <Notice tone="warn" role="status">No email is sent from this release. Copy the link and send it yourself.</Notice>
+        <Notice tone="accent" role="status">{typeof window === "undefined" ? "" : `They open ${window.location.origin}/login and choose Continue with Google with the email below. The invitation works once and expires.`}</Notice>
         {links.map((link) => (
           <div key={link.token} className="stack-sm">
             <strong>{link.email}</strong>

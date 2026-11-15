@@ -22,7 +22,8 @@
     "test:intelligence-prod": "TSX_TSCONFIG_PATH=apps/intelligence/tsconfig.json node --import tsx --test tests/intelligence-prod/*.test.ts",
     "intelligence:provision": "node --import tsx scripts/intelligence/provision-workspace.ts",
     "intelligence:load-vluce-demo": "node --import tsx scripts/intelligence/load-vluce-demo.ts",
-    "test:browser": "playwright test --config playwright.unified.config.ts"
+    "test:browser": "playwright test --config playwright.unified.config.ts",
+    "intelligence:bootstrap-admin": "node --import tsx scripts/intelligence/bootstrap-admin.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261113.1",

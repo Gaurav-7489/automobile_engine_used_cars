@@ -5,6 +5,7 @@ import type { ChannelState } from "@/lib/server/channels";
 import { useRemote } from "../use-remote";
 import { useToast } from "../toast";
 import { Badge, Button, Notice, PanelSkeleton, PasswordField, TextField } from "../ui";
+import { ConfirmIdentity, useReauth } from "../admin/shared";
 
 type Data = { channels: ChannelState[]; aiReady: boolean; metaReady: boolean; webhookUrl: string; canManage: boolean };
 
@@ -20,6 +21,7 @@ export function Messaging() {
   const toast = useToast();
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({ externalId: "", token: "", password: "" });
+  const auth = useReauth();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
@@ -27,8 +29,8 @@ export function Messaging() {
     setBusy(channel); setError("");
     try {
       if (details && form.token) {
-        const r = await fetch("/api/auth/reauth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: form.password }) });
-        if (!r.ok) { const b = await r.json().catch(() => ({})); setError(b?.error?.message ?? "Password not confirmed."); setBusy(""); return; }
+        const failed = await auth.confirm(form.password);
+        if (failed) { setError(failed); setBusy(""); return; }
       }
       const r = await fetch("/api/settings/messaging", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ channel, enabled, ...(details ? { externalId: form.externalId, token: form.token || undefined } : {}) }) });
       const b = await r.json().catch(() => ({}));
@@ -60,9 +62,9 @@ export function Messaging() {
                 <div className="stack-sm mt-2">
                   <TextField label={c.channel === "whatsapp" ? "Phone number ID" : "Instagram account ID"} inputMode="numeric" value={form.externalId} onChange={(e) => setForm({ ...form, externalId: e.target.value.trim() })} help={c.channel === "whatsapp" ? "Meta Business Manager → WhatsApp → API setup." : "Instagram professional account ID linked to your Facebook Page."} />
                   <PasswordField label="Access token" value={form.token} onChange={(e) => setForm({ ...form, token: e.target.value })} help="A permanent system-user token. Stored encrypted." />
-                  <PasswordField label="Your VandLabs password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} help="Needed to save a token." />
+                  <ConfirmIdentity needsPassword={auth.needsPassword} password={form.password} onPassword={(v) => setForm({ ...form, password: v })} />
                   <p className="meta">In your Meta app, set the webhook to <code>{d.webhookUrl}</code> and subscribe to {c.channel === "whatsapp" ? "messages" : "Instagram messages"}.</p>
-                  <div className="row-flex"><Button variant="primary" size="sm" loading={busy === c.channel} disabled={!form.externalId || !form.token || !form.password} onClick={() => save(c.channel, true, true)}>Check and switch on</Button><Button size="sm" onClick={() => setEditing(null)}>Cancel</Button></div>
+                  <div className="row-flex"><Button variant="primary" size="sm" loading={busy === c.channel} disabled={!form.externalId || !form.token || (auth.needsPassword && !form.password)} onClick={() => save(c.channel, true, true)}>Check and switch on</Button><Button size="sm" onClick={() => setEditing(null)}>Cancel</Button></div>
                 </div>
               ) : null}
             </div>

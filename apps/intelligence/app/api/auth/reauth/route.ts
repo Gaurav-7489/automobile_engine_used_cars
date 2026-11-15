@@ -5,6 +5,7 @@ import { REAUTH_COOKIE, REAUTH_TTL_SECONDS } from "@/lib/session";
 import { getPrincipal, newReauthGrant, reauthSecondsLeft } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { reauthenticate } from "@/lib/server/identity";
+import { legacyPasswordLogin } from "@/lib/server/legacy-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,10 @@ const cookieOptions = { httpOnly: true, sameSite: "lax", secure: process.env.NOD
 /** Whether the signed-in user still holds a valid password confirmation, so screens can skip asking again. */
 export async function GET() {
   const seconds = await reauthSecondsLeft();
-  return NextResponse.json({ valid: seconds > 0, expiresIn: seconds }, { headers: NO_STORE });
+  const current = await getPrincipal();
+  // "google": confirm in a Google window (/api/auth/sso/google?intent=reauth). "password": the legacy password confirmation.
+  const method = current?.session.amr === "google" || !legacyPasswordLogin() ? "google" : "password";
+  return NextResponse.json({ valid: seconds > 0, expiresIn: seconds, method }, { headers: NO_STORE });
 }
 
 /**
@@ -22,6 +26,7 @@ export async function GET() {
  * short-lived grant that is bound to that user and to this session. Two-factor stays enforced by the admin gate itself.
  */
 export async function POST(request: Request) {
+  if (!legacyPasswordLogin()) return problem(410, "gone", "Confirm with Google instead.");
   if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Your session has expired. Sign in again.");

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { signPayload, verifyPayload } from "../session";
 
 /**
@@ -8,7 +9,7 @@ import { signPayload, verifyPayload } from "../session";
 export const OAUTH_COOKIE = process.env.NODE_ENV === "production" ? "__Host-vl_oauth" : "vl_oauth";
 export const OAUTH_TTL_SECONDS = 10 * 60;
 
-export type OAuthState = { n: string; purpose: "signin" | "ads"; provider: "google" | "meta" | "whatsapp"; returnTo?: string; sub?: string; tid?: string; exp: number };
+export type OAuthState = { n: string; purpose: "signin" | "reauth" | "ads"; provider: "google" | "meta" | "whatsapp"; returnTo?: string; sub?: string; tid?: string; sid?: number; exp: number };
 
 export const googleConfigured = (): boolean => Boolean(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim());
 
@@ -22,24 +23,46 @@ export function appOrigin(request: Request): string {
   return `${proto}://${host}`;
 }
 
-export async function newOAuthState(input: Omit<OAuthState, "n" | "exp">): Promise<{ state: string; nonce: string } | null> {
-  const nonce = Buffer.from(crypto.getRandomValues(new Uint8Array(24))).toString("base64url");
+const random = (bytes: number) => Buffer.from(crypto.getRandomValues(new Uint8Array(bytes))).toString("base64url");
+
+/** RFC 7636 S256 code challenge for a verifier. */
+export const pkceChallenge = (verifier: string) => createHash("sha256").update(verifier).digest("base64url");
+
+/**
+ * A new round trip: signed state (carries the nonce), plus a PKCE verifier that never leaves this server and the browser's
+ * httpOnly cookie. The cookie value is `<nonce>~<verifier>`; the state in the URL holds only the nonce.
+ */
+export async function newOAuthState(input: Omit<OAuthState, "n" | "exp">): Promise<{ state: string; nonce: string; verifier: string; cookie: string } | null> {
+  const nonce = random(24);
+  const verifier = random(48);
   const state = await signPayload({ ...input, n: nonce, exp: Math.floor(Date.now() / 1000) + OAUTH_TTL_SECONDS } satisfies OAuthState);
-  return state ? { state, nonce } : null;
+  return state ? { state, nonce, verifier, cookie: `${nonce}~${verifier}` } : null;
+}
+
+/** Splits the OAuth cookie. Older cookies (before PKCE) hold only the nonce. */
+export function readOAuthCookie(value: string | undefined): { nonce: string; verifier?: string } | null {
+  if (!value) return null;
+  const [nonce, verifier] = value.split("~");
+  return nonce ? { nonce, verifier: verifier || undefined } : null;
 }
 
 /** The state is ours (signature), fresh (expiry), for this flow, and started in this browser (cookie). */
-export async function readOAuthState(state: string | null, cookieNonce: string | undefined, purpose: OAuthState["purpose"], provider: OAuthState["provider"]): Promise<OAuthState | null> {
+export async function readOAuthState(state: string | null, cookieValue: string | undefined, purpose: OAuthState["purpose"], provider: OAuthState["provider"]): Promise<OAuthState | null> {
   const payload = await verifyPayload<OAuthState>(state);
-  if (!payload || !cookieNonce || payload.n !== cookieNonce || payload.purpose !== purpose || payload.provider !== provider) return null;
+  const cookie = readOAuthCookie(cookieValue);
+  if (!payload || !cookie || payload.n !== cookie.nonce || payload.purpose !== purpose || payload.provider !== provider) return null;
   return payload;
 }
 
 export const oauthCookie = (value: string, maxAge = OAUTH_TTL_SECONDS) => ({ name: OAUTH_COOKIE, value, httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge });
 
-export function googleAuthUrl(input: { redirectUri: string; state: string; scope: string; nonce?: string; offline?: boolean }): string {
+export function googleAuthUrl(input: { redirectUri: string; state: string; scope: string; nonce?: string; offline?: boolean; verifier?: string; maxAge?: number; loginHint?: string }): string {
   const p = new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID!.trim(), redirect_uri: input.redirectUri, response_type: "code", scope: input.scope, state: input.state });
   if (input.nonce) p.set("nonce", input.nonce);
+  if (input.verifier) { p.set("code_challenge", pkceChallenge(input.verifier)); p.set("code_challenge_method", "S256"); }
+  // Step-up: Google asks the person to authenticate again unless they did within max_age seconds, and reports auth_time.
+  if (input.maxAge !== undefined) p.set("max_age", String(input.maxAge));
+  if (input.loginHint) p.set("login_hint", input.loginHint);
   // Offline access with a forced consent screen is the only way Google reliably returns a refresh token.
   if (input.offline) { p.set("access_type", "offline"); p.set("prompt", "consent"); } else p.set("prompt", "select_account");
   return `https://accounts.google.com/o/oauth2/v2/auth?${p.toString()}`;
@@ -55,23 +78,41 @@ async function tokenRequest(params: Record<string, string>): Promise<GoogleToken
   return response.ok ? ((await response.json()) as GoogleTokens) : null;
 }
 
-export const exchangeGoogleCode = (code: string, redirectUri: string) => tokenRequest({ code, redirect_uri: redirectUri, grant_type: "authorization_code" });
+export const exchangeGoogleCode = (code: string, redirectUri: string, verifier?: string) => tokenRequest({ code, redirect_uri: redirectUri, grant_type: "authorization_code", ...(verifier ? { code_verifier: verifier } : {}) });
 export const refreshGoogleToken = (refreshToken: string) => tokenRequest({ refresh_token: refreshToken, grant_type: "refresh_token" });
 
-export type GoogleIdentity = { sub: string; email: string; name: string };
+export type GoogleIdentity = { sub: string; email: string; name: string; hd?: string; authTime?: number; authoritative: boolean };
+
+/** Addresses Google itself issues; for these, a verified email cannot belong to anyone but the account holder. */
+const GOOGLE_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
 
 /**
  * Reads the identity from an ID token that this server received directly from Google's token endpoint over TLS in exchange for
- * the code (OpenID Connect Core 3.1.3.7 allows that channel to stand in for checking the signature). Issuer, audience, expiry,
- * the nonce we issued and a verified email are all required.
+ * the code (OpenID Connect Core 3.1.3.7 allows that channel to stand in for checking the signature; the code itself is bound to
+ * this browser by PKCE). Required: Google issuer, our client as audience (and authorized party when present), unexpired, not
+ * issued in the future, the nonce we issued, a stable subject and a Google-verified email.
  */
-export function readGoogleIdToken(idToken: string | undefined, nonce: string): GoogleIdentity | null {
+export function readGoogleIdToken(idToken: string | undefined, nonce: string, nowMs = Date.now()): GoogleIdentity | null {
   try {
-    const claims = JSON.parse(Buffer.from((idToken ?? "").split(".")[1] ?? "", "base64url").toString("utf8")) as Record<string, unknown>;
+    const parts = (idToken ?? "").split(".");
+    if (parts.length !== 3) return null;
+    const claims = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as Record<string, unknown>;
+    const client = process.env.GOOGLE_CLIENT_ID?.trim();
     const issuer = claims.iss === "https://accounts.google.com" || claims.iss === "accounts.google.com";
-    if (!issuer || claims.aud !== process.env.GOOGLE_CLIENT_ID?.trim() || typeof claims.exp !== "number" || claims.exp * 1000 < Date.now()) return null;
-    if (claims.nonce !== nonce || claims.email_verified !== true || typeof claims.email !== "string" || typeof claims.sub !== "string") return null;
-    return { sub: claims.sub, email: claims.email.toLowerCase(), name: typeof claims.name === "string" ? claims.name : "" };
+    const audience = typeof claims.aud === "string" ? claims.aud === client : Array.isArray(claims.aud) && claims.aud.length === 1 && claims.aud[0] === client;
+    if (!client || !issuer || !audience) return null;
+    if (claims.azp !== undefined && claims.azp !== client) return null;
+    if (typeof claims.exp !== "number" || claims.exp * 1000 < nowMs) return null;
+    if (typeof claims.iat === "number" && claims.iat * 1000 > nowMs + 5 * 60_000) return null;
+    if (claims.nonce !== nonce || claims.email_verified !== true || typeof claims.email !== "string" || typeof claims.sub !== "string" || !/^[0-9A-Za-z_-]{1,255}$/.test(claims.sub)) return null;
+    const email = claims.email.trim().toLowerCase();
+    const domain = email.split("@")[1] ?? "";
+    const hd = typeof claims.hd === "string" ? claims.hd.toLowerCase() : undefined;
+    return {
+      sub: claims.sub, email, name: typeof claims.name === "string" ? claims.name.slice(0, 120) : "", hd,
+      authTime: typeof claims.auth_time === "number" ? claims.auth_time : undefined,
+      authoritative: GOOGLE_DOMAINS.has(domain) || (hd !== undefined && hd === domain),
+    };
   } catch {
     return null;
   }

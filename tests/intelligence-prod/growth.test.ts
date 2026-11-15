@@ -111,7 +111,8 @@ test("Google sign-in admits only existing members with a verified email, and nev
     process.env.GOOGLE_CLIENT_ID = "client-123";
     const token = (claims: Record<string, unknown>) => `x.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.sig`;
     const good = { iss: "https://accounts.google.com", aud: "client-123", exp: secs() + 300, nonce: "n1", email: "Owner@Kerala.example", email_verified: true, sub: "g-1", name: "Owner" };
-    assert.deepEqual(readGoogleIdToken(token(good), "n1"), { sub: "g-1", email: "owner@kerala.example", name: "Owner" });
+    const read = readGoogleIdToken(token(good), "n1");
+    assert.deepEqual({ sub: read?.sub, email: read?.email, name: read?.name, authoritative: read?.authoritative }, { sub: "g-1", email: "owner@kerala.example", name: "Owner", authoritative: false });
     assert.equal(readGoogleIdToken(token(good), "other"), null, "a replayed token with another nonce is refused");
     assert.equal(readGoogleIdToken(token({ ...good, aud: "someone-else" }), "n1"), null);
     assert.equal(readGoogleIdToken(token({ ...good, email_verified: false }), "n1"), null);
