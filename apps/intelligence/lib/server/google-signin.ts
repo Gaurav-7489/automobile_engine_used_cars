@@ -28,12 +28,18 @@ type Exchange = (code: string, redirectUri: string, verifier?: string) => Promis
 
 /** Validates the callback (state, cookie, PKCE verifier, code) and reads the verified Google identity. */
 export async function readGoogleCallback(input: { state: string | null; code: string | null; cookie: string | undefined; redirectUri: string; purpose: "signin" | "reauth"; exchange?: Exchange }): Promise<{ state: OAuthState; identity: GoogleIdentity } | null> {
+  // Which step failed is logged (never the code, tokens or email), so a misconfiguration is visible in the runtime logs.
+  const why = (reason: string) => { console.warn(JSON.stringify({ event: "google_callback_rejected", purpose: input.purpose, reason })); return null; };
   const state = await readOAuthState(input.state, input.cookie, input.purpose, "google");
   const cookie = readOAuthCookie(input.cookie);
-  if (!state || !cookie?.verifier || !input.code || input.code.length > 2000) return null;
+  if (!input.cookie) return why("no_state_cookie");
+  if (!state) return why("state_invalid_or_expired");
+  if (!cookie?.verifier) return why("no_pkce_verifier");
+  if (!input.code || input.code.length > 2000) return why("no_code");
   const tokens = await (input.exchange ?? exchangeGoogleCode)(input.code, input.redirectUri, cookie.verifier);
-  const identity = readGoogleIdToken(tokens?.id_token, state.n);
-  return identity ? { state, identity } : null;
+  if (!tokens?.id_token) return why("token_exchange_failed");
+  const identity = readGoogleIdToken(tokens.id_token, state.n);
+  return identity ? { state, identity } : why("id_token_rejected");
 }
 
 export const STEP_UP_MAX_AGE_SECONDS = 300;
