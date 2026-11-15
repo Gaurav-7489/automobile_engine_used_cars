@@ -191,7 +191,7 @@ test("endpoint security: no key, wrong scope, revoked, expired, missing idempote
     // The older public route: a presented key must be valid and for that dealership.
     const legacy = { tenant: s.b.tenantId, stock: s.carB, name: "Anu Thomas", phone: "98470 55555", consent: true };
     assert.equal((await publicEnquiryRoute(req("/api/public/enquiry", key(), legacy))).status, 401);
-    assert.equal((await publicEnquiryRoute(req("/api/public/enquiry", s.keyB.replace(/.$/, "A"), legacy))).status, 401);
+    assert.equal((await publicEnquiryRoute(req("/api/public/enquiry", s.keyB.slice(0, -1) + (s.keyB.endsWith("A") ? "B" : "A"), legacy))).status, 401);
     const leadsKeyB = await createApiKey(s.b.owner, "x", "leads:read", 30);
     const keyAgain = key();
     assert.ok((await connectWebsite({ email: "owner@alpha.example", password: PASSWORD, key: keyAgain, siteUrl: "https://alpha2.example" })).ok);
