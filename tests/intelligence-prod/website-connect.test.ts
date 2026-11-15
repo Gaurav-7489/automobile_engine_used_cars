@@ -42,7 +42,7 @@ test("an owner connects a website with their email; the link reads stock and can
     assert.equal(ok.site, "vluce.example");
     const caller = await authenticateApiKey(`Bearer ${k}`);
     assert.ok(caller);
-    assert.equal(caller.scope, "inventory:read", "a website can only read stock");
+    assert.equal(caller.scope, "website", "a website key reads published stock and records enquiries, nothing else");
     assert.equal(caller.tenantId, p.tenantId);
     const info = await websiteInfo(caller.tenantId, caller.keyId);
     assert.equal(info.site, "vluce.example");

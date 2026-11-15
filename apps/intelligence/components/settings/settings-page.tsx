@@ -361,7 +361,7 @@ function Billing() {
 /* API access --------------------------------------------------------------------- */
 
 type ApiKeyRow = { id: string; name: string; scope: string; prefix: string; createdBy: string; createdAt: string; expiresAt: string; revokedAt: string | null; lastUsedAt: string | null };
-const SCOPE_LABEL: Record<string, string> = { "inventory:read": "Read stock (no costs or margins)", "leads:read": "Read leads, including contact details" };
+const SCOPE_LABEL: Record<string, string> = { "inventory:read": "Read stock (no costs or margins)", "leads:read": "Read leads, including contact details", website: "Website: published stock, enquiries and visit counts" };
 
 function ApiAccess() {
   const { can } = useWorkspace();

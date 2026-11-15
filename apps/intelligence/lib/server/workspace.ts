@@ -14,6 +14,7 @@ import { needsOf, scopedState } from "./scoped-state";
 import { readEntitlements } from "./entitlement-store";
 import { automate, recordRuns } from "./automation-store";
 import { COMMAND_FEATURE } from "../entitlements";
+import { deliverSoon, enqueueInventoryEvents } from "./website-webhooks";
 import type { Alert, Lead, Sale, Vehicle } from "../domain";
 
 export function enterLive(): void {
@@ -97,6 +98,8 @@ export async function runCommandsIn(c: SqlClient, principal: Principal, commands
   if (next.sessionsRevoked > before.sessionsRevoked) { await c.query("SELECT intelligence_revoke_sessions($1)", [principal.userId]); effects.sessionsRevoked = true; }
   await persist(c, principal, before, next, new Date().toISOString());
   await recordRuns(c, principal.tenantId, automated.runs);
+  // Same transaction as the change: a website hears about a vehicle change if and only if it committed.
+  trace.webhooks = await enqueueInventoryEvents(c, principal.tenantId, before.vehicles, next.vehicles);
   lap("persist");
   // Invited team rows were created by the action as placeholders; the database read below is the truth.
   await syncReadModel(c, principal.tenantId, { force: true });
@@ -125,6 +128,7 @@ export async function runCommands(principal: Principal, commands: Command[], rea
   const lap = (name: string) => { const now = performance.now(); trace[name] = Math.round(now - mark); mark = now; };
   const outcomeOf = await tenantTx(principal.tenantId, (c) => runCommandsIn(c, principal, commands, reauthenticated, "auto", lap, trace));
   lap("commit");
+  if (outcomeOf.ok && trace.webhooks) deliverSoon(principal.tenantId);
   if (process.env.COMMAND_TRACE === "1") console.log(JSON.stringify({ event: "command_trace", commands: commands.map((c) => c.name), ms: trace }));
   return outcomeOf;
 }

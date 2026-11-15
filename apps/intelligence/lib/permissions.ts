@@ -81,7 +81,8 @@ export const NAV: NavItem[] = [
   { key: "capital", label: "Money", short: "Money", href: "/app/capital", icon: "coins", group: "Business", needs: "capital.view", feature: "capital", tab: "Capital & profit" },
   { key: "revenue", label: "Revenue & expenses", short: "Revenue", href: "/app/revenue", icon: "chart", group: "Business", needs: "capital.view", feature: "capital", parent: "capital", tab: "Revenue & expenses" },
   { key: "investors", label: "Investors", short: "Investors", href: "/app/investors", icon: "users", group: "Business", needs: "investors.view", feature: "capital", parent: "capital", tab: "Investors" },
-  { key: "reports", label: "Reports", short: "Reports", href: "/app/reports", icon: "chart", group: "Business", needs: "reports.view", feature: "reports" },
+  { key: "reports", label: "Reports", short: "Reports", href: "/app/reports", icon: "chart", group: "Business", needs: "reports.view", feature: "reports", tab: "Reports" },
+  { key: "website", label: "Website performance", short: "Website", href: "/app/website", icon: "chart", group: "Business", needs: "reports.view", feature: "reports", parent: "reports", tab: "Website" },
   { key: "settings", label: "Settings", short: "Settings", href: "/app/settings/business", icon: "gear", group: "Business", needs: "settings.view" },
 ];
 

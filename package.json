@@ -19,7 +19,7 @@
     "cf:build": "pnpm --filter @vandlabs/intelligence cf:build",
     "cf:deploy": "node scripts/cloudflare/deploy.mjs",
     "test:product": "node --import tsx --test tests/product-ui/*.test.ts",
-    "test:intelligence-prod": "node --import tsx --test tests/intelligence-prod/*.test.ts",
+    "test:intelligence-prod": "TSX_TSCONFIG_PATH=apps/intelligence/tsconfig.json node --import tsx --test tests/intelligence-prod/*.test.ts",
     "intelligence:provision": "node --import tsx scripts/intelligence/provision-workspace.ts",
     "intelligence:load-vluce-demo": "node --import tsx scripts/intelligence/load-vluce-demo.ts",
     "test:browser": "playwright test --config playwright.unified.config.ts"

@@ -211,6 +211,21 @@ export type Lead = {
   tasks: { id: string; title: string; dueAt: string; done: boolean; doneAt?: string; doneBy?: string }[];
   appointment?: { id: string; at: string; kind: "Visit" | "Test drive"; status: "Scheduled" | "Completed" | "Cancelled" | "Rescheduled"; staff: string; previousAt?: string; cancelReason?: string };
   duplicateOf?: string;
+  /** Website enquiries: what the customer asked for. Absent on leads added by staff. */
+  enquiry?: LeadEnquiry;
+};
+
+export type WebsiteEnquiryType = "vehicle" | "callback" | "test_drive" | "price" | "sell" | "visit" | "general" | "whatsapp";
+export type LeadEnquiry = {
+  type: WebsiteEnquiryType;
+  /** The customer's preferred slot. A request only: staff confirm it by scheduling an appointment. */
+  requested?: { date?: string; time?: string };
+  /** Sell-your-car (acquisition) enquiries: the car the customer wants to sell. */
+  sell?: { make: string; model: string; variant?: string; year: number; km: number; owners?: number; city?: string; expectedPrice?: number };
+  site?: string;
+  websiteReference?: string;
+  attribution?: { utmSource?: string; utmMedium?: string; utmCampaign?: string; referrer?: string; page?: string };
+  consentAt?: string;
 };
 
 export type AlertSeverity = "Critical" | "Warning" | "Due today" | "Overdue" | "Info";
