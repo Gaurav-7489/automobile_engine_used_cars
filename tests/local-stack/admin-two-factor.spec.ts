@@ -15,7 +15,7 @@ test.afterAll(() => { sql(`UPDATE intelligence_users SET totp_enabled = true, to
 test("admin console: locked until two-factor, then unlocks in place", async ({ page }) => {
   try { sql("SELECT 1"); } catch { test.skip(true, "Local test database not reachable as the postgres user."); }
   sql(`DELETE FROM intelligence_rate_limits; UPDATE intelligence_users SET totp_enabled = false, totp_secret = NULL WHERE email = '${ADMIN.email}'`);
-  await page.goto("/login?returnTo=/admin");
+  await page.goto("/login?legacy=1&returnTo=/admin");
   await page.getByLabel(/business email/i).fill(ADMIN.email);
   await page.getByLabel(/^password/i).fill(ADMIN.password);
   await page.getByRole("button", { name: /^sign in/i }).click();

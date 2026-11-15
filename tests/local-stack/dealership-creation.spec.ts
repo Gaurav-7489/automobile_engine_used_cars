@@ -5,7 +5,7 @@ const ADMIN = { email: "admin@vandlabs.example", password: "steady orchard lante
 const stamp = Date.now().toString(36);
 
 async function signIn(page: Page, email: string, password: string, secret?: string) {
-  await page.goto("/login");
+  await page.goto("/login?legacy=1");
   await page.getByLabel(/business email/i).fill(email);
   await page.getByLabel(/^password/i).fill(password);
   await page.getByRole("button", { name: /^sign in/i }).click();

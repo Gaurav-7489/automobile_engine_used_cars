@@ -10,7 +10,7 @@ test.skip(!user, "LOCAL_SCALE_USER is not set");
 const STATE = join(tmpdir(), `vl-overview-leads-${process.pid}.json`);
 test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage({ storageState: { cookies: [], origins: [] } });
-  await page.goto("/login");
+  await page.goto("/login?legacy=1");
   await page.getByLabel(/business email/i).fill(user!);
   await page.getByLabel(/^password/i).fill(password);
   await page.getByRole("button", { name: /^sign in/i }).click();

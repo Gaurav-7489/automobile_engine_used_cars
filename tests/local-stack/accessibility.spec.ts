@@ -29,7 +29,7 @@ async function settled(page: Page) {
   await page.waitForTimeout(900);
 }
 async function signIn(page: Page) {
-  await page.goto("/login");
+  await page.goto("/login?legacy=1");
   await page.getByLabel(/business email/i).fill(user!);
   await page.getByLabel(/^password/i).fill(password);
   await page.getByRole("button", { name: /^sign in/i }).click();

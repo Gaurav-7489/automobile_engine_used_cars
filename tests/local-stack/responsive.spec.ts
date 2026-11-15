@@ -60,7 +60,7 @@ test("signed-in pages and the phone Menu fit every width", async ({ page }) => {
   test.skip(!user, "Set LOCAL_SCALE_USER and LOCAL_SCALE_PASSWORD for a synthetic account in a local test database.");
   test.setTimeout(1_200_000);
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.goto("/login");
+  await page.goto("/login?legacy=1");
   await page.getByLabel(/business email/i).fill(user!);
   await page.getByLabel(/^password/i).fill(password);
   await page.getByRole("button", { name: /^sign in/i }).click();
