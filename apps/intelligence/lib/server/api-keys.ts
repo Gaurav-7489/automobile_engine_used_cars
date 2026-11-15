@@ -4,7 +4,7 @@ import type { Principal } from "./identity";
 
 export const API_SCOPES = ["inventory:read", "leads:read"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
-export type ApiKeyView = { id: string; name: string; scope: ApiScope; prefix: string; createdBy: string; createdAt: string; expiresAt: string; revokedAt: string | null; lastUsedAt: string | null };
+export type ApiKeyView = { id: string; name: string; scope: KeyScope; prefix: string; createdBy: string; createdAt: string; expiresAt: string; revokedAt: string | null; lastUsedAt: string | null };
 
 const hash = (key: string) => createHash("sha256").update(key).digest("hex");
 type Row = Record<string, unknown>;
@@ -23,7 +23,7 @@ export async function createApiKey(p: Principal, name: string, scope: ApiScope, 
 }
 
 function toView(r: Row): ApiKeyView {
-  return { id: String(r.id), name: String(r.name), scope: r.scope as ApiScope, prefix: `vl_${String(r.prefix)}`, createdBy: String(r.created_by), createdAt: iso(r.created_at)!, expiresAt: iso(r.expires_at)!, revokedAt: iso(r.revoked_at), lastUsedAt: iso(r.last_used_at) };
+  return { id: String(r.id), name: String(r.name), scope: r.scope as KeyScope, prefix: `vl_${String(r.prefix)}`, createdBy: String(r.created_by), createdAt: iso(r.created_at)!, expiresAt: iso(r.expires_at)!, revokedAt: iso(r.revoked_at), lastUsedAt: iso(r.last_used_at) };
 }
 
 export async function listApiKeys(tenantId: string): Promise<ApiKeyView[]> {
@@ -34,7 +34,18 @@ export async function revokeApiKey(tenantId: string, id: string): Promise<boolea
   return tenantTx(tenantId, async (c) => (await c.query("UPDATE intelligence_api_keys SET revoked_at = now() WHERE tenant_id=$1 AND id=$2 AND revoked_at IS NULL RETURNING id", [tenantId, id])).rows.length > 0);
 }
 
-export type ApiCaller = { keyId: string; tenantId: string; scope: ApiScope; locationIds: string[] };
+/** Keys the website connection creates carry "website": read published stock, record website enquiries and website analytics. */
+export type KeyScope = ApiScope | "website";
+export type ApiCaller = { keyId: string; tenantId: string; scope: KeyScope; locationIds: string[]; name: string };
+
+/** Whether a key may call an endpoint that needs `required`. A website key reads stock; nothing else widens. */
+export function scopeAllows(caller: Pick<ApiCaller, "scope" | "name">, required: KeyScope): boolean {
+  if (caller.scope === required) return true;
+  if (required === "inventory:read" && caller.scope === "website") return true;
+  // Connections made before the website scope existed are inventory:read keys named "Website: <host>"; they keep working until renewed.
+  if (required === "website" && caller.scope === "inventory:read" && caller.name.startsWith("Website: ")) return true;
+  return false;
+}
 
 /** Resolves an `Authorization: Bearer vl_…` header. Revoked, expired or mismatched keys resolve to null. */
 export async function authenticateApiKey(header: string | null): Promise<ApiCaller | null> {
@@ -47,5 +58,5 @@ export async function authenticateApiKey(header: string | null): Promise<ApiCall
   const actual = Buffer.from(hash(key!), "hex");
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null;
   await plain((c) => c.query("SELECT intelligence_api_key_used($1)", [row.id]));
-  return { keyId: String(row.id), tenantId: String(row.tenant_id), scope: row.scope as ApiScope, locationIds: (row.location_ids as string[]) ?? [] };
+  return { keyId: String(row.id), tenantId: String(row.tenant_id), scope: row.scope as KeyScope, locationIds: (row.location_ids as string[]) ?? [], name: String(row.name ?? "") };
 }

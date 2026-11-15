@@ -11,8 +11,9 @@ import { writeAudit } from "./workspace-audit";
  * server sends those here together with a key it derived from its own deployment secret. Nothing is copied or pasted and
  * the website stores nothing: it can always re-derive the key, and this workspace only ever holds the key's SHA-256.
  *
- * A connection is an ordinary read-only API key (scope inventory:read) named "Website: <host>", so it appears under
- * Settings, API, expires after a year, records when it was last used, and is revoked there like any other key.
+ * A connection is an API key with the "website" scope (read published stock, record website enquiries and analytics; nothing else)
+ * named "Website: <host>", so it appears under Settings, API, expires after a year, records when it was last used, and is revoked
+ * there like any other key. Inventory changes are pushed to the site's origin as signed webhooks (website-webhooks.ts).
  */
 
 const KEY = /^vl_([A-Za-z0-9_-]{12})_[A-Za-z0-9_-]{43}$/;
@@ -25,6 +26,32 @@ export type WebsiteConnectInput = { email: string; password: string; code?: stri
 export type WebsiteConnectResult =
   | { ok: true; tenantId: string; dealership: string; site: string; expiresAt: string }
   | { ok: false; status: 401 | 403 | 409 | 422 | 428 | 429; code: string; message: string };
+
+/** Hosts a webhook must never be sent to from production: loopback, private networks, link-local and local names. */
+function internalHost(host: string): boolean {
+  const h = host.replace(/^\[|\]$/g, "").toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal") || !h.includes(".") && !h.includes(":")) return true;
+  if (/^(127\.|10\.|0\.|169\.254\.|192\.168\.)/.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  if (h === "::1" || h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe80")) return true;
+  return false;
+}
+
+/**
+ * The website's origin for signed inventory webhooks, or null (no webhooks; the website still refreshes on its schedule).
+ * Production: https to a public host only. Development, or WEBSITE_WEBHOOKS_ALLOW_LOOPBACK=1 for a local end-to-end run: plain http and loopback too.
+ */
+export function siteOrigin(siteUrl: string, env: Record<string, string | undefined> = process.env): string | null {
+  try {
+    const url = new URL(siteUrl);
+    if (url.username || url.password) return null;
+    const relaxed = env.NODE_ENV !== "production" || env.WEBSITE_WEBHOOKS_ALLOW_LOOPBACK === "1";
+    if (relaxed) return url.protocol === "https:" || url.protocol === "http:" ? url.origin : null;
+    if (url.protocol !== "https:" || internalHost(url.hostname)) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
 
 /** The website's public host, or null when the address is not a plain http(s) origin. */
 export function siteHost(siteUrl: string): string | null {
@@ -67,12 +94,16 @@ export async function connectWebsite(input: WebsiteConnectInput): Promise<Websit
       // Row-level security shows only this workspace's keys, so a prefix held by another workspace is invisible here and the insert below hits the unique index.
       const existing = (await c.query("SELECT id FROM intelligence_api_keys WHERE tenant_id=$1 AND prefix=$2", [p.tenantId, prefix])).rows[0] as Row | undefined;
       if (existing) {
-        await c.query("UPDATE intelligence_api_keys SET name=$3, key_hash=$4, location_ids=$5, created_by=$6, expires_at=$7, revoked_at=NULL WHERE tenant_id=$1 AND id=$2",
-          [p.tenantId, existing.id, NAME_PREFIX + site, hash(input.key), JSON.stringify(p.locationIds), p.name || p.email, expires]);
+        // Renewal also upgrades a connection made before the website scope existed.
+        await c.query("UPDATE intelligence_api_keys SET name=$3, key_hash=$4, location_ids=$5, created_by=$6, expires_at=$7, revoked_at=NULL, scope='website', site_origin=$8 WHERE tenant_id=$1 AND id=$2",
+          [p.tenantId, existing.id, NAME_PREFIX + site, hash(input.key), JSON.stringify(p.locationIds), p.name || p.email, expires, siteOrigin(input.siteUrl)]);
       } else {
-        await c.query("INSERT INTO intelligence_api_keys(tenant_id,name,scope,location_ids,prefix,key_hash,created_by,expires_at) VALUES($1,$2,'inventory:read',$3,$4,$5,$6,$7)",
-          [p.tenantId, NAME_PREFIX + site, JSON.stringify(p.locationIds), prefix, hash(input.key), p.name || p.email, expires]);
+        await c.query("INSERT INTO intelligence_api_keys(tenant_id,name,scope,location_ids,prefix,key_hash,created_by,expires_at,site_origin) VALUES($1,$2,'website',$3,$4,$5,$6,$7,$8)",
+          [p.tenantId, NAME_PREFIX + site, JSON.stringify(p.locationIds), prefix, hash(input.key), p.name || p.email, expires, siteOrigin(input.siteUrl)]);
       }
+      // One live connection per website: a rotated WEBSITE_SECRET means a new key, so the site's previous keys are revoked.
+      const replaced = (await c.query("UPDATE intelligence_api_keys SET revoked_at = now() WHERE tenant_id=$1 AND name=$2 AND prefix<>$3 AND revoked_at IS NULL RETURNING id", [p.tenantId, NAME_PREFIX + site, prefix])).rows.length;
+      if (replaced) await writeAudit(c, p.tenantId, p.name, "website.key_replaced", site, `Previous website key revoked (${replaced})`);
       await writeAudit(c, p.tenantId, p.name, "website.connected", site, existing ? "Website connection renewed" : "Website connected; published stock and enquiries now sync");
       return { ok: true as const, tenantId: p.tenantId, dealership: await dealershipName(c, p.tenantId), site, expiresAt: expires };
     });

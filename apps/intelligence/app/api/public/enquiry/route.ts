@@ -3,6 +3,7 @@ import { json, problem, rateLimited } from "@/lib/api";
 import { deliverPendingLeadEmails } from "@/lib/server/lead-notifications";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { sameOrigin } from "@/lib/server/csrf";
+import { authenticateApiKey } from "@/lib/server/api-keys";
 import { submitWebsiteEnquiry, validateEnquiry } from "@/lib/server/website-enquiry";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,12 @@ export async function POST(request: Request) {
   if (typeof raw.website === "string" && raw.website.trim()) return json({ ok: true, reference: "received" }, { status: 201 });
   const tenant = typeof raw.tenant === "string" ? raw.tenant : "";
   const stock = typeof raw.stock === "string" ? raw.stock : "";
+  // A website server presenting a key must present a valid one, for this dealership. (Browsers on Intelligence's own listing pages send none.)
+  if (request.headers.get("authorization")) {
+    const caller = await authenticateApiKey(request.headers.get("authorization")).catch(() => null);
+    if (!caller) return problem(401, "unauthenticated", "Invalid or expired website key.");
+    if (caller.tenantId.toLowerCase() !== tenant.toLowerCase()) return problem(403, "forbidden", "This key belongs to another dealership.");
+  }
   const dealership = await hitShared(`enquiry-tenant:${tenant}`, 120, 60 * 60_000);
   if (!dealership.allowed) return rateLimited("The dealership is receiving a lot of enquiries. Please call them directly.", dealership.retryAfter);
   const { input, fields } = validateEnquiry(raw);

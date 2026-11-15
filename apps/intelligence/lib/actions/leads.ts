@@ -1,4 +1,4 @@
-import type { Lead, LeadStage } from "../domain";
+import type { Lead, LeadEnquiry, LeadStage } from "../domain";
 import { LEAD_STAGES } from "../domain";
 import { now } from "../clock";
 import type { WorkspaceState } from "../state";
@@ -12,6 +12,11 @@ export type LeadInput = {
   campaignId?: string;
   /** What the customer wrote, or how the lead arrived. Recorded as the first interaction. */
   note?: string;
+  email?: string;
+  /** Website enquiries: the request as the customer made it. */
+  enquiry?: LeadEnquiry;
+  /** Title of the first follow-up task (default "First response"). */
+  firstTask?: string;
 };
 
 const maskContact = (contact: string) => `+91 ••••• ••${contact.replace(/\D/g, "").slice(-3)}`;
@@ -38,7 +43,8 @@ export function addLead(state: WorkspaceState, actor: Actor, input: LeadInput): 
     consent: { marketing: input.marketingConsent, service: true, evidence: trim(input.consentEvidence), capturedAt: stamp },
     campaignId: input.campaignId && state.campaigns.some((c) => c.id === input.campaignId) ? input.campaignId : undefined,
     interactions: [{ id: `i-${id}-1`, at: stamp, type: "System", actor: actor.name, detail: trim(input.note ?? "") ? `${trim(input.note ?? "").slice(0, 600)} Consent: ${trim(input.consentEvidence)}.` : `Lead added manually (${input.source}). Consent: ${trim(input.consentEvidence)}.` }],
-    tasks: [{ id: `t-${id}-1`, title: "First response", dueAt: new Date(new Date(stamp).getTime() + 60 * 60_000).toISOString(), done: false }],
+    email: trim(input.email ?? "") || undefined, enquiry: input.enquiry,
+    tasks: [{ id: `t-${id}-1`, title: trim(input.firstTask ?? "").slice(0, 80) || "First response", dueAt: new Date(new Date(stamp).getTime() + 60 * 60_000).toISOString(), done: false }],
   };
   return ok(withAudit({ ...state, leads: [lead, ...state.leads] }, actor, "lead.created", id, `${input.source} / ${vehicle ?? "Unspecified interest"}`), { lead });
 }
