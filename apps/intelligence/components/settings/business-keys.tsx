@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { formatShortDateTime } from "@/lib/format";
 import type { BusinessKeyView } from "@/lib/server/business-api";
-import { call, useReauth } from "../admin/shared";
+import { call, useReauth, ConfirmIdentity } from "../admin/shared";
 import { Dialog } from "../overlay";
 import { useToast } from "../toast";
-import { Badge, Button, Check, EmptyState, FormSummary, Notice, PasswordField, SelectField, TextField } from "../ui";
+import { Badge, Button, Check, EmptyState, FormSummary, Notice, SelectField, TextField } from "../ui";
 import { useWorkspace } from "../workspace";
 import { ListSkeleton } from "./settings-skeleton";
 
@@ -73,7 +73,7 @@ function CreateDialog({ sources, onClose, onCreated }: { sources: { id: string; 
         </fieldset>
         {scopes.includes("sourcing:write") ? <SelectField label="Approved source" value={sourceId} onChange={(e) => setSourceId(e.target.value)} placeholder="Choose a source" options={sources.map((s) => ({ value: s.id, label: s.name }))} error={errors.sourceId} help={sources.length ? undefined : "No source is approved yet. VandLabs approves sources for your dealership."} /> : null}
         <SelectField label="Expires" value={days} onChange={(e) => setDays(e.target.value)} options={[{ value: "30", label: "30 days" }, { value: "90", label: "90 days" }, { value: "180", label: "180 days" }, { value: "365", label: "1 year" }]} error={errors.days} />
-        {auth.needsPassword ? <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} /> : null}
+        <ConfirmIdentity needsPassword={auth.needsPassword} password={password} onPassword={setPassword} error={errors.password} />
       </div>
     </Dialog>
   );

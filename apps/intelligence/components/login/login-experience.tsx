@@ -7,14 +7,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState, useEffect } from "react";
 import { Brand } from "../brand";
 import { Dialog } from "../overlay";
-import { Button, Check, FormSummary, Notice, PasswordField, TextField } from "../ui";
+import { Button, FormSummary, Notice, PasswordField, TextField } from "../ui";
 import { LoginBand, LoginCinema } from "./login-cinema";
 import { SUPPORT_EMAIL, supportMailto } from "@/lib/support";
 
-type Props = { providers: { id: "google" | "microsoft"; label: string }[] };
+type Props = { providers: { id: "google" | "microsoft"; label: string }[]; legacy?: boolean };
 
 
-export function LoginExperience({ providers }: Props) {
+export function LoginExperience({ providers, legacy = false }: Props) {
   const router = useRouter();
   // A new sign-in never sees data cached for whoever used this tab before.
   useEffect(() => { clearRemoteCache(); }, []);
@@ -23,15 +23,12 @@ export function LoginExperience({ providers }: Props) {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [needCode, setNeedCode] = useState(false);
-  const [remember, setRemember] = useState(false);
   const [status, setStatus] = useState<"idle" | "checking">("idle");
   const [error, setError] = useState("");
-  const [forgotOpen, setForgotOpen] = useState(false);
   const [accessOpen, setAccessOpen] = useState(false);
   const live = useRef<HTMLDivElement>(null);
   const notice = params.get("notice");
   const reason = params.get("reason");
-  const provider = params.get("provider") === "microsoft" ? "Microsoft" : "Google";
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -68,39 +65,37 @@ export function LoginExperience({ providers }: Props) {
       <main className="login-form-wrap" id="content" tabIndex={-1}>
         <div className="login-mobile-brand"><Brand sub={false} /></div>
         <form className="login-form login-card" onSubmit={submit} noValidate aria-describedby="login-status">
-          <div className="login-head"><h1 className="h1 login-title">Welcome back</h1><p className="muted">Sign in to pick up where your team left off.</p></div>
+          <div className="login-head"><h1 className="h1 login-title">Welcome back</h1><p className="muted">Sign in with the Google account your dealership was set up with.</p></div>
           {reason === "expired" ? <Notice tone="warn" role="status">Your session expired. Sign in again. Your non-sensitive setup draft was kept; no password was stored.</Notice> : null}
-          {notice === "sso_unavailable" ? <Notice tone="warn" role="status">{provider} sign-in is not available in this environment yet. Use your email and password, or ask your administrator to enable it.</Notice> : null}
-          {notice === "sso_unknown" ? <Notice tone="warn" role="status">That sign-in provider is not configured for this workspace.</Notice> : null}
-          {notice === "google_no_account" ? <Notice tone="warn" role="status">That Google account is not a member of any dealership here. Ask your owner to invite that email address, then sign in with Google.</Notice> : null}
-          {notice === "google_mfa" ? <Notice tone="warn" role="status">This account uses two-factor login. Sign in with your password and authenticator code.</Notice> : null}
-          {notice === "google_failed" ? <Notice tone="warn" role="status">Google sign-in did not finish. Try again, or use your email and password.</Notice> : null}
+          {notice === "sso_unavailable" ? <Notice tone="warn" role="status">Google sign-in is not configured for this deployment yet. Ask VandLabs support.</Notice> : null}
+          {notice === "sso_unknown" ? <Notice tone="warn" role="status">That sign-in provider is not available. Use Continue with Google.</Notice> : null}
+          {notice === "google_no_account" ? <Notice tone="warn" role="status">That Google account does not have access. Use the Google account VandLabs or your dealership owner assigned to you, or ask them to add this one.</Notice> : null}
+          {notice === "google_disabled" ? <Notice tone="warn" role="status">This account is suspended. Contact your dealership owner or VandLabs support.</Notice> : null}
+          {notice === "google_conflict" ? <Notice tone="warn" role="status">This email is already linked to a different Google account. Sign in with that account, or contact VandLabs support.</Notice> : null}
+          {notice === "google_link_not_approved" ? <Notice tone="warn" role="status">Your account needs VandLabs to approve this Google account before it can be used. Contact VandLabs support.</Notice> : null}
+          {notice === "google_failed" ? <Notice tone="warn" role="status">Google sign-in did not finish. Try again.</Notice> : null}
           {notice === "sso_wait" ? <Notice tone="warn" role="status">Too many sign-in attempts. Wait a few minutes and try again.</Notice> : null}
-          {error ? <FormSummary errors={{ login: error }} label="Sign-in problem" /> : null}
-          <TextField label="Business email" type="email" name="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@dealership.com" />
-          <PasswordField label="Password" name="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setNeedCode(false); }} />
-          {needCode ? <TextField label="Authenticator code" name="code" autoComplete="one-time-code" inputMode="numeric" maxLength={8} value={code} onChange={(e) => setCode(e.target.value)} help="Two-factor login is on for this account. Enter the 6-digit code from your authenticator app." autoFocus /> : null}
-          <div className="spread" style={{ flexWrap: "wrap" }}>
-            <Check label="Remember this device" checked={remember} onChange={setRemember} />
-            <button type="button" className="link-btn" onClick={() => setForgotOpen(true)}>Forgot password?</button>
-          </div>
-          <Button type="submit" variant="primary" className="btn-block" loading={status === "checking"} loadingLabel="Checking credentials">Sign in</Button>
-          <div id="login-status" role="status" aria-live="polite" className="sr-only">{status === "checking" ? "Checking credentials" : ""}</div>
-          {providers.length ? (
+          {providers.length ? providers.map((p) => <a key={p.id} className="btn btn-primary btn-block sso-btn" href={`/api/auth/sso/${p.id}${params.get("returnTo") ? `?returnTo=${encodeURIComponent(params.get("returnTo")!)}` : ""}`}>{p.id === "google" ? <GoogleMark /> : null}{p.label}</a>)
+            : <Notice tone="warn" role="status">Sign-in is not configured for this deployment yet.</Notice>}
+          {legacy ? (
             <>
-              <div className="login-divider"><span>or</span></div>
-              {providers.map((p) => <a key={p.id} className="btn btn-block sso-btn" href={`/api/auth/sso/${p.id}${params.get("returnTo") ? `?returnTo=${encodeURIComponent(params.get("returnTo")!)}` : ""}`}>{p.id === "google" ? <GoogleMark /> : null}{p.label}</a>)}
+              <div className="login-divider"><span>legacy password sign-in (migration only)</span></div>
+              {error ? <FormSummary errors={{ login: error }} label="Sign-in problem" /> : null}
+              <TextField label="Business email" type="email" name="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@dealership.com" />
+              <PasswordField label="Password" name="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setNeedCode(false); }} />
+              {needCode ? <TextField label="Authenticator code" name="code" autoComplete="one-time-code" inputMode="numeric" maxLength={8} value={code} onChange={(e) => setCode(e.target.value)} autoFocus /> : null}
+              <Button type="submit" variant="secondary" className="btn-block" loading={status === "checking"} loadingLabel="Checking credentials">Sign in with password</Button>
             </>
           ) : null}
+          <div id="login-status" role="status" aria-live="polite" className="sr-only">{status === "checking" ? "Checking credentials" : ""}</div>
           <div className="stack-sm">
             <button type="button" className="link-btn" onClick={() => setAccessOpen(true)}>Need access?</button>
-            <p className="meta">Organisation access is assigned by your administrator. MFA may be required.</p>
+            <p className="meta">Access is assigned by VandLabs and your dealership owner. Your Google account&apos;s own security, such as 2-Step Verification, protects your sign-in.</p>
           </div>
         </form>
         <p className="login-help">Questions or feedback? <a className="accent-text" href={supportMailto("Hello from the sign-in page")}>{SUPPORT_EMAIL}</a></p>
         <footer className="login-links"><Link href="/info/privacy">Privacy</Link><span aria-hidden="true">/</span><Link href="/info/terms">Terms</Link><span aria-hidden="true">/</span><Link href="/info/support">Support</Link><span aria-hidden="true">/</span><Link href="/showroom">Showroom</Link><ThemeSwitch /></footer>
       </main>
-      <ForgotDialog open={forgotOpen} onClose={() => setForgotOpen(false)} />
       <AccessDialog open={accessOpen} onClose={() => setAccessOpen(false)} />
       <div ref={live} className="sr-only" aria-live="polite" />
     </div>
@@ -118,22 +113,11 @@ function GoogleMark() {
   );
 }
 
-function ForgotDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  return (
-    <Dialog open={open} onClose={onClose} title="Reset your password" description="Resets are issued by your workspace owner." footer={<Button variant="primary" onClick={onClose}>Done</Button>}>
-      <div className="stack">
-        <Notice tone="accent" role="status">Ask a workspace owner to open Settings, Team and issue a one-time reset link for your account. The link expires in 60 minutes and signs you out everywhere once used.</Notice>
-        <p className="meta">Are you the owner and locked out? Email <a className="accent-text" href={supportMailto("Owner account recovery")}>{SUPPORT_EMAIL}</a> from your registered address.</p>
-      </div>
-    </Dialog>
-  );
-}
-
 function AccessDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <Dialog open={open} onClose={onClose} title="Request access" description="Access is by invitation only." footer={<Button variant="primary" onClick={onClose}>Done</Button>}>
       <div className="stack">
-        <p>Ask your workspace owner to invite you from Settings, Team. You will receive a one-time link to choose your own password.</p>
+        <p>Ask your dealership owner to add your Google account email in Settings, Team. Then come back here and choose Continue with Google. No password or link is needed.</p>
         <p>To set up a new dealership workspace, write to <a className="accent-text" href={supportMailto("New dealership workspace")}>{SUPPORT_EMAIL}</a>.</p>
       </div>
     </Dialog>

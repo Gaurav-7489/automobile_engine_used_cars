@@ -9,7 +9,7 @@ Role selection is automatic after login; users cannot choose extra permissions.
 | `/`, `/inventory`, `/discover`, `/vehicles/:slug` | Public showroom | None |
 | `/login`, `/join/:token` | Shared identity and invitations | Existing Intelligence identity |
 | `/app/*` | Dealer workspace | Membership, role and branch |
-| `/admin` | VandLabs administration | Platform admin plus two-factor authentication |
+| `/admin` | VandLabs administration | Platform admin signed in with Google; changes need a fresh Google confirmation |
 | `/for-dealers` | Intelligence product information | None |
 | `/install`, `/manifest.webmanifest` | Installable desktop/mobile web app | Same account as browser |
 

@@ -6,12 +6,14 @@ import { newSessionCookie } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { signIn } from "@/lib/server/identity";
 import { isPlatformAdmin } from "@/lib/server/platform-admin";
+import { LEGACY_OFF_MESSAGE, legacyPasswordLogin } from "@/lib/server/legacy-auth";
 
 export const dynamic = "force-dynamic";
 
 const GENERIC = "Email or password is not correct. Check both and try again.";
 
 export async function POST(request: Request) {
+  if (!legacyPasswordLogin()) return problem(410, "gone", LEGACY_OFF_MESSAGE);
   if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
   const body = await readJson<{ email?: string; password?: string; code?: string; returnTo?: string }>(request);
   if (!body || typeof body.email !== "string" || typeof body.password !== "string") return problem(422, "invalid", "Enter your business email and password.");

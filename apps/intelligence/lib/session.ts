@@ -77,6 +77,7 @@ export async function verifySession(token: string | undefined | null): Promise<S
     const session = JSON.parse(new TextDecoder().decode(fromB64url(body))) as Session;
     if (!session || typeof session.sub !== "string" || typeof session.tid !== "string" || typeof session.iat !== "number" || !ROLE_SET.has(session.role) || !Array.isArray(session.branchIds) || typeof session.exp !== "number") return null;
     if (session.exp * 1000 < Date.now()) return null;
+    if (session.amr !== undefined && session.amr !== "google" && session.amr !== "password") return null;
     return session;
   } catch {
     return null;

@@ -1,48 +1,64 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { clientKey, hitShared } from "@/lib/rate-limit";
-import { SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/session";
-import { newSessionCookie } from "@/lib/server/auth";
-import { appOrigin, exchangeGoogleCode, googleConfigured, OAUTH_COOKIE, oauthCookie, readGoogleIdToken, readOAuthState } from "@/lib/server/google-oauth";
-import { signInVerifiedEmail } from "@/lib/server/identity";
-import { isPlatformAdmin } from "@/lib/server/platform-admin";
+import { REAUTH_COOKIE, REAUTH_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS, verifyPayload } from "@/lib/session";
+import { getPrincipal, newReauthGrant, newSessionCookie } from "@/lib/server/auth";
+import { appOrigin, googleConfigured, OAUTH_COOKIE, oauthCookie, type OAuthState } from "@/lib/server/google-oauth";
+import { readGoogleCallback, signInWithGoogle, verifyStepUp } from "@/lib/server/google-signin";
 
 export const dynamic = "force-dynamic";
 
-const NOTICE = { no_account: "google_no_account", no_access: "google_no_account", disabled: "google_no_account", mfa: "google_mfa" } as const;
+const NOTICE: Record<string, string> = {
+  no_account: "google_no_account", no_access: "google_no_account", disabled: "google_disabled", conflict: "google_conflict",
+  admin_not_approved: "google_no_account", link_not_approved: "google_link_not_approved",
+};
+const cookieOptions = { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" } as const;
 
-/** Google returns here with a one-time code. The code is exchanged server to server, and the verified email must belong to an existing member. */
+/** Google returns here with a one-time code (sign-in or step-up confirmation). The code is exchanged server to server with PKCE. */
 export async function GET(request: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
   const origin = appOrigin(request);
   const url = new URL(request.url);
-  const back = (notice: string) => {
-    const response = NextResponse.redirect(`${origin}/login?notice=${notice}&provider=google`);
+  const finish = (location: string) => {
+    const response = NextResponse.redirect(location);
     response.cookies.set(oauthCookie("", 0));
     response.headers.set("Cache-Control", "no-store");
     return response;
   };
+  const back = (notice: string) => finish(`${origin}/login?notice=${notice}&provider=google`);
   if (provider !== "google" || !googleConfigured()) return back("sso_unavailable");
   if (!(await hitShared(`sso-callback:${clientKey(request)}`, 30, 10 * 60_000)).allowed) return back("sso_wait");
-  const state = await readOAuthState(url.searchParams.get("state"), (await cookies()).get(OAUTH_COOKIE)?.value, "signin", "google");
-  const code = url.searchParams.get("code");
-  if (!state || !code || code.length > 2000) return back("google_failed");
+  const purpose = (await verifyPayload<OAuthState>(url.searchParams.get("state")))?.purpose === "reauth" ? "reauth" : "signin";
   try {
-    const tokens = await exchangeGoogleCode(code, `${origin}/api/auth/sso/google/callback`);
-    const identity = readGoogleIdToken(tokens?.id_token, state.n);
-    if (!identity) return back("google_failed");
-    const result = await signInVerifiedEmail(identity.email);
-    if (!result.ok) return back(NOTICE[result.code]);
-    const token = await newSessionCookie(result.userId, result.tenantId);
+    const read = await readGoogleCallback({ state: url.searchParams.get("state"), code: url.searchParams.get("code"), cookie: (await cookies()).get(OAUTH_COOKIE)?.value, redirectUri: `${origin}/api/auth/sso/google/callback`, purpose });
+
+    if (purpose === "reauth") {
+      const current = await getPrincipal();
+      const confirmed = read && current ? await verifyStepUp(read.state, read.identity, { userId: current.principal.userId, sessionIssuedAt: current.session.iat ?? 0 }) : false;
+      if (!confirmed || !current) return finish(`${origin}/auth/confirmed?result=failed`);
+      const grant = await newReauthGrant(current.principal.userId, current.session.iat ?? 0);
+      if (!grant) return finish(`${origin}/auth/confirmed?result=unavailable`);
+      const response = finish(`${origin}/auth/confirmed?result=ok`);
+      response.cookies.set(REAUTH_COOKIE, grant, { ...cookieOptions, maxAge: REAUTH_TTL_SECONDS });
+      return response;
+    }
+
+    if (!read) return back("google_failed");
+    const result = await signInWithGoogle(read.identity);
+    if (!result.ok) {
+      console.warn(JSON.stringify({ event: "google_signin_refused", code: result.code }));
+      return back(NOTICE[result.code] ?? "google_no_account");
+    }
+    const token = await newSessionCookie(result.userId, result.tenantId, "google");
     if (!token) return back("sso_unavailable");
-    const landing = state.returnTo ?? ((await isPlatformAdmin(result.userId).catch(() => false)) ? "/admin" : "/app/overview");
-    const response = NextResponse.redirect(`${origin}${landing}`);
-    response.cookies.set(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: SESSION_TTL_SECONDS });
-    response.cookies.set(oauthCookie("", 0));
-    response.headers.set("Cache-Control", "no-store");
+    const landing = read.state.returnTo ?? (result.platformAdmin ? "/admin" : "/app/overview");
+    const response = finish(`${origin}${landing}`);
+    response.cookies.set(SESSION_COOKIE, token, { ...cookieOptions, maxAge: SESSION_TTL_SECONDS });
+    // A new sign-in never inherits a step-up confirmation from someone else's session in this browser.
+    response.cookies.set(REAUTH_COOKIE, "", { ...cookieOptions, maxAge: 0 });
     return response;
   } catch (error) {
     console.error(JSON.stringify({ event: "google_signin_failure", message: error instanceof Error ? error.message : "unknown" }));
-    return back("google_failed");
+    return purpose === "reauth" ? finish(`${origin}/auth/confirmed?result=failed`) : back("google_failed");
   }
 }

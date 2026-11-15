@@ -1,6 +1,7 @@
 import { json, problem, rateLimited } from "@/lib/api";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { connectWebsite, disconnectWebsite } from "@/lib/server/website-connect";
+import { legacyPasswordLogin } from "@/lib/server/legacy-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
  * It carries a password, so it is limited exactly like sign-in, refuses cookies, and answers only in JSON.
  */
 export async function POST(request: Request) {
+  // Websites are now linked by VandLabs administrators (server-to-server key); owners never type a password into a website.
+  if (!legacyPasswordLogin()) return problem(410, "gone", "Website connections are now set up by VandLabs. Ask VandLabs support to link this website.");
   // A browser on another site could be tricked into posting here; a server-to-server call never carries this site's cookies.
   if (request.headers.get("cookie")) return problem(403, "forbidden", "This endpoint is for a website's server.");
   const text = await request.text();

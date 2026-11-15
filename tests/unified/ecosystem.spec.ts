@@ -6,7 +6,10 @@ test("the root address leads to sign-in, and the install screen and manifest are
   page.on("response", response => { if (response.url().startsWith(baseURL!) && response.url().includes("/_next/") && response.status() >= 400) failures.push(`${response.status()} ${response.url()}`); });
   await page.goto("/");
   await expect(page).toHaveURL(`${baseURL}/login`);
-  await expect(page.getByLabel(/business email/i)).toBeVisible();
+  // Google-only sign-in: no password form. The button appears when Google is configured; otherwise a clear notice.
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByLabel("Password")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Continue with Google" }).or(page.getByText("Sign-in is not configured for this deployment yet."))).toBeVisible();
   await page.goto("/install");
   await expect(page.getByRole("heading", { name: "Your whole workspace. One app." })).toBeVisible();
   const manifest = await (await request.get("/manifest.webmanifest")).json();

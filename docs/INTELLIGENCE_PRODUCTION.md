@@ -77,12 +77,13 @@ Automobile Intelligence is the single application for everyone who signs in. Aft
 - **Dealer owners and staff** land in their dealership workspace, limited by role and branch. Owners invite staff from Settings, Team.
 - **Customers** browse the public website without an account.
 
-Administrator rights are granted only on the database owner connection; the application cannot grant them:
+Sign-in is Google-only (docs/GOOGLE_SIGN_IN.md). Administrator rights are approved only on the database owner connection; the application cannot grant them:
 
-```sql
-INSERT INTO intelligence_platform_admins(user_id, granted_by)
-SELECT id, '<who granted it>' FROM intelligence_users WHERE lower(email) = lower('<admin email>');
 ```
+MIGRATION_DATABASE_URL=... pnpm intelligence:bootstrap-admin --email <admin google email> --name "<name>" --by "<who approved it>"
+```
+
+The first verified Google sign-in by that address binds the Google account and grants administration, once.
 
 The separate Command Center and Platform console apps were never configured for production (they wait for an Amazon Cognito pool that was not created). Their dealer features are covered by this application, and the admin console replaces the platform console. They are left untouched.
 

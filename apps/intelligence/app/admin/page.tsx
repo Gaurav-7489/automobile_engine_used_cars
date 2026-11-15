@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Admin console | VandLabs", robots: { index: false, follow: false } };
 
 /**
- * Platform administrators always reach the console. Without two-factor login it opens with system health, releases, tests and
- * demo data; every real dealership read and change stays behind two-factor (enforced again by each admin API).
+ * Platform administrators always reach the console. Without a Google-authenticated session it opens with system health, releases, tests and
+ * demo data; every real dealership read and change needs Google sign-in (enforced again by each admin API).
  */
 export default async function AdminPage() {
   const access = await adminAccess();

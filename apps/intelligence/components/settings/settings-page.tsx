@@ -11,6 +11,7 @@ import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions
 import { downloadCsv } from "@/lib/export";
 import { FEATURES } from "@/lib/entitlements";
 import { BusinessKeys } from "./business-keys";
+import { ConfirmIdentity, useReauth } from "../admin/shared";
 import { TwoFactor } from "./two-factor";
 import { MotionSwitch, ThemeSwitch } from "../theme";
 import { LiquidTrail, useLiquid } from "../motion/liquid";
@@ -18,7 +19,7 @@ import { ListSkeleton } from "./settings-skeleton";
 import { Dialog, Drawer } from "../overlay";
 import { Panel } from "../panel";
 import { useToast } from "../toast";
-import { Badge, Button, Check, EmptyState, ErrorPanel, FormSummary, Notice, PageHead, PasswordField, SelectField, TextField } from "../ui";
+import { Badge, Button, Check, EmptyState, ErrorPanel, FormSummary, Notice, PageHead, SelectField, TextField } from "../ui";
 import { useRemote } from "../use-remote";
 import { useScopedHref, useWorkspace } from "../workspace";
 
@@ -28,14 +29,7 @@ export const SECTIONS = [
 ] as const;
 type SectionKey = (typeof SECTIONS)[number]["key"];
 
-async function reauth(password: string): Promise<string | null> {
-  try {
-    const r = await fetch("/api/auth/reauth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password }) });
-    if (r.ok) return null;
-    const body = await r.json().catch(() => ({}));
-    return body?.error?.message ?? "Re-authentication failed.";
-  } catch { return "We could not reach the server. Try again."; }
-}
+/* Step-up confirmation (Google window, or the legacy password) comes from the shared hook. */
 
 export function SettingsPage({ section }: { section: string }) {
   const key = SECTIONS.find((s) => s.key === section)?.key;
@@ -242,7 +236,7 @@ function Branches() {
 /* Team --------------------------------------------------------------------------- */
 
 function Team() {
-  const { state, can, run } = useWorkspace();
+  const { state, can, run, session } = useWorkspace();
   const toast = useToast();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [roleFor, setRoleFor] = useState<{ id: string; name: string; role: Role } | null>(null);
@@ -254,7 +248,7 @@ function Team() {
       {!admin ? <Notice tone="warn" role="status">Team changes need Owner access. You can see roles and branches.</Notice> : null}
       <div className="table-wrap fit"><table className="data-table"><thead><tr><th>Person</th><th>Role</th><th>Branches</th><th>Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
         <tbody>{state.team.map((m) => <tr key={m.id}><td><span className="row-title">{m.name}</span><span className="sub">{m.email}</span></td><td>{ROLE_LABEL[m.role]}</td><td>{m.branchIds.map((b) => state.branches.find((x) => x.id === b)?.city ?? b).join(", ")}</td><td>{m.status}</td>
-          <td>{admin ? <div className="row-flex">{m.status === "Active" ? <Button size="sm" variant="ghost" onClick={async () => { const r = await fetch("/api/team/reset-link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: m.email }) }); const body = await r.json().catch(() => ({})); if (!r.ok) { toast(body?.error?.message ?? "Could not issue a reset link.", "error"); return; } window.dispatchEvent(new CustomEvent("vl:effects", { detail: { inviteLinks: [{ email: m.email, token: body.token, expiresAt: body.expires_at, kind: "reset" }] } })); }}>Reset link</Button> : null}<Button size="sm" variant="ghost" onClick={() => setRoleFor({ id: m.id, name: m.name, role: m.role })}>Change role</Button><Button size="sm" variant="ghost" onClick={() => setRemoveFor(m.id)}>Remove</Button></div> : null}</td></tr>)}</tbody></table></div>
+          <td>{admin ? <div className="row-flex">{m.status === "Active" && session.amr !== "google" ? <Button size="sm" variant="ghost" onClick={async () => { const r = await fetch("/api/team/reset-link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: m.email }) }); const body = await r.json().catch(() => ({})); if (!r.ok) { toast(body?.error?.message ?? "Could not issue a reset link.", "error"); return; } window.dispatchEvent(new CustomEvent("vl:effects", { detail: { inviteLinks: [{ email: m.email, token: body.token, expiresAt: body.expires_at, kind: "reset" }] } })); }}>Reset link</Button> : null}<Button size="sm" variant="ghost" onClick={() => setRoleFor({ id: m.id, name: m.name, role: m.role })}>Change role</Button><Button size="sm" variant="ghost" onClick={() => setRemoveFor(m.id)}>Remove</Button></div> : null}</td></tr>)}</tbody></table></div>
       <dl className="kv">{ROLES.map((r) => <div key={r}><dt>{ROLE_LABEL[r]}</dt><dd style={{ maxWidth: 420, fontWeight: 400 }}>{ROLE_SUMMARY[r]}</dd></div>)}</dl>
       <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
       <RoleDialog target={roleFor} onClose={() => setRoleFor(null)} />
@@ -288,19 +282,25 @@ function RoleDialog({ target, onClose }: { target: { id: string; name: string; r
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const auth = useReauth();
   useEffect(() => { if (target) { setRole(target.role); setPassword(""); setError(""); } }, [target]);
   if (!target) return null;
   return (
     <Dialog open onClose={onClose} title={`Change role for ${target.name}`} description="Privilege escalation needs re-authentication. The change is audited." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Saving" onClick={async () => {
       setBusy(true); setError("");
-      const reauthenticated = password ? (await reauth(password)) === null : false;
-      const r = run((s, a) => changeRole(s, a, target.id, role, reauthenticated));
+      let r = run((s, a) => changeRole(s, a, target.id, role, false));
+      // Granting a higher role needs a fresh confirmation; ask only then.
+      if (!r.ok && r.fields?.password) {
+        const failed = await auth.confirm(password);
+        if (failed) { setBusy(false); setError(failed); return; }
+        r = run((s, a) => changeRole(s, a, target.id, role, true));
+      }
       setBusy(false);
-      if (!r.ok) { setError(r.fields?.password ? (password ? "That password is not correct." : r.fields.password) : r.message); return; }
+      if (!r.ok) { setError(r.fields?.password ?? r.message); return; }
       toast(`${target.name} is now ${ROLE_LABEL[role]}.`); onClose();
     }}>Save role</Button></>}>
       <SelectField label="Role" value={role} onChange={(e) => setRole(e.target.value as Role)} options={ROLES.map((r) => ({ value: r, label: ROLE_LABEL[r] }))} />
-      <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={error} help="Needed when granting a higher role." />
+      <ConfirmIdentity needsPassword={auth.needsPassword} password={password} onPassword={setPassword} error={error} />
     </Dialog>
   );
 }
@@ -317,9 +317,10 @@ function Security() {
       <dl className="kv">
         <div><dt>Signed in as</dt><dd>{session.name} · {session.email}</dd></div><div><dt>Role</dt><dd>{ROLE_LABEL[session.role]}</dd></div>
         <div><dt>Branches</dt><dd>{session.branchIds.map((b) => state.branches.find((x) => x.id === b)?.city ?? b).join(", ")}</dd></div>
+        <div><dt>Sign-in</dt><dd>{session.amr === "google" ? "Google account. Keep 2-Step Verification on in your Google account; it protects this workspace." : "Password (legacy). Sign in with Google next time."}</dd></div>
         <div><dt>Session</dt><dd>Secure HttpOnly cookie, 8 hours. No tokens in local storage.</dd></div>
       </dl>
-      <TwoFactor />
+      {session.amr === "google" ? null : <TwoFactor />}
       <div className="stack-sm"><h3 className="h3">Appearance</h3>
         <p className="muted">The sun and moon button at the top switches between light and dark. Choose System to follow your device.</p>
         <div className="appearance-row"><ThemeSwitch /><MotionSwitch /></div>
@@ -327,7 +328,7 @@ function Security() {
       <div className="stack-sm"><h3 className="h3">Sessions</h3><p className="muted">{state.sessionsRevoked ? `Other sessions revoked ${state.sessionsRevoked} time(s).` : "Revoke all other sessions if a device is lost."}</p>
         {confirm ? <Notice tone="danger" role="alert"><div className="spread" style={{ flexWrap: "wrap" }}><span>Revoke every other session?</span><span className="row-flex"><Button size="sm" variant="danger" onClick={() => { run((s, a) => revokeSessions(s, a)); setConfirm(false); toast("Other sessions revoked."); }}>Revoke other sessions</Button><Button size="sm" onClick={() => setConfirm(false)}>Keep</Button></span></div></Notice> : <div><Button onClick={() => setConfirm(true)}>Revoke other sessions</Button></div>}
       </div>
-      {can("settings.admin") ? <p className="meta">Identity provider settings and MFA enforcement are managed by your workspace owner.</p> : null}
+      {can("settings.admin") ? <p className="meta">Sign-in is with Google for everyone. VandLabs assigns the owner&apos;s Google account; owners add staff by their Google email in Team.</p> : null}
     </section>
   );
 }
@@ -379,7 +380,7 @@ function ApiAccess() {
   return (
     <section className="card stack" aria-labelledby="api-h">
       <div className="spread" style={{ flexWrap: "wrap" }}><h2 className="h2" id="api-h">API access</h2><Button variant="primary" onClick={() => setCreating(true)}>Create key</Button></div>
-      <p className="muted">Your VandLabs website connects itself: sign in on its /connect page with this email and password, and it appears here as a Website key. Revoke it to disconnect.</p>
+      <p className="muted">Your VandLabs website is linked by VandLabs and appears here as a Website key. Revoke it to disconnect; ask VandLabs support to link it again.</p>
       <p className="muted">Read-only keys let another system (your website, a CRM, a spreadsheet) read this workspace. Keys cover the branches you can see, expire automatically and can be revoked at any time. Only a hash is stored, so a key is shown once.</p>
       {shown ? <Notice tone="accent" role="alert"><div className="stack-sm"><strong>Copy this key now. It will not be shown again.</strong><code style={{ wordBreak: "break-all" }}>{shown}</code><span className="row-flex"><Button size="sm" onClick={() => { void navigator.clipboard?.writeText(shown); toast("Key copied."); }}>Copy</Button><Button size="sm" onClick={() => setShown(null)}>I have stored it</Button></span></div></Notice> : null}
       {loadError ? <Notice tone="danger" role="alert">{loadError}</Notice> : null}
@@ -412,10 +413,11 @@ function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreate
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const auth = useReauth();
   return (
-    <Dialog open onClose={onClose} title="Create API key" description="Read-only. Creating a key needs your password." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating" onClick={async () => {
+    <Dialog open onClose={onClose} title="Create API key" description="Read-only. Creating a key needs a fresh confirmation that it's you." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating" onClick={async () => {
       setBusy(true); setErrors({});
-      const failed = await reauth(password);
+      const failed = await auth.confirm(password);
       if (failed) { setBusy(false); setErrors({ password: failed }); return; }
       const r = await fetch("/api/settings/api-keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, scope, days: Number(days) }) }).catch(() => null);
       const b = await r?.json().catch(() => ({}));
@@ -427,7 +429,7 @@ function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreate
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={errors.name} help="For example: Website stock feed" />
         <SelectField label="Access" value={scope} onChange={(e) => setScope(e.target.value)} error={errors.scope} options={Object.entries(SCOPE_LABEL).map(([value, label]) => ({ value, label }))} />
         <SelectField label="Expires after" value={days} onChange={(e) => setDays(e.target.value)} error={errors.days} options={[{ value: "30", label: "30 days" }, { value: "90", label: "90 days" }, { value: "180", label: "180 days" }, { value: "365", label: "1 year" }]} />
-        <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} />
+        <ConfirmIdentity needsPassword={auth.needsPassword} password={password} onPassword={setPassword} error={errors.password} />
       </div>
     </Dialog>
   );

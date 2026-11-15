@@ -4,6 +4,7 @@ import { getPrincipal, hasRecentReauth } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { beginTotp, confirmTotp, disableTotp, totpState } from "@/lib/server/identity";
 import { otpauthUri } from "@/lib/server/totp";
+import { legacyPasswordLogin } from "@/lib/server/legacy-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,8 @@ export async function GET() {
 
 /** Enrol with an authenticator app (begin, then confirm with a code), or switch two-factor off with a current code. */
 export async function POST(request: Request) {
+  // Authenticator codes are not used with Google sign-in; Google 2-Step Verification protects the account. Turning an old code off stays possible.
+  if (!legacyPasswordLogin()) { const peek = await request.clone().json().catch(() => ({})) as { action?: string }; if (peek.action !== "disable") return problem(410, "gone", "Two-factor codes are replaced by your Google account's 2-Step Verification."); }
   if (!sameOrigin(request)) return problem(403, "forbidden", "Request origin is not allowed.");
   const current = await getPrincipal();
   if (!current) return problem(401, "unauthenticated", "Sign in to continue.");
