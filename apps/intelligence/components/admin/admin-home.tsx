@@ -12,7 +12,7 @@ import { ThemeToggle } from "../theme";
 import { Icon } from "../icons";
 import { Dialog } from "../overlay";
 import { Badge, Button, EmptyState, Notice } from "../ui";
-import { CreateDealership, Members, ReissueInvite, WebsiteLinks, type Workspace } from "./admin-console";
+import { AccessRequests, CreateDealership, Members, ReissueInvite, WebsiteLinks, type Workspace } from "./admin-console";
 import { EntitlementsDialog } from "./entitlements-dialog";
 import { PlatformAudit } from "./platform-audit";
 import { HealthReview } from "./health-review";
@@ -220,7 +220,7 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
               </div>
               <Ring value={health} label="System health" />
             </section>
-            {locked ? lockedPanel("Live dealerships") : null}
+            {locked ? lockedPanel("Live dealerships") : <AccessRequests onApproved={(email, url) => { showAssigned("Access approved", email, url); void loadWorkspaces(); }} />}
             <section aria-labelledby="ov-deal">
               <div className="spread adm-sec-head"><h2 className="h3" id="ov-deal">Dealerships</h2><button type="button" className="link-btn" onClick={() => setView("dealerships")}>See all {rows.length}</button></div>
               {rows.length ? <div className="adm-grid">{rows.slice(0, 6).map(card)}</div> : <EmptyState title="No dealerships yet">Add the first dealership, or switch on Demo data to show the console.</EmptyState>}
@@ -237,7 +237,7 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
         {view === "dealerships" ? (
           <div className="adm-stack">
             <div className="adm-toolbar"><input className="input" type="search" placeholder="Search dealerships or cities" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search dealerships" /><span className="meta">{filtered.length} shown</span></div>
-            {locked ? lockedPanel("Live dealerships") : null}
+            {locked ? lockedPanel("Live dealerships") : <AccessRequests onApproved={(email, url) => { showAssigned("Access approved", email, url); void loadWorkspaces(); }} />}
             {filtered.length ? <div className="adm-grid">{filtered.map(card)}</div> : <EmptyState title="No dealerships match">Try another search.</EmptyState>}
             <p className="meta">Dealer owners invite their own staff from Settings, Team inside their workspace. Every change made here is written to that dealership&rsquo;s audit log.</p>
           </div>
