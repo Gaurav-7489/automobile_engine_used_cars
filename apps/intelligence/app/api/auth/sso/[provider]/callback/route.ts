@@ -5,6 +5,7 @@ import { REAUTH_COOKIE, REAUTH_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS,
 import { getPrincipal, newReauthGrant, newSessionCookie } from "@/lib/server/auth";
 import { appOrigin, googleConfigured, OAUTH_COOKIE, oauthCookie, type OAuthState } from "@/lib/server/google-oauth";
 import { readGoogleCallback, signInWithGoogle, verifyStepUp } from "@/lib/server/google-signin";
+import { ACCESS_COOKIE, ACCESS_TTL_SECONDS, newAccessCookie } from "@/lib/server/access-requests";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
     const result = await signInWithGoogle(read.identity);
     if (!result.ok) {
       console.warn(JSON.stringify({ event: "google_signin_refused", code: result.code }));
+      // A Google account with no access at all may ask for it. The request is bound to this verified identity (signed, 30 minutes).
+      if (result.code === "no_account") {
+        const pass = await newAccessCookie(read.identity);
+        if (pass) {
+          const response = finish(`${origin}/request-access`);
+          response.cookies.set(ACCESS_COOKIE, pass, { ...cookieOptions, maxAge: ACCESS_TTL_SECONDS });
+          return response;
+        }
+      }
       return back(NOTICE[result.code] ?? "google_no_account");
     }
     const token = await newSessionCookie(result.userId, result.tenantId, "google");

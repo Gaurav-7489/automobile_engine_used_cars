@@ -255,3 +255,58 @@ test("VandLabs links a dealership website with a server-to-server key; the deale
     assert.equal(await unlinkWebsite(admin.userId, b.tenantId, first.id), false, "a key id from another workspace does nothing");
   } finally { await h.close(); }
 });
+
+test("access requests: an unknown Google account asks, VandLabs approves, the same Google account then signs in to its new dealership", async () => {
+  const { newAccessCookie, readAccessCookie, submitAccessRequest, accessRequestStatus, listAccessRequests, decideAccessRequest, validateAccessRequest } = await import("../../apps/intelligence/lib/server/access-requests");
+  const h = await harness();
+  try {
+    const owner = await h.admin.connect();
+    await owner.query("SELECT intelligence_bootstrap_platform_admin('vandlabsstudio@gmail.com', 'VandLabs', 'release')");
+    const admin = await signInWithGoogle(google("g-admin", "vandlabsstudio@gmail.com"));
+    assert.ok(admin.ok);
+
+    // The pass that binds a request to the verified Google identity: signed, tamper-evident.
+    const visitor = google("g-new-dealer", "new.dealer@gmail.com", { name: "Ravi Kumar" });
+    assert.deepEqual(await signInWithGoogle(visitor), { ok: false, code: "no_account" }, "asking grants nothing");
+    const pass = (await newAccessCookie(visitor))!;
+    assert.equal((await readAccessCookie(pass))?.email, "new.dealer@gmail.com");
+    assert.equal(await readAccessCookie(pass.slice(0, -2) + "xx"), null);
+    assert.equal(await readAccessCookie(undefined), null);
+
+    assert.ok(Object.keys(validateAccessRequest({ name: "R", phone: "1" }).fields).length >= 5);
+    const details = validateAccessRequest({ name: "Ravi Kumar", businessName: "Kumar Autos Pvt Ltd", dealershipName: "Kumar Autos", phone: "98470 12345", city: "Pune", state: "Maharashtra", message: "Used SUVs" }).input!;
+    assert.equal(await submitAccessRequest(visitor, details), "created");
+    assert.equal(await submitAccessRequest(visitor, { ...details, city: "Mumbai" }), "updated", "one open request per Google account");
+    assert.equal((await accessRequestStatus("g-new-dealer"))?.status, "pending");
+    assert.equal(await submitAccessRequest(google("g-admin", "vandlabsstudio@gmail.com"), details), "has_account");
+
+    // Only administrators can see or decide requests; the application role cannot read the table directly.
+    assert.equal((await listAccessRequests("00000000-0000-4000-8000-0000000000ff", "pending")).length, 0);
+    await assert.rejects(h.app.connect().then((c) => c.query("SELECT * FROM intelligence_access_requests")), /permission denied/);
+    const [req] = await listAccessRequests(admin.userId, "pending");
+    assert.equal(req.email, "new.dealer@gmail.com");
+    assert.equal(req.city, "Mumbai");
+    await assert.rejects(decideAccessRequest("00000000-0000-4000-8000-0000000000ff", req.id, { approve: true }), /not_admin/);
+
+    const approved = await decideAccessRequest(admin.userId, req.id, { approve: true, dealershipName: "Kumar Autos Pune" });
+    assert.ok(approved.tenantId);
+    await assert.rejects(decideAccessRequest(admin.userId, req.id, { approve: false }), /not_pending/, "decided once");
+    assert.equal((await accessRequestStatus("g-new-dealer"))?.status, "approved");
+    const signedIn = await signInWithGoogle(visitor);
+    assert.ok(signedIn.ok && signedIn.tenantId === approved.tenantId && !signedIn.platformAdmin, JSON.stringify(signedIn));
+    assert.equal((await resolvePrincipal(signedIn.userId, signedIn.tenantId, now()))?.role, "owner");
+    const names = (await owner.query("SELECT d.name FROM dealerships d WHERE d.tenant_id = $1", [approved.tenantId])).rows.map((r) => r.name);
+    assert.deepEqual(names, ["Kumar Autos Pune"]);
+    assert.equal((await owner.query("SELECT city FROM locations WHERE tenant_id = $1", [approved.tenantId])).rows[0].city, "Mumbai");
+
+    // Declined: no access; three declines in 30 days stop further requests.
+    const other = google("g-spam", "spam@gmail.com");
+    for (let i = 0; i < 3; i++) {
+      assert.equal(await submitAccessRequest(other, details), "created");
+      const [r] = (await listAccessRequests(admin.userId, "pending")).filter((x) => x.email === "spam@gmail.com");
+      assert.equal((await decideAccessRequest(admin.userId, r.id, { approve: false, note: "Not a dealer" })).tenantId, null);
+    }
+    assert.equal(await submitAccessRequest(other, details), "declined_recently");
+    assert.deepEqual(await signInWithGoogle(other), { ok: false, code: "no_account" });
+  } finally { await h.close(); }
+});

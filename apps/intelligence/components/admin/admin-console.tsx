@@ -200,3 +200,69 @@ export function WebsiteLinks({ workspace, onClose }: { workspace: Workspace; onC
     </Dialog>
   );
 }
+
+type AccessRequest = { id: string; email: string; name: string; businessName: string; dealershipName: string; phone: string; city: string; state: string; message: string | null; status: string; createdAt: string };
+
+/** Google accounts that signed in without access and asked for a dealership workspace. Approving creates it with them as owner. */
+export function AccessRequests({ onApproved }: { onApproved: (ownerEmail: string, signInUrl: string) => void }) {
+  const [list, setList] = useState<AccessRequest[] | null>(null);
+  const [deciding, setDeciding] = useState<{ request: AccessRequest; approve: boolean } | null>(null);
+  const load = useCallback(async () => {
+    const r = await call<{ requests: AccessRequest[] }>("/api/admin/access-requests");
+    setList(r.ok ? r.data.requests : []);
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+  if (!list || list.length === 0) return null;
+  return (
+    <section className="card stack-sm" aria-labelledby="access-h">
+      <div className="spread"><h2 className="h3" id="access-h">Access requests</h2><Badge tone="warn">{list.length} waiting</Badge></div>
+      <p className="meta">People who signed in with Google but have no access. Approving creates their dealership with their Google account as owner.</p>
+      <div className="table-wrap fit"><table className="data-table dense" aria-label="Access requests">
+        <thead><tr><th>Person</th><th>Dealership</th><th className="only-desktop">Location</th><th className="only-desktop">Sent</th><th><span className="sr-only">Actions</span></th></tr></thead>
+        <tbody>{list.map((r) => (
+          <tr key={r.id}>
+            <td><span className="row-title">{r.name}</span><span className="sub">{r.email} · {r.phone}</span></td>
+            <td><span className="row-title">{r.dealershipName}</span><span className="sub">{r.businessName}{r.message ? ` · “${r.message}”` : ""}</span></td>
+            <td className="only-desktop">{r.city}, {r.state}</td>
+            <td className="only-desktop">{new Date(r.createdAt).toLocaleString("en-IN")}</td>
+            <td><div className="row-flex"><Button size="sm" variant="primary" onClick={() => setDeciding({ request: r, approve: true })}>Approve</Button><Button size="sm" onClick={() => setDeciding({ request: r, approve: false })}>Decline</Button></div></td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+      {deciding ? <DecideAccess request={deciding.request} approve={deciding.approve} onClose={() => setDeciding(null)} onDone={(url) => { const r = deciding.request; setDeciding(null); void load(); if (url) onApproved(r.email, url); }} /> : null}
+    </section>
+  );
+}
+
+function DecideAccess({ request, approve, onClose, onDone }: { request: AccessRequest; approve: boolean; onClose: () => void; onDone: (signInUrl: string | null) => void }) {
+  const [businessName, setBusinessName] = useState(request.businessName);
+  const [dealershipName, setDealershipName] = useState(request.dealershipName);
+  const [note, setNote] = useState("");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const auth = useReauth();
+  return (
+    <Dialog open onClose={onClose} title={approve ? `Approve ${request.dealershipName}?` : `Decline ${request.name}'s request?`}
+      description={approve ? `Creates the dealership with one branch in ${request.city}, ${request.state}. ${request.email} becomes the owner and signs in with Google.` : "They are not given access. They can send a new request later."}
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant={approve ? "primary" : "danger"} loading={busy} loadingLabel={approve ? "Creating dealership" : "Declining"} onClick={async () => {
+        setBusy(true); setErrors({});
+        const failed = await auth.confirm(password);
+        if (failed) { setBusy(false); setErrors({ password: failed }); return; }
+        const r = await call<{ signInUrl: string }>(`/api/admin/access-requests/${request.id}`, { method: "POST", body: JSON.stringify({ decision: approve ? "approve" : "decline", note, businessName, dealershipName }) });
+        setBusy(false);
+        if (r.data.error?.code === "reauth_required") auth.expired();
+        if (r.ok) onDone(approve ? r.data.signInUrl : null); else setErrors({ ...(r.data.error?.fields ?? {}), form: r.data.error?.message ?? "Nothing was changed." });
+      }}>{approve ? "Approve and create" : "Decline"}</Button></>}>
+      <div className="stack">
+        <FormSummary errors={errors.form ? { form: errors.form } : {}} />
+        {approve ? <>
+          <TextField label="Registered business name" value={businessName} onChange={(e) => setBusinessName(e.target.value)} error={errors.businessName} />
+          <TextField label="Dealership name" value={dealershipName} onChange={(e) => setDealershipName(e.target.value)} />
+        </> : null}
+        <TextField label={approve ? "Note (optional)" : "Reason (optional, kept with the request)"} value={note} onChange={(e) => setNote(e.target.value)} />
+        <ConfirmIdentity needsPassword={auth.needsPassword} password={password} onPassword={setPassword} error={errors.password} />
+      </div>
+    </Dialog>
+  );
+}

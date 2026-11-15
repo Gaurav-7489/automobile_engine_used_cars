@@ -75,7 +75,13 @@ async function tokenRequest(params: Record<string, string>): Promise<GoogleToken
     method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, cache: "no-store", signal: AbortSignal.timeout(10_000),
     body: new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID!.trim(), client_secret: process.env.GOOGLE_CLIENT_SECRET!.trim(), ...params }),
   });
-  return response.ok ? ((await response.json()) as GoogleTokens) : null;
+  if (!response.ok) {
+    // Google's error code only (e.g. invalid_client, redirect_uri_mismatch, invalid_grant); never the request or tokens.
+    const body = (await response.json().catch(() => ({}))) as { error?: string };
+    console.warn(JSON.stringify({ event: "google_token_error", status: response.status, error: typeof body.error === "string" ? body.error.slice(0, 60) : "unknown" }));
+    return null;
+  }
+  return (await response.json()) as GoogleTokens;
 }
 
 export const exchangeGoogleCode = (code: string, redirectUri: string, verifier?: string) => tokenRequest({ code, redirect_uri: redirectUri, grant_type: "authorization_code", ...(verifier ? { code_verifier: verifier } : {}) });

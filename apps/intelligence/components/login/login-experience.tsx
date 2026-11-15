@@ -117,7 +117,8 @@ function AccessDialog({ open, onClose }: { open: boolean; onClose: () => void })
   return (
     <Dialog open={open} onClose={onClose} title="Request access" description="Access is by invitation only." footer={<Button variant="primary" onClick={onClose}>Done</Button>}>
       <div className="stack">
-        <p>Ask your dealership owner to add your Google account email in Settings, Team. Then come back here and choose Continue with Google. No password or link is needed.</p>
+        <p>New dealership? Choose Continue with Google. If your Google account has no access yet, you can send your dealership&apos;s details and VandLabs will set it up.</p>
+        <p>Joining an existing dealership? Ask its owner to add your Google email in Settings, Team, then choose Continue with Google.</p>
         <p>To set up a new dealership workspace, write to <a className="accent-text" href={supportMailto("New dealership workspace")}>{SUPPORT_EMAIL}</a>.</p>
       </div>
     </Dialog>

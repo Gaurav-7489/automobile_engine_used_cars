@@ -15,6 +15,12 @@ After the first sign-in the account is bound to the Google **subject id** (`sub`
 
 Implementation: `intelligence_google_signin` (migration `0024`), `lib/server/google-signin.ts`, `app/api/auth/sso/[provider]/…`.
 
+## Access requests (Google accounts with no access)
+
+A verified Google account that has no access is sent to `/request-access` instead of an error. There it sends its name, business and dealership names, mobile, city, state and an optional note. The email is not typed: it is the Google-verified address, carried in a signed, 30-minute httpOnly cookie set by the callback, so nobody can ask on behalf of an address they did not just prove they control. Asking grants nothing.
+
+Requests appear in the admin console (Overview and Dealerships → **Access requests**). **Approve** (with a fresh Google confirmation) creates the dealership with one branch from the request (names can be corrected) and assigns that Google account as owner; the person then chooses Continue with Google and lands in their new workspace. **Decline** records an optional reason; after three declines in 30 days the same Google account cannot send more. Migration `0025`.
+
 ## OpenID Connect checks
 
 - Authorization code flow with **PKCE S256**. The verifier lives only in an httpOnly, `__Host-` cookie; the URL carries the challenge.
