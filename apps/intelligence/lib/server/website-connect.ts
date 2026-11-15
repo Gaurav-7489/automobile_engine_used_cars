@@ -27,13 +27,27 @@ export type WebsiteConnectResult =
   | { ok: true; tenantId: string; dealership: string; site: string; expiresAt: string }
   | { ok: false; status: 401 | 403 | 409 | 422 | 428 | 429; code: string; message: string };
 
-/** The website's origin for signed inventory webhooks: https only in production, so stock events never go to a plain-http address. */
-export function siteOrigin(siteUrl: string): string | null {
+/** Hosts a webhook must never be sent to from production: loopback, private networks, link-local and local names. */
+function internalHost(host: string): boolean {
+  const h = host.replace(/^\[|\]$/g, "").toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal") || !h.includes(".") && !h.includes(":")) return true;
+  if (/^(127\.|10\.|0\.|169\.254\.|192\.168\.)/.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
+  if (h === "::1" || h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe80")) return true;
+  return false;
+}
+
+/**
+ * The website's origin for signed inventory webhooks, or null (no webhooks; the website still refreshes on its schedule).
+ * Production: https to a public host only. Development, or WEBSITE_WEBHOOKS_ALLOW_LOOPBACK=1 for a local end-to-end run: plain http and loopback too.
+ */
+export function siteOrigin(siteUrl: string, env: Record<string, string | undefined> = process.env): string | null {
   try {
     const url = new URL(siteUrl);
     if (url.username || url.password) return null;
-    if (url.protocol === "https:" || (url.protocol === "http:" && process.env.NODE_ENV !== "production")) return url.origin;
-    return null;
+    const relaxed = env.NODE_ENV !== "production" || env.WEBSITE_WEBHOOKS_ALLOW_LOOPBACK === "1";
+    if (relaxed) return url.protocol === "https:" || url.protocol === "http:" ? url.origin : null;
+    if (url.protocol !== "https:" || internalHost(url.hostname)) return null;
+    return url.origin;
   } catch {
     return null;
   }
@@ -87,6 +101,9 @@ export async function connectWebsite(input: WebsiteConnectInput): Promise<Websit
         await c.query("INSERT INTO intelligence_api_keys(tenant_id,name,scope,location_ids,prefix,key_hash,created_by,expires_at,site_origin) VALUES($1,$2,'website',$3,$4,$5,$6,$7,$8)",
           [p.tenantId, NAME_PREFIX + site, JSON.stringify(p.locationIds), prefix, hash(input.key), p.name || p.email, expires, siteOrigin(input.siteUrl)]);
       }
+      // One live connection per website: a rotated WEBSITE_SECRET means a new key, so the site's previous keys are revoked.
+      const replaced = (await c.query("UPDATE intelligence_api_keys SET revoked_at = now() WHERE tenant_id=$1 AND name=$2 AND prefix<>$3 AND revoked_at IS NULL RETURNING id", [p.tenantId, NAME_PREFIX + site, prefix])).rows.length;
+      if (replaced) await writeAudit(c, p.tenantId, p.name, "website.key_replaced", site, `Previous website key revoked (${replaced})`);
       await writeAudit(c, p.tenantId, p.name, "website.connected", site, existing ? "Website connection renewed" : "Website connected; published stock and enquiries now sync");
       return { ok: true as const, tenantId: p.tenantId, dealership: await dealershipName(c, p.tenantId), site, expiresAt: expires };
     });

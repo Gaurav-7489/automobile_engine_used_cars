@@ -294,3 +294,25 @@ test("analytics: cookieless events, deduplicated, unknown cars ignored, enquirie
     assert.equal((await s.admin.query("SELECT count(*)::int AS n FROM intelligence_website_metrics WHERE dimension LIKE '%sid%'")).rows[0].n, 0);
   } finally { await s.h.close(); }
 });
+
+test("webhook targets: public https only in production", async () => {
+  const { siteOrigin } = await import("../../apps/intelligence/lib/server/website-connect");
+  const prod = { NODE_ENV: "production" };
+  assert.equal(siteOrigin("https://www.dealer.example/connect", prod), "https://www.dealer.example");
+  for (const bad of ["http://dealer.example", "https://localhost:3000", "https://127.0.0.1", "https://10.0.0.5", "https://192.168.1.2", "https://172.20.0.1", "https://[::1]", "https://intranet", "https://box.local", "https://169.254.169.254"]) assert.equal(siteOrigin(bad, prod), null, bad);
+  assert.equal(siteOrigin("http://127.0.0.1:3100", { NODE_ENV: "production", WEBSITE_WEBHOOKS_ALLOW_LOOPBACK: "1" }), "http://127.0.0.1:3100");
+  assert.equal(siteOrigin("http://localhost:3000", { NODE_ENV: "development" }), "http://localhost:3000");
+});
+
+test("reconnecting a website with a new key (rotated secret) revokes its old key; other websites are untouched", async () => {
+  const s = await setup();
+  try {
+    const rotated = key();
+    assert.ok((await connectWebsite({ email: "owner@alpha.example", password: PASSWORD, key: rotated, siteUrl: "https://alpha.example" })).ok);
+    assert.equal(await authenticateApiKey(`Bearer ${s.keyA}`), null, "the old key no longer works");
+    assert.ok(await authenticateApiKey(`Bearer ${rotated}`));
+    assert.ok(await authenticateApiKey(`Bearer ${s.keyB}`), "another dealership's website is unaffected");
+    const live = (await s.admin.query("SELECT count(*)::int AS n FROM intelligence_api_keys WHERE tenant_id = $1 AND revoked_at IS NULL", [s.a.tenantId])).rows[0].n;
+    assert.equal(live, 1);
+  } finally { await s.h.close(); }
+});
