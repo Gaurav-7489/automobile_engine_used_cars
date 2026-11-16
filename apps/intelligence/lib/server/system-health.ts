@@ -80,7 +80,17 @@ export async function systemReport(): Promise<SystemReport> {
   checks.push({ key: "email", group: "Services", label: "Enquiry emails (Resend)", status: mail ? "pass" : "warn", detail: mail ? `Sending as ${mail.from}` : "Not configured: enquiries still become leads, emails wait up to 3 days" });
   const cron = cronSecret();
   checks.push({ key: "reports", group: "Services", label: "Scheduled report emails", status: mail && cron ? "pass" : "warn", detail: mail && cron ? "Daily job protected by CRON_SECRET; sends report links at about 07:30 IST" : !cron ? "Not configured: set CRON_SECRET (16+ characters) so the daily job can run" : "Waiting for email (Resend) to be configured" });
-  checks.push({ key: "ads", group: "Services", label: "Advertising platforms", status: "warn", detail: "Google and Meta ad accounts are not connected (needs their developer approval)" });
+  // Advertising and messaging: each card on the Advertising page needs its provider's app credentials set here (never in the browser).
+  const missing = (names: string[]) => names.filter((n) => !env(n));
+  const metaMissing = missing(["META_APP_ID", "META_APP_SECRET"]);
+  checks.push({ key: "meta-app", group: "Services", label: "Facebook and Instagram (Meta app)", status: metaMissing.length ? "warn" : "pass",
+    detail: metaMissing.length ? `Not switched on: set ${metaMissing.join(" and ")} from the VandLabs Meta app (docs/ADVERTISING_SETUP.md)` : "Meta app configured: owners can connect Facebook and Instagram" });
+  const waMissing = [...metaMissing, ...missing(["META_WEBHOOK_VERIFY_TOKEN"])];
+  checks.push({ key: "whatsapp", group: "Services", label: "WhatsApp (Meta app + webhook)", status: metaMissing.length ? "warn" : waMissing.length ? "warn" : "pass",
+    detail: metaMissing.length ? "Not switched on: needs the Meta app (META_APP_ID, META_APP_SECRET)" : waMissing.length ? "Owners can connect, but customer messages will not arrive until META_WEBHOOK_VERIFY_TOKEN is set and the webhook is verified in the Meta app" : "Configured: connecting works and customer messages reach the inbox" });
+  const googleAdsMissing = [...missing(["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"]), ...missing(["GOOGLE_ADS_DEVELOPER_TOKEN"])];
+  checks.push({ key: "google-ads", group: "Services", label: "Google Ads and YouTube", status: googleAdsMissing.length ? "warn" : "pass",
+    detail: googleAdsMissing.length ? `Not switched on: set ${googleAdsMissing.join(" and ")} (developer token from the Google Ads manager account's API Center)` : "Configured: owners can connect Google Ads and their YouTube channel" });
   checks.push({ key: "market", group: "Services", label: "Licensed market data", status: "warn", detail: "No provider connected: Market Radar and valuations show Setup required" });
 
   // Runtime.
