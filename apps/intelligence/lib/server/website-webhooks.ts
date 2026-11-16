@@ -2,6 +2,7 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { Vehicle } from "../domain";
 import { plain, tenantTx, type SqlClient } from "./db";
 import { cronSecret } from "./report-delivery";
+import { runKnowledgeCron } from "./knowledge";
 import { later } from "./later";
 
 /**
@@ -133,7 +134,12 @@ export async function runWebhookCron(authorization: string | null): Promise<{ st
     attempted += r.attempted;
     delivered += r.delivered;
   }
-  return { status: 200, body: { ok: true, tenants: tenants.length, attempted, delivered } };
+  // The same daily job re-reads linked websites for the AI agents (Vercel Hobby allows two cron jobs, both in use).
+  const knowledge = await runKnowledgeCron().catch((error: unknown) => {
+    console.error(JSON.stringify({ event: "knowledge_cron_failure", message: error instanceof Error ? error.message : "unknown" }));
+    return { tenants: 0, refreshed: 0 };
+  });
+  return { status: 200, body: { ok: true, tenants: tenants.length, attempted, delivered, knowledge } };
 }
 
 /** Delivers this workspace's webhooks after the response. Outside a request it leaves them to the next check-in or the daily job. */
