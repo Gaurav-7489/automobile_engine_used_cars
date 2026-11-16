@@ -49,8 +49,13 @@ export const STEP_UP_MAX_AGE_SECONDS = 300;
  * same session that asked, and Google reports it authenticated within the last few minutes.
  */
 export async function verifyStepUp(state: OAuthState, identity: GoogleIdentity, current: { userId: string; sessionIssuedAt: number }, nowSeconds = Math.floor(Date.now() / 1000)): Promise<boolean> {
-  if (state.sub !== current.userId || state.sid !== current.sessionIssuedAt) return false;
-  if (identity.authTime === undefined || nowSeconds - identity.authTime > STEP_UP_MAX_AGE_SECONDS + 60 || identity.authTime > nowSeconds + 60) return false;
+  const reject = (reason: string) => {
+    console.warn(JSON.stringify({ event: "google_reauth_rejected", reason }));
+    return false;
+  };
+  if (state.sub !== current.userId || state.sid !== current.sessionIssuedAt) return reject("session_mismatch");
+  if (identity.authTime === undefined) return reject("auth_time_missing");
+  if (!Number.isSafeInteger(identity.authTime) || nowSeconds - identity.authTime > STEP_UP_MAX_AGE_SECONDS + 60 || identity.authTime > nowSeconds + 60) return reject("auth_time_invalid_or_stale");
   const bound = await googleSubOf(current.userId);
-  return bound !== null && bound === identity.sub;
+  return bound !== null && bound === identity.sub ? true : reject("account_mismatch");
 }

@@ -35,8 +35,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
 
     if (purpose === "reauth") {
       const current = await getPrincipal();
-      const confirmed = read && current ? await verifyStepUp(read.state, read.identity, { userId: current.principal.userId, sessionIssuedAt: current.session.iat ?? 0 }) : false;
-      if (!confirmed || !current) return finish(`${origin}/auth/confirmed?result=failed`);
+      if (!current) return finish(`${origin}/auth/confirmed?result=signed_out`);
+      const confirmed = read ? await verifyStepUp(read.state, read.identity, { userId: current.principal.userId, sessionIssuedAt: current.session.iat ?? 0 }) : false;
+      if (!confirmed) return finish(`${origin}/auth/confirmed?result=failed`);
       const grant = await newReauthGrant(current.principal.userId, current.session.iat ?? 0);
       if (!grant) return finish(`${origin}/auth/confirmed?result=unavailable`);
       const response = finish(`${origin}/auth/confirmed?result=ok`);

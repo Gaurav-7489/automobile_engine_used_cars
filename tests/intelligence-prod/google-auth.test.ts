@@ -62,6 +62,17 @@ test("PKCE S256 and state: the verifier stays in the httpOnly cookie, the URL ca
   assert.equal(await readGoogleCallback({ ...base, code: null, state: issued.state, cookie: issued.cookie }), null);
 });
 
+test("Google step-up explicitly requests authentication time without changing normal sign-in", () => {
+  const input = { redirectUri: "https://app.example/api/auth/sso/google/callback", state: "state", scope: "openid email" };
+  const normal = new URL(googleAuthUrl(input));
+  assert.equal(normal.searchParams.has("claims"), false);
+  assert.equal(normal.searchParams.has("max_age"), false);
+
+  const stepUp = new URL(googleAuthUrl({ ...input, maxAge: 300 }));
+  assert.equal(stepUp.searchParams.get("max_age"), "300");
+  assert.deepEqual(JSON.parse(stepUp.searchParams.get("claims")!), { id_token: { auth_time: { essential: true } } });
+});
+
 test("sessions record Google authentication; the legacy flag is off unless explicitly enabled", async () => {
   const token = (await newSessionCookie("00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002", "google"))!;
   assert.equal((await verifySession(token))?.amr, "google");

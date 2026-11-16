@@ -61,7 +61,10 @@ export function googleAuthUrl(input: { redirectUri: string; state: string; scope
   if (input.nonce) p.set("nonce", input.nonce);
   if (input.verifier) { p.set("code_challenge", pkceChallenge(input.verifier)); p.set("code_challenge_method", "S256"); }
   // Step-up: Google asks the person to authenticate again unless they did within max_age seconds, and reports auth_time.
-  if (input.maxAge !== undefined) p.set("max_age", String(input.maxAge));
+  if (input.maxAge !== undefined) {
+    p.set("max_age", String(input.maxAge));
+    p.set("claims", JSON.stringify({ id_token: { auth_time: { essential: true } } }));
+  }
   if (input.loginHint) p.set("login_hint", input.loginHint);
   // Offline access with a forced consent screen is the only way Google reliably returns a refresh token.
   if (input.offline) { p.set("access_type", "offline"); p.set("prompt", "consent"); } else p.set("prompt", "select_account");

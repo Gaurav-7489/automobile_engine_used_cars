@@ -5,7 +5,7 @@ export const metadata: Metadata = { title: "Confirmation", robots: { index: fals
 
 const TEXT: Record<string, string> = {
   ok: "Confirmed. You can close this window and continue.",
-  failed: "That Google account could not confirm this session. Use the Google account you signed in with, then try again.",
+  failed: "Google could not verify a recent sign-in for this session. Close this window and try again with the account you used to sign in.",
   signed_out: "Your session has ended. Sign in again.",
   unavailable: "Confirmation is not available right now. Try again in a moment.",
 };
