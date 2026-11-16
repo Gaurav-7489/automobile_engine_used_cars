@@ -34,6 +34,8 @@ const MIGRATIONS: { name: string; kind: "table" | "function"; object: string }[]
   { name: "0019 Report schedules", kind: "function", object: "intelligence_due_report_tenants" },
   { name: "0023 Website integration", kind: "table", object: "intelligence_webhook_outbox" },
   { name: "0024 Google identity", kind: "function", object: "intelligence_google_signin" },
+  { name: "0025 Access requests", kind: "table", object: "intelligence_access_requests" },
+  { name: "0026 AI knowledge", kind: "table", object: "intelligence_knowledge" },
 ];
 
 const env = (k: string) => (process.env[k] ?? "").trim();

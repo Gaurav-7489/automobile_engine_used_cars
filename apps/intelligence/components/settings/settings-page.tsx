@@ -11,6 +11,7 @@ import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions
 import { downloadCsv } from "@/lib/export";
 import { FEATURES } from "@/lib/entitlements";
 import { BusinessKeys } from "./business-keys";
+import { Knowledge } from "./knowledge";
 import { ConfirmIdentity, useReauth } from "../admin/shared";
 import { TwoFactor } from "./two-factor";
 import { MotionSwitch, ThemeSwitch } from "../theme";
@@ -24,7 +25,7 @@ import { useRemote } from "../use-remote";
 import { useScopedHref, useWorkspace } from "../workspace";
 
 export const SECTIONS = [
-  { key: "business", label: "Business" }, { key: "branches", label: "Branches" }, { key: "team", label: "Team & roles" }, { key: "security", label: "Security" }, { key: "integrations", label: "Integrations" }, { key: "messaging", label: "Customer messaging" },
+  { key: "business", label: "Business" }, { key: "branches", label: "Branches" }, { key: "team", label: "Team & roles" }, { key: "security", label: "Security" }, { key: "integrations", label: "Integrations" }, { key: "messaging", label: "Customer messaging" }, { key: "knowledge", label: "AI knowledge" },
   { key: "billing", label: "Plan and access" }, { key: "api", label: "API access" }, { key: "notifications", label: "Notifications" }, { key: "audit", label: "Audit" },
 ] as const;
 type SectionKey = (typeof SECTIONS)[number]["key"];
@@ -54,6 +55,7 @@ function Settings({ section }: { section: SectionKey }) {
           {section === "security" ? <Security /> : null}
           {section === "integrations" ? <Integrations /> : null}
           {section === "messaging" ? <Messaging /> : null}
+          {section === "knowledge" ? <Knowledge /> : null}
           {section === "billing" ? <Billing /> : null}
           {section === "api" ? <><ApiAccess /><BusinessKeys /></> : null}
           {section === "notifications" ? <Notifications /> : null}
