@@ -1,9 +1,9 @@
 import { json, problem, rateLimited, readJson } from "@/lib/api";
-import { isCommandList } from "@/lib/actions/registry";
+import { commandNeedsStepUp, isCommandList } from "@/lib/actions/registry";
 import type { Command } from "@/lib/actions/recorder";
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE, SESSION_TTL_SECONDS, signSession } from "@/lib/session";
-import { getPrincipal, hasRecentReauth } from "@/lib/server/auth";
+import { consumeStepUp, getPrincipal } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { redactFor } from "@/lib/server/redact";
 import { runCommands } from "@/lib/server/workspace";
@@ -21,7 +21,10 @@ export async function POST(request: Request) {
   const body = await readJson<{ commands?: unknown }>(request, 400_000);
   if (!body || !isCommandList(body.commands)) return problem(422, "invalid", "Send a list of operations.");
   try {
-    const outcome = await runCommands(current.principal, body.commands as Command[], await hasRecentReauth(current.principal.userId));
+    // Operations that change access (a role, an API key) need a fresh Google confirmation for "workspace.commands"; it is used up here.
+    const commands = body.commands as Command[];
+    const reauthenticated = commands.some((c) => commandNeedsStepUp(c.name)) && (await consumeStepUp(current.principal.userId, "workspace.commands"));
+    const outcome = await runCommands(current.principal, commands, reauthenticated);
     const state = redactFor(outcome.state, current.session);
     if (!outcome.ok) return json({ ok: false, error: { code: outcome.code, message: outcome.message, fields: outcome.fields, latest: outcome.latest }, state }, { status: outcome.status });
     // Changed records pass through the same branch and contact redaction as everything else the browser receives.

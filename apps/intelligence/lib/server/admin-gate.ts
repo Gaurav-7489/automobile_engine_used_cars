@@ -1,9 +1,10 @@
 import { problem } from "../api";
-import { getPrincipal, hasRecentReauth } from "./auth";
+import { consumeStepUp, getPrincipal } from "./auth";
 import { sameOrigin } from "./csrf";
 import { totpState } from "./identity";
 import { legacyPasswordLogin } from "./legacy-auth";
 import { isPlatformAdmin } from "./platform-admin";
+import type { StepUpAction } from "../step-up-actions";
 
 export type AdminAccess =
   | { ok: true; userId: string; name: string; email: string; tenantId: string }
@@ -27,8 +28,11 @@ export async function adminAccess(): Promise<AdminAccess> {
   return { ok: true, userId: current.principal.userId, name: current.principal.name, email: current.principal.email, tenantId: current.principal.tenantId };
 }
 
-/** Gate for admin API routes. Changes also require a same-origin request and, when `reauth` is set, a recent step-up confirmation. */
-export async function adminApi(request: Request | null, options: { reauth?: boolean } = {}) {
+/**
+ * Gate for admin API routes. Changes also require a same-origin request and, when `reauth` is set, a single-use Google confirmation for
+ * this exact action and resource (for example one dealership). The confirmation is used up by this call.
+ */
+export async function adminApi(request: Request | null, options: { reauth?: { action: StepUpAction; resource?: string } } = {}) {
   if (request && !sameOrigin(request)) return { error: problem(403, "forbidden", "Request origin is not allowed.") };
   const access = await adminAccess();
   if (!access.ok) {
@@ -36,7 +40,7 @@ export async function adminApi(request: Request | null, options: { reauth?: bool
     if (access.reason === "google_required") return { error: problem(403, "google_required", "Sign in with Google to use the admin console.") };
     return { error: problem(404, "not_found", "Not found.") };
   }
-  if (options.reauth && !(await hasRecentReauth(access.userId))) return { error: problem(403, "reauth_required", "Confirm it's you with Google first.") };
+  if (options.reauth && !(await consumeStepUp(access.userId, options.reauth.action, options.reauth.resource ?? ""))) return { error: problem(403, "reauth_required", "Confirm it's you with Google first.") };
   return { access };
 }
 

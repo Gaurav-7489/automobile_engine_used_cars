@@ -45,7 +45,7 @@ function SuspendDialog({ member, onClose, onDone }: { member: Member; onClose: (
     <Dialog open onClose={onClose} title={`${suspend ? "Suspend" : "Restore"} ${member.name}?`} description={suspend ? "They are signed out everywhere at once and cannot sign in to any dealership until restored." : "They can sign in again with their existing password."}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant={suspend ? "danger" : "primary"} loading={busy} loadingLabel="Saving" onClick={async () => {
         setBusy(true); setErrors({});
-        const failed = await auth.confirm(password);
+        const failed = await auth.confirm(password, { action: "user.update", resource: member.userId });
         if (failed) { setBusy(false); setErrors({ password: failed }); return; }
         const r = await call<object>(`/api/admin/users/${member.userId}`, { method: "POST", body: JSON.stringify({ suspended: suspend, reason }) });
         setBusy(false);
@@ -76,7 +76,7 @@ export function CreateDealership({ onClose, onCreated }: { onClose: () => void; 
     <Dialog open onClose={onClose} dirty={dirty} size="w640" title="Add dealership" description="Creates the dealership's private workspace and assigns its owner's Google account. The owner signs in with Continue with Google; no link or password."
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating dealership…" onClick={async () => {
         setBusy(true); setErrors({});
-        const failed = await auth.confirm(password);
+        const failed = await auth.confirm(password, { action: "workspace.create" });
         if (failed) { setBusy(false); setErrors({ password: failed }); return; }
         const r = await call<{ ownerEmail: string; signInUrl: string }>("/api/admin/workspaces", { method: "POST", body: JSON.stringify({ ...form, locations: branches }) });
         setBusy(false);
@@ -123,7 +123,7 @@ export function ReissueInvite({ workspace, onClose, onDone }: { workspace: Works
     <Dialog open onClose={onClose} title={`Change owner for ${workspace.dealership}`} description="Before the owner has signed in, you can correct the Google account assigned as owner. The earlier assignment stops working."
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating" onClick={async () => {
         setBusy(true); setErrors({});
-        const failed = await auth.confirm(password);
+        const failed = await auth.confirm(password, { action: "workspace.owner", resource: workspace.tenantId });
         if (failed) { setBusy(false); setErrors({ password: failed }); return; }
         const r = await call<{ ownerEmail: string; signInUrl: string }>(`/api/admin/workspaces/${workspace.tenantId}/owner-invite`, { method: "POST", body: JSON.stringify({ ownerName, ownerEmail }) });
         setBusy(false);
@@ -161,7 +161,7 @@ export function WebsiteLinks({ workspace, onClose }: { workspace: Workspace; onC
   useEffect(() => { void load(); }, [load]);
   const unlink = async (id: string) => {
     setErrors({});
-    const failed = await auth.confirm(password);
+    const failed = await auth.confirm(password, { action: "workspace.websites", resource: workspace.tenantId });
     if (failed) { setErrors({ password: failed }); return; }
     const r = await call<object>(`/api/admin/workspaces/${workspace.tenantId}/websites`, { method: "DELETE", body: JSON.stringify({ keyId: id }) });
     if (r.data.error?.code === "reauth_required") auth.expired();
@@ -172,7 +172,7 @@ export function WebsiteLinks({ workspace, onClose }: { workspace: Workspace; onC
     <Dialog open onClose={onClose} size="w640" title={`Website for ${workspace.dealership}`} description="Link the dealership's VandLabs website so it shows this workspace's published cars and sends enquiries here."
       footer={<><Button onClick={onClose}>Done</Button>{issued ? null : <Button variant="primary" loading={busy} loadingLabel="Linking" onClick={async () => {
         setBusy(true); setErrors({});
-        const failed = await auth.confirm(password);
+        const failed = await auth.confirm(password, { action: "workspace.websites", resource: workspace.tenantId });
         if (failed) { setBusy(false); setErrors({ password: failed }); return; }
         const r = await call<{ key: string; site: string; webhooks: boolean }>(`/api/admin/workspaces/${workspace.tenantId}/websites`, { method: "POST", body: JSON.stringify({ siteUrl }) });
         setBusy(false);
@@ -247,7 +247,7 @@ function DecideAccess({ request, approve, onClose, onDone }: { request: AccessRe
       description={approve ? `Creates the dealership with one branch in ${request.city}, ${request.state}. ${request.email} becomes the owner and signs in with Google.` : "They are not given access. They can send a new request later."}
       footer={<><Button onClick={onClose}>Cancel</Button><Button variant={approve ? "primary" : "danger"} loading={busy} loadingLabel={approve ? "Creating dealership" : "Declining"} onClick={async () => {
         setBusy(true); setErrors({});
-        const failed = await auth.confirm(password);
+        const failed = await auth.confirm(password, { action: "access.decide", resource: request.id });
         if (failed) { setBusy(false); setErrors({ password: failed }); return; }
         const r = await call<{ signInUrl: string }>(`/api/admin/access-requests/${request.id}`, { method: "POST", body: JSON.stringify({ decision: approve ? "approve" : "decline", note, businessName, dealershipName }) });
         setBusy(false);

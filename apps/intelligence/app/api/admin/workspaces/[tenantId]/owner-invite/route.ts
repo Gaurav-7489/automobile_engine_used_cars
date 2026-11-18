@@ -9,11 +9,11 @@ export const dynamic = "force-dynamic";
 
 /** Assigns (or corrects) the owner's Google account for a workspace nobody has signed in to yet. Earlier assignments stop working. */
 export async function POST(request: Request, context: { params: Promise<{ tenantId: string }> }) {
-  const gate = await adminApi(request, { reauth: true });
+  const { tenantId } = await context.params;
+  const gate = await adminApi(request, { reauth: { action: "workspace.owner", resource: tenantId } });
   if (gate.error) return gate.error;
   const limit = await hitShared(`owner-invite:${gate.access.userId}`, 10, 60 * 60_000);
   if (!limit.allowed) return rateLimited("Too many owner changes. Try again later.", limit.retryAfter);
-  const { tenantId } = await context.params;
   const body = await readJson<{ ownerEmail?: string; ownerName?: string }>(request);
   const email = typeof body?.ownerEmail === "string" ? body.ownerEmail.trim() : "";
   const name = typeof body?.ownerName === "string" ? body.ownerName.trim() : "";

@@ -15,7 +15,8 @@ export const OAUTH_TTL_SECONDS = 10 * 60;
 /** Why the last confirmation window failed. The window cannot always reach the page that opened it, so the page reads this instead. */
 export const REAUTH_RESULT_COOKIE = process.env.NODE_ENV === "production" ? "__Host-vl_reauth_result" : "vl_reauth_result";
 
-export type OAuthState = { n: string; purpose: "signin" | "reauth" | "ads"; provider: "google" | "meta" | "whatsapp"; returnTo?: string; sub?: string; tid?: string; sid?: number; exp: number };
+/** `act`/`res` (step-up only) name the one action and resource the confirmation is for. They are inside the signature, so Google cannot change them. */
+export type OAuthState = { n: string; purpose: "signin" | "reauth" | "ads"; provider: "google" | "meta" | "whatsapp"; returnTo?: string; sub?: string; tid?: string; sid?: number; act?: string; res?: string; exp: number };
 
 /** The cookie that belongs to one flow. The nonce is inside the signed state, so it is read only after the state verifies. */
 export const oauthCookieName = (nonce: string) => `${OAUTH_COOKIE_PREFIX}${nonce}`;
@@ -80,19 +81,16 @@ export async function readOAuthState(state: string | null, cookieValue: string |
 export const oauthCookie = (name: string, value: string, maxAge = OAUTH_TTL_SECONDS) => ({ name, value, httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge });
 
 /**
- * Builds the authorization request. Step-up (`reauthenticate`) asks for a fresh login (`prompt=login`) and `max_age`, and asks for
- * `auth_time`. Google's support for those is not assumed: the callback still requires an `auth_time` that is recent, and rejects
- * the confirmation otherwise, so a provider that ignores a hint can never produce a false confirmation.
+ * Builds the authorization request. Step-up (`reauthenticate`) asks Google for a fresh interactive sign-in (`prompt=login`, plus `max_age`).
+ * The callback accepts a recent `auth_time` when Google reports one, and otherwise relies on the forced sign-in; it never assumes freshness.
  */
 export function googleAuthUrl(input: { redirectUri: string; state: string; scope: string; nonce?: string; offline?: boolean; verifier?: string; maxAge?: number; loginHint?: string; reauthenticate?: boolean }): string {
   const p = new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID!.trim(), redirect_uri: input.redirectUri, response_type: "code", scope: input.scope, state: input.state });
   if (input.nonce) p.set("nonce", input.nonce);
   if (input.verifier) { p.set("code_challenge", pkceChallenge(input.verifier)); p.set("code_challenge_method", "S256"); }
-  // Step-up: Google asks the person to authenticate again unless they did within max_age seconds, and reports auth_time.
-  if (input.maxAge !== undefined) {
-    p.set("max_age", String(input.maxAge));
-    p.set("claims", JSON.stringify({ id_token: { auth_time: { essential: true } } }));
-  }
+  // Step-up: Google asks the person to authenticate again unless they did within max_age seconds. auth_time is not requested as an
+  // essential claim: where Google does not report it, the forced sign-in itself is the freshness basis (see checkStepUp).
+  if (input.maxAge !== undefined) p.set("max_age", String(input.maxAge));
   if (input.loginHint) p.set("login_hint", input.loginHint);
   // Offline access with a forced consent screen is the only way Google reliably returns a refresh token.
   if (input.offline) { p.set("access_type", "offline"); p.set("prompt", "consent"); }

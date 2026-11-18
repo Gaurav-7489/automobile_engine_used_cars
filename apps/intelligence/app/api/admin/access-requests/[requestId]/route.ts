@@ -12,11 +12,11 @@ export const dynamic = "force-dynamic";
  * requester's Google account as owner; they then sign in with Continue with Google. Needs a fresh Google confirmation.
  */
 export async function POST(request: Request, context: { params: Promise<{ requestId: string }> }) {
-  const gate = await adminApi(request, { reauth: true });
+  const { requestId } = await context.params;
+  const gate = await adminApi(request, { reauth: { action: "access.decide", resource: requestId } });
   if (gate.error) return gate.error;
   const limit = await hitShared(`admin-access-decision:${gate.access.userId}`, 60, 60 * 60_000);
   if (!limit.allowed) return rateLimited("Too many decisions in the last hour.", limit.retryAfter);
-  const { requestId } = await context.params;
   const body = await readJson<{ decision?: string; note?: string; businessName?: string; dealershipName?: string }>(request);
   if (!isUuid(requestId) || (body?.decision !== "approve" && body?.decision !== "decline")) return problem(422, "invalid", "Choose approve or decline.");
   const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");

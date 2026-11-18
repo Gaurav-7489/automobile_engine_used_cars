@@ -57,33 +57,34 @@ test("step-up asks Google to log in again and to report auth_time; normal sign-i
 test("successful re-authentication: a fresh confirmation of the bound Google account is accepted", async () => {
   const { h, admin, sid } = await administrator();
   try {
-    const issued = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid }))!;
+    const issued = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid, act: "access.decide", res: "" }))!;
     const read = await callback(issued, (nonce) => claimsFor(nonce, { auth_time: now() - 30 }));
     assert.ok(read, "the callback is accepted");
-    assert.deepEqual(await checkStepUp(read.state, read.identity, { userId: admin.userId, sessionIssuedAt: sid }), { ok: true });
+    const check = await checkStepUp(read.state, read.identity, { userId: admin.userId, sessionIssuedAt: sid });
+    assert.deepEqual(check, { ok: true, method: "google_auth_time", action: "access.decide", resource: "" });
   } finally { await h.close(); }
 });
 
-test("missing auth_time is refused with its own reason and never assumed fresh", async () => {
+test("missing auth_time is not a failure: the forced-login authorization is the freshness basis, and it is recorded as that", async () => {
   const { h, admin, sid } = await administrator();
   try {
-    const issued = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid }))!;
+    const issued = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid, act: "workspace.websites", res: "" }))!;
     const absent = await callback(issued, (nonce) => claimsFor(nonce));
     assert.ok(absent);
-    assert.deepEqual(await checkStepUp(absent.state, absent.identity, { userId: admin.userId, sessionIssuedAt: sid }), { ok: false, reason: "auth_time_missing" });
+    const check = await checkStepUp(absent.state, absent.identity, { userId: admin.userId, sessionIssuedAt: sid });
+    assert.deepEqual(check, { ok: true, method: "google_authorization", action: "workspace.websites", resource: "" }, "recorded as an authorization, not as a verified recent login");
 
-    // A non-numeric auth_time is not a usable value either.
+    // A non-numeric auth_time is not a usable value; it is treated as not reported.
     const malformed = await callback(issued, (nonce) => claimsFor(nonce, { auth_time: String(now()) }));
     assert.ok(malformed);
-    assert.equal(malformed.identity.authTime, undefined);
-    assert.deepEqual(await checkStepUp(malformed.state, malformed.identity, { userId: admin.userId, sessionIssuedAt: sid }), { ok: false, reason: "auth_time_missing" });
+    assert.equal((await checkStepUp(malformed.state, malformed.identity, { userId: admin.userId, sessionIssuedAt: sid })).ok, true);
   } finally { await h.close(); }
 });
 
 test("an incorrect Google account cannot confirm, and neither can a confirmation from another session", async () => {
   const { h, admin, sid } = await administrator();
   try {
-    const issued = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid }))!;
+    const issued = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid, act: "access.decide", res: "" }))!;
     const other = await callback(issued, (nonce) => claimsFor(nonce, { sub: "g-intruder", email: "intruder@gmail.com", auth_time: now() - 10 }));
     assert.ok(other);
     assert.deepEqual(await checkStepUp(other.state, other.identity, { userId: admin.userId, sessionIssuedAt: sid }), { ok: false, reason: "account_mismatch" });
@@ -97,7 +98,7 @@ test("an incorrect Google account cannot confirm, and neither can a confirmation
 test("an expired confirmation is refused: old auth_time, expired state, or a missing flow cookie", async () => {
   const { h, admin, sid } = await administrator();
   try {
-    const issued = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid }))!;
+    const issued = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid, act: "access.decide", res: "" }))!;
     const stale = await callback(issued, (nonce) => claimsFor(nonce, { auth_time: now() - 3600 }));
     assert.ok(stale);
     assert.deepEqual(await checkStepUp(stale.state, stale.identity, { userId: admin.userId, sessionIssuedAt: sid }), { ok: false, reason: "auth_time_stale" });
@@ -118,7 +119,7 @@ test("overlapping Google flows in one browser keep separate cookies and both com
   const { h, admin, sid } = await administrator();
   try {
     const signin = (await newOAuthState({ purpose: "signin", provider: "google" }))!;
-    const reauth = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid }))!;
+    const reauth = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.ok ? admin.userId : "", sid, act: "access.decide", res: "" }))!;
     // Started after the sign-in: the sign-in's cookie must survive.
     assert.notEqual(await flowCookieName(signin.state), await flowCookieName(reauth.state));
     const jar = jarWith(signin, reauth);
@@ -144,16 +145,16 @@ test("dealership approval: a fresh confirmation approves once; a rejected one cr
     assert.equal(await submitAccessRequest(visitor, details), "created");
     const [request] = await listAccessRequests(admin.userId, "pending");
 
-    // Attempt 1: Google reports no auth_time. The approval gate refuses, so decideAccessRequest is never called.
-    const rejected = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.userId, sid }))!;
-    const noTime = await callback(rejected, (nonce) => claimsFor(nonce));
-    assert.ok(noTime);
-    assert.equal((await checkStepUp(noTime.state, noTime.identity, { userId: admin.userId, sessionIssuedAt: sid })).ok, false);
+    // Attempt 1: Google reports a sign-in from an hour ago. The confirmation is refused, so decideAccessRequest is never called.
+    const rejected = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.userId, sid, act: "access.decide", res: "" }))!;
+    const stale = await callback(rejected, (nonce) => claimsFor(nonce, { auth_time: now() - 3600 }));
+    assert.ok(stale);
+    assert.deepEqual(await checkStepUp(stale.state, stale.identity, { userId: admin.userId, sessionIssuedAt: sid }), { ok: false, reason: "auth_time_stale" });
     assert.equal((await accessRequestStatus("g-new-dealer"))?.status, "pending");
     assert.equal((await owner.query("SELECT count(*)::int AS n FROM dealerships WHERE name = 'Kumar Autos Pune'")).rows[0].n, 0);
 
     // Attempt 2: a fresh confirmation. The approval creates the dealership exactly once.
-    const fresh = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.userId, sid }))!;
+    const fresh = (await newOAuthState({ purpose: "reauth", provider: "google", sub: admin.userId, sid, act: "access.decide", res: "" }))!;
     const ok = await callback(fresh, (nonce) => claimsFor(nonce, { auth_time: now() - 20 }));
     assert.ok(ok && (await checkStepUp(ok.state, ok.identity, { userId: admin.userId, sessionIssuedAt: sid })).ok);
     const approved = await decideAccessRequest(admin.userId, request.id, { approve: true, dealershipName: "Kumar Autos Pune" });
@@ -171,7 +172,8 @@ test("dealership approval: a fresh confirmation approves once; a rejected one cr
 
 test("the reason a confirmation window failed is recognised and explained; anything unknown falls back to a generic failure", async () => {
   const { STEP_UP_MESSAGES, isStepUpResult } = await import("../../apps/intelligence/lib/step-up-copy");
-  assert.equal(isStepUpResult("setup_required"), true);
+  assert.equal(isStepUpResult("failed"), true);
+  assert.equal(isStepUpResult("setup_required"), false, "the old reason no longer exists");
   assert.equal(isStepUpResult("admin_granted"), false, "unknown values are not trusted");
-  assert.match(STEP_UP_MESSAGES.setup_required, /Session age claims/);
+  assert.doesNotMatch(STEP_UP_MESSAGES.failed, /auth_time|Session age|token/i, "no internal detail reaches the person");
 });

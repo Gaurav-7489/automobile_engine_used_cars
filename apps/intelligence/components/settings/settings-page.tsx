@@ -11,6 +11,7 @@ import { can as canDo, ROLE_LABEL, ROLE_SUMMARY, ROLES } from "@/lib/permissions
 import { downloadCsv } from "@/lib/export";
 import { FEATURES } from "@/lib/entitlements";
 import { BusinessKeys } from "./business-keys";
+import { WebsiteLink } from "./website-link";
 import { Knowledge } from "./knowledge";
 import { ConfirmIdentity, useReauth } from "../admin/shared";
 import { TwoFactor } from "./two-factor";
@@ -57,7 +58,7 @@ function Settings({ section }: { section: SectionKey }) {
           {section === "messaging" ? <Messaging /> : null}
           {section === "knowledge" ? <Knowledge /> : null}
           {section === "billing" ? <Billing /> : null}
-          {section === "api" ? <><ApiAccess /><BusinessKeys /></> : null}
+          {section === "api" ? <><WebsiteLink /><ApiAccess /><BusinessKeys /></> : null}
           {section === "notifications" ? <Notifications /> : null}
           {section === "audit" ? <Audit /> : null}
         </div>
@@ -293,7 +294,7 @@ function RoleDialog({ target, onClose }: { target: { id: string; name: string; r
       let r = run((s, a) => changeRole(s, a, target.id, role, false));
       // Granting a higher role needs a fresh confirmation; ask only then.
       if (!r.ok && r.fields?.password) {
-        const failed = await auth.confirm(password);
+        const failed = await auth.confirm(password, { action: "workspace.commands" });
         if (failed) { setBusy(false); setError(failed); return; }
         r = run((s, a) => changeRole(s, a, target.id, role, true));
       }
@@ -382,7 +383,7 @@ function ApiAccess() {
   return (
     <section className="card stack" aria-labelledby="api-h">
       <div className="spread" style={{ flexWrap: "wrap" }}><h2 className="h2" id="api-h">API access</h2><Button variant="primary" onClick={() => setCreating(true)}>Create key</Button></div>
-      <p className="muted">Your VandLabs website is linked by VandLabs and appears here as a Website key. Revoke it to disconnect; ask VandLabs support to link it again.</p>
+      <p className="muted">A website linked to this workspace appears here as a Website key. Revoke it to disconnect, or disconnect it from the Dealership website card above.</p>
       <p className="muted">Read-only keys let another system (your website, a CRM, a spreadsheet) read this workspace. Keys cover the branches you can see, expire automatically and can be revoked at any time. Only a hash is stored, so a key is shown once.</p>
       {shown ? <Notice tone="accent" role="alert"><div className="stack-sm"><strong>Copy this key now. It will not be shown again.</strong><code style={{ wordBreak: "break-all" }}>{shown}</code><span className="row-flex"><Button size="sm" onClick={() => { void navigator.clipboard?.writeText(shown); toast("Key copied."); }}>Copy</Button><Button size="sm" onClick={() => setShown(null)}>I have stored it</Button></span></div></Notice> : null}
       {loadError ? <Notice tone="danger" role="alert">{loadError}</Notice> : null}
@@ -419,7 +420,7 @@ function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreate
   return (
     <Dialog open onClose={onClose} title="Create API key" description="Read-only. Creating a key needs a fresh confirmation that it's you." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={busy} loadingLabel="Creating" onClick={async () => {
       setBusy(true); setErrors({});
-      const failed = await auth.confirm(password);
+      const failed = await auth.confirm(password, { action: "settings.api-keys" });
       if (failed) { setBusy(false); setErrors({ password: failed }); return; }
       const r = await fetch("/api/settings/api-keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, scope, days: Number(days) }) }).catch(() => null);
       const b = await r?.json().catch(() => ({}));

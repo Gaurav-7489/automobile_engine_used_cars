@@ -21,11 +21,11 @@ export async function GET(_request: Request, context: { params: Promise<{ tenant
  * VANDLABS_API_URL). It reads published stock and records enquiries and visit counts for this workspace only; nothing else.
  */
 export async function POST(request: Request, context: { params: Promise<{ tenantId: string }> }) {
-  const gate = await adminApi(request, { reauth: true });
+  const { tenantId } = await context.params;
+  const gate = await adminApi(request, { reauth: { action: "workspace.websites", resource: tenantId } });
   if (gate.error) return gate.error;
   const limit = await hitShared(`admin-website:${gate.access.userId}`, 20, 60 * 60_000);
   if (!limit.allowed) return rateLimited("Too many website links in the last hour.", limit.retryAfter);
-  const { tenantId } = await context.params;
   const body = await readJson<{ siteUrl?: string }>(request);
   const url = typeof body?.siteUrl === "string" ? body.siteUrl.trim() : "";
   const host = siteHost(url);
@@ -41,9 +41,9 @@ export async function POST(request: Request, context: { params: Promise<{ tenant
 
 /** `{ keyId }` unlinks: the website stops reading stock and sending enquiries at once. */
 export async function DELETE(request: Request, context: { params: Promise<{ tenantId: string }> }) {
-  const gate = await adminApi(request, { reauth: true });
-  if (gate.error) return gate.error;
   const { tenantId } = await context.params;
+  const gate = await adminApi(request, { reauth: { action: "workspace.websites", resource: tenantId } });
+  if (gate.error) return gate.error;
   const body = await readJson<{ keyId?: string }>(request);
   if (!isUuid(tenantId) || typeof body?.keyId !== "string" || !isUuid(body.keyId)) return problem(422, "invalid", "Choose a website link.");
   if (!(await unlinkWebsite(gate.access.userId, tenantId, body.keyId))) return problem(404, "not_found", "That website link is not active.");

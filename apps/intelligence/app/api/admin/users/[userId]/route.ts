@@ -8,11 +8,11 @@ export const dynamic = "force-dynamic";
 
 /** Suspend or restore an account across every workspace. Suspension signs the person out everywhere at once. */
 export async function POST(request: Request, context: { params: Promise<{ userId: string }> }) {
-  const gate = await adminApi(request, { reauth: true });
+  const { userId } = await context.params;
+  const gate = await adminApi(request, { reauth: { action: "user.update", resource: userId } });
   if (gate.error) return gate.error;
   const limit = await hitShared(`admin-users:${gate.access.userId}`, 30, 10 * 60_000);
   if (!limit.allowed) return rateLimited("Too many account changes. Wait a few minutes.", limit.retryAfter);
-  const { userId } = await context.params;
   const body = await readJson<{ suspended?: boolean; reason?: string }>(request);
   const reason = typeof body?.reason === "string" ? body.reason.trim() : "";
   if (!isUuid(userId) || typeof body?.suspended !== "boolean") return problem(422, "invalid", "Unknown request.");

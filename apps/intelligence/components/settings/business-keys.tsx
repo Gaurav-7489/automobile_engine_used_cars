@@ -54,7 +54,7 @@ function CreateDialog({ sources, onClose, onCreated }: { sources: { id: string; 
   const auth = useReauth();
   const save = async () => {
     setBusy(true); setErrors({});
-    const failed = await auth.confirm(password);
+    const failed = await auth.confirm(password, { action: "settings.business-keys" });
     if (failed) { setBusy(false); setErrors({ password: failed }); return; }
     const r = await call<{ key: string }>("/api/settings/business-keys", { method: "POST", body: JSON.stringify({ name, days: Number(days), scopes, sourceId: scopes.includes("sourcing:write") ? sourceId : undefined }) });
     setBusy(false);

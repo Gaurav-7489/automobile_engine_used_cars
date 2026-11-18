@@ -1,7 +1,7 @@
 import { json, problem, rateLimited, readJson } from "@/lib/api";
 import { can } from "@/lib/permissions";
 import { hitShared } from "@/lib/rate-limit";
-import { getPrincipal, hasRecentReauth } from "@/lib/server/auth";
+import { consumeStepUp, getPrincipal } from "@/lib/server/auth";
 import { BUSINESS_SCOPES, createBusinessKey, listBusinessKeys, revokeBusinessKey } from "@/lib/server/business-api";
 import { sameOrigin } from "@/lib/server/csrf";
 import { tenantTx } from "@/lib/server/db";
@@ -35,7 +35,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const r = await owner(request);
   if (r.error) return r.error;
-  if (!(await hasRecentReauth(r.principal.userId))) return problem(403, "reauth_required", "Confirm your password first.");
+  if (!(await consumeStepUp(r.principal.userId, "settings.business-keys"))) return problem(403, "reauth_required", "Confirm it's you with Google first.");
   const limit = await hitShared(`biz-keys:${r.principal.userId}`, 10, 60 * 60_000);
   if (!limit.allowed) return rateLimited("Too many key changes. Try again later.", limit.retryAfter);
   const body = await readJson<{ name?: string; scopes?: string[]; sourceId?: string; days?: number }>(request, 4_000);
