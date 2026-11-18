@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "VandLabs Auto", statusBarStyle: "default" },
   icons: { apple: "/app-icons/icon-192.png" },
+  // Google Search Console HTML tag verification (renders <meta name="google-site-verification">).
+  verification: { google: "pjgSEHgsf5uEnH2AX0XONUZrZ-yBMC_SNSma8vl1xrc" },
 };
 
 export const viewport: Viewport = { themeColor: [{ media: "(prefers-color-scheme: dark)", color: "#0b0e0d" }, { media: "(prefers-color-scheme: light)", color: "#f3f5f4" }], width: "device-width", initialScale: 1 };
