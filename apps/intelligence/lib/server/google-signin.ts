@@ -44,18 +44,27 @@ export async function readGoogleCallback(input: { state: string | null; code: st
 
 export const STEP_UP_MAX_AGE_SECONDS = 300;
 
+export type StepUpRejection = "session_mismatch" | "auth_time_missing" | "auth_time_stale" | "account_mismatch";
+export type StepUpCheck = { ok: true } | { ok: false; reason: StepUpRejection };
+
 /**
- * Step-up (fresh) authentication: the Google account that just authenticated is the one bound to the signed-in user, it is the
- * same session that asked, and Google reports it authenticated within the last few minutes.
+ * Step-up (fresh) authentication. Every condition must hold, and each failure is reported with its own reason:
+ * the confirming Google account is the one bound to this user, for this session, and Google reports (`auth_time`, OpenID Connect
+ * Core 2 / 3.1.2.1) that it authenticated within the last few minutes. Without `auth_time` nothing can be verified, so the
+ * confirmation is refused rather than assumed.
  */
-export async function verifyStepUp(state: OAuthState, identity: GoogleIdentity, current: { userId: string; sessionIssuedAt: number }, nowSeconds = Math.floor(Date.now() / 1000)): Promise<boolean> {
-  const reject = (reason: string) => {
+export async function checkStepUp(state: OAuthState, identity: GoogleIdentity, current: { userId: string; sessionIssuedAt: number }, nowSeconds = Math.floor(Date.now() / 1000)): Promise<StepUpCheck> {
+  const reject = (reason: StepUpRejection): StepUpCheck => {
     console.warn(JSON.stringify({ event: "google_reauth_rejected", reason }));
-    return false;
+    return { ok: false, reason };
   };
   if (state.sub !== current.userId || state.sid !== current.sessionIssuedAt) return reject("session_mismatch");
   if (identity.authTime === undefined) return reject("auth_time_missing");
-  if (!Number.isSafeInteger(identity.authTime) || nowSeconds - identity.authTime > STEP_UP_MAX_AGE_SECONDS + 60 || identity.authTime > nowSeconds + 60) return reject("auth_time_invalid_or_stale");
+  if (!Number.isSafeInteger(identity.authTime) || nowSeconds - identity.authTime > STEP_UP_MAX_AGE_SECONDS + 60 || identity.authTime > nowSeconds + 60) return reject("auth_time_stale");
   const bound = await googleSubOf(current.userId);
-  return bound !== null && bound === identity.sub ? true : reject("account_mismatch");
+  return bound !== null && bound === identity.sub ? { ok: true } : reject("account_mismatch");
+}
+
+export async function verifyStepUp(state: OAuthState, identity: GoogleIdentity, current: { userId: string; sessionIssuedAt: number }, nowSeconds?: number): Promise<boolean> {
+  return (await checkStepUp(state, identity, current, nowSeconds)).ok;
 }

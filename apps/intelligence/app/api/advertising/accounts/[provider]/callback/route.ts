@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { completeConnection, isConnectProvider } from "@/lib/server/ad-accounts";
 import { completeWhatsApp } from "@/lib/server/connections";
 import { getPrincipal } from "@/lib/server/auth";
-import { appOrigin, OAUTH_COOKIE, oauthCookie, readOAuthState } from "@/lib/server/google-oauth";
+import { appOrigin, flowCookieName, flowCookieValue, oauthCookie, readOAuthState } from "@/lib/server/google-oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,24 +12,27 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
   const { provider } = await params;
   const origin = appOrigin(request);
   const url = new URL(request.url);
-  const back = (query: Record<string, string>) => {
+  const back = (query: Record<string, string>, flowName?: string) => {
     const response = NextResponse.redirect(`${origin}/app/advertising?${new URLSearchParams(query)}`);
-    response.cookies.set(oauthCookie("", 0));
+    if (flowName) response.cookies.set(oauthCookie(flowName, "", 0));
     response.headers.set("Cache-Control", "no-store");
     return response;
   };
   if (!isConnectProvider(provider)) return back({ ads: "unknown" });
   const current = await getPrincipal();
-  const state = await readOAuthState(url.searchParams.get("state"), (await cookies()).get(OAUTH_COOKIE)?.value, "ads", provider);
+  const store = await cookies();
+  const stateParam = url.searchParams.get("state");
+  const flowName = (await flowCookieName(stateParam)) ?? undefined;
+  const state = await readOAuthState(stateParam, await flowCookieValue(stateParam, (name) => store.get(name)?.value), "ads", provider);
   const code = url.searchParams.get("code");
-  if (!current || !state || state.sub !== current.principal.userId || state.tid !== current.principal.tenantId) return back({ ads: "failed" });
-  if (!code || code.length > 2000) return back({ ads: url.searchParams.get("error") ? "cancelled" : "failed" });
+  if (!current || !state || state.sub !== current.principal.userId || state.tid !== current.principal.tenantId) return back({ ads: "failed" }, flowName);
+  if (!code || code.length > 2000) return back({ ads: url.searchParams.get("error") ? "cancelled" : "failed" }, flowName);
   try {
     const redirectUri = `${origin}/api/advertising/accounts/${provider}/callback`;
     const result = provider === "whatsapp" ? await completeWhatsApp(current.principal, code, redirectUri) : await completeConnection(current.principal, provider, code, redirectUri);
-    return result.ok ? back({ ads: "connected", provider }) : back({ ads: "failed", reason: result.message.slice(0, 200) });
+    return result.ok ? back({ ads: "connected", provider }, flowName) : back({ ads: "failed", reason: result.message.slice(0, 200) }, flowName);
   } catch (error) {
     console.error(JSON.stringify({ event: "ad_connect_failure", provider, message: error instanceof Error ? error.message : "unknown" }));
-    return back({ ads: "failed" });
+    return back({ ads: "failed" }, flowName);
   }
 }

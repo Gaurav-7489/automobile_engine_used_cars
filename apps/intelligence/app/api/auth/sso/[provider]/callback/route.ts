@@ -3,8 +3,9 @@ import { cookies } from "next/headers";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { REAUTH_COOKIE, REAUTH_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS, verifyPayload } from "@/lib/session";
 import { getPrincipal, newReauthGrant, newSessionCookie } from "@/lib/server/auth";
-import { appOrigin, googleConfigured, OAUTH_COOKIE, oauthCookie, type OAuthState } from "@/lib/server/google-oauth";
-import { readGoogleCallback, signInWithGoogle, verifyStepUp } from "@/lib/server/google-signin";
+import { appOrigin, flowCookieName, flowCookieValue, googleConfigured, oauthCookie, type OAuthState } from "@/lib/server/google-oauth";
+import { checkStepUp, readGoogleCallback, signInWithGoogle } from "@/lib/server/google-signin";
+import type { StepUpResult } from "@/lib/step-up-copy";
 import { ACCESS_COOKIE, ACCESS_TTL_SECONDS, newAccessCookie } from "@/lib/server/access-requests";
 
 export const dynamic = "force-dynamic";
@@ -20,27 +21,33 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
   const { provider } = await params;
   const origin = appOrigin(request);
   const url = new URL(request.url);
+  const stateParam = url.searchParams.get("state");
+  // Only this flow's cookie is cleared; a second flow started in the same browser keeps its own.
+  const flowName = await flowCookieName(stateParam);
   const finish = (location: string) => {
     const response = NextResponse.redirect(location);
-    response.cookies.set(oauthCookie("", 0));
+    if (flowName) response.cookies.set(oauthCookie(flowName, "", 0));
     response.headers.set("Cache-Control", "no-store");
     return response;
   };
+  const confirmed = (result: StepUpResult) => finish(`${origin}/auth/confirmed?result=${result}`);
   const back = (notice: string) => finish(`${origin}/login?notice=${notice}&provider=google`);
   if (provider !== "google" || !googleConfigured()) return back("sso_unavailable");
   if (!(await hitShared(`sso-callback:${clientKey(request)}`, 30, 10 * 60_000)).allowed) return back("sso_wait");
-  const purpose = (await verifyPayload<OAuthState>(url.searchParams.get("state")))?.purpose === "reauth" ? "reauth" : "signin";
+  const store = await cookies();
+  const purpose = (await verifyPayload<OAuthState>(stateParam))?.purpose === "reauth" ? "reauth" : "signin";
   try {
-    const read = await readGoogleCallback({ state: url.searchParams.get("state"), code: url.searchParams.get("code"), cookie: (await cookies()).get(OAUTH_COOKIE)?.value, redirectUri: `${origin}/api/auth/sso/google/callback`, purpose });
+    const read = await readGoogleCallback({ state: stateParam, code: url.searchParams.get("code"), cookie: await flowCookieValue(stateParam, (name) => store.get(name)?.value), redirectUri: `${origin}/api/auth/sso/google/callback`, purpose });
 
     if (purpose === "reauth") {
       const current = await getPrincipal();
-      if (!current) return finish(`${origin}/auth/confirmed?result=signed_out`);
-      const confirmed = read ? await verifyStepUp(read.state, read.identity, { userId: current.principal.userId, sessionIssuedAt: current.session.iat ?? 0 }) : false;
-      if (!confirmed) return finish(`${origin}/auth/confirmed?result=failed`);
+      if (!current) return confirmed("signed_out");
+      if (!read) return confirmed("failed");
+      const check = await checkStepUp(read.state, read.identity, { userId: current.principal.userId, sessionIssuedAt: current.session.iat ?? 0 });
+      if (!check.ok) return confirmed(check.reason === "auth_time_missing" ? "setup_required" : "failed");
       const grant = await newReauthGrant(current.principal.userId, current.session.iat ?? 0);
-      if (!grant) return finish(`${origin}/auth/confirmed?result=unavailable`);
-      const response = finish(`${origin}/auth/confirmed?result=ok`);
+      if (!grant) return confirmed("unavailable");
+      const response = confirmed("ok");
       response.cookies.set(REAUTH_COOKIE, grant, { ...cookieOptions, maxAge: REAUTH_TTL_SECONDS });
       return response;
     }
@@ -70,6 +77,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
     return response;
   } catch (error) {
     console.error(JSON.stringify({ event: "google_signin_failure", message: error instanceof Error ? error.message : "unknown" }));
-    return purpose === "reauth" ? finish(`${origin}/auth/confirmed?result=failed`) : back("google_failed");
+    return purpose === "reauth" ? confirmed("failed") : back("google_failed");
   }
 }

@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import type { StepUpResult } from "@/lib/step-up-copy";
 
-export function CloseWhenConfirmed({ ok }: { ok: boolean }) {
+/** Tells the window that opened this one how it ended. A success closes this window; a failure stays open so the reason can be read. */
+export function CloseWhenConfirmed({ result }: { result: StepUpResult }) {
   useEffect(() => {
-    if (!ok) return;
-    try { window.opener?.postMessage({ type: "vl-reauth", ok: true }, window.location.origin); } catch { /* opener gone */ }
+    try { window.opener?.postMessage({ type: "vl-reauth", ok: result === "ok", result }, window.location.origin); } catch { /* opener gone */ }
+    if (result !== "ok") return;
     const t = setTimeout(() => window.close(), 600);
     return () => clearTimeout(t);
-  }, [ok]);
+  }, [result]);
   return null;
 }

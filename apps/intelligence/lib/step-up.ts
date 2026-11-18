@@ -1,5 +1,7 @@
 "use client";
 
+import { isStepUpResult, STEP_UP_MESSAGES } from "./step-up-copy";
+
 /**
  * Step-up confirmation before a sensitive change. With Google sign-in, a small window asks Google to confirm it's you
  * (re-authenticating unless you did in the last few minutes); the server checks it is the Google account bound to this session
@@ -17,22 +19,44 @@ export async function stepUpStatus(): Promise<{ valid: boolean; method: StepUpMe
   }
 }
 
-/** Opens Google confirmation. Call it directly inside a click handler (before any await) so pop-up blockers allow the window. */
+let pending: Promise<string | null> | null = null;
+
+/**
+ * Opens Google confirmation. Call it directly inside a click handler (before any await) so pop-up blockers allow the window.
+ * Only one confirmation window runs at a time: a second request while one is open waits for the same result.
+ */
 export function confirmWithGoogle(): Promise<string | null> {
+  if (pending) return pending;
   const popup = window.open("/api/auth/sso/google?intent=reauth", "vl-reauth", "popup,width=480,height=640");
   if (!popup) return Promise.resolve("Allow pop-ups for this site, then try again. Google opens a small window to confirm it's you.");
   const started = Date.now();
-  return new Promise((resolve) => {
-    const finish = (value: string | null) => { clearInterval(timer); window.removeEventListener("message", onMessage); resolve(value); };
+  pending = new Promise<string | null>((resolve) => {
+    const finish = (value: string | null) => {
+      clearInterval(closedTimer);
+      clearInterval(pollTimer);
+      window.removeEventListener("message", onMessage);
+      pending = null;
+      resolve(value);
+    };
     const check = async () => { if ((await stepUpStatus()).valid) finish(null); };
-    const onMessage = (e: MessageEvent) => { if (e.origin === window.location.origin && (e.data as { type?: string })?.type === "vl-reauth") void check(); };
+    // The confirmation window reports its outcome; a failure shows its reason, a success is verified on the server.
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin) return;
+      const data = e.data as { type?: string; ok?: boolean; result?: unknown } | null;
+      if (data?.type !== "vl-reauth") return;
+      if (data.ok) void check();
+      else finish(isStepUpResult(data.result) ? STEP_UP_MESSAGES[data.result] : STEP_UP_MESSAGES.failed);
+    };
     window.addEventListener("message", onMessage);
-    const timer = setInterval(() => {
+    // Local check only (no network): notice the window being closed by the person.
+    const closedTimer = setInterval(() => {
       if (Date.now() - started > 3 * 60_000) { finish("Confirmation timed out. Try again."); return; }
       if (popup.closed) void stepUpStatus().then((s) => finish(s.valid ? null : "Google confirmation was not completed."));
-      else void check();
-    }, 1200);
+    }, 1000);
+    // Fallback for browsers that sever window.opener on Google's pages: check the server every few seconds, not every second.
+    const pollTimer = setInterval(() => { void check(); }, 4000);
   });
+  return pending;
 }
 
 /** Returns null once confirmed, or a message to show. `password` is used only for legacy password sessions. */

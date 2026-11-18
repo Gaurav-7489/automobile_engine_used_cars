@@ -6,10 +6,17 @@ import { signPayload, verifyPayload } from "../session";
  * The client secret stays on the server. Every round trip carries a signed, short-lived state value bound to a cookie in the
  * same browser, so a callback cannot be replayed from another session or forged by another site.
  */
-export const OAUTH_COOKIE = process.env.NODE_ENV === "production" ? "__Host-vl_oauth" : "vl_oauth";
+/**
+ * Each round trip has its own cookie, named by its nonce. Two flows in one browser (say, a sign-in and a confirmation window) can
+ * therefore run at the same time without one overwriting the other's PKCE verifier.
+ */
+export const OAUTH_COOKIE_PREFIX = process.env.NODE_ENV === "production" ? "__Host-vl_oauth_" : "vl_oauth_";
 export const OAUTH_TTL_SECONDS = 10 * 60;
 
 export type OAuthState = { n: string; purpose: "signin" | "reauth" | "ads"; provider: "google" | "meta" | "whatsapp"; returnTo?: string; sub?: string; tid?: string; sid?: number; exp: number };
+
+/** The cookie that belongs to one flow. The nonce is inside the signed state, so it is read only after the state verifies. */
+export const oauthCookieName = (nonce: string) => `${OAUTH_COOKIE_PREFIX}${nonce}`;
 
 export const googleConfigured = (): boolean => Boolean(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim());
 
@@ -46,6 +53,20 @@ export function readOAuthCookie(value: string | undefined): { nonce: string; ver
   return nonce ? { nonce, verifier: verifier || undefined } : null;
 }
 
+/**
+ * The cookie value for the flow named in a state token. The state must verify first: its nonce (inside the signature) selects the
+ * cookie, so a forged or expired state never reads anyone's cookie.
+ */
+export async function flowCookieName(state: string | null): Promise<string | null> {
+  const payload = await verifyPayload<OAuthState>(state);
+  return payload ? oauthCookieName(payload.n) : null;
+}
+
+export async function flowCookieValue(state: string | null, get: (name: string) => string | undefined): Promise<string | undefined> {
+  const name = await flowCookieName(state);
+  return name ? get(name) : undefined;
+}
+
 /** The state is ours (signature), fresh (expiry), for this flow, and started in this browser (cookie). */
 export async function readOAuthState(state: string | null, cookieValue: string | undefined, purpose: OAuthState["purpose"], provider: OAuthState["provider"]): Promise<OAuthState | null> {
   const payload = await verifyPayload<OAuthState>(state);
@@ -54,9 +75,14 @@ export async function readOAuthState(state: string | null, cookieValue: string |
   return payload;
 }
 
-export const oauthCookie = (value: string, maxAge = OAUTH_TTL_SECONDS) => ({ name: OAUTH_COOKIE, value, httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge });
+export const oauthCookie = (name: string, value: string, maxAge = OAUTH_TTL_SECONDS) => ({ name, value, httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge });
 
-export function googleAuthUrl(input: { redirectUri: string; state: string; scope: string; nonce?: string; offline?: boolean; verifier?: string; maxAge?: number; loginHint?: string }): string {
+/**
+ * Builds the authorization request. Step-up (`reauthenticate`) asks for a fresh login (`prompt=login`) and `max_age`, and asks for
+ * `auth_time`. Google's support for those is not assumed: the callback still requires an `auth_time` that is recent, and rejects
+ * the confirmation otherwise, so a provider that ignores a hint can never produce a false confirmation.
+ */
+export function googleAuthUrl(input: { redirectUri: string; state: string; scope: string; nonce?: string; offline?: boolean; verifier?: string; maxAge?: number; loginHint?: string; reauthenticate?: boolean }): string {
   const p = new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID!.trim(), redirect_uri: input.redirectUri, response_type: "code", scope: input.scope, state: input.state });
   if (input.nonce) p.set("nonce", input.nonce);
   if (input.verifier) { p.set("code_challenge", pkceChallenge(input.verifier)); p.set("code_challenge_method", "S256"); }
@@ -67,7 +93,9 @@ export function googleAuthUrl(input: { redirectUri: string; state: string; scope
   }
   if (input.loginHint) p.set("login_hint", input.loginHint);
   // Offline access with a forced consent screen is the only way Google reliably returns a refresh token.
-  if (input.offline) { p.set("access_type", "offline"); p.set("prompt", "consent"); } else p.set("prompt", "select_account");
+  if (input.offline) { p.set("access_type", "offline"); p.set("prompt", "consent"); }
+  else if (input.reauthenticate) p.set("prompt", "login");
+  else p.set("prompt", "select_account");
   return `https://accounts.google.com/o/oauth2/v2/auth?${p.toString()}`;
 }
 

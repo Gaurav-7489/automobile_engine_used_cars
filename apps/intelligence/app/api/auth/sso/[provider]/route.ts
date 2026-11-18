@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { safeReturnTo } from "@/lib/session";
 import { getPrincipal } from "@/lib/server/auth";
-import { appOrigin, googleAuthUrl, googleConfigured, newOAuthState, oauthCookie } from "@/lib/server/google-oauth";
+import { appOrigin, googleAuthUrl, googleConfigured, newOAuthState, oauthCookie, oauthCookieName } from "@/lib/server/google-oauth";
 import { STEP_UP_MAX_AGE_SECONDS } from "@/lib/server/google-signin";
 
 export const dynamic = "force-dynamic";
@@ -27,8 +27,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
     if (!current) return NextResponse.redirect(`${origin}/auth/confirmed?result=signed_out`);
     const issued = await newOAuthState({ purpose: "reauth", provider: "google", sub: current.principal.userId, sid: current.session.iat ?? 0 });
     if (!issued) return NextResponse.redirect(`${origin}/auth/confirmed?result=unavailable`);
-    const response = NextResponse.redirect(googleAuthUrl({ redirectUri, state: issued.state, nonce: issued.nonce, verifier: issued.verifier, scope: "openid email", maxAge: STEP_UP_MAX_AGE_SECONDS, loginHint: current.principal.email }));
-    response.cookies.set(oauthCookie(issued.cookie));
+    const response = NextResponse.redirect(googleAuthUrl({ redirectUri, state: issued.state, nonce: issued.nonce, verifier: issued.verifier, scope: "openid email", maxAge: STEP_UP_MAX_AGE_SECONDS, loginHint: current.principal.email, reauthenticate: true }));
+    response.cookies.set(oauthCookie(oauthCookieName(issued.nonce), issued.cookie));
     response.headers.set("Cache-Control", "no-store");
     return response;
   }
@@ -37,7 +37,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
   const issued = await newOAuthState({ purpose: "signin", provider: "google", returnTo: returnTo ? safeReturnTo(returnTo) : undefined });
   if (!issued) return back("sso_unavailable");
   const response = NextResponse.redirect(googleAuthUrl({ redirectUri, state: issued.state, nonce: issued.nonce, verifier: issued.verifier, scope: "openid email profile" }));
-  response.cookies.set(oauthCookie(issued.cookie));
+  response.cookies.set(oauthCookie(oauthCookieName(issued.nonce), issued.cookie));
   response.headers.set("Cache-Control", "no-store");
   return response;
 }

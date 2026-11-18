@@ -34,7 +34,7 @@ Requests appear in the admin console (Overview and Dealerships → **Access requ
 - `/admin` shows real dealership data only to a platform administrator whose session came through Google sign-in (this replaces the mandatory authenticator-app gate). Keep **2-Step Verification on the Super Admin's Google account**.
 - Every admin change (create dealership, change owner, link a website, plans, suspensions) and owner-sensitive actions (API keys, role escalation, messaging tokens) need a **fresh Google confirmation**: a small Google window with `max_age=300`; the server checks the confirming account is the one bound to this user, for this session, and that `auth_time` is within 5 minutes, then grants 10 minutes.
 
-The confirmation request explicitly asks for the `auth_time` ID token claim. In Google Auth Platform, confirm the OAuth app is published and verified, then enable **Session age claims** under **Settings → Advanced Settings**. If confirmation still fails, filter the production runtime logs for `google_callback_rejected` or `google_reauth_rejected` to see which check failed.
+The confirmation request explicitly asks for the `auth_time` ID token claim. In Google Auth Platform, confirm the OAuth app is published and verified, then enable **Session age claims** under **Settings → Advanced Settings**. If Google does not return `auth_time`, the confirmation window says so and the server logs `google_reauth_rejected` with `reason: auth_time_missing`; nothing is approved in that case. Other failures are logged as `google_callback_rejected` or `google_reauth_rejected` with the check that failed. Each confirmation uses its own cookie, so a sign-in and a confirmation can run side by side in one browser.
 
 ## Dealerships
 

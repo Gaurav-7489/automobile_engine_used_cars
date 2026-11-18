@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { adAuthUrl, canManageAds, isConnectProvider, providerConfigured } from "@/lib/server/ad-accounts";
 import { getPrincipal } from "@/lib/server/auth";
-import { appOrigin, newOAuthState, oauthCookie } from "@/lib/server/google-oauth";
+import { appOrigin, newOAuthState, oauthCookie, oauthCookieName } from "@/lib/server/google-oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
   const issued = await newOAuthState({ purpose: "ads", provider, sub: current.principal.userId, tid: current.principal.tenantId });
   if (!issued) return back("unavailable");
   const response = NextResponse.redirect(adAuthUrl(provider, `${origin}/api/advertising/accounts/${provider}/callback`, issued.state));
-  response.cookies.set(oauthCookie(issued.nonce));
+  response.cookies.set(oauthCookie(oauthCookieName(issued.nonce), issued.nonce));
   response.headers.set("Cache-Control", "no-store");
   return response;
 }
