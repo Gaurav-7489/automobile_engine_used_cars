@@ -2,7 +2,7 @@
 
 import { Notice, PasswordField } from "../ui";
 import { useEffect, useState } from "react";
-import { confirmWithGoogle, stepUp, stepUpStatus, type StepUpMethod } from "@/lib/step-up";
+import { confirmWithGoogle, stepUp, stepUpStatus, type StepUpTarget } from "@/lib/step-up";
 
 export type Problem = { error?: { code?: string; message?: string; fields?: Record<string, string> } };
 
@@ -16,25 +16,21 @@ export async function call<T>(url: string, init?: RequestInit): Promise<{ ok: bo
 }
 
 /**
- * Step-up confirmation shared by every sensitive dialog. With Google sign-in, `confirm()` opens Google's confirmation window;
- * `needsPassword` is true only for a legacy password session (LEGACY_PASSWORD_LOGIN=enabled), where the dialog shows a password field.
+ * Step-up confirmation for one sensitive change. Every change has its own confirmation (one action, one resource, used once), so
+ * `confirm(password, target)` always asks again. `needsPassword` is true only for a legacy password session (LEGACY_PASSWORD_LOGIN=enabled),
+ * where the dialog shows a password field.
  */
 export function useReauth() {
   const [needsPassword, setNeedsPassword] = useState(false);
-  const [known, setKnown] = useState<{ valid: boolean; method: StepUpMethod } | null>(null);
   useEffect(() => {
     let live = true;
-    void stepUpStatus().then((s) => { if (live) { setKnown(s); setNeedsPassword(!s.valid && s.method === "password"); } });
+    void stepUpStatus().then((s) => { if (live) setNeedsPassword(s.method === "password"); });
     return () => { live = false; };
   }, []);
-  /** Returns an error message, or null once the account is confirmed. */
-  const confirm = (password: string): Promise<string | null> => {
-    // Known to need Google: open its window synchronously, inside the click, so pop-up blockers allow it.
-    const pending = known && !known.valid && known.method === "google" ? confirmWithGoogle() : stepUp(password || undefined);
-    return pending.then((failed) => { if (!failed) { setNeedsPassword(false); setKnown({ valid: true, method: known?.method ?? "google" }); } return failed; });
-  };
-  /** Call when the server says the confirmation lapsed between the check and the change. */
-  const expired = () => { void stepUpStatus().then((s) => { setKnown(s); setNeedsPassword(!s.valid && s.method === "password"); }); };
+  /** Returns an error message, or null once this change is confirmed. Google's window opens synchronously, inside the click. */
+  const confirm = (password: string, target: StepUpTarget): Promise<string | null> => (needsPassword ? stepUp(password || undefined, target) : confirmWithGoogle(target));
+  /** Call when the server says the confirmation was missing or used. */
+  const expired = () => { void stepUpStatus().then((s) => setNeedsPassword(s.method === "password")); };
   return { needsPassword, confirm, expired };
 }
 

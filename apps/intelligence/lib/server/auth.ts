@@ -1,7 +1,9 @@
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
 import type { Session } from "../domain";
-import { REAUTH_COOKIE, REAUTH_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS, signPayload, signSession, verifyPayload, verifySession } from "../session";
+import { REAUTH_COOKIE, SESSION_COOKIE, SESSION_TTL_SECONDS, signPayload, signSession, verifyPayload, verifySession } from "../session";
+import { STEP_UP_TTL_SECONDS, type StepUpAction } from "../step-up-actions";
+import { plain } from "./db";
 import { resolvePrincipal, type Principal } from "./identity";
 
 export function principalSession(principal: Principal, issuedAt: number, exp: number, amr?: Session["amr"]): Session {
@@ -24,23 +26,42 @@ export async function newSessionCookie(userId: string, tenantId: string, amr: Se
   return signSession({ sub: userId, tid: tenantId, name: "", email: "", role: "viewer", branchIds: [], iat, exp: iat + SESSION_TTL_SECONDS, amr });
 }
 
-/** What a password confirmation grants: tied to one user and the exact session it was made in, so it cannot move between sessions or people. */
-export type ReauthGrant = { sub: string; sid: number; scope: "step-up"; exp: number };
+/**
+ * A step-up confirmation: permission for ONE sensitive action on ONE resource, for this user and this exact session, usable once.
+ * `method` records how it was obtained: a fresh Google sign-in that reported its authentication time ("google_auth_time"), or a fresh
+ * Google authorization that Google was required to complete interactively (prompt=login) without reporting a time
+ * ("google_authorization"), or the legacy password ("password"). It is never described as a recent Google login unless Google said so.
+ */
+export type StepUpMethod = "google_auth_time" | "google_authorization" | "password";
+export type StepUpGrant = { sub: string; sid: number; scope: "step-up"; act: StepUpAction; res: string; method: StepUpMethod; jti: string; iat: number; exp: number };
 
-export async function newReauthGrant(userId: string, sessionIssuedAt: number): Promise<string | null> {
-  return signPayload({ sub: userId, sid: sessionIssuedAt, scope: "step-up", exp: Math.floor(Date.now() / 1000) + REAUTH_TTL_SECONDS } satisfies ReauthGrant);
+export async function newReauthGrant(userId: string, sessionIssuedAt: number, action: StepUpAction, resource: string, method: StepUpMethod): Promise<string | null> {
+  const iat = Math.floor(Date.now() / 1000);
+  const jti = Buffer.from(crypto.getRandomValues(new Uint8Array(18))).toString("base64url");
+  return signPayload({ sub: userId, sid: sessionIssuedAt, scope: "step-up", act: action, res: resource, method, jti, iat, exp: iat + STEP_UP_TTL_SECONDS } satisfies StepUpGrant);
 }
 
-/** Seconds left on the signed-in user's confirmation, or 0 when there is none. */
-export async function reauthSecondsLeft(): Promise<number> {
+/** The confirmation the signed-in user holds, if any, without using it. The screen uses it to show the Google window has finished. */
+export async function currentStepUp(): Promise<{ action: StepUpAction; resource: string; expiresIn: number } | null> {
   const current = await getPrincipal();
-  if (!current) return 0;
-  const grant = await verifyPayload<ReauthGrant>((await cookies()).get(REAUTH_COOKIE)?.value);
-  if (!grant || grant.scope !== "step-up" || grant.sub !== current.principal.userId || grant.sid !== current.session.iat) return 0;
-  return Math.max(0, grant.exp - Math.floor(Date.now() / 1000));
+  if (!current) return null;
+  const grant = await verifyPayload<StepUpGrant>((await cookies()).get(REAUTH_COOKIE)?.value);
+  if (!grant || grant.scope !== "step-up" || grant.sub !== current.principal.userId || grant.sid !== (current.session.iat ?? 0)) return null;
+  const expiresIn = grant.exp - Math.floor(Date.now() / 1000);
+  return expiresIn > 0 ? { action: grant.act, resource: grant.res, expiresIn } : null;
 }
 
-export async function hasRecentReauth(userId: string): Promise<boolean> {
+/**
+ * Uses the confirmation for exactly this action and resource, once. Returns false when there is none, it belongs to another user or
+ * session, it names another action or resource, it has expired, or it was already used. The use is recorded in the database, so two
+ * requests racing with the same confirmation cannot both succeed.
+ */
+export async function consumeStepUp(userId: string, action: StepUpAction, resource = ""): Promise<boolean> {
   const current = await getPrincipal();
-  return current?.principal.userId === userId && (await reauthSecondsLeft()) > 0;
+  if (!current || current.principal.userId !== userId) return false;
+  const grant = await verifyPayload<StepUpGrant>((await cookies()).get(REAUTH_COOKIE)?.value);
+  if (!grant || grant.scope !== "step-up" || grant.sub !== userId || grant.sid !== (current.session.iat ?? 0)) return false;
+  if (grant.act !== action || grant.res !== resource || typeof grant.jti !== "string" || grant.exp <= Math.floor(Date.now() / 1000)) return false;
+  const row = (await plain((c) => c.query("SELECT intelligence_step_up_consume($1, $2) AS ok", [grant.jti, new Date(grant.exp * 1000).toISOString()]))).rows[0] as { ok: boolean } | undefined;
+  return row?.ok === true;
 }

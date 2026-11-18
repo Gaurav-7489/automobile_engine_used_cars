@@ -29,7 +29,7 @@ export function Messaging() {
     setBusy(channel); setError("");
     try {
       if (details && form.token) {
-        const failed = await auth.confirm(form.password);
+        const failed = await auth.confirm(form.password, { action: "settings.messaging" });
         if (failed) { setError(failed); setBusy(""); return; }
       }
       const r = await fetch("/api/settings/messaging", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ channel, enabled, ...(details ? { externalId: form.externalId, token: form.token || undefined } : {}) }) });

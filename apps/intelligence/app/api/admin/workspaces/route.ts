@@ -13,7 +13,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const gate = await adminApi(request, { reauth: true });
+  const gate = await adminApi(request, { reauth: { action: "workspace.create" } });
   if (gate.error) return gate.error;
   const limit = await hitShared(`admin-provision:${gate.access.userId}`, 20, 60 * 60_000);
   if (!limit.allowed) return rateLimited("Too many workspaces created in the last hour.", limit.retryAfter);

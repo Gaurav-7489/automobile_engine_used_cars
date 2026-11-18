@@ -1,7 +1,7 @@
 import { json, problem, rateLimited, readJson } from "@/lib/api";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { launchAction, type LaunchAction } from "@/lib/server/ad-campaigns";
-import { getPrincipal, hasRecentReauth } from "@/lib/server/auth";
+import { getPrincipal } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { appOrigin } from "@/lib/server/google-oauth";
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   const action = body?.action;
   if (typeof body?.campaignId !== "string" || body.campaignId.length > 40 || !(action === "publish" || action === "pause" || action === "resume")) return problem(422, "invalid", "Choose a campaign and an action.");
   try {
-    const outcome = await launchAction(current.principal, body.campaignId, action as LaunchAction, appOrigin(request), await hasRecentReauth(current.principal.userId));
+    const outcome = await launchAction(current.principal, body.campaignId, action as LaunchAction, appOrigin(request), false); // Publishing has never needed a step-up confirmation (only role and key changes do).
     return outcome.ok ? json(outcome) : problem(outcome.status, "failed", outcome.message);
   } catch (error) {
     console.error(JSON.stringify({ event: "ad_launch_route_failure", message: error instanceof Error ? error.message : "unknown" }));

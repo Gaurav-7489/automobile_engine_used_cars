@@ -8,11 +8,11 @@ export const dynamic = "force-dynamic";
 
 /** Approves, changes or disables one sourcing data source for a dealership. Needs a recent password confirmation; audited. */
 export async function POST(request: Request, context: { params: Promise<{ tenantId: string }> }) {
-  const gate = await adminApi(request, { reauth: true });
+  const { tenantId } = await context.params;
+  const gate = await adminApi(request, { reauth: { action: "workspace.sources", resource: tenantId } });
   if (gate.error) return gate.error;
   const limit = await hitShared(`admin-sources:${gate.access.userId}`, 30, 10 * 60_000);
   if (!limit.allowed) return rateLimited("Too many source changes. Wait a few minutes.", limit.retryAfter);
-  const { tenantId } = await context.params;
   if (!isUuid(tenantId)) return problem(404, "not_found", "Not found.");
   const body = await readJson<Partial<SourceInput>>(request, 4_000);
   if (!body) return problem(422, "invalid", "Send the source.");

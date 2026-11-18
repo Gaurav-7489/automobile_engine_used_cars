@@ -38,7 +38,7 @@ export function EntitlementsDialog({ tenantId, name, onClose, onSaved }: { tenan
 
   const save = async () => {
     setBusy(true); setErrors({}); setDone(false);
-    const failed = await auth.confirm(password);
+    const failed = await auth.confirm(password, { action: "workspace.entitlements", resource: tenantId });
     if (failed) { setBusy(false); setErrors({ password: failed }); return; }
     const features = Object.fromEntries(FEATURES.map((f) => [f.key, !off.has(f.key)]));
     const r = await call<object>(`/api/admin/workspaces/${tenantId}/entitlements`, { method: "POST", body: JSON.stringify({ subscription: subscribed ? sub : null, features }) });
@@ -77,7 +77,7 @@ export function EntitlementsDialog({ tenantId, name, onClose, onSaved }: { tenan
               ))}
             </fieldset>
             <SourceEditor tenantId={tenantId} sources={loaded.sources} auth={auth} password={password} onChanged={() => void load()} />
-            {auth.needsPassword ? <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} /> : <Notice>Your identity was confirmed a moment ago.</Notice>}
+            {auth.needsPassword ? <PasswordField label="Confirm your password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" error={errors.password} /> : <Notice>Google will ask you to confirm it&apos;s you in a small window before this change is saved.</Notice>}
           </>
         ) : null}
       </div>
@@ -97,7 +97,7 @@ function SourceEditor({ tenantId, sources, auth, password, onChanged }: { tenant
   const [note, setNote] = useState("");
   const send = async (body: object) => {
     setBusy(true); setErrors({}); setNote("");
-    const failed = await auth.confirm(password);
+    const failed = await auth.confirm(password, { action: "workspace.sources", resource: tenantId });
     if (failed) { setBusy(false); setErrors({ form: failed }); return false; }
     const r = await call<object>(`/api/admin/workspaces/${tenantId}/sources`, { method: "POST", body: JSON.stringify(body) });
     setBusy(false);

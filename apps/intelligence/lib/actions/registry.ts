@@ -101,6 +101,9 @@ export const COMMANDS: Record<string, Entry> = {
 
 export const MAX_COMMANDS = 10;
 
+/** Whether a command changes something that needs a fresh confirmation (for example a role, or an API key). */
+export const commandNeedsStepUp = (name: string): boolean => COMMANDS[name]?.reauth !== undefined;
+
 export function isCommandList(value: unknown): value is Command[] {
   return Array.isArray(value) && value.length > 0 && value.length <= MAX_COMMANDS
     && value.every((c) => c && typeof c === "object" && typeof (c as Command).name === "string" && Array.isArray((c as Command).args) && (c as Command).args.length <= 6);

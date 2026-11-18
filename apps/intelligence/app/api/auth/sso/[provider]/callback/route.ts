@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { clientKey, hitShared } from "@/lib/rate-limit";
-import { REAUTH_COOKIE, REAUTH_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS, verifyPayload } from "@/lib/session";
+import { REAUTH_COOKIE, SESSION_COOKIE, SESSION_TTL_SECONDS, verifyPayload } from "@/lib/session";
+import { STEP_UP_TTL_SECONDS } from "@/lib/step-up-actions";
 import { getPrincipal, newReauthGrant, newSessionCookie } from "@/lib/server/auth";
 import { appOrigin, flowCookieName, flowCookieValue, googleConfigured, oauthCookie, REAUTH_RESULT_COOKIE, type OAuthState } from "@/lib/server/google-oauth";
 import { checkStepUp, readGoogleCallback, signInWithGoogle } from "@/lib/server/google-signin";
@@ -49,11 +50,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
       if (!current) return confirmed("signed_out");
       if (!read) return confirmed("failed");
       const check = await checkStepUp(read.state, read.identity, { userId: current.principal.userId, sessionIssuedAt: current.session.iat ?? 0 });
-      if (!check.ok) return confirmed(check.reason === "auth_time_missing" ? "setup_required" : "failed");
-      const grant = await newReauthGrant(current.principal.userId, current.session.iat ?? 0);
+      if (!check.ok) return confirmed("failed");
+      const grant = await newReauthGrant(current.principal.userId, current.session.iat ?? 0, check.action, check.resource, check.method);
       if (!grant) return confirmed("unavailable");
+      console.info(JSON.stringify({ event: "step_up_granted", action: check.action, method: check.method }));
       const response = confirmed("ok");
-      response.cookies.set(REAUTH_COOKIE, grant, { ...cookieOptions, maxAge: REAUTH_TTL_SECONDS });
+      response.cookies.set(REAUTH_COOKIE, grant, { ...cookieOptions, maxAge: STEP_UP_TTL_SECONDS });
       return response;
     }
 

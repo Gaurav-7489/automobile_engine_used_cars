@@ -49,11 +49,10 @@ test("administrator creates a dealership; the owner activates and reaches a priv
   await page.reload();
   await expect(page.getByText(`Nair Motors ${stamp}`).first()).toBeVisible();
 
-  // A valid confirmation is remembered: the next sensitive dialog does not ask for the password again.
+  // A confirmation is single-use and bound to one change: the next sensitive dialog asks for the password again.
   await page.getByRole("button", { name: /add dealership/i }).first().click();
   const again = page.getByRole("dialog", { name: /add dealership/i });
-  await expect(again.getByText("Your identity was confirmed a moment ago.")).toBeVisible();
-  await expect(again.getByLabel(/confirm your password/i)).toHaveCount(0);
+  await expect(again.getByLabel(/confirm your password/i)).toBeVisible();
 
   // Owner activation in a separate browser context.
   const owner = await browser.newContext();

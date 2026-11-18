@@ -1,7 +1,7 @@
 import { json, problem, readJson } from "@/lib/api";
 import { can } from "@/lib/permissions";
 import { assistantConfigured } from "@/lib/server/assistant";
-import { getPrincipal, hasRecentReauth } from "@/lib/server/auth";
+import { consumeStepUp, getPrincipal } from "@/lib/server/auth";
 import { canManageChannels, readChannels, saveChannel } from "@/lib/server/channels";
 import { sameOrigin } from "@/lib/server/csrf";
 import { tenantTx } from "@/lib/server/db";
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const channel = body?.channel;
   if (channel !== "website" && channel !== "whatsapp" && channel !== "instagram") return problem(422, "invalid", "Choose a channel.");
   const token = typeof body?.token === "string" ? body.token.slice(0, 1000) : undefined;
-  if (token && !(await hasRecentReauth(current.principal.userId))) return problem(403, "reauth_required", "Confirm your password before saving an access token.");
+  if (token && !(await consumeStepUp(current.principal.userId, "settings.messaging"))) return problem(403, "reauth_required", "Confirm it's you with Google before saving an access token.");
   const result = await saveChannel(current.principal, { channel, enabled: body?.enabled === true, externalId: typeof body?.externalId === "string" ? body.externalId.slice(0, 40) : undefined, token });
   return result.ok ? json(result) : problem(422, "invalid", result.message);
 }

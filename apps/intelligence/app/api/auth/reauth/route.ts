@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { problem, rateLimited, readJson } from "@/lib/api";
 import { clientKey, hitShared } from "@/lib/rate-limit";
-import { REAUTH_COOKIE, REAUTH_TTL_SECONDS } from "@/lib/session";
-import { getPrincipal, newReauthGrant, reauthSecondsLeft } from "@/lib/server/auth";
+import { REAUTH_COOKIE } from "@/lib/session";
+import { currentStepUp, getPrincipal, newReauthGrant } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { reauthenticate } from "@/lib/server/identity";
 import { legacyPasswordLogin } from "@/lib/server/legacy-auth";
 import { REAUTH_RESULT_COOKIE } from "@/lib/server/google-oauth";
+import { isStepUpAction, isStepUpResource, STEP_UP_TTL_SECONDS } from "@/lib/step-up-actions";
 import { isStepUpResult } from "@/lib/step-up-copy";
 
 export const dynamic = "force-dynamic";
@@ -15,20 +16,22 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const cookieOptions = { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" } as const;
 
-/** Whether the signed-in user still holds a valid password confirmation, so screens can skip asking again. */
+/**
+ * What the signed-in user's confirmation state is: which method applies, the reason the last Google window failed (if it did in the
+ * last two minutes), and the confirmation they hold, if any. A confirmation is never reported as "valid" in general: it is for one action.
+ */
 export async function GET() {
-  const seconds = await reauthSecondsLeft();
   const current = await getPrincipal();
-  // "google": confirm in a Google window (/api/auth/sso/google?intent=reauth). "password": the legacy password confirmation.
+  // "google": confirm in a Google window (/api/auth/sso/google?intent=reauth&action=…). "password": the legacy password confirmation.
   const method = current?.session.amr === "google" || !legacyPasswordLogin() ? "google" : "password";
-  // The reason the last confirmation window failed, if one did in the last two minutes (see the callback).
   const last = (await cookies()).get(REAUTH_RESULT_COOKIE)?.value;
-  return NextResponse.json({ valid: seconds > 0, expiresIn: seconds, method, lastResult: isStepUpResult(last) ? last : null }, { headers: NO_STORE });
+  const confirmation = await currentStepUp();
+  return NextResponse.json({ method, lastResult: isStepUpResult(last) ? last : null, confirmation }, { headers: NO_STORE });
 }
 
 /**
- * Step-up confirmation. Verifies the password of the signed-in user only (never an email from the request), then issues a
- * short-lived grant that is bound to that user and to this session. Two-factor stays enforced by the admin gate itself.
+ * Legacy password confirmation (LEGACY_PASSWORD_LOGIN=enabled only). Verifies the signed-in user's own password, then issues a
+ * single-use confirmation for the one action named in the request.
  */
 export async function POST(request: Request) {
   if (!legacyPasswordLogin()) return problem(410, "gone", "Confirm with Google instead.");
@@ -37,16 +40,17 @@ export async function POST(request: Request) {
   if (!current) return problem(401, "unauthenticated", "Your session has expired. Sign in again.");
   const limit = await hitShared(`reauth:${clientKey(request)}:${current.principal.userId}`, 8, 10 * 60_000);
   if (!limit.allowed) return rateLimited("Too many attempts. Wait a few minutes and try again.", limit.retryAfter);
-  const body = await readJson<{ password?: string }>(request);
+  const body = await readJson<{ password?: string; action?: string; resource?: string }>(request);
+  if (!isStepUpAction(body?.action) || !isStepUpResource(body?.resource ?? "")) return problem(422, "invalid", "Choose the change to confirm.");
   if (typeof body?.password !== "string") return problem(401, "invalid_credentials", "That password is not correct.");
   const result = await reauthenticate(current.principal.userId, body.password);
   if (!result.ok) {
     if (result.code === "locked") return problem(429, "locked", "Too many wrong passwords. Try again in a few minutes.");
     return problem(401, "invalid_credentials", "That password is not correct.");
   }
-  const token = await newReauthGrant(current.principal.userId, current.session.iat ?? 0);
+  const token = await newReauthGrant(current.principal.userId, current.session.iat ?? 0, body.action, body.resource ?? "", "password");
   if (!token) return problem(503, "not_configured", "Not configured.");
-  const response = NextResponse.json({ ok: true, expiresIn: REAUTH_TTL_SECONDS }, { headers: NO_STORE });
-  response.cookies.set(REAUTH_COOKIE, token, { ...cookieOptions, maxAge: REAUTH_TTL_SECONDS });
+  const response = NextResponse.json({ ok: true, expiresIn: STEP_UP_TTL_SECONDS }, { headers: NO_STORE });
+  response.cookies.set(REAUTH_COOKIE, token, { ...cookieOptions, maxAge: STEP_UP_TTL_SECONDS });
   return response;
 }

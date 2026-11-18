@@ -1,33 +1,39 @@
 "use client";
 
+import type { StepUpAction } from "./step-up-actions";
 import { isStepUpResult, STEP_UP_MESSAGES, type StepUpResult } from "./step-up-copy";
 
 /**
- * Step-up confirmation before a sensitive change. With Google sign-in, a small window asks Google to confirm it's you
- * (re-authenticating unless you did in the last few minutes); the server checks it is the Google account bound to this session
- * and grants a 10-minute confirmation. The dialog that asked keeps its state.
+ * Step-up confirmation before one sensitive change. The confirmation is for that change only: a small Google window asks the person
+ * to sign in again, the server checks it and records one confirmation for this action and resource, and the change uses it once.
  */
 export type StepUpMethod = "google" | "password";
+export type StepUpTarget = { action: StepUpAction; resource?: string };
+export type StepUpConfirmation = { action: string; resource: string; expiresIn: number } | null;
 
-export async function stepUpStatus(): Promise<{ valid: boolean; method: StepUpMethod; lastResult: StepUpResult | null }> {
+export async function stepUpStatus(): Promise<{ method: StepUpMethod; lastResult: StepUpResult | null; confirmation: StepUpConfirmation }> {
   try {
     const r = await fetch("/api/auth/reauth", { cache: "no-store" });
-    const b = (await r.json()) as { valid?: boolean; method?: StepUpMethod; lastResult?: unknown };
-    return { valid: b.valid === true, method: b.method === "password" ? "password" : "google", lastResult: isStepUpResult(b.lastResult) ? b.lastResult : null };
+    const b = (await r.json()) as { method?: StepUpMethod; lastResult?: unknown; confirmation?: StepUpConfirmation };
+    return { method: b.method === "password" ? "password" : "google", lastResult: isStepUpResult(b.lastResult) ? b.lastResult : null, confirmation: b.confirmation ?? null };
   } catch {
-    return { valid: false, method: "google", lastResult: null };
+    return { method: "google", lastResult: null, confirmation: null };
   }
 }
+
+/** Whether the server holds a confirmation for exactly this action and resource. */
+const holds = (c: StepUpConfirmation, t: StepUpTarget) => c !== null && c.action === t.action && c.resource === (t.resource ?? "");
 
 let pending: Promise<string | null> | null = null;
 
 /**
- * Opens Google confirmation. Call it directly inside a click handler (before any await) so pop-up blockers allow the window.
- * Only one confirmation window runs at a time: a second request while one is open waits for the same result.
+ * Opens Google's confirmation window for one change. Call it directly inside a click handler (before any await) so pop-up blockers allow
+ * the window. Only one window runs at a time: a second request while one is open waits for the same result.
  */
-export function confirmWithGoogle(): Promise<string | null> {
+export function confirmWithGoogle(target: StepUpTarget): Promise<string | null> {
   if (pending) return pending;
-  const popup = window.open("/api/auth/sso/google?intent=reauth", "vl-reauth", "popup,width=480,height=640");
+  const query = new URLSearchParams({ intent: "reauth", action: target.action, resource: target.resource ?? "" });
+  const popup = window.open(`/api/auth/sso/google?${query.toString()}`, "vl-reauth", "popup,width=480,height=640");
   if (!popup) return Promise.resolve("Allow pop-ups for this site, then try again. Google opens a small window to confirm it's you.");
   const started = Date.now();
   pending = new Promise<string | null>((resolve) => {
@@ -38,8 +44,8 @@ export function confirmWithGoogle(): Promise<string | null> {
       pending = null;
       resolve(value);
     };
-    const check = async () => { if ((await stepUpStatus()).valid) finish(null); };
-    // The confirmation window reports its outcome; a failure shows its reason, a success is verified on the server.
+    const check = async () => { if (holds((await stepUpStatus()).confirmation, target)) finish(null); };
+    // The confirmation window reports its outcome; a failure shows a generic reason, success is verified on the server.
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin) return;
       const data = e.data as { type?: string; ok?: boolean; result?: unknown } | null;
@@ -48,10 +54,12 @@ export function confirmWithGoogle(): Promise<string | null> {
       else finish(isStepUpResult(data.result) ? STEP_UP_MESSAGES[data.result] : STEP_UP_MESSAGES.failed);
     };
     window.addEventListener("message", onMessage);
-    // Local check only (no network): notice the window being closed by the person.
+    // Local timing only (no network): notice the window being closed by the person.
     const closedTimer = setInterval(() => {
       if (Date.now() - started > 3 * 60_000) { finish("Confirmation timed out. Try again."); return; }
-      if (popup.closed) void stepUpStatus().then((s) => finish(s.valid ? null : s.lastResult ? STEP_UP_MESSAGES[s.lastResult] : "Google confirmation was not completed."));
+      if (popup.closed) {
+        void stepUpStatus().then((s) => finish(holds(s.confirmation, target) ? null : s.lastResult ? STEP_UP_MESSAGES[s.lastResult] : "Google confirmation was not completed."));
+      }
     }, 1000);
     // Fallback for browsers that sever window.opener on Google's pages: check the server every few seconds, not every second.
     const pollTimer = setInterval(() => { void check(); }, 4000);
@@ -59,14 +67,16 @@ export function confirmWithGoogle(): Promise<string | null> {
   return pending;
 }
 
-/** Returns null once confirmed, or a message to show. `password` is used only for legacy password sessions. */
-export async function stepUp(password?: string): Promise<string | null> {
+/**
+ * Returns null once this change is confirmed, or a message to show. `password` is used only for legacy password sessions
+ * (LEGACY_PASSWORD_LOGIN=enabled), where the confirmation is issued for the same action and resource.
+ */
+export async function stepUp(password: string | undefined, target: StepUpTarget): Promise<string | null> {
   const status = await stepUpStatus();
-  if (status.valid) return null;
-  if (status.method === "google") return confirmWithGoogle();
+  if (status.method === "google") return confirmWithGoogle(target);
   if (!password) return "Enter your password to continue.";
   try {
-    const r = await fetch("/api/auth/reauth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password }) });
+    const r = await fetch("/api/auth/reauth", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password, action: target.action, resource: target.resource ?? "" }) });
     if (r.ok) return null;
     const b = await r.json().catch(() => ({}));
     return b?.error?.message ?? "We could not confirm it's you. Try again.";

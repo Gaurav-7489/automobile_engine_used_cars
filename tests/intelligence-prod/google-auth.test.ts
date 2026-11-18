@@ -70,7 +70,7 @@ test("Google step-up explicitly requests authentication time without changing no
 
   const stepUp = new URL(googleAuthUrl({ ...input, maxAge: 300 }));
   assert.equal(stepUp.searchParams.get("max_age"), "300");
-  assert.deepEqual(JSON.parse(stepUp.searchParams.get("claims")!), { id_token: { auth_time: { essential: true } } });
+  assert.equal(stepUp.searchParams.has("claims"), false, "auth_time is not an essential claim: its absence must not fail the sign-in");
 });
 
 test("sessions record Google authentication; the legacy flag is off unless explicitly enabled", async () => {
@@ -224,12 +224,14 @@ test("step-up: the confirming Google account must be the one bound to this user,
     const admin = await signInWithGoogle(google("g-admin", "vandlabsstudio@gmail.com"));
     assert.ok(admin.ok);
     const sid = now() - 100;
-    const state = { n: "n", purpose: "reauth" as const, provider: "google" as const, sub: admin.userId, sid, exp: now() + 60 };
+    const state = { n: "n", purpose: "reauth" as const, provider: "google" as const, sub: admin.userId, sid, act: "workspace.create", res: "", exp: now() + 60 };
     const fresh = google("g-admin", "vandlabsstudio@gmail.com", { authTime: now() - 10 });
     assert.equal(await verifyStepUp(state, fresh, { userId: admin.userId, sessionIssuedAt: sid }), true);
     assert.equal(await verifyStepUp(state, { ...fresh, sub: "g-other" }, { userId: admin.userId, sessionIssuedAt: sid }), false, "a different Google account");
     assert.equal(await verifyStepUp(state, { ...fresh, authTime: now() - 3600 }, { userId: admin.userId, sessionIssuedAt: sid }), false, "not a fresh authentication");
-    assert.equal(await verifyStepUp(state, { ...fresh, authTime: undefined }, { userId: admin.userId, sessionIssuedAt: sid }), false);
+    // Google reports no auth_time: the forced-login authorization is the freshness basis, so the confirmation is accepted.
+    assert.equal(await verifyStepUp(state, { ...fresh, authTime: undefined }, { userId: admin.userId, sessionIssuedAt: sid }), true, "no auth_time is not a failure");
+    assert.equal(await verifyStepUp({ ...state, act: undefined }, fresh, { userId: admin.userId, sessionIssuedAt: sid }), false, "a confirmation must name its action");
     assert.equal(await verifyStepUp(state, fresh, { userId: admin.userId, sessionIssuedAt: sid + 1 }), false, "another session");
     assert.equal(await verifyStepUp({ ...state, sub: "00000000-0000-4000-8000-000000000001" }, fresh, { userId: admin.userId, sessionIssuedAt: sid }), false);
   } finally { await h.close(); }

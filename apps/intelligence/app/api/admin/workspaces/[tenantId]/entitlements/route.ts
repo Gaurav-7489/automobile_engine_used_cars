@@ -17,11 +17,11 @@ export async function GET(_request: Request, context: { params: Promise<{ tenant
 
 /** Sets a dealership's subscription and feature switches. Needs a recent password confirmation; every change is audited. */
 export async function POST(request: Request, context: { params: Promise<{ tenantId: string }> }) {
-  const gate = await adminApi(request, { reauth: true });
+  const { tenantId } = await context.params;
+  const gate = await adminApi(request, { reauth: { action: "workspace.entitlements", resource: tenantId } });
   if (gate.error) return gate.error;
   const limit = await hitShared(`admin-entitlements:${gate.access.userId}`, 30, 10 * 60_000);
   if (!limit.allowed) return rateLimited("Too many access changes. Wait a few minutes.", limit.retryAfter);
-  const { tenantId } = await context.params;
   if (!isUuid(tenantId)) return problem(404, "not_found", "Not found.");
   const body = await readJson<EntitlementInput>(request);
   if (!body || typeof body.features !== "object") return problem(422, "invalid", "Send the subscription and features.");

@@ -34,7 +34,7 @@ test("Continue with Google sends an OpenID Connect request with state, nonce and
   expect(u.searchParams.get("code_challenge")?.length).toBe(43);
   expect(u.searchParams.get("nonce")?.length).toBeGreaterThan(20);
   expect(u.searchParams.get("state")).toBeTruthy();
-  const oauth = (await page.context().cookies()).find((c) => /vl_oauth$/.test(c.name));
+  const oauth = (await page.context().cookies()).find((c) => /vl_oauth_/.test(c.name));
   expect(oauth?.httpOnly).toBe(true);
   expect(oauth?.value).toContain("~");
   expect(u.toString()).not.toContain(oauth!.value.split("~")[1]);

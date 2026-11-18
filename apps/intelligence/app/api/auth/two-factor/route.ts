@@ -1,6 +1,6 @@
 import { json, problem, rateLimited, readJson } from "@/lib/api";
 import { clientKey, hitShared } from "@/lib/rate-limit";
-import { getPrincipal, hasRecentReauth } from "@/lib/server/auth";
+import { consumeStepUp, getPrincipal } from "@/lib/server/auth";
 import { sameOrigin } from "@/lib/server/csrf";
 import { beginTotp, confirmTotp, disableTotp, totpState } from "@/lib/server/identity";
 import { otpauthUri } from "@/lib/server/totp";
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const userId = current.principal.userId;
   if (body?.action === "begin") {
     // Starting enrolment replaces any unconfirmed secret, so it needs a recent password confirmation.
-    if (!(await hasRecentReauth(userId))) return problem(403, "reauth_required", "Confirm your password first.");
+    if (!(await consumeStepUp(userId, "settings.two-factor"))) return problem(403, "reauth_required", "Confirm it's you with Google first.");
     const secret = await beginTotp(userId);
     if (!secret) return problem(409, "conflict", "Two-factor authentication is already on.");
     return json({ secret, uri: otpauthUri(secret, current.principal.email) });
