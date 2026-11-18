@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { REAUTH_COOKIE, REAUTH_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS, verifyPayload } from "@/lib/session";
 import { getPrincipal, newReauthGrant, newSessionCookie } from "@/lib/server/auth";
-import { appOrigin, flowCookieName, flowCookieValue, googleConfigured, oauthCookie, type OAuthState } from "@/lib/server/google-oauth";
+import { appOrigin, flowCookieName, flowCookieValue, googleConfigured, oauthCookie, REAUTH_RESULT_COOKIE, type OAuthState } from "@/lib/server/google-oauth";
 import { checkStepUp, readGoogleCallback, signInWithGoogle } from "@/lib/server/google-signin";
 import type { StepUpResult } from "@/lib/step-up-copy";
 import { ACCESS_COOKIE, ACCESS_TTL_SECONDS, newAccessCookie } from "@/lib/server/access-requests";
@@ -30,7 +30,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
     response.headers.set("Cache-Control", "no-store");
     return response;
   };
-  const confirmed = (result: StepUpResult) => finish(`${origin}/auth/confirmed?result=${result}`);
+  // A confirmation window records its outcome in a short-lived cookie too, so the page that opened it can show the reason.
+  const confirmed = (result: StepUpResult) => {
+    const response = finish(`${origin}/auth/confirmed?result=${result}`);
+    response.cookies.set({ ...cookieOptions, name: REAUTH_RESULT_COOKIE, value: result, maxAge: result === "ok" ? 0 : 120 });
+    return response;
+  };
   const back = (notice: string) => finish(`${origin}/login?notice=${notice}&provider=google`);
   if (provider !== "google" || !googleConfigured()) return back("sso_unavailable");
   if (!(await hitShared(`sso-callback:${clientKey(request)}`, 30, 10 * 60_000)).allowed) return back("sso_wait");

@@ -1,6 +1,6 @@
 "use client";
 
-import { isStepUpResult, STEP_UP_MESSAGES } from "./step-up-copy";
+import { isStepUpResult, STEP_UP_MESSAGES, type StepUpResult } from "./step-up-copy";
 
 /**
  * Step-up confirmation before a sensitive change. With Google sign-in, a small window asks Google to confirm it's you
@@ -9,13 +9,13 @@ import { isStepUpResult, STEP_UP_MESSAGES } from "./step-up-copy";
  */
 export type StepUpMethod = "google" | "password";
 
-export async function stepUpStatus(): Promise<{ valid: boolean; method: StepUpMethod }> {
+export async function stepUpStatus(): Promise<{ valid: boolean; method: StepUpMethod; lastResult: StepUpResult | null }> {
   try {
     const r = await fetch("/api/auth/reauth", { cache: "no-store" });
-    const b = (await r.json()) as { valid?: boolean; method?: StepUpMethod };
-    return { valid: b.valid === true, method: b.method === "password" ? "password" : "google" };
+    const b = (await r.json()) as { valid?: boolean; method?: StepUpMethod; lastResult?: unknown };
+    return { valid: b.valid === true, method: b.method === "password" ? "password" : "google", lastResult: isStepUpResult(b.lastResult) ? b.lastResult : null };
   } catch {
-    return { valid: false, method: "google" };
+    return { valid: false, method: "google", lastResult: null };
   }
 }
 
@@ -51,7 +51,7 @@ export function confirmWithGoogle(): Promise<string | null> {
     // Local check only (no network): notice the window being closed by the person.
     const closedTimer = setInterval(() => {
       if (Date.now() - started > 3 * 60_000) { finish("Confirmation timed out. Try again."); return; }
-      if (popup.closed) void stepUpStatus().then((s) => finish(s.valid ? null : "Google confirmation was not completed."));
+      if (popup.closed) void stepUpStatus().then((s) => finish(s.valid ? null : s.lastResult ? STEP_UP_MESSAGES[s.lastResult] : "Google confirmation was not completed."));
     }, 1000);
     // Fallback for browsers that sever window.opener on Google's pages: check the server every few seconds, not every second.
     const pollTimer = setInterval(() => { void check(); }, 4000);

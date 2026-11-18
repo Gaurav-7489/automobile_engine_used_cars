@@ -168,3 +168,10 @@ test("dealership approval: a fresh confirmation approves once; a rejected one cr
     assert.deepEqual(await signInWithGoogle(google("g-stranger", "stranger@gmail.com")), { ok: false, code: "no_account" });
   } finally { await h.close(); }
 });
+
+test("the reason a confirmation window failed is recognised and explained; anything unknown falls back to a generic failure", async () => {
+  const { STEP_UP_MESSAGES, isStepUpResult } = await import("../../apps/intelligence/lib/step-up-copy");
+  assert.equal(isStepUpResult("setup_required"), true);
+  assert.equal(isStepUpResult("admin_granted"), false, "unknown values are not trusted");
+  assert.match(STEP_UP_MESSAGES.setup_required, /Session age claims/);
+});

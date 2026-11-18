@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { problem, rateLimited, readJson } from "@/lib/api";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { REAUTH_COOKIE, REAUTH_TTL_SECONDS } from "@/lib/session";
@@ -6,6 +7,8 @@ import { getPrincipal, newReauthGrant, reauthSecondsLeft } from "@/lib/server/au
 import { sameOrigin } from "@/lib/server/csrf";
 import { reauthenticate } from "@/lib/server/identity";
 import { legacyPasswordLogin } from "@/lib/server/legacy-auth";
+import { REAUTH_RESULT_COOKIE } from "@/lib/server/google-oauth";
+import { isStepUpResult } from "@/lib/step-up-copy";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +21,9 @@ export async function GET() {
   const current = await getPrincipal();
   // "google": confirm in a Google window (/api/auth/sso/google?intent=reauth). "password": the legacy password confirmation.
   const method = current?.session.amr === "google" || !legacyPasswordLogin() ? "google" : "password";
-  return NextResponse.json({ valid: seconds > 0, expiresIn: seconds, method }, { headers: NO_STORE });
+  // The reason the last confirmation window failed, if one did in the last two minutes (see the callback).
+  const last = (await cookies()).get(REAUTH_RESULT_COOKIE)?.value;
+  return NextResponse.json({ valid: seconds > 0, expiresIn: seconds, method, lastResult: isStepUpResult(last) ? last : null }, { headers: NO_STORE });
 }
 
 /**

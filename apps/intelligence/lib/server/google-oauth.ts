@@ -12,6 +12,8 @@ import { signPayload, verifyPayload } from "../session";
  */
 export const OAUTH_COOKIE_PREFIX = process.env.NODE_ENV === "production" ? "__Host-vl_oauth_" : "vl_oauth_";
 export const OAUTH_TTL_SECONDS = 10 * 60;
+/** Why the last confirmation window failed. The window cannot always reach the page that opened it, so the page reads this instead. */
+export const REAUTH_RESULT_COOKIE = process.env.NODE_ENV === "production" ? "__Host-vl_reauth_result" : "vl_reauth_result";
 
 export type OAuthState = { n: string; purpose: "signin" | "reauth" | "ads"; provider: "google" | "meta" | "whatsapp"; returnTo?: string; sub?: string; tid?: string; sid?: number; exp: number };
 
