@@ -7,7 +7,7 @@ import { clearRemoteCache } from "@/lib/remote-cache";
 import { formatDateTime } from "@/lib/format";
 import { DEMO_ACTIVITY, DEMO_DEALERSHIPS, DEMO_PLANS, type DemoDealership } from "@/lib/admin-demo";
 import { SUPPORT_EMAIL } from "@/lib/support";
-import { Brand } from "../brand";
+import { BrandMark } from "../brand";
 import { ThemeToggle } from "../theme";
 import { Icon } from "../icons";
 import { Dialog } from "../overlay";
@@ -17,6 +17,7 @@ import { EntitlementsDialog } from "./entitlements-dialog";
 import { PlatformAudit } from "./platform-audit";
 import { HealthReview } from "./health-review";
 import { call } from "./shared";
+import "./admin-dashboard.css";
 
 type Check = { key: string; group: string; label: string; status: "pass" | "warn" | "fail"; detail: string; ms?: number };
 type System = {
@@ -25,16 +26,17 @@ type System = {
   tests: { name: string; files: number; tests: number }[];
   migrations: { name: string; present: boolean }[];
 };
-type View = "overview" | "dealerships" | "health" | "system" | "releases" | "activity" | "security";
+type View = "overview" | "dealerships" | "inventory" | "health" | "system" | "releases" | "activity" | "security";
 type Row = { kind: "live"; w: Workspace } | { kind: "demo"; d: DemoDealership };
 
 const NAV: { key: View; label: string; icon: string }[] = [
   { key: "overview", label: "Overview", icon: "grid" },
-  { key: "dealerships", label: "Dealerships", icon: "store" },
+  { key: "dealerships", label: "Dealerships", icon: "car" },
+  { key: "inventory", label: "Inventory", icon: "stock" },
   { key: "health", label: "Customer health", icon: "heart" },
   { key: "system", label: "System health", icon: "pulse" },
   { key: "releases", label: "Releases & tests", icon: "flask" },
-  { key: "activity", label: "Activity & audit", icon: "chart" },
+  { key: "activity", label: "Activity & audit", icon: "list" },
   { key: "security", label: "Security", icon: "shield" },
 ];
 const SUITE_LABEL: Record<string, string> = { security: "Security", database: "Database", intelligence: "Intelligence engine", "intelligence-prod": "Live workspace (PostgreSQL)", "product-ui": "Product UI", cloudflare: "Cloudflare build", unified: "Browser: sign-in and boundaries", "local-stack": "Browser: accessibility, visual, flows" };
@@ -69,6 +71,7 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
   const [system, setSystem] = useState<System | null>(null);
   const [checking, setChecking] = useState(false);
   const [query, setQuery] = useState("");
+  const [requestsOpen, setRequestsOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [people, setPeople] = useState<Workspace | null>(null);
   const [access, setAccess] = useState<Workspace | null>(null);
@@ -109,14 +112,15 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
   const health = system ? Math.round((system.checks.reduce((n, c) => n + (c.status === "pass" ? 1 : c.status === "warn" ? 0.6 : 0), 0) / Math.max(1, system.checks.length)) * 100) : null;
   const mrr = demo ? DEMO_DEALERSHIPS.filter((d) => d.status === "Active").reduce((n, d) => n + DEMO_PLANS[d.plan], 0) : null;
   const totalTests = (system?.tests ?? []).reduce((n, s) => n + s.tests, 0);
-  const first = name.split(" ")[0] || "there";
-  // Time of day and date come from the viewer's own clock, after hydration, so the server's time zone never shows.
-  const [clock, setClock] = useState<{ greet: string; date: string }>({ greet: "Welcome", date: "" });
+  const displayName = name.trim() || "VandLabs";
+  const initials = displayName === "VandLabs" ? "VL" : displayName.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+  const openRequests = () => { setRequestsOpen(true); setView("dealerships"); };
+  // Use the administrator's local time after hydration.
+  const [greet, setGreet] = useState("Welcome");
   useEffect(() => {
-    const now = new Date(), hour = now.getHours();
-    setClock({ greet: hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening", date: now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }) });
+    const hour = new Date().getHours();
+    setGreet(hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening");
   }, []);
-  const greet = clock.greet;
   const demoOnly = (what: string) => setDemoNote(`${what} is shown for demonstration. Demo dealerships are not stored anywhere and cannot be changed.`);
 
   const card = (r: Row) => {
@@ -167,40 +171,46 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
   );
 
   return (
-    <div className="adm">
+    <div className="adm adm-redesign">
       <aside className="adm-side" aria-label="Admin navigation">
-        <div className="adm-brand"><Brand sub={false} /><span className="adm-pill">Admin</span></div>
+        <div className="adm-brand"><BrandMark size={32} /><strong>VANDLABS</strong><span>Automobile<br />Intelligence</span></div>
         <nav className="adm-nav">
           {NAV.map((n) => (
             <button key={n.key} type="button" className={view === n.key ? "on" : ""} aria-current={view === n.key ? "page" : undefined} onClick={() => setView(n.key)}>
-              <Icon name={n.icon} size={18} /><span>{n.label}</span>
-              {n.key === "system" && health !== null ? <em className={health >= 85 ? "good" : health >= 60 ? "warn" : "bad"}>{health}</em> : null}
+              <Icon name={n.icon} size={23} /><span>{n.label}</span>
             </button>
           ))}
         </nav>
-        <div className={`adm-sec ${locked ? "off" : "on"}`}>
-          <Icon name="shield" size={18} />
-          <div><strong>{locked ? "Google sign-in needed" : "Signed in with Google"}</strong><span>{locked ? "Real dealership data is locked" : "Full access · changes ask Google to confirm"}</span></div>
-          {locked ? <Button size="sm" variant="primary" onClick={signInWithGoogle}>Continue</Button> : null}
-        </div>
-        <div className="adm-side-foot">
-          <Link href="/app/overview" className="btn btn-sm btn-block"><Icon name="grid" size={16} />My workspace</Link>
-          <Button size="sm" className="btn-block" onClick={signOut}><Icon name="logout" size={16} />Sign out</Button>
-          <a className="meta" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
-        </div>
+        <details className="adm-account">
+          <summary><span className="adm-profile-mark" aria-hidden="true">{initials}</span><span><strong>{displayName}</strong><small>Super Admin</small></span><Icon name="chevronDown" size={16} /></summary>
+          <div className="adm-side-foot">
+            <small>{email}</small>
+            <span>{locked ? "Google sign-in needed" : "Signed in with Google"}</span>
+            {locked ? <Button size="sm" onClick={signInWithGoogle}>Continue with Google</Button> : null}
+            <Link href="/app/overview" className="btn btn-sm btn-block">My workspace</Link>
+            <Button size="sm" className="btn-block" onClick={signOut}>Sign out</Button>
+            <a className="meta" href={`mailto:${SUPPORT_EMAIL}`}>Contact support</a>
+          </div>
+        </details>
       </aside>
 
       <main className="adm-main" id="content" tabIndex={-1}>
-        <header className="adm-head">
-          <div>
-            <h1 className="adm-title" id="page-title">{view === "overview" ? `${greet}, ${first}` : NAV.find((n) => n.key === view)!.label}</h1>
-            <p className="muted">Signed in as {email}. {view === "overview" ? "Everything on the platform, at a glance." : ""}</p>
+        <div className="adm-top">
+          <form className="adm-search" onSubmit={(event) => { event.preventDefault(); setView("dealerships"); }}>
+            <button type="submit" aria-label="Search dealerships"><Icon name="search" size={18} /></button>
+            <input type="search" placeholder="Search dealerships…" aria-label="Search dealerships from any admin view" value={query} onChange={(event) => setQuery(event.target.value)} />
+          </form>
+          <button type="button" className="adm-notifications" aria-label="Review access requests" onClick={openRequests}><Icon name="bell" size={21} /></button>
+          <ThemeToggle />
+          <label className="adm-switch"><input type="checkbox" checked={demo} onChange={(e) => toggleDemo(e.target.checked)} /><span aria-hidden="true" /><span>Demo data</span></label>
+        </div>
+        <header className={`adm-head ${view === "overview" ? "adm-dashboard-hero" : ""}`}>
+          <div className="adm-heading">
+            <p className="adm-eyebrow">Platform administration</p>
+            <h1 className="adm-title" id="page-title">{view === "overview" ? <>{greet},<br /><em>{displayName}</em></> : NAV.find((n) => n.key === view)!.label}</h1>
+            {view === "overview" ? <p className="muted">Manage dealerships, inventory and platform operations.</p> : null}
           </div>
-          <div className="adm-head-actions">
-            <ThemeToggle />
-            <label className="adm-switch"><input type="checkbox" checked={demo} onChange={(e) => toggleDemo(e.target.checked)} /><span aria-hidden="true" /><span>Demo data</span></label>
-            <Button variant="primary" onClick={() => (locked ? signInWithGoogle() : setCreating(true))}><Icon name="plus" size={18} />Add dealership</Button>
-          </div>
+          <Button variant="primary" className="adm-add" onClick={() => (locked ? signInWithGoogle() : setCreating(true))}><Icon name="plus" size={18} />Add dealership</Button>
         </header>
 
         {demo ? <div className="adm-demo-banner" role="note"><Badge tone="warn">DEMO DATA</Badge><span>Cards and figures marked DEMO are fictional, for demonstrations. They are not stored and never mix with real dealerships, which are marked LIVE.</span><button type="button" className="link-btn" onClick={() => toggleDemo(false)}>Hide demo data</button></div> : null}
@@ -210,20 +220,48 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
 
         {view === "overview" ? (
           <div className="adm-stack">
-            <section className="adm-hero" aria-label="Platform totals">
-              <div className="adm-kpis">
-                <div className="adm-kpi"><span>Dealerships</span><strong>{rows.length}</strong><em>{(workspaces ?? []).length} live{demo ? ` · ${DEMO_DEALERSHIPS.length} demo` : ""}</em></div>
-                <div className="adm-kpi"><span>Cars in stock</span><strong>{sum((r) => val(r, "vehicles")).toLocaleString("en-IN")}</strong><em>{sum((r) => val(r, "published")).toLocaleString("en-IN")} live in showrooms</em></div>
-                <div className="adm-kpi"><span>Leads</span><strong>{sum((r) => val(r, "leads")).toLocaleString("en-IN")}</strong><em>All dealerships</em></div>
-                <div className="adm-kpi"><span>People with access</span><strong>{sum((r) => val(r, "members")).toLocaleString("en-IN")}</strong><em>Active memberships</em></div>
-                <div className="adm-kpi"><span>Monthly revenue {demo ? <Badge tone="warn">DEMO</Badge> : null}</span><strong>{mrr === null ? "—" : inr(mrr)}</strong><em>{mrr === null ? "Billing is not connected yet" : "Active demo plans"}</em></div>
-              </div>
-              <Ring value={health} label="System health" />
+            <section className="adm-dashboard-kpis" aria-label="Platform totals">
+              {([
+                { label: "Dealerships", icon: "store", count: rows.length, note: `${(workspaces ?? []).length} live${demo ? ` · ${DEMO_DEALERSHIPS.length} demo` : ""}`, target: "dealerships" },
+                { label: "Cars in stock", icon: "car", count: sum((r) => val(r, "vehicles")), note: `${sum((r) => val(r, "published"))} published`, target: "inventory" },
+                { label: "Leads", icon: "users", count: sum((r) => val(r, "leads")), note: "All dealerships", target: "dealerships" },
+                { label: "People with access", icon: "user", count: sum((r) => val(r, "members")), note: "Active memberships", target: "dealerships" },
+              ] as const).map((metric) => (
+                <button key={metric.label} className="adm-metric" type="button" onClick={() => setView(metric.target)}>
+                  <span className="adm-metric-heading"><Icon name={metric.icon} size={24} />{metric.label}</span>
+                  <span className="adm-metric-body"><strong>{workspaces === null && !demo ? "—" : metric.count.toLocaleString("en-IN")}</strong><span>{metric.note}</span><Icon name="arrowRight" size={17} /></span>
+                </button>
+              ))}
             </section>
-            {locked ? lockedPanel("Live dealerships") : <AccessRequests onApproved={(email, url) => { showAssigned("Access approved", email, url); void loadWorkspaces(); }} />}
-            <section aria-labelledby="ov-deal">
-              <div className="spread adm-sec-head"><h2 className="h3" id="ov-deal">Dealerships</h2><button type="button" className="link-btn" onClick={() => setView("dealerships")}>See all {rows.length}</button></div>
-              {rows.length ? <div className="adm-grid">{rows.slice(0, 6).map(card)}</div> : <EmptyState title="No dealerships yet">Add the first dealership, or switch on Demo data to show the console.</EmptyState>}
+            <div className="adm-dashboard-secondary">
+              <section className="card adm-access-card" aria-labelledby="ov-access">
+                <h2 id="ov-access"><Icon name="users" size={24} />Access requests</h2>
+                {locked ? <Button size="sm" onClick={signInWithGoogle}>Continue with Google</Button> : <AccessRequests summary onReview={openRequests} onApproved={(email, url) => { showAssigned("Access approved", email, url); void loadWorkspaces(); }} />}
+              </section>
+              <section className="card adm-health-card">
+                <h2><Icon name="pulse" size={24} />System health</h2>
+                <div className="adm-health-body"><Ring value={health} label="System health" /><span>{health === null ? "Checking" : health >= 85 ? "Good" : health >= 60 ? "Review" : "Needs attention"}</span><button className="adm-round" type="button" aria-label="View system health" onClick={() => setView("system")}><Icon name="arrowRight" size={17} /></button></div>
+              </section>
+              <section className="card adm-revenue">
+                <h2><Icon name="coins" size={24} />Monthly revenue {demo ? <Badge tone="warn">DEMO</Badge> : null}</h2>
+                <strong>{mrr === null ? "—" : inr(mrr)}</strong>
+                <p className="meta">{mrr === null ? "Billing is not connected yet" : "Active demo plans"}</p>
+              </section>
+            </div>
+            <section className="card adm-dealership-list" aria-labelledby="ov-deal">
+              <div className="spread adm-sec-head"><h2 id="ov-deal"><Icon name="store" size={24} />Your dealerships</h2><button type="button" className="link-btn" onClick={() => setView("dealerships")}>View all <Icon name="arrowRight" size={16} /></button></div>
+              {rows.length ? <ul>{rows.slice(0, 4).map((row) => (
+                <li key={row.kind === "live" ? row.w.tenantId : row.d.tenantId}>
+                  <span className="adm-dealer-mark" aria-hidden="true"><Icon name="store" size={28} /></span>
+                  <div><strong>{nameOf(row)}</strong><div className="adm-dealer-counts">
+                    <span><Icon name="store" size={16} />{val(row, "locations")} branches</span>
+                    <span><Icon name="car" size={16} />{val(row, "vehicles")} vehicles</span>
+                    <span><Icon name="users" size={16} />{val(row, "members")} people</span>
+                  </div></div>
+                  <Badge tone={row.kind === "live" ? "accent" : "warn"}>{row.kind === "live" ? "Live" : "Demo"}</Badge>
+                  <button type="button" className="adm-round" aria-label={`Find ${nameOf(row)} in dealerships`} onClick={() => { setQuery(nameOf(row)); setView("dealerships"); }}><Icon name="arrowRight" size={17} /></button>
+                </li>
+              ))}</ul> : <EmptyState title={workspaces === null && !locked ? "Loading dealerships" : "No dealerships yet"}>{locked ? "Sign in with Google to view live dealerships." : "Add a dealership to get started."}</EmptyState>}
             </section>
             <div className="adm-two">
               <section className="card" aria-labelledby="ov-health"><div className="spread adm-sec-head"><h2 className="h3" id="ov-health">System health</h2><button type="button" className="link-btn" onClick={() => setView("system")}>Details</button></div><Checks system={system} compact /></section>
@@ -237,9 +275,22 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
         {view === "dealerships" ? (
           <div className="adm-stack">
             <div className="adm-toolbar"><input className="input" type="search" placeholder="Search dealerships or cities" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search dealerships" /><span className="meta">{filtered.length} shown</span></div>
-            {locked ? lockedPanel("Live dealerships") : <AccessRequests onApproved={(email, url) => { showAssigned("Access approved", email, url); void loadWorkspaces(); }} />}
+            {locked ? lockedPanel("Live dealerships") : <AccessRequests showEmpty={requestsOpen} onApproved={(email, url) => { showAssigned("Access approved", email, url); void loadWorkspaces(); }} />}
             {filtered.length ? <div className="adm-grid">{filtered.map(card)}</div> : <EmptyState title="No dealerships match">Try another search.</EmptyState>}
             <p className="meta">Dealer owners invite their own staff from Settings, Team inside their workspace. Every change made here is written to that dealership&rsquo;s audit log.</p>
+          </div>
+        ) : null}
+
+        {view === "inventory" ? (
+          <div className="adm-stack">
+            {locked ? lockedPanel("Live inventory totals") : null}
+            <section className="card">
+              <h2 className="h3">Inventory by dealership</h2>
+              {rows.length ? <div className="table-wrap"><table className="data-table" aria-label="Inventory by dealership">
+                <thead><tr><th>Dealership</th><th>Stock</th><th>Published</th></tr></thead>
+                <tbody>{rows.map((row) => <tr key={row.kind === "live" ? row.w.tenantId : row.d.tenantId}><td>{nameOf(row)} {row.kind === "demo" ? <Badge tone="warn">Demo</Badge> : null}</td><td>{val(row, "vehicles")}</td><td>{val(row, "published")}</td></tr>)}</tbody>
+              </table></div> : <p className="muted">{workspaces === null && !locked ? "Loading inventory totals…" : "No dealership inventory to show."}</p>}
+            </section>
           </div>
         ) : null}
 
