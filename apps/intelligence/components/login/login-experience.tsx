@@ -1,14 +1,13 @@
 "use client";
 import { clearRemoteCache } from "@/lib/remote-cache";
 
-import { ThemeSwitch, ThemeToggle } from "../theme";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Brand } from "../brand";
 import { Dialog } from "../overlay";
 import { Button, FormSummary, Notice, PasswordField, TextField } from "../ui";
-import { LoginBand, LoginCinema } from "./login-cinema";
+import styles from "./login-experience.module.css";
 import { SUPPORT_EMAIL, supportMailto } from "@/lib/support";
 
 type Props = { providers: { id: "google" | "microsoft"; label: string }[]; legacy?: boolean };
@@ -26,7 +25,6 @@ export function LoginExperience({ providers, legacy = false }: Props) {
   const [status, setStatus] = useState<"idle" | "checking">("idle");
   const [error, setError] = useState("");
   const [accessOpen, setAccessOpen] = useState(false);
-  const live = useRef<HTMLDivElement>(null);
   const notice = params.get("notice");
   const reason = params.get("reason");
 
@@ -51,53 +49,54 @@ export function LoginExperience({ providers, legacy = false }: Props) {
   }
 
   return (
-    <div className="login-shell">
-      <aside className="login-brand">
-        <LoginCinema />
-        <div className="login-brand-top"><Brand /></div>
-        <div className="login-copy">
-          <h2 className="display">Better evidence.<br />Clearer decisions.<br /><span className="login-accent">One workspace.</span></h2>
-          <p className="lead-lg">Inventory, pricing, advertising, leads and your showroom, run by one dealership team.</p>
+    <div className={styles.shell}>
+      <header className={styles.hero}>
+        <div className={styles.identity}>
+          <Brand sub={false} />
+          <span className={styles.product}>Automotive Intelligence</span>
         </div>
-      </aside>
-      <LoginBand />
-      <div className="login-theme"><ThemeToggle className="icon-btn" /></div>
-      <main className="login-form-wrap" id="content" tabIndex={-1}>
-        <div className="login-mobile-brand"><Brand sub={false} /></div>
-        <form className="login-form login-card" onSubmit={submit} noValidate aria-describedby="login-status">
-          <div className="login-head"><h1 className="h1 login-title">Welcome back</h1><p className="muted">Sign in with the Google account your dealership was set up with.</p></div>
-          {reason === "expired" ? <Notice tone="warn" role="status">Your session expired. Sign in again. Your non-sensitive setup draft was kept; no password was stored.</Notice> : null}
-          {notice === "sso_unavailable" ? <Notice tone="warn" role="status">Google sign-in is not configured for this deployment yet. Ask VandLabs support.</Notice> : null}
-          {notice === "sso_unknown" ? <Notice tone="warn" role="status">That sign-in provider is not available. Use Continue with Google.</Notice> : null}
-          {notice === "google_no_account" ? <Notice tone="warn" role="status">That Google account does not have access. Use the Google account VandLabs or your dealership owner assigned to you, or ask them to add this one.</Notice> : null}
-          {notice === "google_disabled" ? <Notice tone="warn" role="status">This account is suspended. Contact your dealership owner or VandLabs support.</Notice> : null}
-          {notice === "google_conflict" ? <Notice tone="warn" role="status">This email is already linked to a different Google account. Sign in with that account, or contact VandLabs support.</Notice> : null}
-          {notice === "google_link_not_approved" ? <Notice tone="warn" role="status">Your account needs VandLabs to approve this Google account before it can be used. Contact VandLabs support.</Notice> : null}
-          {notice === "google_failed" ? <Notice tone="warn" role="status">Google sign-in did not finish. Try again.</Notice> : null}
-          {notice === "sso_wait" ? <Notice tone="warn" role="status">Too many sign-in attempts. Wait a few minutes and try again.</Notice> : null}
-          {providers.length ? providers.map((p) => <a key={p.id} className="btn btn-primary btn-block sso-btn" href={`/api/auth/sso/${p.id}${params.get("returnTo") ? `?returnTo=${encodeURIComponent(params.get("returnTo")!)}` : ""}`}>{p.id === "google" ? <GoogleMark /> : null}{p.label}</a>)
-            : <Notice tone="warn" role="status">Sign-in is not configured for this deployment yet.</Notice>}
-          {legacy ? (
-            <>
-              <div className="login-divider"><span>legacy password sign-in (migration only)</span></div>
-              {error ? <FormSummary errors={{ login: error }} label="Sign-in problem" /> : null}
-              <TextField label="Business email" type="email" name="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@dealership.com" />
-              <PasswordField label="Password" name="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setNeedCode(false); }} />
-              {needCode ? <TextField label="Authenticator code" name="code" autoComplete="one-time-code" inputMode="numeric" maxLength={8} value={code} onChange={(e) => setCode(e.target.value)} autoFocus /> : null}
-              <Button type="submit" variant="secondary" className="btn-block" loading={status === "checking"} loadingLabel="Checking credentials">Sign in with password</Button>
-            </>
-          ) : null}
-          <div id="login-status" role="status" aria-live="polite" className="sr-only">{status === "checking" ? "Checking credentials" : ""}</div>
-          <div className="stack-sm">
-            <button type="button" className="link-btn" onClick={() => setAccessOpen(true)}>Need access?</button>
-            <p className="meta">Access is assigned by VandLabs and your dealership owner. Your Google account&apos;s own security, such as 2-Step Verification, protects your sign-in.</p>
-          </div>
-        </form>
-        <p className="login-help">Questions or feedback? <a className="accent-text" href={supportMailto("Hello from the sign-in page")}>{SUPPORT_EMAIL}</a></p>
-        <footer className="login-links"><Link href="/info/privacy">Privacy</Link><span aria-hidden="true">/</span><Link href="/info/terms">Terms</Link><span aria-hidden="true">/</span><Link href="/info/support">Support</Link><span aria-hidden="true">/</span><Link href="/showroom">Showroom</Link><ThemeSwitch /></footer>
+      </header>
+      <main className={styles.panel} id="content" tabIndex={-1}>
+        <div className={styles.content}>
+          <form className={styles.form} onSubmit={submit} noValidate aria-describedby="login-status">
+            <div className={styles.heading}>
+              <h1 className={styles.title}>Welcome<br />to <em>VandLabs</em></h1>
+              <p>Sign in with the Google account your dealership was set up with.</p>
+            </div>
+            {reason === "expired" ? <Notice tone="warn" role="status">Your session expired. Sign in again. Your non-sensitive setup draft was kept; no password was stored.</Notice> : null}
+            {notice === "sso_unavailable" ? <Notice tone="warn" role="status">Google sign-in is not configured for this deployment yet. Ask VandLabs support.</Notice> : null}
+            {notice === "sso_unknown" ? <Notice tone="warn" role="status">That sign-in provider is not available. Use Continue with Google.</Notice> : null}
+            {notice === "google_no_account" ? <Notice tone="warn" role="status">That Google account does not have access. Use the Google account VandLabs or your dealership owner assigned to you, or ask them to add this one.</Notice> : null}
+            {notice === "google_disabled" ? <Notice tone="warn" role="status">This account is suspended. Contact your dealership owner or VandLabs support.</Notice> : null}
+            {notice === "google_conflict" ? <Notice tone="warn" role="status">This email is already linked to a different Google account. Sign in with that account, or contact VandLabs support.</Notice> : null}
+            {notice === "google_link_not_approved" ? <Notice tone="warn" role="status">Your account needs VandLabs to approve this Google account before it can be used. Contact VandLabs support.</Notice> : null}
+            {notice === "google_failed" ? <Notice tone="warn" role="status">Google sign-in did not finish. Try again.</Notice> : null}
+            {notice === "sso_wait" ? <Notice tone="warn" role="status">Too many sign-in attempts. Wait a few minutes and try again.</Notice> : null}
+            {legacy ? (
+              <>
+                <p className={styles.legacyLabel}>Migration access</p>
+                {error ? <FormSummary errors={{ login: error }} label="Sign-in problem" /> : null}
+                <TextField label="Business email" type="email" name="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@dealership.com" />
+                <PasswordField label="Password" name="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setNeedCode(false); }} />
+                {needCode ? <TextField label="Authenticator code" name="code" autoComplete="one-time-code" inputMode="numeric" maxLength={8} value={code} onChange={(e) => setCode(e.target.value)} autoFocus /> : null}
+                <Button type="submit" variant="primary" className="btn-block" loading={status === "checking"} loadingLabel="Checking credentials">Sign in with password</Button>
+              </>
+            ) : null}
+            {legacy && providers.length > 0 ? <div className={styles.divider}>Or continue with</div> : null}
+            {providers.length ? providers.map((p) => <a key={p.id} className={styles.google} href={`/api/auth/sso/${p.id}${params.get("returnTo") ? `?returnTo=${encodeURIComponent(params.get("returnTo")!)}` : ""}`}>{p.id === "google" ? <GoogleMark /> : null}{p.label}</a>)
+              : <Notice tone="warn" role="status">Sign-in is not configured for this deployment yet.</Notice>}
+            <div id="login-status" role="status" aria-live="polite" className="sr-only">{status === "checking" ? "Checking credentials" : ""}</div>
+          </form>
+          <p className={styles.access}>New to VandLabs? <button type="button" onClick={() => setAccessOpen(true)}>Request access</button></p>
+          <footer className={styles.links}>
+            <Link href="/info/privacy">Privacy</Link>
+            <Link href="/info/terms">Terms</Link>
+            <Link href="/info/support">Support</Link>
+            <Link href="/showroom">Showroom</Link>
+          </footer>
+        </div>
       </main>
       <AccessDialog open={accessOpen} onClose={() => setAccessOpen(false)} />
-      <div ref={live} className="sr-only" aria-live="polite" />
     </div>
   );
 }
