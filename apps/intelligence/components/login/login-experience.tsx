@@ -3,7 +3,7 @@ import { clearRemoteCache } from "@/lib/remote-cache";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Brand } from "../brand";
 import { Dialog } from "../overlay";
 import { Button, FormSummary, Notice, PasswordField, TextField } from "../ui";
@@ -83,7 +83,7 @@ export function LoginExperience({ providers, legacy = false }: Props) {
               </>
             ) : null}
             {legacy && providers.length > 0 ? <div className={styles.divider}>Or continue with</div> : null}
-            {providers.length ? providers.map((p) => <a key={p.id} className={styles.google} href={`/api/auth/sso/${p.id}${params.get("returnTo") ? `?returnTo=${encodeURIComponent(params.get("returnTo")!)}` : ""}`}>{p.id === "google" ? <GoogleMark /> : null}{p.label}</a>)
+            {providers.length ? providers.map((p) => <ProviderLink key={p.id} provider={p} href={`/api/auth/sso/${p.id}${params.get("returnTo") ? `?returnTo=${encodeURIComponent(params.get("returnTo")!)}` : ""}`} />)
               : <Notice tone="warn" role="status">Sign-in is not configured for this deployment yet.</Notice>}
             <div id="login-status" role="status" aria-live="polite" className="sr-only">{status === "checking" ? "Checking credentials" : ""}</div>
           </form>
@@ -98,6 +98,59 @@ export function LoginExperience({ providers, legacy = false }: Props) {
       </main>
       <AccessDialog open={accessOpen} onClose={() => setAccessOpen(false)} />
     </div>
+  );
+}
+
+type Provider = Props["providers"][number];
+
+// The sign-in handoff: the button shows it is working, then ink spreads from the
+// click point to cover the page while the browser leaves for the provider.
+function ProviderLink({ provider, href }: { provider: Provider; href: string }) {
+  const [phase, setPhase] = useState<"idle" | "loading" | "spreading">("idle");
+  const [origin, setOrigin] = useState({ x: 0, y: 0 });
+  const timer = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    // Coming back with the browser's Back button restores this page from cache; reset it.
+    const reset = (event: PageTransitionEvent) => { if (event.persisted) { window.clearTimeout(timer.current); setPhase("idle"); } };
+    window.addEventListener("pageshow", reset);
+    return () => { window.removeEventListener("pageshow", reset); window.clearTimeout(timer.current); };
+  }, []);
+
+  function start(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (phase !== "idle") return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    // Keyboard activation reports 0,0; spread from the button's centre instead.
+    const fromPointer = event.clientX !== 0 || event.clientY !== 0;
+    setOrigin({ x: fromPointer ? event.clientX : rect.left + rect.width / 2, y: fromPointer ? event.clientY : rect.top + rect.height / 2 });
+    setPhase("loading");
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "reduced";
+    if (reduced) { window.location.assign(href); return; }
+    timer.current = window.setTimeout(() => {
+      setPhase("spreading");
+      timer.current = window.setTimeout(() => window.location.assign(href), 520);
+    }, 380);
+  }
+
+  const busy = phase !== "idle";
+  return (
+    <>
+      <a className={styles.google} href={href} onClick={start} aria-busy={busy || undefined} data-state={phase}>
+        <span className={styles.googleIcon}>{busy ? <span className={styles.spinner} aria-hidden="true" /> : provider.id === "google" ? <GoogleMark /> : null}</span>
+        <span>{busy ? `Connecting to ${provider.id === "google" ? "Google" : provider.label.replace(/^Continue with /, "")}…` : provider.label}</span>
+      </a>
+      {phase === "spreading" ? (
+        <div className={styles.ink} style={{ "--ink-x": `${origin.x}px`, "--ink-y": `${origin.y}px` } as React.CSSProperties} role="status" aria-live="polite">
+          <div className={styles.inkContent}>
+            <Brand sub={false} />
+            <span className={styles.inkLabel}>Opening secure sign-in</span>
+            <span className={styles.inkBar} aria-hidden="true" />
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
