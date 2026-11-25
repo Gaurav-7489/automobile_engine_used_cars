@@ -1,0 +1,223 @@
+.shell {
+  --paper: #f2eeea;
+  display: grid;
+  grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
+  min-height: 100dvh;
+  padding: clamp(8px, 1.2vw, 20px);
+  background: #171716;
+}
+
+.hero {
+  --text: #fffaf4;
+  --accent: #fffaf4;
+  min-width: 0;
+  color: var(--text);
+  background: linear-gradient(180deg, rgb(0 0 0 / 50%), transparent 32%),
+    #252321 url("/automotive-login.webp") center 55% / cover no-repeat;
+}
+
+.identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 22px;
+  padding: clamp(24px, 4vw, 62px);
+}
+
+.product {
+  padding-inline-start: 22px;
+  border-inline-start: 1px solid rgb(255 255 255 / 40%);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.panel {
+  --text: #171513;
+  --muted: #5c5550;
+  --accent: #332b25;
+  --accent-strong: #53463d;
+  --accent-ink: #fffaf4;
+  --surface: var(--paper);
+  --raised: #e7dfd8;
+  --border: #b3a9a0;
+  --field-border: #85796f;
+  --warning: #734900;
+  --danger: #a02722;
+  --placeholder: #6b625a;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  min-width: 0;
+  padding: clamp(60px, 7vw, 104px) clamp(32px, 5vw, 88px);
+  background: var(--paper);
+  color: var(--text);
+  color-scheme: light;
+}
+
+.panel::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 clamp(-90px, -6vw, -52px);
+  width: clamp(104px, 12vw, 180px);
+  background: var(--paper);
+  clip-path: ellipse(95% 94% at 95% 50%);
+  content: "";
+}
+
+.panel::after {
+  position: absolute;
+  inset: 34px 34px auto auto;
+  width: 21px;
+  height: 21px;
+  border-block-start: 1px solid var(--text);
+  border-inline-end: 1px solid var(--text);
+  content: "";
+}
+
+.content {
+  width: 100%;
+  max-width: 430px;
+}
+
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.heading {
+  display: grid;
+  gap: 18px;
+  margin-block-end: 14px;
+  color: var(--muted);
+}
+
+.title {
+  margin: 0;
+  color: var(--text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(45px, 5.5vw, 84px);
+  font-weight: 400;
+  line-height: 0.94;
+  letter-spacing: -0.055em;
+}
+
+.google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 50px;
+  padding: 10px 16px;
+  border: 1px solid var(--field-border);
+  border-radius: 5px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.google:hover {
+  background: var(--raised);
+}
+
+.legacyLabel,
+.divider {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.divider::before,
+.divider::after {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  content: "";
+}
+
+.access {
+  margin-block-start: 19px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.access button {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 19px;
+  margin-block-start: 22px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.links a {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+}
+
+.links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 800px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: clamp(155px, 28vw, 230px) 1fr;
+  }
+
+  .hero {
+    background-position: center 60%;
+  }
+
+  .identity {
+    gap: 10px 16px;
+    padding: 18px;
+  }
+
+  .product {
+    padding-inline-start: 16px;
+  }
+
+  .panel {
+    align-items: start;
+    padding: 44px clamp(22px, 7vw, 60px) 28px;
+  }
+
+  .panel::before {
+    display: none;
+  }
+
+  .panel::after {
+    inset: 20px 20px auto auto;
+    width: 14px;
+    height: 14px;
+  }
+
+  .title {
+    font-size: clamp(43px, 8.5vw, 64px);
+  }
+}
