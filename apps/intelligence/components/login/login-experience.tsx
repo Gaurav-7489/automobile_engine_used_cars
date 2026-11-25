@@ -55,12 +55,20 @@ export function LoginExperience({ providers, legacy = false }: Props) {
           <Brand sub={false} />
           <span className={styles.product}>Automotive Intelligence</span>
         </div>
+        <div className={styles.ambient} aria-hidden="true" />
+        <div className={styles.heroCopy}>
+          <span className={styles.eyebrow}>VANDLABS / AUTOMOTIVE INTELLIGENCE</span>
+          <h2 className={styles.heroTitle}>Every vehicle.<br /><em>One clear vision.</em></h2>
+          <p className={styles.heroDescription}>An intelligent workspace to manage inventory, understand your business and move every opportunity forward.</p>
+          <div className={styles.heroBottom}><span>Built for the modern dealership</span><span>01 / INTELLIGENCE</span></div>
+        </div>
       </header>
       <main className={styles.panel} id="content" tabIndex={-1}>
         <div className={styles.content}>
+          <div className={styles.panelEyebrow}>Secure dealership access</div>
           <form className={styles.form} onSubmit={submit} noValidate aria-describedby="login-status">
             <div className={styles.heading}>
-              <h1 className={styles.title}>Welcome<br />to <em>VandLabs</em></h1>
+              <h1 className={styles.title}>Welcome<br />to <em>VandLabs.</em></h1>
               <p>Sign in with the Google account your dealership was set up with.</p>
             </div>
             {reason === "expired" ? <Notice tone="warn" role="status">Your session expired. Sign in again. Your non-sensitive setup draft was kept; no password was stored.</Notice> : null}
@@ -94,6 +102,7 @@ export function LoginExperience({ providers, legacy = false }: Props) {
             <Link href="/info/support">Support</Link>
             <Link href="/showroom">Showroom</Link>
           </footer>
+          <p className={styles.footnote}>VandLabs Intelligence · Private workspace</p>
         </div>
       </main>
       <AccessDialog open={accessOpen} onClose={() => setAccessOpen(false)} />
