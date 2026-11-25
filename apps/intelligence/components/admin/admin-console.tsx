@@ -204,15 +204,18 @@ export function WebsiteLinks({ workspace, onClose }: { workspace: Workspace; onC
 type AccessRequest = { id: string; email: string; name: string; businessName: string; dealershipName: string; phone: string; city: string; state: string; message: string | null; status: string; createdAt: string };
 
 /** Google accounts that signed in without access and asked for a dealership workspace. Approving creates it with them as owner. */
-export function AccessRequests({ onApproved }: { onApproved: (ownerEmail: string, signInUrl: string) => void }) {
+export function AccessRequests({ onApproved, summary, onReview, showEmpty }: { onApproved: (ownerEmail: string, signInUrl: string) => void; summary?: boolean; onReview?: () => void; showEmpty?: boolean }) {
   const [list, setList] = useState<AccessRequest[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [deciding, setDeciding] = useState<{ request: AccessRequest; approve: boolean } | null>(null);
   const load = useCallback(async () => {
     const r = await call<{ requests: AccessRequest[] }>("/api/admin/access-requests");
+    setLoadError(!r.ok);
     setList(r.ok ? r.data.requests : []);
   }, []);
   useEffect(() => { void load(); }, [load]);
-  if (!list || list.length === 0) return null;
+  if (summary) return <div className="adm-request-summary"><span>{loadError ? "Could not load requests" : list ? `${list.length} pending` : "Loading…"}</span><button type="button" className="adm-round" aria-label="Review access requests" onClick={onReview}><Icon name="arrowRight" size={17} /></button></div>;
+  if (!list?.length) return showEmpty ? <section className="card stack-sm"><h2 className="h3">Access requests</h2><p className="muted">{loadError ? "Could not load access requests." : list ? "No pending requests." : "Loading requests…"}</p>{loadError ? <Button size="sm" onClick={() => void load()}>Retry</Button> : null}</section> : null;
   return (
     <section className="card stack-sm" aria-labelledby="access-h">
       <div className="spread"><h2 className="h3" id="access-h">Access requests</h2><Badge tone="warn">{list.length} waiting</Badge></div>
