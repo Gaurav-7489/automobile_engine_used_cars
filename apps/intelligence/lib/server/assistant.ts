@@ -39,6 +39,8 @@ export function validMessages(value: unknown): value is ChatMessage[] {
 
 const SYSTEM = `You are the assistant inside VandLabs, the workspace a used-car dealership in India runs its business in. The person asking works at the dealership: an owner, manager or a member of the sales, stock, marketing or finance staff.
 
+Answer as quickly as you can: every lookup adds a round trip, so call only the tools the question needs, call several at once when a question needs more than one, and answer straight after the results arrive. For how-to and where-is questions, answer directly from the product guide excerpts below when they cover the question; use search_help only when they do not.
+
 Use the tools to look things up before you answer anything about this dealership's cars, leads, sales, campaigns or market prices. Every figure you state must come from a tool result in this conversation; if the tools do not have it, say so plainly instead of estimating. A tool you were not given means this person's role cannot see that data, so tell them to ask an owner or manager.
 
 What the data means:
@@ -68,6 +70,21 @@ function carRow(v: Vehicle, costs: boolean, today: string) {
     askingPrice: rupee(v.asking), daysInStock: stockAgeDays(v, `${today}T00:00:00.000Z`), enquiriesLast14Days: v.enquiries14d, hasPhotos: v.hasImages,
     ...(costs ? { landedCost: v.costComplete ? rupee(Object.values(v.costs).reduce((a, n) => a + (typeof n === "number" ? n : 0), 0)) : "cost record incomplete" } : {}),
   };
+}
+
+const FUEL: Record<string, string> = { diesel: "diesel", petrol: "petrol", gasoline: "petrol", cng: "cng", electric: "electric", ev: "electric", hybrid: "hybrid" };
+const GEARBOX: Record<string, string> = { automatic: "automatic", auto: "automatic", at: "automatic", manual: "manual", mt: "manual" };
+/** Splits a car search into the words to match and the fuel / gearbox to filter by. */
+export function carFilters(query: string): { words: string; fuel: string; gearbox: string } {
+  let fuel = "";
+  let gearbox = "";
+  const words = query.split(/\s+/).filter((w) => {
+    const k = w.toLowerCase().replace(/[^a-z]/g, "");
+    if (FUEL[k] && !fuel) { fuel = FUEL[k]; return false; }
+    if (GEARBOX[k] && !gearbox) { gearbox = GEARBOX[k]; return false; }
+    return !/^(cars?|vehicles?|any|all)$/i.test(k);
+  }).join(" ").trim();
+  return { words, fuel, gearbox };
 }
 
 const TOOLS: Record<string, AssistantTool> = {
@@ -108,13 +125,18 @@ const TOOLS: Record<string, AssistantTool> = {
     needs: "inventory.view",
     def: {
       name: "find_cars", description: "Search this dealership's own cars by make, model, variant or stock number. Returns up to 15 cars with price, kilometres, days in stock and recent enquiries. Use an empty query to list cars in a status.",
-      parameters: { type: "object", properties: { query: { type: "string", description: "Words to match, e.g. 'creta' or 'V-104'. Empty for all." }, status: { type: "string", enum: ["on_sale", "reserved", "being_prepared", "sold", "any_unsold"] } }, required: ["query", "status"], additionalProperties: false },
+      parameters: { type: "object", properties: { query: { type: "string", description: "Make, model, variant or stock number, optionally with a fuel or gearbox word, e.g. 'creta', 'V-104', 'diesel' or 'automatic creta'. Empty for all." }, status: { type: "string", enum: ["on_sale", "reserved", "being_prepared", "sold", "any_unsold"] } }, required: ["query", "status"], additionalProperties: false },
     },
     run: async ({ c, principal }, input) => {
       const today = todayIst();
       const tab = ({ on_sale: "available", reserved: "reserved", being_prepared: "preparation", sold: "sold", any_unsold: "all" } as const)[text(input.status) as "on_sale"] ?? "all";
-      const page = await listVehicles(c, principal.tenantId, principal.locationIds, { tab, q: text(input.query) || undefined, sort: "age", dir: "desc", page: 1, size: 15 }, today);
-      return { matches: page.total, shown: page.vehicles.length, cars: page.vehicles.map((v) => carRow(v, can(principal.role, "capital.view"), today)) };
+      // The search matches make, model, variant and stock number. Fuel and gearbox words ("diesel", "automatic") are taken
+      // out of it and applied as filters, so "diesel" finds diesel cars instead of nothing.
+      const { words, fuel, gearbox } = carFilters(text(input.query));
+      const filtered = Boolean(fuel || gearbox);
+      const page = await listVehicles(c, principal.tenantId, principal.locationIds, { tab, q: words || undefined, sort: "age", dir: "desc", page: 1, size: filtered ? 100 : 15 }, today);
+      const cars = page.vehicles.filter((v) => (!fuel || v.fuel.toLowerCase() === fuel) && (!gearbox || v.transmission.toLowerCase() === gearbox));
+      return { matches: filtered ? cars.length : page.total, shown: Math.min(cars.length, 15), ...(filtered ? { filteredBy: [fuel, gearbox].filter(Boolean).join(", ") } : {}), cars: cars.slice(0, 15).map((v) => carRow(v, can(principal.role, "capital.view"), today)) };
     },
   },
   lead_overview: {
@@ -205,7 +227,13 @@ export type AssistantOutcome = { status: "done" | "refused" | "truncated" | "too
  * One answer: the model may look things up several times before it replies. Text is passed to `emit` as it is written.
  * The provider comes from the environment unless a provider (or, for tests, an Anthropic client) is passed in.
  */
-export async function runAssistant(input: { principal: Principal; dealership: string; messages: ChatMessage[]; emit: (text: string) => void; client?: AssistantClient; provider?: AiProvider; page?: string }): Promise<AssistantOutcome> {
+/** What the person sees while a lookup runs. */
+const LOOKING: Record<string, string> = {
+  search_help: "Checking the VandLabs guide", search_dealership_knowledge: "Checking your dealership's notes", stock_overview: "Looking at your stock",
+  find_cars: "Looking up your cars", lead_overview: "Checking your leads", sales_summary: "Reading your sales and expenses", state_prices: "Comparing prices by state", campaigns: "Checking your campaigns",
+};
+
+export async function runAssistant(input: { principal: Principal; dealership: string; messages: ChatMessage[]; emit: (text: string) => void; onStatus?: (text: string) => void; client?: AssistantClient; provider?: AiProvider; page?: string }): Promise<AssistantOutcome> {
   const { principal, emit } = input;
   const names = toolsFor(principal.role);
   // Retrieval: the guide entries closest to the latest question go in with the request, so how-to answers are grounded.
@@ -225,6 +253,7 @@ export async function runAssistant(input: { principal: Principal; dealership: st
     history: input.messages,
     onText: emit,
     onToolRound: () => emit("\n\n"),
+    onToolCalls: (calls) => input.onStatus?.(`${[...new Set(calls.map((c) => LOOKING[c.name] ?? "Looking that up"))].join(", ")}…`),
     runTool: (call) => runTool(principal, call.name, call.args),
   });
   return { status: result.status, turns: result.turns };

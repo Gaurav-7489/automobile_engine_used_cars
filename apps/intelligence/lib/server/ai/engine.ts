@@ -65,6 +65,8 @@ export type ConversationInput = Omit<SessionInput, "maxOutputTokens"> & {
   onText?: (text: string) => void;
   /** Called between a tool round and the next model call (the assistant writes a paragraph break there). */
   onToolRound?: () => void;
+  /** Called with the tools the model asked for, before they run (used to show "Looking up your stock…"). */
+  onToolCalls?: (calls: ToolCall[]) => void;
   provider?: AiProvider;
 };
 
@@ -87,6 +89,7 @@ export async function runConversation(input: ConversationInput): Promise<Convers
     if (step.stop === "refusal") return { status: "refused", turns: turn, text: "", usage: total, ...base };
     if (step.stop === "max_tokens") return { status: "truncated", turns: turn, text: step.text, usage: total, ...base };
     if (step.stop !== "tool_use") return { status: "done", turns: turn, text: step.text, usage: total, ...base };
+    input.onToolCalls?.(step.calls);
     const results = await Promise.all(step.calls.map(async (call) => {
       const out = await input.runTool(call);
       return { call, result: out.ok ? out.result : { error: out.message }, isError: !out.ok };

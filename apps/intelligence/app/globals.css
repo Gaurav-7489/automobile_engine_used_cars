@@ -1580,6 +1580,7 @@ a[data-pending] { animation: pending-pulse 900ms ease-in-out infinite alternate;
 .chat-wait { display: inline-flex; gap: 4px; align-items: center; height: 24px; }
 .chat-wait i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: chat-wait 1.2s infinite ease-in-out; }
 .chat-wait i:nth-child(2) { animation-delay: 0.15s; } .chat-wait i:nth-child(3) { animation-delay: 0.3s; }
+.chat-waiting { display: inline-flex; flex-direction: column; gap: 4px; }
 @keyframes chat-wait { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .chat-wait i { animation: none; opacity: 0.6; } }
 .chat-form { display: flex; gap: 8px; align-items: flex-end; position: sticky; bottom: 0; padding: 8px 0; background: var(--canvas); }

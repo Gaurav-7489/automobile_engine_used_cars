@@ -46,7 +46,7 @@ Secrets go in the hosting provider's encrypted environment settings (Vercel / Cl
 | `GEMINI_THINKING_LEVEL` | no | `low` | `minimal`, `low`, `medium`, `high` or `off`. Low saves free-tier tokens. |
 | `ANTHROPIC_API_KEY` | for Claude | – | Secret. Server-only. |
 | `ANTHROPIC_MODEL` / `ASSISTANT_MODEL` | no | `claude-opus-5-5` | `ASSISTANT_MODEL` is the original name and still works. |
-| `AI_TIMEOUT_MS` | no | 45000 (Gemini) / 100000 | Per model call, including streaming. |
+| `AI_TIMEOUT_MS` | no | 25000 (Gemini) / 100000 | Per model call, including streaming. |
 | `AI_MAX_RETRIES` | no | 1 (Gemini) / 2 | Only for temporary failures, only before any text was shown. |
 | `AI_MAX_RETRY_DELAY_MS` | no | 8000 | If the provider asks to wait longer, the user is told to try later instead. |
 | `AI_CALLS_PER_MINUTE` | no | 5 (Gemini) / 0 | Shared across instances, per provider and model. 0 = off. |
@@ -73,6 +73,14 @@ With the project's key, SDK `@google/genai` 3.6.1, API `v1beta`:
   question), the product-guide lookup, the customer agent's `car_details`, conversation context, and token accounting.
 - The free tier allowed **5 generate requests per minute per model** for this project. Failed (503) requests also count.
   One assistant question usually takes 2–3 calls, so the whole project can serve roughly 2 questions a minute per model.
+
+## Response time
+
+Measured 25 Nov 2026 with `gemini-3.5-flash-lite` and `GEMINI_THINKING_LEVEL=minimal` (synthetic data, from the engine):
+1.2 s for a how-to question (one model call, answered from the guide excerpts sent with the question), 1.5–1.7 s for stock
+questions (one lookup plus the answer). The page shows what is being looked up ("Looking up your cars…") within about 0.5–1 s
+and "Still working…" after 10 s. At the same time `gemini-3.5-flash` took 22–40 s per call because it was overloaded, so the
+lite model is the recommended setting on the free tier. Free-tier latency is not guaranteed; a paid tier is needed for that.
 
 ## Differences from Claude to be aware of
 
