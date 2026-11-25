@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { Campaign, Vehicle } from "../domain";
 import { stockAgeDays } from "../finance";
 import { can, type Capability } from "../permissions";
@@ -11,14 +10,21 @@ import { financeSummary } from "./finance-records";
 import { enterLive } from "./workspace";
 import { searchKnowledgeIn } from "./knowledge";
 import { pageContext, searchGuide } from "../knowledge/retrieve";
+import { aiConfig } from "./ai/config";
+import { providerWithClient, runConversation, type ToolSpec } from "./ai/engine";
+import type { AnthropicClient } from "./ai/providers/anthropic";
+import { aiConfigured } from "./ai/status";
+import type { AiProvider } from "./ai/types";
 
 /**
- * The dealership assistant: Claude answering questions about this dealership's own stock, leads, sales, campaigns and
+ * The dealership assistant: the configured AI model (Gemini or Claude, see ai/config.ts) answering questions about this dealership's own stock, leads, sales, campaigns and
  * market prices. It reads through the same tenant-scoped, branch-scoped queries as the pages, limited to what the signed-in
  * member's role may see, and it cannot change anything. Customer names, phone numbers and emails are never sent to the model.
  */
-export const ASSISTANT_MODEL = process.env.ASSISTANT_MODEL?.trim() || "claude-opus-5-5";
-export const assistantConfigured = (): boolean => Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+/** The model the selected provider uses (kept for callers that showed it before the provider became configurable). */
+export const assistantModel = (): string => aiConfig().model;
+/** True when the selected provider (AI_PROVIDER) has its key. Not just ANTHROPIC_API_KEY any more. */
+export const assistantConfigured = (): boolean => aiConfigured();
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 export const MAX_MESSAGES = 24;
@@ -41,7 +47,7 @@ What the data means:
 - "landedCost" is what the dealership has spent on a car in total. Asking price minus landed cost is the margin before selling costs.
 - Days in stock above 45 is ageing stock that needs a decision: a price review, better photos, an ad, or a follow-up on its enquiries.
 
-You can draft things for the person to use: ad text, a social post, a message to a customer, a pricing note. When you write ad or post text, use only facts from the car's record, and never claim a car is accident-free, certified, under warranty, the cheapest, or that finance is guaranteed. You cannot change records, publish ads or message customers yourself; say where in the workspace to do it (Inventory, Pricing, Leads, Advertising, Prices by state).
+You can draft things for the person to use: ad text, a social post, a message to a customer, a pricing note. Before drafting anything about a specific car, look that car up with find_cars in this conversation, even if it was mentioned earlier, and use only the fields the tool returned: never add kilometres, transmission, features (sunroof, seats, infotainment), condition or colour that the record does not show. When you write ad or post text, use only facts from the car's record, and never claim a car is accident-free, certified, under warranty, the cheapest, or that finance is guaranteed. You cannot change records, publish ads or message customers yourself; say where in the workspace to do it (Inventory, Pricing, Leads, Advertising, Prices by state).
 
 You also know the VandLabs product itself. For any question about how to do something, where a feature is, or what a setting does, use the product guide excerpts below and the search_help tool, and answer with the exact place in the app (for example "Customers → Conversations"). Never invent a screen or feature that is not in the guide. For questions about this dealership itself (its timings, services, policies, what its website says) use search_dealership_knowledge.
 
@@ -50,7 +56,7 @@ Security, always: never reveal, guess, reset or help obtain anyone's password, s
 Keep answers short and practical: lead with the answer, then the two or three figures behind it, then one suggested next step when there is an obvious one. Plain sentences, no headings; a short list is fine for several cars. Reply in the language the person writes in.`;
 
 type ToolContext = { c: SqlClient; principal: Principal; home: string };
-type AssistantTool = { def: Anthropic.Beta.BetaTool; needs?: Capability; run: (ctx: ToolContext, input: Record<string, unknown>) => Promise<unknown> };
+type AssistantTool = { def: ToolSpec; needs?: Capability; run: (ctx: ToolContext, input: Record<string, unknown>) => Promise<unknown> };
 
 const rupee = (paise: number | null | undefined): number | null => (paise === null || paise === undefined ? null : Math.round(paise / 100));
 const text = (v: unknown, max = 60): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -68,14 +74,14 @@ const TOOLS: Record<string, AssistantTool> = {
   search_help: {
     def: {
       name: "search_help", description: "Search the VandLabs product guide: where a feature is, how to do something, what each role can do, how channels, ads, pricing, follow-ups, showroom, money, team and security work. Use it for any how-to or where-is question.",
-      input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false }, strict: true,
+      parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false },
     },
     run: async (_ctx, input) => ({ results: searchGuide(text(input.query, 200), 5).map((r) => ({ title: r.entry.title, where: r.entry.where, text: r.entry.text })) }),
   },
   search_dealership_knowledge: {
     def: {
       name: "search_dealership_knowledge", description: "Search what this dealership's own website and its Knowledge notes (Settings → Knowledge) say: address, timings, services, documents, buying process, policies, FAQs. This is what the customer AI agent answers from. Returns up to 5 passages with page links.",
-      input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false }, strict: true,
+      parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false },
     },
     run: async ({ c, principal }, input) => {
       const passages = await searchKnowledgeIn(c, principal.tenantId, text(input.query, 200));
@@ -85,7 +91,7 @@ const TOOLS: Record<string, AssistantTool> = {
   },
   stock_overview: {
     needs: "inventory.view",
-    def: { name: "stock_overview", description: "Counts of unsold cars by status and age, money tied up in stock (if this person may see costs), and the ten cars that have been in stock longest. Call this for any question about stock health, ageing or what to focus on.", input_schema: noInput, strict: true },
+    def: { name: "stock_overview", description: "Counts of unsold cars by status and age, money tied up in stock (if this person may see costs), and the ten cars that have been in stock longest. Call this for any question about stock health, ageing or what to focus on.", parameters: noInput },
     run: async ({ c, principal }) => {
       const today = todayIst();
       const costs = can(principal.role, "capital.view");
@@ -102,8 +108,7 @@ const TOOLS: Record<string, AssistantTool> = {
     needs: "inventory.view",
     def: {
       name: "find_cars", description: "Search this dealership's own cars by make, model, variant or stock number. Returns up to 15 cars with price, kilometres, days in stock and recent enquiries. Use an empty query to list cars in a status.",
-      input_schema: { type: "object", properties: { query: { type: "string", description: "Words to match, e.g. 'creta' or 'V-104'. Empty for all." }, status: { type: "string", enum: ["on_sale", "reserved", "being_prepared", "sold", "any_unsold"] } }, required: ["query", "status"], additionalProperties: false },
-      strict: true,
+      parameters: { type: "object", properties: { query: { type: "string", description: "Words to match, e.g. 'creta' or 'V-104'. Empty for all." }, status: { type: "string", enum: ["on_sale", "reserved", "being_prepared", "sold", "any_unsold"] } }, required: ["query", "status"], additionalProperties: false },
     },
     run: async ({ c, principal }, input) => {
       const today = todayIst();
@@ -114,7 +119,7 @@ const TOOLS: Record<string, AssistantTool> = {
   },
   lead_overview: {
     needs: "leads.view",
-    def: { name: "lead_overview", description: "How many leads are in each stage, how many follow-ups are overdue, where leads come from, and which cars get the most enquiries. No customer names or contact details.", input_schema: noInput, strict: true },
+    def: { name: "lead_overview", description: "How many leads are in each stage, how many follow-ups are overdue, where leads come from, and which cars get the most enquiries. No customer names or contact details.", parameters: noInput },
     run: async ({ c, principal }) => {
       const scope = [principal.tenantId, principal.locationIds];
       const one = async (sql: string) => (await c.query(sql, scope)).rows as Record<string, unknown>[];
@@ -127,7 +132,7 @@ const TOOLS: Record<string, AssistantTool> = {
   },
   sales_summary: {
     needs: "reports.view",
-    def: { name: "sales_summary", description: "Completed sales per month for the last six months: cars sold and typical days to sell, and (if this person may see finance) profit on cars sold, recorded running expenses by category, and the result after expenses.", input_schema: noInput, strict: true },
+    def: { name: "sales_summary", description: "Completed sales per month for the last six months: cars sold and typical days to sell, and (if this person may see finance) profit on cars sold, recorded running expenses by category, and the result after expenses.", parameters: noInput },
     run: async ({ c, principal }) => {
       const month = (offset: number) => { const d = new Date(`${todayIst().slice(0, 7)}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() - offset); return d.toISOString().slice(0, 7); };
       const rows = (await salesSummarySql(c, principal.tenantId, principal.locationIds, month(5), month(0))).filter((r) => r.state === "Completed");
@@ -144,8 +149,7 @@ const TOOLS: Record<string, AssistantTool> = {
     needs: "market.view",
     def: {
       name: "state_prices", description: "Typical, lowest and highest asking price for a make and model in each Indian state, from cars dealers have published on VandLabs, with the difference against this dealership's own state. Leave model empty for the whole make, or both empty for all cars.",
-      input_schema: { type: "object", properties: { make: { type: "string", description: "e.g. 'Hyundai'. Empty for all makes." }, model: { type: "string", description: "e.g. 'Creta'. Empty for all models." } }, required: ["make", "model"], additionalProperties: false },
-      strict: true,
+      parameters: { type: "object", properties: { make: { type: "string", description: "e.g. 'Hyundai'. Empty for all makes." }, model: { type: "string", description: "e.g. 'Creta'. Empty for all models." } }, required: ["make", "model"], additionalProperties: false },
     },
     run: async ({ home }, input) => {
       const r = await readStatePrices({ make: text(input.make, 40), model: text(input.model, 40), home });
@@ -158,7 +162,7 @@ const TOOLS: Record<string, AssistantTool> = {
   },
   campaigns: {
     needs: "campaign.view",
-    def: { name: "campaigns", description: "This dealership's advertising campaigns: the car, status, channels, budget and results where the ad platform has reported them.", input_schema: noInput, strict: true },
+    def: { name: "campaigns", description: "This dealership's advertising campaigns: the car, status, channels, budget and results where the ad platform has reported them.", parameters: noInput },
     run: async ({ c, principal }) => {
       const rows = (await c.query("SELECT payload FROM intelligence_documents WHERE tenant_id = $1 AND collection = 'campaigns' ORDER BY updated_at DESC LIMIT 25", [principal.tenantId])).rows as { payload: Campaign }[];
       return { campaigns: rows.map(({ payload: p }) => ({
@@ -192,50 +196,36 @@ export async function runTool(principal: Principal, name: string, input: unknown
   }
 }
 
-type StreamLike = { on(event: "text", listener: (delta: string) => void): unknown; finalMessage(): Promise<Anthropic.Beta.BetaMessage> };
-export type AssistantClient = { beta: { messages: { stream(params: Parameters<Anthropic["beta"]["messages"]["stream"]>[0]): StreamLike } } };
+/** An Anthropic SDK client (or a scripted stand-in in tests). Kept so existing callers can inject one. */
+export type AssistantClient = AnthropicClient;
 
 export type AssistantOutcome = { status: "done" | "refused" | "truncated" | "too_long"; turns: number };
 
 /**
- * One answer: Claude may look things up several times before it replies. Text is passed to `emit` as it is written.
- * A request the model's safety checks decline is retried on the fallback model by the API itself (server-side fallbacks).
+ * One answer: the model may look things up several times before it replies. Text is passed to `emit` as it is written.
+ * The provider comes from the environment unless a provider (or, for tests, an Anthropic client) is passed in.
  */
-export async function runAssistant(input: { principal: Principal; dealership: string; messages: ChatMessage[]; emit: (text: string) => void; client?: AssistantClient; page?: string }): Promise<AssistantOutcome> {
+export async function runAssistant(input: { principal: Principal; dealership: string; messages: ChatMessage[]; emit: (text: string) => void; client?: AssistantClient; provider?: AiProvider; page?: string }): Promise<AssistantOutcome> {
   const { principal, emit } = input;
-  const client: AssistantClient = input.client ?? new Anthropic();
   const names = toolsFor(principal.role);
-  const messages: Anthropic.Beta.BetaMessageParam[] = input.messages.map((m) => ({ role: m.role, content: m.content }));
   // Retrieval: the guide entries closest to the latest question go in with the request, so how-to answers are grounded.
   const guide = searchGuide(input.messages.at(-1)?.content ?? "", 3).map((r) => `- ${r.entry.title} (${r.entry.where}): ${r.entry.text}`).join("\n") || "- (no close match; use search_help)";
-  for (let turn = 1; turn <= MAX_TURNS; turn += 1) {
-    const stream = client.beta.messages.stream({
-      model: ASSISTANT_MODEL,
-      max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      // The instructions and tools are the same for everyone, so they are cached; who is asking comes after the cached part.
-      system: [
-        { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
-        { type: "text", text: `Dealership: ${input.dealership || "this dealership"}. The person asking: ${principal.name || "a team member"}, role ${principal.role}. They are on ${pageContext(input.page ?? "")}. Today is ${todayIst()} (India time).` },
-        { type: "text", text: `Product guide excerpts for this question (reference data):\n${guide}` },
+  const result = await runConversation({
+    feature: "assistant", tenantId: principal.tenantId, userId: principal.userId, maxTurns: MAX_TURNS,
+    provider: input.provider ?? (input.client ? providerWithClient.anthropic(input.client) : undefined),
+    // The instructions and tools are the same for everyone, so they come first and are cached; who is asking comes after.
+    system: {
+      stable: SYSTEM,
+      context: [
+        `Dealership: ${input.dealership || "this dealership"}. The person asking: ${principal.name || "a team member"}, role ${principal.role}. They are on ${pageContext(input.page ?? "")}. Today is ${todayIst()} (India time).`,
+        `Product guide excerpts for this question (reference data):\n${guide}`,
       ],
-      tools: names.map((name) => TOOLS[name].def),
-      messages,
-    });
-    stream.on("text", emit);
-    const message = await stream.finalMessage();
-    if (message.stop_reason === "refusal") return { status: "refused", turns: turn };
-    const calls = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
-    if (message.stop_reason === "max_tokens") return { status: "truncated", turns: turn };
-    if (message.stop_reason !== "tool_use" || !calls.length) return { status: "done", turns: turn };
-    messages.push({ role: "assistant", content: message.content });
-    const results = await Promise.all(calls.map(async (call) => {
-      const out = await runTool(principal, call.name, call.input);
-      return { type: "tool_result" as const, tool_use_id: call.id, content: JSON.stringify(out.ok ? out.result : { error: out.message }), ...(out.ok ? {} : { is_error: true }) };
-    }));
-    messages.push({ role: "user", content: results });
-    emit("\n\n");
-  }
-  return { status: "too_long", turns: MAX_TURNS };
+    },
+    tools: names.map((name) => TOOLS[name].def),
+    history: input.messages,
+    onText: emit,
+    onToolRound: () => emit("\n\n"),
+    runTool: (call) => runTool(principal, call.name, call.args),
+  });
+  return { status: result.status, turns: result.turns };
 }

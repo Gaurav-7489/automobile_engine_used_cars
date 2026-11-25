@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
+    "@google/genai": "3.6.1",
     "@opennextjs/cloudflare": "^1.20.17",
     "@vandlabs/contracts": "workspace:*",
     "@vandlabs/data": "workspace:*",

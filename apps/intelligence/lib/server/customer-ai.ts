@@ -1,5 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { ASSISTANT_MODEL, assistantConfigured, type AssistantClient } from "./assistant";
+import { providerWithClient, runConversation, type TextMessage, type ToolSpec } from "./ai/engine";
+import { errorFields } from "./ai/errors";
+import type { AnthropicClient } from "./ai/providers/anthropic";
+import { aiConfigured } from "./ai/status";
+import type { AiProvider } from "./ai/types";
 import { appendMessages, CHANNEL_LABEL, cleanText, openConversation, type Channel, type Conversation, type ConvMessage } from "./conversations";
 import { tenantTx, type SqlClient } from "./db";
 import type { Principal } from "./identity";
@@ -50,27 +53,27 @@ Style: short, warm and plain, like a helpful showroom executive on chat. One to 
 type Ctx = { tenantId: string; conv: Conversation; origin: string; handedOver: boolean; leadId: string | null };
 
 const noInput = { type: "object" as const, properties: {}, required: [], additionalProperties: false };
-const TOOLS: Anthropic.Beta.BetaTool[] = [
+const TOOLS: ToolSpec[] = [
   {
-    name: "find_cars", strict: true,
+    name: "find_cars",
     description: "Search this dealership's cars currently listed for sale. Returns up to 8 cars with price, kilometres, fuel, transmission, city, availability and a page link.",
-    input_schema: { type: "object", properties: { query: { type: "string", description: "Make, model or words like 'suv diesel'. Empty for all cars." }, max_price_rupees: { type: "integer", description: "Budget in rupees; 0 for no limit." }, fuel: { type: "string", enum: ["", "Petrol", "Diesel", "CNG", "Electric", "Hybrid"] } }, required: ["query", "max_price_rupees", "fuel"], additionalProperties: false },
+    parameters: { type: "object", properties: { query: { type: "string", description: "Make, model or words like 'suv diesel'. Empty for all cars." }, max_price_rupees: { type: "integer", description: "Budget in rupees; 0 for no limit." }, fuel: { type: "string", enum: ["", "Petrol", "Diesel", "CNG", "Electric", "Hybrid"] } }, required: ["query", "max_price_rupees", "fuel"], additionalProperties: false },
   },
   {
-    name: "car_details", strict: true,
+    name: "car_details",
     description: "Full listed details of one car by its reference (stock number). Says if it is no longer available.",
-    input_schema: { type: "object", properties: { reference: { type: "string" } }, required: ["reference"], additionalProperties: false },
+    parameters: { type: "object", properties: { reference: { type: "string" } }, required: ["reference"], additionalProperties: false },
   },
-  { name: "dealership_info", strict: true, description: "The dealership's branches with city and phone number.", input_schema: noInput },
+  { name: "dealership_info", description: "The dealership's branches with city and phone number.", parameters: noInput },
   {
-    name: "search_dealership_info", strict: true,
+    name: "search_dealership_info",
     description: "Search what the dealership's own website and the owner's notes say: address, timings, services, documents, buying process, policies, FAQs. Returns up to 5 passages with their page link. Not for car prices or availability.",
-    input_schema: { type: "object", properties: { query: { type: "string", description: "The question in a few words, for example 'documents needed to buy' or 'sunday timings'." } }, required: ["query"], additionalProperties: false },
+    parameters: { type: "object", properties: { query: { type: "string", description: "The question in a few words, for example 'documents needed to buy' or 'sunday timings'." } }, required: ["query"], additionalProperties: false },
   },
   {
-    name: "hand_to_team", strict: true,
+    name: "hand_to_team",
     description: "Pass this conversation to the dealership's team, who will contact the customer. Use for calls, visits, test drives, price, finance, or anything the records cannot answer. On the website, name and mobile number are required.",
-    input_schema: { type: "object", properties: { name: { type: "string" }, mobile: { type: "string", description: "10-digit mobile number; empty if not given." }, reason: { type: "string", description: "What the customer wants, in one sentence, including any preferred time." } }, required: ["name", "mobile", "reason"], additionalProperties: false },
+    parameters: { type: "object", properties: { name: { type: "string" }, mobile: { type: "string", description: "10-digit mobile number; empty if not given." }, reason: { type: "string", description: "What the customer wants, in one sentence, including any preferred time." } }, required: ["name", "mobile", "reason"], additionalProperties: false },
   },
 ];
 
@@ -148,42 +151,37 @@ async function runTool(ctx: Ctx, name: string, input: Record<string, unknown>): 
   return { error: "Unknown tool." };
 }
 
-/** One reply to the customer. Returns null when the agent should stay quiet (the team has taken over or AI is not set up). */
-export async function aiReply(tenantId: string, conv: Conversation, dealer: string, origin: string, client: AssistantClient = new Anthropic()): Promise<{ text: string; handedOver: boolean; leadId: string | null }> {
+/** A provider, or (tests) an Anthropic client to build one around. Omitted: the provider selected by the environment. */
+export type CustomerAiClient = AiProvider | AnthropicClient;
+const asProvider = (client?: CustomerAiClient): AiProvider | undefined => (!client ? undefined : "start" in client ? client : providerWithClient.anthropic(client));
+
+/** One reply to the customer. Returns empty text when the model declined; the caller then hands the conversation to the team. */
+export async function aiReply(tenantId: string, conv: Conversation, dealer: string, origin: string, client?: CustomerAiClient): Promise<{ text: string; handedOver: boolean; leadId: string | null }> {
   const ctx: Ctx = { tenantId, conv, origin, handedOver: false, leadId: conv.leadId };
   // The conversation as the model sees it: customer turns as the user, earlier AI and team replies as the assistant.
-  const messages: Anthropic.Beta.BetaMessageParam[] = [];
+  const history: TextMessage[] = [];
   for (const m of conv.messages.slice(-HISTORY)) {
     const role = m.from === "customer" ? "user" : "assistant";
     const text = m.from === "team" ? `[Team member ${m.by ?? ""}]: ${m.text}` : m.text;
-    const last = messages.at(-1);
-    if (last && last.role === role) last.content = `${last.content as string}\n${text}`; else messages.push({ role, content: text });
+    const last = history.at(-1);
+    if (last && last.role === role) last.content = `${last.content}\n${text}`; else history.push({ role, content: text });
   }
-  while (messages.length && messages[0].role !== "user") messages.shift();
-  if (!messages.length || messages.at(-1)!.role !== "user") return { text: "", handedOver: false, leadId: ctx.leadId };
+  while (history.length && history[0].role !== "user") history.shift();
+  if (!history.length || history.at(-1)!.role !== "user") return { text: "", handedOver: false, leadId: ctx.leadId };
   const system = CUSTOMER_RULES.replace("{CHANNEL}", CHANNEL_LABEL[conv.channel]).replace("{DEALER}", dealer || "the dealership");
-  let text = "";
-  for (let turn = 0; turn < MAX_TURNS; turn += 1) {
-    const message = await client.beta.messages.stream({
-      model: ASSISTANT_MODEL, max_tokens: 2000, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default", output_config: { effort: "medium" },
-      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }, { type: "text", text: conv.vehicleStockId ? `The customer started from the page of car ${conv.vehicleStockId}.` : "The customer has not picked a car yet." }],
-      tools: TOOLS, messages,
-    }).finalMessage();
-    text = message.content.filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text").map((b) => b.text).join("\n").trim();
-    if (message.stop_reason === "refusal") { text = ""; break; }
-    const calls = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
-    if (message.stop_reason !== "tool_use" || !calls.length) break;
-    messages.push({ role: "assistant", content: message.content });
-    const results = await Promise.all(calls.map(async (call) => {
-      try { return { type: "tool_result" as const, tool_use_id: call.id, content: JSON.stringify(await runTool(ctx, call.name, (call.input ?? {}) as Record<string, unknown>)) }; }
+  const result = await runConversation({
+    feature: "customer", tenantId, userId: null, maxTurns: MAX_TURNS, effort: "medium", provider: asProvider(client),
+    system: { stable: system, context: [conv.vehicleStockId ? `The customer started from the page of car ${conv.vehicleStockId}.` : "The customer has not picked a car yet."] },
+    tools: TOOLS, history,
+    runTool: async (call) => {
+      try { return { ok: true, result: await runTool(ctx, call.name, call.args) }; }
       catch (error) {
         console.error(JSON.stringify({ event: "customer_ai_tool_failure", tool: call.name, message: error instanceof Error ? error.message : "unknown" }));
-        return { type: "tool_result" as const, tool_use_id: call.id, content: JSON.stringify({ error: "Lookup failed. Offer to pass the question to the team." }), is_error: true };
+        return { ok: false, message: "Lookup failed. Offer to pass the question to the team." };
       }
-    }));
-    messages.push({ role: "user", content: results });
-  }
-  return { text, handedOver: ctx.handedOver, leadId: ctx.leadId };
+    },
+  });
+  return { text: result.status === "refused" ? "" : result.text, handedOver: ctx.handedOver, leadId: ctx.leadId };
 }
 
 export const FALLBACK_REPLY = "Thanks for your message. Someone from our team will get back to you shortly.";
@@ -197,7 +195,7 @@ export type Handled = { conversation: Conversation; reply: ConvMessage | null };
  * number is known), and the AI answers unless the team has taken the conversation over or AI is not set up, in which case the
  * team is notified and replies itself.
  */
-export async function handleCustomerMessage(msg: IncomingMessage, client?: AssistantClient): Promise<Handled> {
+export async function handleCustomerMessage(msg: IncomingMessage, client?: CustomerAiClient): Promise<Handled> {
   enterLive();
   const text = cleanText(msg.text, 1000);
   const { conv, dealer } = await tenantTx(msg.tenantId, async (c) => {
@@ -212,7 +210,7 @@ export async function handleCustomerMessage(msg: IncomingMessage, client?: Assis
     return { conv, dealer: String(org?.name ?? "") };
   });
   if (conv.status !== "ai") return { conversation: conv, reply: null };
-  if (!assistantConfigured() && !client) {
+  if (!aiConfigured() && !client) {
     // No AI key: the customer still gets an acknowledgement and the team gets the conversation.
     const reply = await tenantTx(msg.tenantId, async (c) => (await appendMessages(c, msg.tenantId, conv.id, [{ from: "ai", text: FALLBACK_REPLY }], { status: "team" }))[0]);
     return { conversation: { ...conv, status: "team" }, reply };
@@ -221,7 +219,7 @@ export async function handleCustomerMessage(msg: IncomingMessage, client?: Assis
   try {
     result = await aiReply(msg.tenantId, conv, dealer, msg.origin, client);
   } catch (error) {
-    console.error(JSON.stringify({ event: "customer_ai_failure", channel: msg.channel, message: error instanceof Error ? error.name : "unknown" }));
+    console.error(JSON.stringify({ event: "customer_ai_failure", channel: msg.channel, ...errorFields(error) }));
     result = { text: "", handedOver: true, leadId: conv.leadId };
   }
   const answer = result.text || (result.handedOver ? HANDOVER_REPLY : FALLBACK_REPLY);

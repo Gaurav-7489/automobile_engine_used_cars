@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../icons";
 import { useRemote } from "../use-remote";
-import { Button, EmptyState, PageHead } from "../ui";
+import { Button, EmptyState, Notice, PageHead } from "../ui";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -16,17 +16,47 @@ const STARTERS: { topic: string; text: string }[] = [
   { topic: "search_help", text: "How do I connect WhatsApp?" },
 ];
 
-/** The assistant conversation, used by the panel on every page and by the full Assistant page. Nothing is saved. */
+type Info = {
+  configured: boolean; topics: string[]; provider?: "gemini" | "anthropic"; model?: string; availability?: string; problem?: string;
+  lastCall?: { status: "ok" | "error"; errorKind: string | null; at: string } | null; threads?: { id: string; title: string; updatedAt: string }[];
+};
+
+const PROVIDER: Record<string, string> = { gemini: "Google Gemini", anthropic: "Anthropic Claude" };
+/** What a failed availability check or last call means for the person using the assistant. */
+const PROBLEM: Record<string, string> = {
+  invalid_key: "The AI service rejected this workspace's key. Answers will fail until VandLabs fixes the setup.",
+  model_unavailable: "The configured AI model is not available. Answers will fail until VandLabs changes the setup.",
+  quota_exhausted: "Today's AI usage limit has been reached. The assistant will be available again tomorrow.",
+  rate_limited: "The AI service is busy. Answers may be slow or fail; try again in a moment.",
+  busy: "The AI service is busy. Answers may be slow or fail; try again in a moment.",
+  network: "The AI service could not be reached on the last check. Answers may fail.",
+  timeout: "The AI service was slow to respond on the last check. Answers may fail.",
+};
+
+/** The assistant conversation, used by the panel on every page and by the full Assistant page. Conversations are saved for the member who had them. */
 export function AssistantChat({ compact = false }: { compact?: boolean }) {
-  const info = useRemote<{ configured: boolean; topics: string[] }>("/api/assistant");
+  const info = useRemote<Info>("/api/assistant");
   const pathname = usePathname();
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   const abort = useRef<AbortController | null>(null);
+  const thread = useRef<string | null>(null);
+  const restored = useRef(false);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [messages]);
   useEffect(() => () => abort.current?.abort(), []);
+  // Pick up where the member left off: the most recent saved conversation is loaded once.
+  const latest = info.data?.threads?.[0]?.id;
+  useEffect(() => {
+    if (restored.current || !latest) return;
+    restored.current = true;
+    fetch(`/api/assistant/threads/${latest}`).then((r) => (r.ok ? r.json() : null)).then((body: { messages?: Message[] } | null) => {
+      if (body?.messages?.length && !thread.current) { thread.current = latest; setMessages((now) => (now.length ? now : body.messages!)); }
+    }).catch(() => undefined);
+  }, [latest]);
+
+  function reset() { abort.current?.abort(); thread.current = null; restored.current = true; setMessages([]); setBusy(false); }
 
   async function ask(text: string) {
     const question = text.trim();
@@ -39,7 +69,8 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
     const controller = new AbortController();
     abort.current = controller;
     try {
-      const response = await fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: history.slice(-20), page: pathname }), signal: controller.signal });
+      const response = await fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: history.slice(-20), page: pathname, threadId: thread.current ?? undefined }), signal: controller.signal });
+      thread.current = response.headers.get("X-Assistant-Thread") || thread.current;
       if (!response.ok || !response.body) {
         const body = await response.json().catch(() => null);
         write(body?.error?.message ?? "The assistant could not answer that. Try again.");
@@ -62,15 +93,19 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
   }
 
   const off = info.data && !info.data.configured;
+  const issue = info.data?.availability && info.data.availability !== "ok" && info.data.availability !== "unchecked" ? info.data.availability
+    : info.data?.lastCall?.status === "error" ? info.data.lastCall.errorKind ?? "" : "";
+  const source = info.data?.provider ? `Answers by ${PROVIDER[info.data.provider] ?? info.data.provider}${info.data.model ? ` (${info.data.model})` : ""}.` : "";
   const starters = STARTERS.filter((s) => !info.data || info.data.topics.includes(s.topic));
   return (
     <div className={compact ? "assistant compact" : "page assistant"}>
-      {compact ? (messages.length ? <div className="spread"><span className="meta">Knows your stock, leads, money and how VandLabs works</span><Button size="sm" variant="ghost" onClick={() => { abort.current?.abort(); setMessages([]); setBusy(false); }}>New chat</Button></div> : null) : (
+      {compact ? (messages.length ? <div className="spread"><span className="meta">Knows your stock, leads, money and how VandLabs works</span><Button size="sm" variant="ghost" onClick={reset}>New chat</Button></div> : null) : (
         <PageHead title="Assistant" lead="Ask about your stock, leads, sales, prices or how to do anything in VandLabs."
-          actions={messages.length ? <Button onClick={() => { abort.current?.abort(); setMessages([]); setBusy(false); }}>New chat</Button> : undefined} />
+          actions={messages.length ? <Button onClick={reset}>New chat</Button> : undefined} />
       )}
-      {off ? <EmptyState title="The assistant is not set up yet">It needs an AI key added by VandLabs for this workspace. Everything else keeps working.</EmptyState> : (
+      {off ? <EmptyState title="The assistant is not set up yet">It needs an AI provider and key set up by VandLabs for this workspace.{info.data?.problem ? ` (${info.data.problem})` : ""} Everything else keeps working.</EmptyState> : (
         <>
+          {issue && PROBLEM[issue] ? <Notice tone="warn" role="status">{PROBLEM[issue]}</Notice> : null}
           <div className="chat" role="log" aria-live="polite" aria-label="Conversation">
             {messages.length === 0 ? (
               <div className="chat-start">
@@ -90,7 +125,7 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(draft); } }} />
             <Button type="submit" variant="primary" disabled={!draft.trim() || busy} aria-label="Send"><Icon name="arrowRight" size={18} /></Button>
           </form>
-          <p className="meta">Reads your records and the VandLabs guide; it cannot change anything, never sees customer contact details, and never shares passwords or keys.</p>
+          <p className="meta">Reads your records and the VandLabs guide; it cannot change anything, never sees customer contact details, and never shares passwords or keys. {source}</p>
         </>
       )}
     </div>
