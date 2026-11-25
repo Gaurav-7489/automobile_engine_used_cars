@@ -7,9 +7,11 @@ test("the root address leads to sign-in, and the install screen and manifest are
   await page.goto("/");
   await expect(page).toHaveURL(`${baseURL}/login`);
   // Google-only sign-in: no password form. The button appears when Google is configured; otherwise a clear notice.
-  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Welcome\s+to VandLabs/ })).toBeVisible();
   await expect(page.getByLabel("Password")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Continue with Google" }).or(page.getByText("Sign-in is not configured for this deployment yet."))).toBeVisible();
+  expect((await request.get("/automotive-login.webp")).status()).toBe(200);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.goto("/install");
   await expect(page.getByRole("heading", { name: "Your whole workspace. One app." })).toBeVisible();
   const manifest = await (await request.get("/manifest.webmanifest")).json();
