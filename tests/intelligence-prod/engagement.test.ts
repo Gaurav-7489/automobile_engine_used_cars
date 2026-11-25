@@ -117,20 +117,20 @@ test("asking for a person needs a name and number on the website, then creates a
 
 test("without an AI key the customer gets an acknowledgement and the team gets the conversation", async () => {
   const { h, p, owner } = await setup();
-  const saved = process.env.ANTHROPIC_API_KEY;
-  delete process.env.ANTHROPIC_API_KEY;
+  const saved = { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, AI_PROVIDER: process.env.AI_PROVIDER, GEMINI_API_KEY: process.env.GEMINI_API_KEY };
+  for (const k of Object.keys(saved)) delete process.env[k];
   try {
     await saveChannel(owner, { channel: "website", enabled: true });
     const out = await handleCustomerMessage({ tenantId: p.tenantId, channel: "website", key: contactKey("website", "v-cccccccccccccccccccccccc"), text: "Hi", origin: ORIGIN });
     assert.equal(out.reply?.text, FALLBACK_REPLY);
     assert.equal(out.conversation.status, "team");
-  } finally { if (saved) process.env.ANTHROPIC_API_KEY = saved; await h.close(); }
+  } finally { for (const [k, v] of Object.entries(saved)) if (v !== undefined) process.env[k] = v; await h.close(); }
 });
 
 test("WhatsApp: signed deliveries only, routed to the dealer that switched the number on, and the customer becomes a lead", async () => {
   const { h, p, other, owner } = await setup();
-  const saved = process.env.ANTHROPIC_API_KEY;
-  delete process.env.ANTHROPIC_API_KEY;
+  const saved = { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, AI_PROVIDER: process.env.AI_PROVIDER, GEMINI_API_KEY: process.env.GEMINI_API_KEY };
+  for (const k of Object.keys(saved)) delete process.env[k];
   try {
     const body = JSON.stringify({ object: "whatsapp_business_account", entry: [{ changes: [{ value: { metadata: { phone_number_id: "1234567890" }, contacts: [{ wa_id: "919847012345", profile: { name: "Ravi" } }], messages: [{ from: "919847012345", type: "text", text: { body: "Is the Swift available?" } }, { from: "919847012345", type: "image" }] } }] }] });
     const sig = `sha256=${createHmac("sha256", "app-secret").update(body).digest("hex")}`;
@@ -155,7 +155,7 @@ test("WhatsApp: signed deliveries only, routed to the dealer that switched the n
     assert.equal(lead.source, "WhatsApp");
     assert.equal(lead.name, "Ravi");
     assert.equal((await tenantTx(other.tenantId, (c) => listConversations(c, other.tenantId))).length, 0, "conversations stay inside their dealership");
-  } finally { if (saved) process.env.ANTHROPIC_API_KEY = saved; await h.close(); }
+  } finally { for (const [k, v] of Object.entries(saved)) if (v !== undefined) process.env[k] = v; await h.close(); }
 });
 
 const vehicle = (over: Partial<Vehicle>): Vehicle => ({ id: "V-9", branchId: "b", make: "Hyundai", model: "Creta", variant: "SX", year: 2021, fuel: "Diesel", transmission: "Manual", km: 32000, owners: 1, registration: "", status: "available", acquiredAt: "2026-09-01T00:00:00Z", asking: 14_500_000 * 100 / 10, costs: { acquisition: 0, transport: 0, inspection: 0, refurbishment: 0 } as Vehicle["costs"], costComplete: true, hasImages: true, enquiries14d: 2, cohortMedianEnquiries: 2, version: 1, channels: [], documents: [], ...over });

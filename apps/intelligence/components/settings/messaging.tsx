@@ -7,7 +7,7 @@ import { useToast } from "../toast";
 import { Badge, Button, Notice, PanelSkeleton, PasswordField, TextField } from "../ui";
 import { ConfirmIdentity, useReauth } from "../admin/shared";
 
-type Data = { channels: ChannelState[]; aiReady: boolean; metaReady: boolean; webhookUrl: string; canManage: boolean };
+type Data = { channels: ChannelState[]; aiReady: boolean; aiProvider?: string; metaReady: boolean; webhookUrl: string; canManage: boolean };
 
 const HELP: Record<string, string> = {
   website: "A chat button on your public car pages. It answers from your published cars and passes customers to your team.",
@@ -50,7 +50,7 @@ export function Messaging() {
         <h2 className="h3">Customer messaging</h2>
         <p className="muted">Where the AI assistant answers customers. It replies only from your published car records, never negotiates price, finance or bookings, and hands customers to your team when a person is needed. Every conversation is in Conversations.</p>
       </div>
-      {!d.aiReady ? <Notice tone="warn" role="status">The AI key is not set for this workspace yet. Customers still get an acknowledgement, and every message goes to your team in Conversations.</Notice> : null}
+      {!d.aiReady ? <Notice tone="warn" role="status">The AI provider is not set up for this workspace yet. Customers still get an acknowledgement, and every message goes to your team in Conversations.</Notice> : null}
       {error ? <Notice tone="danger" role="alert">{error}</Notice> : null}
       <div className="ad-accounts">
         {d.channels.map((c) => (

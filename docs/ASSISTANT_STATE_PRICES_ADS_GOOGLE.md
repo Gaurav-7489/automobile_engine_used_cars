@@ -7,7 +7,7 @@ Four additions to the dealership workspace (`apps/intelligence`). Each one is of
 A chat that answers questions about the dealership in plain words: ageing stock, a car's price and enquiries, lead stages and
 overdue follow-ups, monthly sales, campaigns, and asking prices by state. It can also draft ad text, posts and customer messages.
 
-- Model: Claude (`claude-opus-5-5`, override with `ASSISTANT_MODEL`), called from the server with `ANTHROPIC_API_KEY`.
+- Model: chosen by `AI_PROVIDER` (`gemini` or `anthropic`); see [AI_PROVIDERS.md](AI_PROVIDERS.md). Gemini uses `GEMINI_API_KEY` / `GEMINI_MODEL`; Claude uses `ANTHROPIC_API_KEY` and `claude-opus-5-5` (override with `ANTHROPIC_MODEL` or `ASSISTANT_MODEL`). Keys are read on the server only.
   Refused requests fall back on the server (`fallbacks: "default"`).
 - It reads through six fixed lookups (`lib/server/assistant.ts`) that use the same tenant- and branch-scoped queries as the pages.
   A lookup is offered only if the member's role may see that data (sales staff get no finance summary, costs only for roles

@@ -1,6 +1,7 @@
 import { json, problem, readJson } from "@/lib/api";
 import { can } from "@/lib/permissions";
-import { assistantConfigured } from "@/lib/server/assistant";
+import { aiConfig } from "@/lib/server/ai/config";
+import { aiConfigured } from "@/lib/server/ai/status";
 import { consumeStepUp, getPrincipal } from "@/lib/server/auth";
 import { canManageChannels, readChannels, saveChannel } from "@/lib/server/channels";
 import { sameOrigin } from "@/lib/server/csrf";
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   const { principal } = current;
   return json({
     channels: await tenantTx(principal.tenantId, (c) => readChannels(c, principal.tenantId)),
-    aiReady: assistantConfigured(), metaReady: Boolean(process.env.META_APP_SECRET?.trim() && process.env.META_WEBHOOK_VERIFY_TOKEN?.trim()),
+    aiReady: aiConfigured(), aiProvider: aiConfig().provider, metaReady: Boolean(process.env.META_APP_SECRET?.trim() && process.env.META_WEBHOOK_VERIFY_TOKEN?.trim()),
     webhookUrl: `${appOrigin(request)}/api/webhooks/meta`, canManage: canManageChannels(principal),
   });
 }
