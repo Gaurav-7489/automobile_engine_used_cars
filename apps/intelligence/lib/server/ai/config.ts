@@ -94,7 +94,8 @@ export type AiLimits = {
 export function aiLimits(provider: ProviderId = aiConfig().provider): AiLimits {
   const free = provider === "gemini";
   return {
-    timeoutMs: int("AI_TIMEOUT_MS", free ? 45_000 : 100_000, 5_000, 110_000),
+    // A free-tier call that has not finished in 25 s is almost always an overloaded model; saying "busy" beats a silent minute.
+    timeoutMs: int("AI_TIMEOUT_MS", free ? 25_000 : 100_000, 5_000, 110_000),
     // Failed requests count against Gemini's per-minute quota too, so the free-tier default retries once.
     maxRetries: int("AI_MAX_RETRIES", free ? 1 : 2, 0, 4),
     maxRetryDelayMs: int("AI_MAX_RETRY_DELAY_MS", 8_000, 0, 30_000),

@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { splitStatus } from "@/lib/assistant-stream";
 import { Icon } from "../icons";
 import { useRemote } from "../use-remote";
 import { Button, EmptyState, Notice, PageHead } from "../ui";
@@ -40,6 +41,8 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState("");
+  const [slow, setSlow] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   const abort = useRef<AbortController | null>(null);
   const thread = useRef<string | null>(null);
@@ -68,6 +71,9 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
     const write = (content: string) => setMessages([...history, { role: "assistant", content }]);
     const controller = new AbortController();
     abort.current = controller;
+    setStatus("");
+    setSlow(false);
+    const slowTimer = setTimeout(() => setSlow(true), 10_000);
     try {
       const response = await fetch("/api/assistant", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: history.slice(-20), page: pathname, threadId: thread.current ?? undefined }), signal: controller.signal });
       thread.current = response.headers.get("X-Assistant-Thread") || thread.current;
@@ -77,11 +83,15 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
       } else {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
+        let raw = "";
         let answer = "";
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
-          answer += decoder.decode(value, { stream: true });
+          raw += decoder.decode(value, { stream: true });
+          const parsed = splitStatus(raw);
+          answer = parsed.text;
+          setStatus(parsed.status);
           write(answer);
         }
         if (!answer.trim()) write("The assistant could not answer that. Try again.");
@@ -89,6 +99,9 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
     } catch (error) {
       if ((error as Error).name !== "AbortError") write("We could not reach the server. Check your connection and try again.");
     }
+    clearTimeout(slowTimer);
+    setStatus("");
+    setSlow(false);
     setBusy(false);
   }
 
@@ -114,7 +127,12 @@ export function AssistantChat({ compact = false }: { compact?: boolean }) {
               </div>
             ) : messages.map((m, i) => (
               <div key={i} className={`chat-msg ${m.role}`}>
-                {m.content ? m.content : <span className="chat-wait" aria-label="Thinking"><i /><i /><i /></span>}
+                {m.content ? m.content : (
+                  <span className="chat-waiting">
+                    <span className="chat-wait" aria-label="Thinking"><i /><i /><i /></span>
+                    {busy && i === messages.length - 1 && (status || slow) ? <span className="meta" role="status">{status || "Still working…"}{status && slow ? " Still working…" : ""}</span> : null}
+                  </span>
+                )}
               </div>
             ))}
             <div ref={end} />

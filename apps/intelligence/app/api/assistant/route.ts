@@ -3,6 +3,7 @@ import { aiLimits } from "@/lib/server/ai/config";
 import { errorFields, userMessage } from "@/lib/server/ai/errors";
 import { appendToThread, createThread, HISTORY_FOR_MODEL, lastCall, listThreads, readThread, validThreadId } from "@/lib/server/ai/history";
 import { aiStatus } from "@/lib/server/ai/status";
+import { statusLine } from "@/lib/assistant-stream";
 import { clientKey, hitShared } from "@/lib/rate-limit";
 import { MAX_MESSAGE_CHARS, runAssistant, toolsFor, validMessages, type ChatMessage } from "@/lib/server/assistant";
 import { checkRequest, redactingEmitter } from "@/lib/server/assistant-guard";
@@ -111,8 +112,9 @@ export async function POST(request: Request) {
       // Every word passes through the secret filter on its way to the screen.
       const out = redactingEmitter(send, 160);
       const emit = (text: string) => { if (text.trim() || wrote) { wrote = wrote || Boolean(text.trim()); out.write(text); } };
+      const onStatus = (text: string) => { if (!wrote) controller.enqueue(encoder.encode(statusLine(text))); };
       try {
-        const outcome = await runAssistant({ principal, dealership, messages: history, emit, page });
+        const outcome = await runAssistant({ principal, dealership, messages: history, emit, onStatus, page });
         out.end();
         if (outcome.status !== "done") send(NOTE[outcome.status]);
       } catch (error) {

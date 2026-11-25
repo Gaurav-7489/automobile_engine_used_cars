@@ -332,3 +332,55 @@ test("Claude still works through the same engine (scripted client), with caching
     assert.ok((sent[0].tools as { strict: boolean }[]).every((t) => t.strict));
   } finally { await h.close(); }
 });
+
+test("progress lines: shown while lookups run, never part of the answer", async () => {
+  const { splitStatus, statusLine } = await import("../../apps/intelligence/lib/assistant-stream");
+  assert.deepEqual(splitStatus(statusLine("Looking up your cars…")), { text: "", status: "Looking up your cars…" });
+  assert.deepEqual(splitStatus(`${statusLine("A")}${statusLine("B")}Answer`), { text: "Answer", status: "B" });
+  assert.deepEqual(splitStatus(`${statusLine("A")}\u001eHalf`), { text: "", status: "A" }, "a status line still arriving is not shown");
+  assert.deepEqual(splitStatus("plain answer"), { text: "plain answer", status: "" }, "older servers without progress lines still work");
+  assert.equal(statusLine("x\u001ey"), "\u001exy\u001e", "a separator inside a label cannot break the stream");
+
+  const { h, owner } = await setup();
+  try {
+    const statuses: string[] = [];
+    let out = "";
+    await withEnv({ AI_PROVIDER: "gemini", GEMINI_API_KEY: "test" }, () => runAssistant({
+      principal: owner, dealership: "", messages: [{ role: "user", content: "Creta price and leads?" }], emit: (t) => { out += t; }, onStatus: (s) => statuses.push(s),
+      provider: providerWithClient.gemini(gemini([[{ candidates: [{ content: { role: "model", parts: [{ functionCall: { id: "a", name: "find_cars", args: { query: "creta", status: "on_sale" } } }, { functionCall: { id: "b", name: "lead_overview", args: {} } }] }, finishReason: "STOP" as never }] } as Chunk], done("Done.")])),
+    }));
+    assert.deepEqual(statuses, ["Looking up your cars, Checking your leads…"], "both lookups run in one round, with one progress line");
+    assert.equal(out, "\n\nDone.");
+  } finally { await h.close(); }
+});
+
+test("the assistant is told to answer how-to questions from the included guide excerpts without an extra lookup", async () => {
+  const { h, owner } = await setup();
+  try {
+    const sent: { contents: unknown; config: Record<string, unknown> }[] = [];
+    await withEnv({ AI_PROVIDER: "gemini", GEMINI_API_KEY: "test" }, () => runAssistant({ principal: owner, dealership: "", messages: [{ role: "user", content: "How do I connect WhatsApp?" }], emit: () => undefined, provider: providerWithClient.gemini(gemini([done("Settings → Customer messaging.")], sent)) }));
+    const system = String(sent[0].config.systemInstruction);
+    assert.match(system, /answer directly from the product guide excerpts below when they cover the question/);
+    assert.match(system, /Product guide excerpts for this question[\s\S]*WhatsApp/, "the relevant guide entry is already in the request");
+  } finally { await h.close(); }
+});
+
+test("car search: fuel and gearbox words filter instead of matching nothing", async () => {
+  const { carFilters, runTool } = await import("../../apps/intelligence/lib/server/assistant");
+  assert.deepEqual(carFilters("diesel"), { words: "", fuel: "diesel", gearbox: "" });
+  assert.deepEqual(carFilters("automatic Creta diesel cars"), { words: "Creta", fuel: "diesel", gearbox: "automatic" });
+  assert.deepEqual(carFilters("V-104"), { words: "V-104", fuel: "", gearbox: "" });
+  const { h, owner } = await setup();
+  try {
+    const diesel = await runTool(owner, "find_cars", { query: "diesel", status: "on_sale" });
+    assert.ok(diesel.ok);
+    const result = diesel.result as { matches: number; cars: { stock: string }[]; filteredBy: string };
+    assert.equal(result.matches, 1);
+    assert.equal(result.cars[0].stock, "S-1");
+    assert.equal(result.filteredBy, "diesel");
+    const petrol = await runTool(owner, "find_cars", { query: "petrol", status: "on_sale" });
+    assert.equal((petrol as { result: { matches: number } }).result.matches, 0);
+    const automaticCreta = await runTool(owner, "find_cars", { query: "automatic creta", status: "any_unsold" });
+    assert.equal((automaticCreta as { result: { matches: number } }).result.matches, 0, "the synthetic Creta is manual");
+  } finally { await h.close(); }
+});
