@@ -3,7 +3,7 @@ import { clearRemoteCache } from "@/lib/remote-cache";
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Brand } from "../brand";
 import { Dialog } from "../overlay";
 import { Button, FormSummary, Notice, PasswordField, TextField } from "../ui";
@@ -15,6 +15,23 @@ type Props = { providers: { id: "google" | "microsoft"; label: string }[]; legac
 
 export function LoginExperience({ providers, legacy = false }: Props) {
   const router = useRouter();
+  const heroRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero || !window.matchMedia("(hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)").matches) return;
+    let frame = 0, x = 0, y = 0, tx = 0, ty = 0;
+    const tick = () => {
+      x += (tx - x) * 0.075; y += (ty - y) * 0.075;
+      hero.style.setProperty("--scene-x", `${x.toFixed(2)}px`);
+      hero.style.setProperty("--scene-y", `${y.toFixed(2)}px`);
+      if (Math.abs(tx - x) + Math.abs(ty - y) > 0.05) frame = requestAnimationFrame(tick); else frame = 0;
+    };
+    const start = () => { if (!frame) frame = requestAnimationFrame(tick); };
+    const move = (event: PointerEvent) => { const r = hero.getBoundingClientRect(); tx = ((event.clientX - r.left) / r.width - .5) * 18; ty = ((event.clientY - r.top) / r.height - .5) * 12; start(); };
+    const leave = () => { tx = 0; ty = 0; start(); };
+    hero.addEventListener("pointermove", move); hero.addEventListener("pointerleave", leave);
+    return () => { cancelAnimationFrame(frame); hero.removeEventListener("pointermove", move); hero.removeEventListener("pointerleave", leave); };
+  }, []);
   // A new sign-in never sees data cached for whoever used this tab before.
   useEffect(() => { clearRemoteCache(); }, []);
   const params = useSearchParams();
@@ -50,25 +67,20 @@ export function LoginExperience({ providers, legacy = false }: Props) {
 
   return (
     <div className={styles.shell}>
-      <header className={styles.hero}>
+      <header className={styles.hero} ref={heroRef}>
+        <div className={styles.scene} aria-hidden="true" />
+        <div className={styles.atmosphere} aria-hidden="true" />
+        <div className={styles.lightSweep} aria-hidden="true" />
         <div className={styles.identity}>
           <Brand sub={false} />
           <span className={styles.product}>Automotive Intelligence</span>
         </div>
-        <div className={styles.ambient} aria-hidden="true" />
-        <div className={styles.heroCopy}>
-          <span className={styles.eyebrow}>VANDLABS / AUTOMOTIVE INTELLIGENCE</span>
-          <h2 className={styles.heroTitle}>Every vehicle.<br /><em>One clear vision.</em></h2>
-          <p className={styles.heroDescription}>An intelligent workspace to manage inventory, understand your business and move every opportunity forward.</p>
-          <div className={styles.heroBottom}><span>Built for the modern dealership</span><span>01 / INTELLIGENCE</span></div>
-        </div>
       </header>
       <main className={styles.panel} id="content" tabIndex={-1}>
         <div className={styles.content}>
-          <div className={styles.panelEyebrow}>Secure dealership access</div>
           <form className={styles.form} onSubmit={submit} noValidate aria-describedby="login-status">
             <div className={styles.heading}>
-              <h1 className={styles.title}>Welcome<br />to <em>VandLabs.</em></h1>
+              <h1 className={styles.title}>Welcome<br />to <em>VandLabs</em></h1>
               <p>Sign in with the Google account your dealership was set up with.</p>
             </div>
             {reason === "expired" ? <Notice tone="warn" role="status">Your session expired. Sign in again. Your non-sensitive setup draft was kept; no password was stored.</Notice> : null}
@@ -102,7 +114,6 @@ export function LoginExperience({ providers, legacy = false }: Props) {
             <Link href="/info/support">Support</Link>
             <Link href="/showroom">Showroom</Link>
           </footer>
-          <p className={styles.footnote}>VandLabs Intelligence · Private workspace</p>
         </div>
       </main>
       <AccessDialog open={accessOpen} onClose={() => setAccessOpen(false)} />
