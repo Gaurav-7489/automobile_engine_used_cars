@@ -690,11 +690,8 @@ body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-even
 .card, .kpi, .table-wrap, .state-box { box-shadow: var(--e1); }
 .menu, .toast, .bottom-nav, .overlay.sheet-wrap .dialog, .dialog.w480 { box-shadow: var(--e3), inset 0 1px 0 var(--glass-edge); }
 .dialog { box-shadow: var(--e4); }
-@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .menu, .toast, .bottom-nav, .overlay.sheet-wrap .dialog, .dialog.w480, .topbar { background: var(--glass-bg); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
-}
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .menu, .toast, .bottom-nav, .overlay.sheet-wrap .dialog, .dialog.w480, .topbar { background: var(--raised) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  .menu, .toast, .bottom-nav, .overlay.sheet-wrap .dialog, .dialog.w480, .topbar { background: var(--raised) !important; }
   body::before { display: none; }
 }
 /* Skeletons are static for people who ask for less motion. */
@@ -774,9 +771,9 @@ body::before { display: none; }
 .card:hover, .kpi:hover { border-color: color-mix(in srgb, var(--text) 16%, var(--border)); }
 .state-box { border-style: solid; }
 .rail { background: var(--surface); border-right-color: var(--border); }
-.topbar { background: color-mix(in srgb, var(--canvas) 88%, transparent); border-bottom-color: var(--border); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+.topbar { background: color-mix(in srgb, var(--canvas) 88%, transparent); border-bottom-color: var(--border); }
 /* Forms need a calm, solid surface: nothing behind a dialog or drawer shows through. */
-.dialog, .drawer { background: var(--surface); border-color: var(--border); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.dialog, .drawer { background: var(--surface); border-color: var(--border); }
 .data-table th { background: transparent; }
 .data-table tbody tr:nth-child(even) td { background: transparent; }
 .data-table tbody tr:hover td { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
@@ -795,7 +792,6 @@ body::before { display: none; }
 
 /* Blur is spent only where something scrolls or opens underneath it (top bar, tab bar, dialogs, menus, toasts, the loading veil). Panels sit over
    soft light only, where a translucent fill looks the same and costs nothing. If a device cannot keep up, the script switches to "lite" (no blur at all). */
-html[data-glass="lite"] * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glass="lite"] .drawer, html[data-glass="lite"] .menu, html[data-glass="lite"] .toast, html[data-glass="lite"] .bottom-nav { background: var(--surface) !important; }
 
 /* Cheap native lazy rendering: panels far below the fold are not laid out or painted until they approach the viewport. */
@@ -834,7 +830,7 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
   transition: left 520ms var(--spring), width 640ms var(--spring), top 300ms var(--ease-out), height 300ms var(--ease-out); }
 .tabs .liquid-pill { border-radius: 12px; }
 .theme-switch { display: none; }
-.liquid-seg { position: relative; display: inline-flex; padding: 3px; border: 1px solid var(--glass-line); border-radius: 999px; background: var(--glass-fill); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: inset 0 1px 0 var(--glass-hi); }
+.liquid-seg { position: relative; display: inline-flex; padding: 3px; border: 1px solid var(--glass-line); border-radius: 999px; background: var(--glass-fill); box-shadow: inset 0 1px 0 var(--glass-hi); }
 .liquid-seg button { position: relative; z-index: 1; min-height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: none; color: var(--muted); font-size: 13px; font-weight: 500; }
 .liquid-seg button[aria-pressed="true"] { color: var(--accent-strong); font-weight: 600; }
 .liquid-seg button:hover:not([aria-pressed="true"]) { color: var(--text); }
@@ -844,7 +840,7 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 .route-bar { position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 400; overflow: hidden; pointer-events: none; }
 .route-bar i { position: absolute; inset: 0; transform-origin: left; background: linear-gradient(90deg, transparent, var(--accent), color-mix(in srgb, var(--accent) 60%, #fff), var(--accent)); box-shadow: 0 0 14px var(--accent); animation: route-bar 1.6s var(--ease-out) infinite; }
 @keyframes route-bar { 0% { transform: translateX(-100%) scaleX(0.3); } 60% { transform: translateX(10%) scaleX(0.8); } 100% { transform: translateX(100%) scaleX(0.3); } }
-.route-veil { position: fixed; z-index: 90; top: var(--header-h); bottom: 0; left: var(--rail-w); right: 0; display: grid; place-items: center; background: var(--vl-veil); -webkit-backdrop-filter: blur(6px) saturate(120%); backdrop-filter: blur(6px) saturate(120%); animation: fade 200ms ease both; }
+.route-veil { position: fixed; z-index: 90; top: var(--header-h); bottom: 0; left: var(--rail-w); right: 0; display: grid; place-items: center; background: var(--vl-veil); animation: fade 200ms ease both; }
 @media (max-width: 1023px) { .route-veil { left: 0; } }
 .route-veil-card { display: inline-flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 999px; background: var(--glass-fill-strong); border: 1px solid var(--glass-line); box-shadow: var(--e3), inset 0 1px 0 var(--glass-hi); color: var(--text); font-weight: 600; animation: pop-in 420ms var(--spring) both; }
 .main-inner { will-change: auto; }
@@ -856,7 +852,7 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 
 /* Off switches. */
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .card, .kpi, .table-wrap, .state-box, .rail, .topbar, .dialog, .drawer, .liquid-seg, .route-veil, .route-veil-card { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--surface) !important; }
+  .card, .kpi, .table-wrap, .state-box, .rail, .topbar, .dialog, .drawer, .liquid-seg, .route-veil, .route-veil-card { background: var(--surface) !important; }
   .ambient { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -897,7 +893,7 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 
 /* Public showroom: the former web app, rebuilt on the Intelligence tokens. */
 .showroom { min-height: 100dvh; position: relative; }
-.sr-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 16px; padding: 10px max(16px, 4vw); background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
+.sr-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 16px; padding: 10px max(16px, 4vw); background: color-mix(in srgb, var(--bg) 78%, transparent); border-bottom: 1px solid var(--border); }
 .sr-nav { display: flex; gap: 4px; margin-right: auto; margin-left: 16px; }
 .sr-nav a { padding: 10px 12px; border-radius: var(--radius-control); font-weight: 600; font-size: 14px; }
 .sr-nav a:hover { background: var(--raised); }
@@ -944,7 +940,7 @@ html[data-glass="lite"] .topbar, html[data-glass="lite"] .dialog, html[data-glas
 
 /* Phone: dialogs and drawers fill the screen, so they are solid surfaces, not glass over the page. */
 @media (max-width: 767px) {
-  .overlay .dialog, .overlay .drawer { background: var(--surface) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  .overlay .dialog, .overlay .drawer { background: var(--surface) !important; }
 }
 
 /* Responsive fixes found by tests/local-stack/responsive.spec.ts (320px to 1920px). */
@@ -1182,7 +1178,7 @@ a.pl-dealer { color: var(--text); text-decoration: none; }
 
 /* ===== VandLabs admin console ===== */
 .adm { display: grid; grid-template-columns: 264px minmax(0, 1fr); min-height: 100dvh; background: var(--canvas); position: relative; z-index: 1; }
-.adm-side { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; gap: 20px; padding: 24px 16px; border-right: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 86%, transparent); backdrop-filter: blur(14px); }
+.adm-side { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; gap: 20px; padding: 24px 16px; border-right: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 86%, transparent); }
 .adm-brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
 .adm-pill { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
 .adm-nav { display: grid; gap: 4px; }
@@ -1686,13 +1682,12 @@ body { background: var(--canvas-art); background-attachment: fixed; letter-spaci
   background: var(--glass);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-top);
-  -webkit-backdrop-filter: var(--glass-blur-x); backdrop-filter: var(--glass-blur-x);
 }
 .card, .kpi, .table-wrap, .state-box { border-radius: var(--radius-card); }
 .card:hover, .kpi:hover { border-color: var(--glass-border); box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-top); }
-.dialog, .drawer { background: var(--glass-strong); border: 1px solid var(--glass-border); -webkit-backdrop-filter: var(--glass-blur-x); backdrop-filter: var(--glass-blur-x); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.45), inset 0 1px 0 var(--glass-top); }
+.dialog, .drawer { background: var(--glass-strong); border: 1px solid var(--glass-border); box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.45), inset 0 1px 0 var(--glass-top); }
 .dialog { border-radius: var(--radius-modal); }
-.overlay { background: color-mix(in srgb, var(--scrim) 70%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.overlay { background: color-mix(in srgb, var(--scrim) 70%, transparent); }
 .menu, .toast { background: var(--glass-strong); border-radius: 14px; }
 
 /* Sidebar and top bar float on the same glass, with no hard dividing lines. */
@@ -1722,7 +1717,7 @@ body { background: var(--canvas-art); background-attachment: fixed; letter-spaci
 .data-table td.pin-col, .data-table th.pin-col { background: transparent; }
 
 /* Section sub-tabs: one segmented glass control at the top of a section. */
-.section-tabs { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 4px; margin-bottom: 20px; border-radius: 14px; background: var(--glass); border: 1px solid var(--glass-border); -webkit-backdrop-filter: var(--glass-blur-x); backdrop-filter: var(--glass-blur-x); box-shadow: inset 0 1px 0 var(--glass-top); max-width: 100%; overflow-x: auto; }
+.section-tabs { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 4px; margin-bottom: 20px; border-radius: 14px; background: var(--glass); border: 1px solid var(--glass-border); box-shadow: inset 0 1px 0 var(--glass-top); max-width: 100%; overflow-x: auto; }
 .section-tabs a { min-height: 34px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 10px; font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap; }
 .section-tabs a:hover { color: var(--text); }
 .section-tabs a[aria-current="page"] { background: var(--glass-strong); color: var(--text); font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10), inset 0 1px 0 var(--glass-top); }
@@ -1783,10 +1778,10 @@ body { background: var(--canvas-art); background-attachment: fixed; letter-spaci
 .lazy-hold { display: grid; gap: 16px; align-content: start; }
 
 /* Assistant on every page */
-.ask-fab { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid var(--glass-border); background: var(--glass-strong); color: var(--text); font-weight: 600; font-size: 14px; -webkit-backdrop-filter: var(--glass-blur-x); backdrop-filter: var(--glass-blur-x); box-shadow: 0 4px 16px -6px rgba(0, 0, 0, 0.25), inset 0 1px 0 var(--glass-top); }
+.ask-fab { position: fixed; right: 20px; bottom: 20px; z-index: 60; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 22px; border: 1px solid var(--glass-border); background: var(--glass-strong); color: var(--text); font-weight: 600; font-size: 14px; box-shadow: 0 4px 16px -6px rgba(0, 0, 0, 0.25), inset 0 1px 0 var(--glass-top); }
 .ask-fab svg { color: var(--accent); }
 .ask-fab:hover { background: var(--glass-strong); border-color: color-mix(in srgb, var(--accent) 40%, var(--glass-border)); }
-.ask-panel { position: fixed; z-index: 70; top: 12px; right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); display: flex; flex-direction: column; border-radius: 22px; border: 1px solid var(--glass-border); background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-blur-x); backdrop-filter: var(--glass-blur-x); box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.35), inset 0 1px 0 var(--glass-top); transform: translateX(calc(100% + 24px)); visibility: hidden; transition: transform 260ms var(--ease-out), visibility 0s linear 260ms; }
+.ask-panel { position: fixed; z-index: 70; top: 12px; right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); display: flex; flex-direction: column; border-radius: 22px; border: 1px solid var(--glass-border); background: var(--glass-strong); box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.35), inset 0 1px 0 var(--glass-top); transform: translateX(calc(100% + 24px)); visibility: hidden; transition: transform 260ms var(--ease-out), visibility 0s linear 260ms; }
 .ask-panel.open { transform: none; visibility: visible; transition: transform 260ms var(--ease-out); }
 .ask-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--glass-border); }
 .ask-head strong { display: inline-flex; align-items: center; gap: 8px; }
@@ -1804,7 +1799,7 @@ body { background: var(--canvas-art); background-attachment: fixed; letter-spaci
   .ask-panel { top: 8px; right: 8px; left: 8px; bottom: 8px; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .ask-panel, .ask-panel.open { transition: none; } }
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .ask-fab, .ask-panel { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--surface); } }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .ask-fab, .ask-panel { background: var(--surface); } }
 
 /* ---- Loading: the shimmering VL mark over a softly darkened, blurred area. -------------------------------------------------------------
    Replaces the old flowing skeleton sweep, goo drops and morphing orb. Any loading region (role="status" + aria-busy="true", or
@@ -1832,7 +1827,7 @@ body { background: var(--canvas-art); background-attachment: fixed; letter-spaci
 :is(div, section, main)[role="status"][aria-busy="true"], .page[aria-busy="true"], .table-wrap[aria-busy="true"], .pk-main[aria-busy="true"], .vl-loading { position: relative; isolation: isolate; }
 :is(div, section, main)[role="status"][aria-busy="true"]::before, .page[aria-busy="true"]::before, .table-wrap[aria-busy="true"]::before, .pk-main[aria-busy="true"]::before, .vl-loading::before {
   content: ""; position: absolute; inset: 0; z-index: 5; border-radius: inherit; pointer-events: none;
-  background: var(--vl-veil); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); animation: fade 200ms ease both;
+  background: var(--vl-veil); animation: fade 200ms ease both;
 }
 :is(div, section, main)[role="status"][aria-busy="true"]::after, .page[aria-busy="true"]::after, .table-wrap[aria-busy="true"]::after, .pk-main[aria-busy="true"]::after, .vl-loading::after {
   content: "VL"; position: absolute; z-index: 6; left: 50%; top: min(50%, 42vh); transform: translate(-50%, -50%); pointer-events: none;
@@ -1849,7 +1844,7 @@ body { background: var(--canvas-art); background-attachment: fixed; letter-spaci
 @media (prefers-reduced-motion: reduce) { .vl-letters, .vl-word, [aria-busy="true"]::after, .vl-loading::after { animation: none !important; background-position: 50% 0; } }
 :root[data-motion="reduced"] :is(.vl-letters, .vl-word, [aria-busy="true"]::after, .vl-loading::after) { animation: none !important; background-position: 50% 0; }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  [aria-busy="true"]::before, .vl-loading::before { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  [aria-busy="true"]::before, .vl-loading::before { }
   .vl-letters, .vl-word, [aria-busy="true"]::after, .vl-loading::after { background: none; color: var(--text); -webkit-text-fill-color: var(--text); }
 }
 
@@ -1926,3 +1921,136 @@ div.promo-platform { cursor: default; grid-template-columns: auto 1fr; }
 .camp-main { display: grid; gap: 2px; min-width: 0; }
 .camp-figures { display: grid; justify-items: end; font-weight: 600; }
 @media (max-width: 640px) { .camp-row { grid-template-columns: 1fr auto; } .camp-figures { display: none; } .promo-presets { grid-template-columns: 1fr; } }
+
+/* ==========================================================================================================================
+   Liquid Glass. Surfaces are GPU-rendered optical glass (lib/liquid-glass): one WebGL2 canvas behind the page draws a studio
+   environment and refracts it through every registered surface; elevated surfaces (top bar, sidebar, dialogs, menus, toasts) carry
+   a mirror of their glass above the content they cover. CSS here owns tokens, layout, typography and the fallbacks:
+     html[data-liquid-glass="gpu"]       optical glass is drawn: surfaces that have glass behind them (.lg-on) become clear;
+     "starting" / "fallback" / "off"      coordinated solid materials (translucent fills, hairline edges), no blur anywhere.
+   ========================================================================================================================== */
+
+/* Environment and glass palette (read by the engine). Dark: a graphite studio, emerald and blue light, pale streamlines. */
+:root {
+  --lg-base-top: #0b0f10; --lg-base-bottom: #050708;
+  --lg-env-a: #0f3b2c; --lg-env-b: #0b2238;
+  --lg-light: 0.075 0.085 0.085;
+  --lg-line: #8be3c4; --lg-line-alpha: 0.075;
+  --lg-tint: #0c1211; --lg-accent: #34d399; --lg-light-theme: 0;
+  /* Motion tokens shared with the engine's springs (lib/liquid-glass/tokens.ts). */
+  --lg-spring: cubic-bezier(0.32, 1.28, 0.6, 1);
+  --lg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --lg-dur-fast: 160ms; --lg-dur: 320ms; --lg-dur-slow: 520ms;
+  --lg-radius-card: 22px; --lg-radius-control: 14px; --lg-radius-float: 24px;
+  /* The page's own ink, for areas that define a local palette (sign-in paper) and switch back to it over glass. */
+  --lg-ink: var(--text); --lg-ink-muted: var(--muted); --lg-ink-accent: var(--accent); --lg-ink-accent-strong: var(--accent-strong); --lg-ink-accent-ink: var(--accent-ink);
+  --lg-ink-surface: var(--surface); --lg-ink-raised: var(--raised); --lg-ink-border: var(--border); --lg-ink-field: var(--field-border); --lg-ink-placeholder: var(--placeholder);
+}
+/* Light: a bright pearl studio, mint and sky light, graphite streamlines, white glass. */
+:root[data-theme="light"] {
+  --lg-base-top: #f6f9f8; --lg-base-bottom: #e4ebe9;
+  --lg-env-a: #bfe9d7; --lg-env-b: #c9ddf1;
+  --lg-light: -0.035 -0.03 -0.025;
+  --lg-line: #3b5a51; --lg-line-alpha: 0.07;
+  --lg-tint: #fbfdfc; --lg-accent: #047857; --lg-light-theme: 1;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --lg-base-top: #f6f9f8; --lg-base-bottom: #e4ebe9; --lg-env-a: #bfe9d7; --lg-env-b: #c9ddf1; --lg-light: -0.035 -0.03 -0.025;
+    --lg-line: #3b5a51; --lg-line-alpha: 0.07; --lg-tint: #fbfdfc; --lg-accent: #047857; --lg-light-theme: 1;
+  }
+}
+/* VandLabs admin console: the same studio in its warm copper palette (light by default, dark when chosen). */
+.adm.adm-redesign {
+  --lg-base-top: #fbf4ee; --lg-base-bottom: #efe2d8; --lg-env-a: #f3d1b2; --lg-env-b: #ead4df; --lg-light: -0.03 -0.035 -0.04;
+  --lg-line: #6b3211; --lg-line-alpha: 0.06; --lg-tint: #fff9f4; --lg-accent: #8c4516; --lg-light-theme: 1;
+}
+:root[data-theme="dark"] .adm.adm-redesign {
+  --lg-base-top: #140e0b; --lg-base-bottom: #0a0706; --lg-env-a: #3d2510; --lg-env-b: #2a1824; --lg-light: 0.09 0.075 0.06;
+  --lg-line: #f1b57a; --lg-line-alpha: 0.06; --lg-tint: #1b140f; --lg-accent: #f4b780; --lg-light-theme: 0;
+}
+
+/* The stage: the canvas is positioned in the document by the engine (re-anchored to the scroll each frame). */
+html[data-liquid-glass] body { position: relative; min-height: 100dvh; }
+.lg-stage { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; contain: layout paint; }
+.lg-canvas { position: absolute; left: 0; top: 0; display: block; opacity: 0; transition: opacity 420ms var(--lg-ease); will-change: transform; }
+html[data-liquid-glass="gpu"] .lg-canvas { opacity: 1; }
+.lg-mirror { pointer-events: none; display: block; }
+.lg-mirror-layer { position: fixed; left: 0; top: 0; will-change: transform; }
+.lg-mirror-inner { position: absolute; z-index: -1; border-radius: inherit; }
+html:not([data-liquid-glass="gpu"]) .lg-mirror { display: none; }
+.lg-host { isolation: isolate; }
+.dialog.lg-host, .drawer.lg-host, .toast.lg-host, .route-veil-card.lg-host { position: relative; }
+
+/* Behind optical glass the page itself is clear: the environment is the background. */
+html[data-liquid-glass="gpu"] body { background: var(--lg-base-bottom); }
+html[data-liquid-glass="gpu"] :is(.app, .landing, .showroom, .login-shell, .onb, .adm, .adm.adm-redesign) { background: transparent; }
+html[data-liquid-glass="gpu"] .adm { z-index: auto; }
+html[data-liquid-glass="gpu"] .adm-side { z-index: 30; }
+/* A surface with glass behind it shows the glass: no fill, no CSS edge, no CSS shadow (the shader draws rim, light and contact shadow). */
+html[data-liquid-glass="gpu"] .lg-on { background: transparent !important; background-image: none !important; border-color: transparent !important; box-shadow: none !important; }
+html[data-liquid-glass="gpu"] .lg-on :is(.overlay-foot, .overlay-head) { background: transparent; }
+html[data-liquid-glass="gpu"] .btn-primary.lg-on { color: var(--accent-ink); }
+html[data-liquid-glass="gpu"] .cc-launch.lg-on { color: var(--text); }
+html[data-liquid-glass="gpu"] .data-table th { background: transparent; }
+
+/* Shape tokens: glass reads best with generous, continuous corners. */
+html[data-liquid-glass] :is(.card, .kpi, .state-box, .table-wrap, .pl-card, .pl-filters, .adm-card) { border-radius: var(--lg-radius-card); }
+html[data-liquid-glass] .btn, html[data-liquid-glass] .icon-btn, html[data-liquid-glass] .input, html[data-liquid-glass] .select, html[data-liquid-glass] .textarea { border-radius: var(--lg-radius-control); }
+html[data-liquid-glass] :is(.topbar, .bottom-nav) { border-radius: var(--lg-radius-float); }
+html[data-liquid-glass] .btn-primary { border-radius: 999px; }
+html[data-liquid-glass] .icon-btn { border-radius: 50%; }
+
+/* Selection indicators: a glass droplet that the engine springs between items. Solid pill only as the fallback. */
+.rail-nav, .section-tabs, .adm-nav { position: relative; } /* .bottom-nav is already fixed on phones */
+.lg-indicator { position: absolute; z-index: 0; pointer-events: none; border-radius: 12px; background: color-mix(in srgb, var(--accent) 14%, transparent); transition: left var(--lg-dur-slow) var(--lg-spring), top var(--lg-dur-slow) var(--lg-spring), width var(--lg-dur) var(--lg-ease), height var(--lg-dur) var(--lg-ease); }
+.section-tabs .lg-indicator { border-radius: 10px; }
+.bottom-nav .lg-indicator { border-radius: 18px; }
+.adm-nav .lg-indicator { border-radius: 16px; }
+.rail-nav > .nav-group, .section-tabs > a, .bottom-nav > a, .bottom-nav > button, .adm-nav > button { position: relative; z-index: 1; }
+html[data-liquid-glass="gpu"] .lg-indicator.lg-on { background: transparent; transition: none; }
+html[data-liquid-glass="gpu"] .liquid-pill.lg-on { transition: none; }
+html[data-liquid-glass="gpu"] .goo-trail { filter: none; }
+html[data-liquid-glass="gpu"] .goo-trail .trail { display: none; }
+html[data-liquid-glass="gpu"] .rail-nav:has(> .lg-indicator.lg-on) .nav-link[aria-current="page"],
+html[data-liquid-glass="gpu"] .section-tabs:has(> .lg-indicator.lg-on) a[aria-current="page"],
+html[data-liquid-glass="gpu"] .adm-nav:has(> .lg-indicator.lg-on) button.on { background: transparent; border-color: transparent; box-shadow: none; }
+html[data-liquid-glass="gpu"] .adm-nav:has(> .lg-indicator.lg-on) button.on { color: var(--accent-strong); }
+html[data-liquid-glass="gpu"] .adm-nav:has(> .lg-indicator.lg-on) button.on svg { color: var(--accent); }
+.nav-link[aria-current="page"] { color: var(--accent-strong); }
+
+/* Coordinated solid materials (no GPU glass yet, or none available): calm translucent fills with a hairline edge. */
+html:not([data-liquid-glass="gpu"]) :is(.card, .kpi, .table-wrap, .state-box, .rail, .topbar, .bottom-nav, .login-form, .section-tabs) { background: color-mix(in srgb, var(--surface) 88%, transparent); }
+html:not([data-liquid-glass="gpu"]) :is(.menu, .toast, .dialog, .drawer, .ask-panel) { background: var(--surface); }
+
+/* Overlays: a plain dim behind them (no blur); the glass itself is what separates them from the page. */
+.overlay { background: color-mix(in srgb, var(--scrim) 62%, transparent); }
+
+/* Motion: springs on transform and opacity only, so the glass (measured every frame while they run) follows exactly. */
+.route-enter { animation: lg-route-in var(--lg-dur) var(--lg-ease) both; }
+@keyframes lg-route-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: none; } }
+.dialog { animation: lg-dialog-in 420ms var(--lg-spring) both; }
+@keyframes lg-dialog-in { from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.965); } to { opacity: 1; transform: none; } }
+.menu, .car-combo-list { animation: lg-pop 280ms var(--lg-spring) both; transform-origin: top center; }
+@keyframes lg-pop { from { opacity: 0; transform: translate3d(0, -6px, 0) scale(0.96); } to { opacity: 1; transform: none; } }
+.drawer { animation: lg-drawer-in 380ms var(--lg-ease) both; }
+@keyframes lg-drawer-in { from { opacity: 0.4; transform: translate3d(40px, 0, 0); } to { opacity: 1; transform: none; } }
+.btn, .icon-btn, .avatar, .ask-fab, .nav-link, .section-tabs a, .bottom-nav a, .bottom-nav button { transition: transform var(--lg-dur-fast) var(--lg-spring), background-color var(--lg-dur-fast) ease, border-color var(--lg-dur-fast) ease, color var(--lg-dur-fast) ease, opacity var(--lg-dur-fast) ease; }
+.ask-fab:active, .cc-launch:active { transform: scale(0.95); }
+.ask-panel { transition: transform 460ms var(--lg-spring), visibility 0s linear 460ms; }
+.ask-panel.open { transition: transform 460ms var(--lg-spring); }
+/* The sidebar eases between its full and compact widths when the window crosses the breakpoint. */
+@media (min-width: 768px) { .app { transition: grid-template-columns var(--lg-dur-slow) var(--lg-ease); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .route-enter, .dialog, .menu, .car-combo-list, .drawer { animation: none !important; }
+  .lg-indicator, .app, .ask-panel, .ask-panel.open { transition: none !important; }
+}
+:root[data-motion="reduced"] :is(.route-enter, .dialog, .menu, .car-combo-list, .drawer) { animation: none !important; }
+:root[data-motion="reduced"] :is(.lg-indicator, .app, .ask-panel, .ask-panel.open) { transition: none !important; }
+
+/* Printing: paper gets solid surfaces and no canvas. */
+@media print {
+  .lg-stage, .lg-mirrors { display: none !important; }
+  html[data-liquid-glass] .lg-on { background: #fff !important; border-color: #ccc !important; }
+}

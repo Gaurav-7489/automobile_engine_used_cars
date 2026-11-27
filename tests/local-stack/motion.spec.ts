@@ -12,7 +12,7 @@ async function signIn(page: Page) {
   await page.waitForURL(/\/app\//);
 }
 
-test("alive: pointer light, tilt, ripple, liquid tab, route loader, scroll physics, and no script errors", async ({ page }) => {
+test("alive: pointer light, GPU glass, press feedback, liquid tab, route loader, and no script errors", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -21,15 +21,14 @@ test("alive: pointer light, tilt, ripple, liquid tab, route loader, scroll physi
   await expect(page.getByRole("heading", { name: "Overview", level: 1 })).toBeVisible();
   await page.waitForTimeout(1200);
 
-  // Pointer light follows the cursor over a glass panel; the metric tile tilts and settles back.
+  // Pointer light follows the cursor over a glass panel; the metric tile is GPU glass and is never transformed in 3D (the lens is flat).
   const kpi = page.locator(".kpi").first();
   const box = (await kpi.boundingBox())!;
   await page.mouse.move(box.x + 10, box.y + 10);
   await page.mouse.move(box.x + box.width - 10, box.y + box.height - 10, { steps: 10 });
   await expect.poll(async () => kpi.evaluate((e) => (e as HTMLElement).style.getPropertyValue("--mx"))).not.toBe("");
-  await expect.poll(async () => kpi.evaluate((e) => (e as HTMLElement).style.transform)).toContain("rotate");
-  await page.mouse.move(5, 5, { steps: 6 });
-  await expect.poll(async () => kpi.evaluate((e) => (e as HTMLElement).style.transform), { timeout: 4000 }).toBe("");
+  await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute("data-liquid-glass")), { timeout: 10000 }).toMatch(/gpu|fallback/);
+  expect(await kpi.evaluate((e) => (e as HTMLElement).style.transform)).toBe("");
 
   // Press feedback is a CSS dip only: pressing adds no elements to the button (nothing piles up press after press).
   const primary = page.getByRole("button", { name: /add vehicle/i }).first();
@@ -53,7 +52,7 @@ test("alive: pointer light, tilt, ripple, liquid tab, route loader, scroll physi
   await expect.poll(async () => pill.evaluate((e) => (e as HTMLElement).style.left)).not.toBe(`${x0}px`);
   await first.click();
 
-  // Scroll physics lean the content layer while moving and release it at rest.
+  // The content layer is never moved by scroll physics (GPU glass is measured against it).
   await page.mouse.wheel(0, 900);
   await page.waitForTimeout(120);
   await page.mouse.wheel(0, 900);

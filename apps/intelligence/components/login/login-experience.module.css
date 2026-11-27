@@ -340,3 +340,38 @@
     font-size: clamp(43px, 8.5vw, 64px);
   }
 }
+
+/* Liquid Glass: the photograph becomes the environment behind the whole page, and the sign-in sits on a pane of optical glass over
+   it, in the person's own theme. Without GPU glass the paper panel above stays exactly as designed. */
+:global(html[data-liquid-glass="gpu"]) .shell,
+:global(html[data-liquid-glass="gpu"]) .hero,
+:global(html[data-liquid-glass="gpu"]) .panel {
+  background: transparent;
+}
+:global(html[data-liquid-glass="gpu"]) .panel::before,
+:global(html[data-liquid-glass="gpu"]) .panel::after {
+  display: none;
+}
+:global(html[data-liquid-glass="gpu"]) .panel {
+  --text: var(--lg-ink);
+  --muted: var(--lg-ink-muted);
+  --accent: var(--lg-ink-accent);
+  --accent-strong: var(--lg-ink-accent-strong);
+  --accent-ink: var(--lg-ink-accent-ink);
+  --surface: var(--lg-ink-surface);
+  --raised: var(--lg-ink-raised);
+  --border: var(--lg-ink-border);
+  --field-border: var(--lg-ink-field);
+  --placeholder: var(--lg-ink-placeholder);
+  color: var(--text);
+  color-scheme: inherit;
+}
+:global(html[data-liquid-glass="gpu"]) .content {
+  width: min(100%, 520px);
+  max-width: 520px;
+  padding: clamp(28px, 4vw, 48px);
+  border-radius: 32px;
+}
+:global(html[data-liquid-glass="gpu"]) .google {
+  border-radius: 999px;
+}

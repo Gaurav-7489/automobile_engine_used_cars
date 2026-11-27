@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import { MotionRoot } from "@/components/motion/motion";
+import { LiquidGlassRoot } from "@/components/liquid-glass/glass-root";
 import { MOTION_INIT_SCRIPT, THEME_INIT_SCRIPT } from "@/lib/init-scripts";
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <div className="ambient" aria-hidden="true"><i /><i /><i /></div>
         <svg width="0" height="0" aria-hidden="true" focusable="false" style={{ position: "absolute" }}><defs><filter id="goo" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur in="SourceGraphic" stdDeviation="7" result="blur" /><feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" result="goo" /><feComposite in="SourceGraphic" in2="goo" operator="atop" /></filter></defs></svg>
+        <LiquidGlassRoot />
         <MotionRoot />
         <a className="skip-link" href="#content">Skip to content</a>
         {children}

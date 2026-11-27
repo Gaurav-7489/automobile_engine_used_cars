@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { clearRemoteCache } from "@/lib/remote-cache";
 import { formatDateTime } from "@/lib/format";
 import { DEMO_ACTIVITY, DEMO_DEALERSHIPS, DEMO_PLANS, type DemoDealership } from "@/lib/admin-demo";
@@ -10,6 +10,7 @@ import { SUPPORT_EMAIL } from "@/lib/support";
 import { BrandMark } from "../brand";
 import { ThemeToggle } from "../theme";
 import { Icon } from "../icons";
+import { GlassIndicator } from "../liquid-glass/glass";
 import { Dialog } from "../overlay";
 import { Badge, Button, EmptyState, Notice } from "../ui";
 import { AccessRequests, CreateDealership, Members, ReissueInvite, WebsiteLinks, type Workspace } from "./admin-console";
@@ -65,6 +66,7 @@ const statusTone = (s: Check["status"]) => (s === "pass" ? "accent" : s === "war
 export function AdminConsole({ name, email, locked }: { name: string; email: string; locked: boolean }) {
   const router = useRouter();
   const [view, setView] = useState<View>("overview");
+  const navHost = useRef<HTMLElement>(null);
   const [demo, setDemo] = useState(true);
   const [workspaces, setWorkspaces] = useState<Workspace[] | null>(null);
   const [wsError, setWsError] = useState("");
@@ -171,10 +173,11 @@ export function AdminConsole({ name, email, locked }: { name: string; email: str
   );
 
   return (
-    <div className="adm adm-redesign">
+    <div className="adm adm-redesign" data-glass-scene="admin">
       <aside className="adm-side" aria-label="Admin navigation">
         <div className="adm-brand"><BrandMark size={32} /><strong>VANDLABS</strong><span>Automobile<br />Intelligence</span></div>
-        <nav className="adm-nav">
+        <nav className="adm-nav" ref={navHost}>
+          <GlassIndicator host={navHost} selector="button.on" deps={[view]} />
           {NAV.map((n) => (
             <button key={n.key} type="button" className={view === n.key ? "on" : ""} aria-current={view === n.key ? "page" : undefined} onClick={() => setView(n.key)}>
               <Icon name={n.icon} size={23} /><span>{n.label}</span>

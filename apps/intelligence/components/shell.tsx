@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Brand } from "./brand";
 import { Icon } from "./icons";
 import { Dialog } from "./overlay";
@@ -19,6 +19,7 @@ import { entitled } from "@/lib/entitlements";
 import { ThemeToggle } from "./theme";
 import { AssistantDock } from "./assistant/assistant-dock";
 import { RouteLoader } from "./motion/route-loader";
+import { GlassIndicator } from "./liquid-glass/glass";
 import { ALL_BRANCHES } from "@/lib/fixtures/branches";
 import { sumAlertCounts } from "@/lib/selectors";
 import { clearRemoteCache, warm } from "@/lib/remote-cache";
@@ -43,10 +44,12 @@ function SectionTabs({ section, pathname }: { section: string; pathname: string 
   const { state, session } = useWorkspace();
   const href = useScopedHref();
   const tabs = sectionTabs(section, session.role, state.entitlements);
+  const host = useRef<HTMLElement>(null);
   if (!tabs.length) return null;
   const current = navFor(pathname).item?.key;
   return (
-    <nav className="section-tabs" aria-label="Section">
+    <nav className="section-tabs" aria-label="Section" ref={host}>
+      <GlassIndicator host={host} selector='a[aria-current="page"]' deps={[current, tabs.length]} />
       {tabs.map((t) => <Link key={t.key} href={href(t.href)} prefetch aria-current={current === t.key ? "page" : undefined} {...warmOn(t.href)}>{t.tab}</Link>)}
     </nav>
   );
@@ -143,6 +146,8 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
   const signOut = async () => { await fetch("/api/auth/logout", { method: "POST" }); clearRemoteCache(); router.push("/login"); router.refresh(); };
   const allowedNav = visibleNav(session.role, state.entitlements);
   const bottom = allowedNav.filter((n) => ["overview", "market", "inventory", "leads"].includes(n.key));
+  const railNav = useRef<HTMLElement>(null);
+  const bottomNav = useRef<HTMLElement>(null);
 
   return (
     <ToastProvider>
@@ -151,7 +156,8 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
       <div className="app">
         <aside className="rail" aria-label="Workspace">
           <Link href={href("/app/overview")} className="brand" aria-label="VandLabs, go to Overview"><Brand sub /></Link>
-          <nav aria-label="Primary" className="rail-nav">
+          <nav aria-label="Primary" className="rail-nav" ref={railNav}>
+            <GlassIndicator host={railNav} selector='.nav-link[aria-current="page"]' deps={[key, allowedNav.length]} />
             {groupNav(allowedNav).map(([group, items]) => (
               <div key={group} className="nav-group" role="group" aria-label={group}>
                 <span className="nav-group-label" aria-hidden="true">{group}</span>
@@ -200,7 +206,8 @@ export function Shell({ children, platformAdmin = false }: { children: ReactNode
             <div key={pathname} className="route-enter">{gate ? <FeatureOff label={gate.label} reason={state.entitlements!.features[gate.feature!].reason} /> : children}</div>
           </div>
         </main>
-        <nav className="bottom-nav" aria-label="Primary mobile">
+        <nav className="bottom-nav" aria-label="Primary mobile" ref={bottomNav}>
+          <GlassIndicator host={bottomNav} selector='[aria-current="page"]' deps={[key, bottom.length]} />
           {bottom.map((item) => <Link key={item.key} href={href(item.href)} prefetch aria-current={key === item.key ? "page" : undefined} {...warmOn(item.href)}><Icon name={item.icon} /><span>{item.short}</span></Link>)}
           <button type="button" onClick={() => setMoreOpen(true)} aria-haspopup="dialog" aria-current={!bottom.some((b) => b.key === key) ? "page" : undefined}><Icon name="menu" /><span>More</span></button>
         </nav>

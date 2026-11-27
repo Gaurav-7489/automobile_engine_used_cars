@@ -49,7 +49,7 @@ export function LoginExperience({ providers, legacy = false }: Props) {
   }
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-glass-scene="photo" data-glass-photo="/automotive-login.webp">
       <header className={styles.hero}>
         <div className={styles.identity}>
           <Brand sub={false} />
@@ -57,7 +57,7 @@ export function LoginExperience({ providers, legacy = false }: Props) {
         </div>
       </header>
       <main className={styles.panel} id="content" tabIndex={-1}>
-        <div className={styles.content}>
+        <div className={styles.content} data-glass="pronounced">
           <form className={styles.form} onSubmit={submit} noValidate aria-describedby="login-status">
             <div className={styles.heading}>
               <h1 className={styles.title}>Welcome<br />to <em>VandLabs</em></h1>

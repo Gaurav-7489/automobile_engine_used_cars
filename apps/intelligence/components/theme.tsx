@@ -71,6 +71,24 @@ export function MotionSwitch() {
   return <LiquidSegmented label="Motion" value={choice} onChange={(c) => { setChoice(c); applyMotion(c); }} options={[{ value: "full", label: "Full motion" }, { value: "reduced", label: "Reduced" }]} />;
 }
 
+export type GlassChoice = "auto" | "low" | "off";
+const GLASS_KEY = "vl-glass";
+function readGlass(): GlassChoice { try { const v = localStorage.getItem(GLASS_KEY); return v === "low" || v === "off" ? v : "auto"; } catch { return "auto"; } }
+
+/**
+ * Liquid Glass rendering: Auto (the device's best sustainable quality), Power saver (still environment, lower resolution) or Off
+ * (solid materials, no GPU work). The engine restarts with the new choice at once.
+ */
+export function GlassSwitch() {
+  const [choice, setChoice] = useState<GlassChoice>("auto");
+  useEffect(() => { setChoice(readGlass()); }, []);
+  return <LiquidSegmented label="Glass" value={choice} onChange={(c) => {
+    setChoice(c);
+    try { if (c === "auto") localStorage.removeItem(GLASS_KEY); else localStorage.setItem(GLASS_KEY, c); } catch { /* the choice then lasts for this visit only */ }
+    window.dispatchEvent(new CustomEvent("vl:glass-choice"));
+  }} options={[{ value: "auto", label: "Optical glass" }, { value: "low", label: "Power saver" }, { value: "off", label: "Solid" }]} />;
+}
+
 /** The same choice as menu items, for use inside a role="menu" (which may only contain menu items). */
 export function ThemeMenuItems({ onChoose }: { onChoose?: () => void }) {
   const [choice, setChoice] = useState<ThemeChoice>("system");
